@@ -1,6 +1,7 @@
 import telnyx, { placeOutboundCall } from '../../shared/telnyx/client';
 import { db } from '../../shared/db/client';
 import { invalidateRestaurantContextCache } from '../restaurants/restaurant.service';
+import { requestGreetingWarm } from '../../shared/queue/greeting-warm';
 import {
   hasUsablePhone,
   computeOnboardingState,
@@ -274,6 +275,8 @@ export class ProvisioningService {
 
     // Invalider le nouveau cache Redis
     await invalidateRestaurantContextCache(formattedPhone);
+    // Un numéro attribué = un restaurant qui reçoit des appels : son accueil doit être prêt.
+    requestGreetingWarm();
 
     // Relier le numéro à l'application voix Telnyx : sans ce lien, le numéro est attribué dans Suppernote
     // mais les appels n'arrivent pas. Un échec ne bloque pas l'attribution ; l'état est enregistré

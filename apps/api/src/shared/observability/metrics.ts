@@ -290,6 +290,13 @@ export const voiceTtsContextFailureTotal = new Counter({
   registers: [getRegistry()],
 });
 
+export const voiceTtsCacheTotal = new Counter({
+  name: 'sokar_voice_tts_cache_total',
+  help: 'Lectures du cache TTS par type (accueil ou réplique) et résultat',
+  labelNames: ['kind', 'result'] as const,
+  registers: [getRegistry()],
+});
+
 export const voiceProviderErrorsTotal = new Counter({
   // Préfixe `sokar_` comme toutes les métriques maison : sans lui, impossible
   // de distinguer nos séries des métriques système dans un dashboard.

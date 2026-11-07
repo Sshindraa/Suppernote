@@ -34,6 +34,7 @@ import {
 } from '../../../modules/voice/call-finalization.service';
 import { purgeTestReservations } from '../../../modules/reservations/test-reservation-purge';
 import { purgeMarketingRetention } from '../../../modules/marketing/marketing-retention-purge';
+import { initGreetingCache } from '../../../modules/voice/stream/greeting-cache';
 
 interface DailyReconciliationJobData {
   readonly kind:
@@ -41,7 +42,8 @@ interface DailyReconciliationJobData {
     | 'sms'
     | 'voice-finalization'
     | 'test-reservation-purge'
-    | 'marketing-retention-purge';
+    | 'marketing-retention-purge'
+    | 'greeting-warm';
   readonly dayKey?: string;
 }
 
@@ -477,6 +479,13 @@ export async function processReconciliationJob(
   if (data.kind === 'test-reservation-purge') {
     const deleted = await purgeTestReservations(deps.db);
     log.info({ deleted }, 'test reservation purge completed');
+    return;
+  }
+
+  if (data.kind === 'greeting-warm') {
+    // Ne génère que les accueils manquants ; lire un accueil existant prolonge son expiration.
+    await initGreetingCache();
+    log.info('greeting warm completed');
     return;
   }
 

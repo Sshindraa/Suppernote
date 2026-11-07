@@ -71,6 +71,11 @@ describe('registerJobSchedulers', () => {
       { name: 'voice-quality-gauges' },
     );
     expect(mocks.genericQueue.upsertJobScheduler).toHaveBeenCalledWith(
+      'greeting-warm',
+      { pattern: '25 * * * *', tz: 'Europe/Paris' },
+      { name: 'greeting-warm', data: { kind: 'greeting-warm' } },
+    );
+    expect(mocks.genericQueue.upsertJobScheduler).toHaveBeenCalledWith(
       'test-reservation-purge',
       { pattern: '5 * * * *', tz: 'Europe/Paris' },
       { name: 'test-reservation-purge', data: { kind: 'test-reservation-purge' } },

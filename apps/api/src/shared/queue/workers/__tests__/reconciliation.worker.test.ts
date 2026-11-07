@@ -12,6 +12,9 @@ vi.mock('../../../redis/client', () => ({
   },
 }));
 vi.mock('../../../db/client', () => ({ db: {} }));
+vi.mock('../../../../modules/voice/stream/greeting-cache', () => ({
+  initGreetingCache: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../../../email', () => ({ lookupResendEmail: vi.fn() }));
 vi.mock('../../../telnyx/client', () => ({ lookupTelnyxMessage: vi.fn() }));
 vi.mock('../../queues', () => ({
@@ -29,6 +32,7 @@ vi.mock('../helper', () => ({
   }),
 }));
 
+import { initGreetingCache } from '../../../../modules/voice/stream/greeting-cache';
 import {
   acquireNotificationClaim,
   buildNotificationClaimKey,
@@ -817,5 +821,14 @@ describe('reconciliation.worker test reservation purge', () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ isTest: true }) }),
     );
+  });
+
+  it('complète les accueils vocaux manquants au passage horaire', async () => {
+    await processReconciliationJob({
+      id: 'greeting-warm-job',
+      data: { kind: 'greeting-warm' },
+    } as unknown as Job<ReconciliationJobData>);
+
+    expect(initGreetingCache).toHaveBeenCalledTimes(1);
   });
 });

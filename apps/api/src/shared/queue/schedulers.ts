@@ -97,6 +97,15 @@ export async function registerJobSchedulers(): Promise<void> {
       { name: 'test-reservation-purge', data: { kind: 'test-reservation-purge' } },
     ),
   );
+  // Accueils vocaux : complète ceux qui manquent (nouveau restaurant, nouveau nom, changement de voix)
+  // et prolonge les autres. Remplace le précache réservé au démarrage de l'API.
+  await register('reconciliation/greeting-warm', () =>
+    queues.reconciliation.upsertJobScheduler(
+      'greeting-warm',
+      { pattern: '25 * * * *', tz: 'Europe/Paris' },
+      { name: 'greeting-warm', data: { kind: 'greeting-warm' } },
+    ),
+  );
   // Conservation marketing (runbook §4) : fichier de prospection et preuves, une fois par nuit.
   await register('reconciliation/marketing-retention-purge', () =>
     queues.reconciliation.upsertJobScheduler(

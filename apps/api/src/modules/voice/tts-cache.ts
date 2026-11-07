@@ -13,7 +13,10 @@ function cacheKey(text: string, voiceId: string): string {
 
 export async function getTtsCached(text: string, voiceId: string): Promise<Buffer | null> {
   if (text.length < TTS_CACHE_MIN_LENGTH) return null;
-  const raw = await redisCache.getBuffer(cacheKey(text, voiceId));
+  const key = cacheKey(text, voiceId);
+  const raw = await redisCache.getBuffer(key);
+  // Glissant : un audio utilisé ne périme jamais, un audio abandonné disparaît tout seul.
+  if (raw) redisCache.expire(key, TTS_CACHE_TTL_SECONDS).catch(() => undefined);
   return raw ?? null;
 }
 

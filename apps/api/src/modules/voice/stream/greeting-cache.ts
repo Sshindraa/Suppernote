@@ -163,10 +163,13 @@ export async function initGreetingCache(restaurantNames?: string[]): Promise<voi
   let names = restaurantNames;
   if (!names) {
     try {
+      // Seuls les restaurants dont le numéro est attribué reçoivent des appels (PENDING = pas encore).
       const restaurants = await db.restaurant.findMany({
+        where: { provisioningStatus: { not: 'PENDING' } },
         select: { name: true },
       });
-      names = restaurants.map((r: { name: string }) => r.name).filter(Boolean);
+      // Deux établissements du même nom partagent le même audio : une seule génération.
+      names = [...new Set(restaurants.map((r: { name: string }) => r.name).filter(Boolean))];
     } catch (err) {
       logger.warn({ err }, '[greetings] Failed to load restaurants from DB');
       return;

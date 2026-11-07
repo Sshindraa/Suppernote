@@ -58,7 +58,10 @@ import {
   markVoiceTurnTtsSynthesisFirstByte,
   recordVoiceTurnEventIfCurrent,
 } from './turn-telemetry';
-import { voiceProviderErrorsTotal } from '../../../shared/observability/metrics';
+import {
+  voiceProviderErrorsTotal,
+  voiceTtsCacheTotal,
+} from '../../../shared/observability/metrics';
 import {
   addCartesiaTtsCharacters,
   addElevenLabsTtsCharacters,
@@ -76,6 +79,18 @@ export function isSessionActiveForTts(session: CallSession, generation?: number)
     session.telnyxWs.readyState === WebSocket.OPEN &&
     (generation === undefined || (session.ttsGeneration ?? 0) === generation)
   );
+}
+
+/** Un accueil sans cache retarde le premier son de l'appelant : on le voit dans les journaux et les métriques. */
+function noteTtsCacheLookup(session: CallSession, hit: boolean): void {
+  const kind = session.greetingPlaying ? 'greeting' : 'reply';
+  voiceTtsCacheTotal.inc({ kind, result: hit ? 'hit' : 'miss' });
+  if (kind === 'greeting' && !hit) {
+    logger.warn(
+      { callId: session.callControlId },
+      '[greeting] cache miss: the first sound will be delayed',
+    );
+  }
 }
 
 function persistFirstAudioFrame(session: CallSession, turnId?: string): void {
@@ -409,6 +424,7 @@ async function speakTtsFragment(
       writeDebugLog(`[speakTtsStreamed] TTS cache read failed`, err);
     }
 
+    noteTtsCacheLookup(session, cachedBuffer !== null);
     if (cachedBuffer) {
       writeDebugLog(`[speakTtsStreamed] Cache HIT ${JSON.stringify(describeTranscript(trimmed))}`);
       markVoiceTurnTtsSynthesisFirstByte(session, 'cache', turnId);

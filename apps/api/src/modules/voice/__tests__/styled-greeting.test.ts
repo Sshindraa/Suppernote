@@ -136,6 +136,22 @@ describe('resolveStyledGreeting', () => {
     expect(data.get(greetingCacheKey(NAME, FORMAL))).toBe(OK_LONG);
   });
 
+  it('prolonge la durée de vie du texte composé à chaque relecture', async () => {
+    const llm = vi.fn().mockResolvedValue({ variants: [OK_LONG], best: 1 });
+    const { store } = memoryStore();
+    await resolveStyledGreeting(NAME, FORMAL, { store, llm });
+    vi.mocked(store.set).mockClear();
+
+    await resolveStyledGreeting(NAME, FORMAL, { store, llm });
+
+    expect(store.set).toHaveBeenCalledWith(
+      greetingCacheKey(NAME, FORMAL),
+      OK_LONG,
+      'EX',
+      30 * 24 * 3600,
+    );
+  });
+
   it('transmet le délai demandé au modèle', async () => {
     const llm = vi.fn().mockResolvedValue({ variants: [OK_SHORT], best: 1 });
     await resolveStyledGreeting(NAME, FORMAL, {

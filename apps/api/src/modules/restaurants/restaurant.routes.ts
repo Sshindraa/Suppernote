@@ -44,6 +44,7 @@ import {
 } from './onboarding-floor.service';
 import { invalidateRestaurantContextCache } from './restaurant.service';
 import { resolveStyledGreeting } from '../voice/stream/styled-greeting';
+import { requestGreetingWarm } from '../../shared/queue/greeting-warm';
 import { computeConnectScore } from '../connect/connect-score.service';
 import {
   createCustomHostname,
@@ -1002,7 +1003,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
 
     const current = await app.db.restaurant.findUniqueOrThrow({
       where: { id },
-      select: { phoneNumber: true },
+      select: { phoneNumber: true, name: true },
     });
 
     if (capacitySpecials) {
@@ -1022,6 +1023,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
     }
 
     const updated = await app.db.restaurant.update({ where: { id }, data: restaurantData });
+    if (updated.name !== current.name) requestGreetingWarm();
     await Promise.all(
       Array.from(new Set([current.phoneNumber, updated.phoneNumber])).map((phoneNumber) =>
         invalidateRestaurantContextCache(phoneNumber),
@@ -1070,6 +1072,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
       { profileType: personality.profileType, fillerStyle: personality.fillerStyle },
       { attempts: 2, timeoutMs: 4_000 },
     ).catch(() => null);
+    requestGreetingWarm();
 
     return reply.send(personality);
   });

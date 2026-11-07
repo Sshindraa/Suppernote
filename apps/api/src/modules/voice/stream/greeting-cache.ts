@@ -42,6 +42,7 @@ function greetingCodecProfile(): TelnyxCodecProfile {
 }
 import { normalizeVoiceLocale } from './voice-language';
 import { buildFixedGreeting } from '../agent-identity';
+import { hasStyledGreeting, resolveStyledGreeting } from './styled-greeting';
 
 /**
  * Construit le texte du greeting pour un restaurant.
@@ -159,24 +160,37 @@ export async function initGreetingCache(restaurantNames?: string[]): Promise<voi
           codec: greetingCodecProfile().label,
         });
 
-  // Charger les noms de restaurants depuis la DB (si non fournis)
-  let names = restaurantNames;
-  if (!names) {
+  // Textes à préparer : l'accueil fixe de chaque restaurant, plus l'accueil composé quand son style
+  // n'est pas le défaut (c'est lui que l'appelant entend). Nom fourni : tests uniquement.
+  const texts = new Map<string, string>(); // texte -> restaurant (journaux)
+  if (restaurantNames) {
+    for (const name of restaurantNames) texts.set(buildGreetingText(name), name);
+  } else {
     try {
       // Seuls les restaurants dont le numéro est attribué reçoivent des appels (PENDING = pas encore).
       const restaurants = await db.restaurant.findMany({
         where: { provisioningStatus: { not: 'PENDING' } },
-        select: { name: true },
+        select: { name: true, personality: { select: { profileType: true, fillerStyle: true } } },
       });
-      // Deux établissements du même nom partagent le même audio : une seule génération.
-      names = [...new Set(restaurants.map((r: { name: string }) => r.name).filter(Boolean))];
+      for (const r of restaurants) {
+        if (!r.name) continue;
+        texts.set(buildGreetingText(r.name), r.name);
+        const style = r.personality;
+        if (!style || !hasStyledGreeting(style)) continue;
+        // Compose (ou relit, en prolongeant sa durée de vie) le texte ; échec = l'accueil fixe suffit.
+        const styled = await resolveStyledGreeting(r.name, style, {
+          attempts: 2,
+          timeoutMs: 4_000,
+        }).catch(() => null);
+        if (styled) texts.set(styled, r.name);
+      }
     } catch (err) {
       logger.warn({ err }, '[greetings] Failed to load restaurants from DB');
       return;
     }
   }
 
-  if (!names || names.length === 0) {
+  if (texts.size === 0) {
     logger.info('[greetings] No restaurants found — skipping greeting pre-cache');
     return;
   }
@@ -185,9 +199,7 @@ export async function initGreetingCache(restaurantNames?: string[]): Promise<voi
   let skipped = 0;
   let failed = 0;
 
-  for (const name of names) {
-    const greetingText = buildGreetingText(name);
-
+  for (const [greetingText, name] of texts) {
     // Reproduire le même pipeline que speakTtsStreamed :
     // cleanTextForTts → ttsSegments (le même découpage, sinon aucune clé ne correspond)
     const sentences = ttsSegments(cleanTextForTts(greetingText));
@@ -220,6 +232,6 @@ export async function initGreetingCache(restaurantNames?: string[]): Promise<voi
   }
 
   logger.info(
-    `[greetings] Pre-cache: ${cached} generated, ${skipped} already cached, ${failed} failed (${names?.length ?? 0} restaurants)`,
+    `[greetings] Pre-cache: ${cached} generated, ${skipped} already cached, ${failed} failed (${texts.size} accueils)`,
   );
 }

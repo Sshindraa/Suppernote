@@ -171,7 +171,11 @@ export async function resolveStyledGreeting(
   const key = greetingCacheKey(restaurantName, style);
   try {
     const cached = await store.get(key);
-    if (cached && isValidGreeting(cached, restaurantName)) return cached;
+    if (cached && isValidGreeting(cached, restaurantName)) {
+      // Glissant : un texte utilisé reste stable, donc son audio aussi (un nouveau texte = un audio à refaire).
+      await store.set(key, cached, 'EX', GREETING_TTL_SECONDS).catch(() => undefined);
+      return cached;
+    }
     const attempts = Math.max(1, options.attempts ?? 1);
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {

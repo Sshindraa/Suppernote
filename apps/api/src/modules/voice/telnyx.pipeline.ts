@@ -1,7 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { telnyxWebhookGuard, webhookEventLabel } from './telnyx.guard';
 import { RATE_LIMIT_PROVIDER_WEBHOOK } from '../../plugins/rate-limit.policy';
-import { telnyxWebhookEventsTotal } from '../../shared/observability/metrics';
+import {
+  telnyxWebhookEventsTotal,
+  voiceCallsRefusedTotal,
+} from '../../shared/observability/metrics';
 import { RestaurantService } from '../restaurants/restaurant.service';
 import { CustomerService } from '../customers/customer.service';
 import {
@@ -27,6 +30,7 @@ import { buildSmsJobId, buildTelnyxWebhookJobId } from '../../shared/queue/job-o
 import { isVoicePipelineEnabled } from '../../shared/configcat';
 import { isBillingSuspended } from '../billing/billing.service';
 import { answerSuspendedCall, handleSuspendedCallEvent, isSuspendedCall } from './suspended-call';
+import { isAtCallCapacity } from './call-capacity';
 import { telnyxFetch } from '../../shared/telnyx/http-agent';
 
 /**
@@ -212,6 +216,25 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
             { restaurantId: ctx.id, callId: payload.call_control_id },
             'Voice pipeline killed by feature flag — dropping call',
           );
+          return reply.send({ result: 'ok' });
+        }
+
+        // Plafond d'appels simultanés : un message d'occupation vaut mieux qu'un serveur qui ralentit
+        // tous les appels en cours.
+        if (await isAtCallCapacity()) {
+          voiceCallsRefusedTotal.inc({ reason: 'capacity' });
+          app.log.warn(
+            { restaurantId: ctx.id, callId: payload.call_control_id },
+            'Voice capacity reached — busy message then hang up',
+          );
+          try {
+            await answerSuspendedCall(payload.call_control_id, ctx.name, undefined, { busy: true });
+          } catch (err) {
+            app.log.error(
+              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
+              'Busy call answer failed',
+            );
+          }
           return reply.send({ result: 'ok' });
         }
 

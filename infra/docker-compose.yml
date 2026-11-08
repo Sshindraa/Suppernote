@@ -22,6 +22,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Plafond de sécurité : `noeviction` (exigé par BullMQ) refuse les écritures au-delà au lieu
+    # d'épuiser la mémoire du serveur. Utilisation courante ~100 Mo.
+    command: ['redis-server', '--maxmemory', '1gb', '--maxmemory-policy', 'noeviction']
     ports:
       - '127.0.0.1:6379:6379'
     volumes:

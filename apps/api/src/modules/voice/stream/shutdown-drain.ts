@@ -4,7 +4,7 @@ import { voiceActiveSessionsGauge } from '../../../shared/observability/metrics'
 /** Délai laissé aux appels en cours à l'arrêt de l'API (doit rester sous `kill_timeout` de PM2). */
 export const VOICE_SHUTDOWN_GRACE_MS = 25_000;
 
-async function activeVoiceSessions(): Promise<number> {
+export async function activeVoiceSessions(): Promise<number> {
   const { values } = await voiceActiveSessionsGauge.get();
   return values[0]?.value ?? 0;
 }

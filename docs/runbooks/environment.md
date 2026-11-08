@@ -294,6 +294,10 @@ CEREBRAS_API_KEY="csk-..."
 CEREBRAS_BASE_URL="https://api.cerebras.ai/v1"
 VOICE_LLM_MODEL="qwen-3.8-27b"
 VOICE_LLM_TIMEOUT_MS="8000"
+# Seuil d'appels vocaux simultanés par process API (jauge sokar_voice_capacity_limit). Suivi : alerte à 50 % puis
+# 70 % du seuil selon le pic sur 7 jours, pour le relever avant de l'atteindre ; au seuil, dernier filet : message
+# d'occupation puis raccroché. Défaut 60 = estimation (mesure locale du 21/09), à mesurer sur le VPS.
+VOICE_MAX_CONCURRENT_CALLS="60"
 # Premier fragment du modèle principal (tour structuré) : au-delà, OpenRouter prend le tour (500 à 8000 ms).
 VOICE_LLM_FIRST_CHUNK_TIMEOUT_MS="2500"
 ```

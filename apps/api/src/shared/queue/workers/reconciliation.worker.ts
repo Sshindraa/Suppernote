@@ -35,6 +35,7 @@ import {
 import { purgeTestReservations } from '../../../modules/reservations/test-reservation-purge';
 import { purgeMarketingRetention } from '../../../modules/marketing/marketing-retention-purge';
 import { initGreetingCache } from '../../../modules/voice/stream/greeting-cache';
+import { checkVoiceCapacityHeadroom } from '../../../modules/voice/call-capacity';
 
 interface DailyReconciliationJobData {
   readonly kind:
@@ -43,7 +44,8 @@ interface DailyReconciliationJobData {
     | 'voice-finalization'
     | 'test-reservation-purge'
     | 'marketing-retention-purge'
-    | 'greeting-warm';
+    | 'greeting-warm'
+    | 'voice-capacity-check';
   readonly dayKey?: string;
 }
 
@@ -479,6 +481,12 @@ export async function processReconciliationJob(
   if (data.kind === 'test-reservation-purge') {
     const deleted = await purgeTestReservations(deps.db);
     log.info({ deleted }, 'test reservation purge completed');
+    return;
+  }
+
+  if (data.kind === 'voice-capacity-check') {
+    const { peak, limit, level } = await checkVoiceCapacityHeadroom();
+    log.info({ peak, limit, level }, 'voice capacity check completed');
     return;
   }
 

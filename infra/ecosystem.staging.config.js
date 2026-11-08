@@ -15,6 +15,8 @@ module.exports = {
       script: 'dist/main.js',
       node_args: '--env-file=.env',
       env: {
+        // Même valeur que max_memory_restart ci-dessous : sert au calcul du seuil d'appels simultanés.
+        PROCESS_MEMORY_LIMIT_MB: '500',
         NODE_ENV: 'production',
         PORT: '4100',
         HOST: '127.0.0.1',

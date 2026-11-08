@@ -22,6 +22,12 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 // ── Module mocks (must come before importing the app) ──────────────────────
 
 // Skip the Ed25519 signature guard — it's covered in telnyx.guard.test.ts.
+vi.mock('../call-capacity', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../call-capacity')>()),
+  isAtCallCapacity: vi.fn().mockResolvedValue(false),
+  recordVoicePeak: vi.fn(),
+}));
+
 vi.mock('../telnyx.guard', () => ({
   telnyxWebhookGuard: vi.fn(async (_req: FastifyRequest, _reply: FastifyReply) => undefined),
 }));
@@ -176,6 +182,8 @@ function makeEndPayload(overrides: Record<string, unknown> = {}) {
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
+
+import { isAtCallCapacity } from '../call-capacity';
 
 describe('POST /voice/telnyx — call.initiated', () => {
   let app: FastifyInstance;
@@ -492,6 +500,29 @@ describe('POST /voice/telnyx — call.initiated', () => {
       Buffer.from(JSON.parse(init.body).client_state, 'base64').toString('utf8'),
     );
     expect(state).toEqual({ kind: 'billing_suspended_call', name: 'Le Bistrot' });
+    expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
+  });
+
+  it('plays a busy message instead of a voice session when the call capacity is reached', async () => {
+    mockLoadContext.mockResolvedValue(makeRestaurantCtx());
+    mockCheckMarginHealth.mockResolvedValue(true);
+    mockIsVoicePipelineEnabled.mockResolvedValue(true);
+    vi.mocked(isAtCallCapacity).mockResolvedValueOnce(true);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/voice/telnyx',
+      payload: makeInitiatedPayload(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockTelnyxFetch).toHaveBeenCalledTimes(1);
+    const [path, init] = mockTelnyxFetch.mock.calls[0] as [string, { body: string }];
+    expect(path).toBe('/v2/calls/cc-1/actions/answer');
+    const state = JSON.parse(
+      Buffer.from(JSON.parse(init.body).client_state, 'base64').toString('utf8'),
+    );
+    expect(state).toEqual({ kind: 'billing_suspended_call', name: 'Le Bistrot', busy: true });
     expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
   });
 

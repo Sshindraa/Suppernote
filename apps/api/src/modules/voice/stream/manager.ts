@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { recordVoicePeak } from '../call-capacity';
 import { createHash, randomBytes } from 'node:crypto';
 import type { CallSession, CallState, ChatMessage, LlmRequestKind } from './types';
 import { voiceConfig } from '../../../env';
@@ -551,6 +552,7 @@ export class CallSessionManager {
     // Capacité locale (R1-3) : la jauge suit le nombre de sessions tenues par
     // ce process, pour alerter avant la saturation CPU mesurée à ~100 sessions.
     voiceActiveSessionsGauge.set(this.sessions.size);
+    recordVoicePeak(this.sessions.size);
     voiceCallsTotal.inc({ restaurant_id: session.restaurantId || 'unknown' });
     return session;
   }

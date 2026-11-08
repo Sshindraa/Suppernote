@@ -106,6 +106,14 @@ export async function registerJobSchedulers(): Promise<void> {
       { name: 'greeting-warm', data: { kind: 'greeting-warm' } },
     ),
   );
+  // Capacité vocale : pic d'appels simultanés sur 7 jours comparé au seuil, alerte à 50 % puis 70 %.
+  await register('reconciliation/voice-capacity-check', () =>
+    queues.reconciliation.upsertJobScheduler(
+      'voice-capacity-check',
+      { pattern: '40 * * * *', tz: 'Europe/Paris' },
+      { name: 'voice-capacity-check', data: { kind: 'voice-capacity-check' } },
+    ),
+  );
   // Conservation marketing (runbook §4) : fichier de prospection et preuves, une fois par nuit.
   await register('reconciliation/marketing-retention-purge', () =>
     queues.reconciliation.upsertJobScheduler(

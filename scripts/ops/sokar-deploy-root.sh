@@ -234,8 +234,11 @@ start_prometheus() {
 # écrites sur disque juste avant. Seul le service redis est touché.
 apply_redis_config() {
     [ "$ENVIRONMENT" = "prod" ] || usage
+    # Le fichier compose décrit aussi Grafana, dont le mot de passe est obligatoire à l'interpolation :
+    # sans son fichier d'environnement, même `config` échoue. Seul le service redis est ensuite touché.
     local compose=(/usr/bin/docker compose --project-name infra
-        --env-file "$ROOT/infra/.env" -f "$ROOT/infra/docker-compose.yml")
+        --env-file "$ROOT/infra/.env" --env-file /etc/sokar/grafana.env
+        -f "$ROOT/infra/docker-compose.yml")
 
     local sessions
     sessions="$(curl -fsS --max-time 3 http://127.0.0.1:4000/metrics 2>/dev/null \

@@ -104,11 +104,11 @@ sans mutation des demandes :
 | production    | `f6ff0cb4-bc6a-45b6-8a3e-b1aa451b3ba0` | Essai notification et clôture (§10.19) |
 
 Cette liste n'est pas réputée exhaustive ; le marquage de toute nouvelle ligne reste obligatoire.
-Le suivi opérateur permet de marquer ou déclasser explicitement une demande comme test. Les tests
-marqués sont masqués de la vue normale et accessibles via « Voir les tests ». Les demandes historiques
-non vérifiées restent visibles : l'absence de marquage ne prouve pas qu'il s'agit d'un prospect réel.
-Ne pas classer automatiquement tous les `CLOSED` comme tests, ni les `NEW` comme leads. Le compteur
-de la page porte sur les lignes affichées (200 maximum), pas sur l'ensemble du funnel commercial.
+Le suivi opérateur affiche ensemble toutes les demandes et leur phase ; les tests explicitement
+marqués restent visibles avec le repère « Test ». Les demandes historiques non vérifiées restent
+visibles : l'absence de marquage ne prouve pas qu'il s'agit d'un prospect réel. Ne pas classer
+automatiquement tous les `CLOSED` comme tests, ni les `NEW` comme leads. Le compteur de la page
+porte sur les lignes affichées, pas sur l'ensemble du funnel commercial.
 
 Le funnel `/admin/onboarding-funnel/cohort` agrège tous les événements et toutes les réservations
 sans exclusion commerciale ; sa première réservation utilise `reservedAt` (date de repas), pas

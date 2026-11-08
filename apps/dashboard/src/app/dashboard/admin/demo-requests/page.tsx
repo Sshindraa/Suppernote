@@ -7,7 +7,6 @@ import { useApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 type DemoRequestStatus = 'NEW' | 'CONTACTED' | 'DEMO_DONE' | 'CLOSED';
-type StatusFilter = DemoRequestStatus | 'ALL' | 'ACTIVE';
 
 interface DemoRequestRow {
   id: string;
@@ -31,14 +30,6 @@ const STATUS_LABELS: Record<DemoRequestStatus, string> = {
   DEMO_DONE: 'Démo faite',
   CLOSED: 'Clôturée',
 };
-
-const FILTER_LABELS: Record<StatusFilter, string> = {
-  ACTIVE: 'À traiter',
-  ALL: 'Toutes',
-  ...STATUS_LABELS,
-};
-
-const FILTERS = Object.keys(FILTER_LABELS) as StatusFilter[];
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
@@ -67,8 +58,6 @@ function toDateTimeLocal(value: string) {
  */
 export default function DemoRequestsPage() {
   const { get, patch, post } = useApi();
-  const [filter, setFilter] = useState<StatusFilter>('ACTIVE');
-  const [showTests, setShowTests] = useState(false);
   const [rows, setRows] = useState<DemoRequestRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -81,23 +70,27 @@ export default function DemoRequestsPage() {
   const load = useCallback(async () => {
     const current = ++requestId.current;
     setLoadFailed(false);
-    // Changer de filtre vide la liste : l'ancienne ne reste pas affichée sous le nouveau filtre.
     setRows(null);
     try {
-      const params = new URLSearchParams({ limit: '200' });
-      params.set('isTest', String(showTests));
-      if (filter === 'ACTIVE') params.set('active', 'true');
-      else if (filter !== 'ALL') params.set('status', filter);
-      const query = `?${params.toString()}`;
-      const response = await get<{ data: DemoRequestRow[] }>(`/admin/demo-requests${query}`);
-      // Une réponse arrivée en retard pour un autre filtre est ignorée.
-      if (current !== requestId.current) return;
-      setRows(response.data);
+      const all: DemoRequestRow[] = [];
+      let cursor: string | undefined;
+      do {
+        const params = new URLSearchParams({ limit: '200' });
+        if (cursor) params.set('cursor', cursor);
+        const response = await get<{ data: DemoRequestRow[] }>(`/admin/demo-requests?${params}`);
+        if (current !== requestId.current) return;
+        all.push(...response.data);
+        const next =
+          response.data.length === 200 ? response.data[response.data.length - 1].id : undefined;
+        if (next && next === cursor) throw new Error('Duplicate cursor');
+        cursor = next;
+      } while (cursor);
+      setRows(all);
     } catch {
       if (current !== requestId.current) return;
       setLoadFailed(true);
     }
-  }, [filter, get, showTests]);
+  }, [get]);
 
   useEffect(() => {
     void load();
@@ -112,13 +105,7 @@ export default function DemoRequestsPage() {
       });
       setRows(
         (current) =>
-          current
-            ?.map((row) => (row.id === id ? { ...row, ...response.data } : row))
-            .filter((row) =>
-              filter === 'ACTIVE'
-                ? row.status === 'NEW' || row.status === 'CONTACTED'
-                : filter === 'ALL' || row.status === filter,
-            ) ?? current,
+          current?.map((row) => (row.id === id ? { ...row, ...response.data } : row)) ?? current,
       );
     } catch {
       setSaveFailed(true);
@@ -132,7 +119,9 @@ export default function DemoRequestsPage() {
     setSaveFailed(false);
     try {
       await patch(`/admin/demo-requests/${id}/test`, { isTest });
-      setRows((current) => current?.filter((row) => row.id !== id) ?? current);
+      setRows(
+        (current) => current?.map((row) => (row.id === id ? { ...row, isTest } : row)) ?? current,
+      );
     } catch {
       setSaveFailed(true);
     } finally {
@@ -172,39 +161,9 @@ export default function DemoRequestsPage() {
         </p>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((option) => (
-          <Button
-            key={option}
-            type="button"
-            variant={filter === option ? 'default' : 'outline'}
-            size="sm"
-            aria-pressed={filter === option}
-            onClick={() => setFilter(option)}
-            className="transition-all duration-200"
-          >
-            {FILTER_LABELS[option]}
-          </Button>
-        ))}
-        <Button
-          type="button"
-          variant={showTests ? 'default' : 'outline'}
-          size="sm"
-          aria-pressed={showTests}
-          onClick={() => {
-            setShowTests(!showTests);
-            setFilter(showTests ? 'ACTIVE' : 'ALL');
-          }}
-          className="transition-all duration-200"
-        >
-          {showTests ? 'Voir les demandes' : 'Voir les tests'}
-        </Button>
-      </div>
-
       {rows && (
         <p className="text-sm text-muted-foreground">
-          {rows.length} demande(s) affichée(s){rows.length === 200 ? ' · limite atteinte' : ''}
-          {showTests ? ' · Tests' : ''}
+          {rows.length} demande{rows.length === 1 ? '' : 's'}
         </p>
       )}
 
@@ -233,14 +192,9 @@ export default function DemoRequestsPage() {
           Chargement des demandes…
         </p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucune demande pour ce filtre.</p>
+        <p className="text-sm text-muted-foreground">Aucune demande pour le moment.</p>
       ) : (
         <>
-          {rows.length >= 200 ? (
-            <p className="text-xs text-muted-foreground">
-              Les 200 demandes les plus récentes sont affichées : les plus anciennes ne le sont pas.
-            </p>
-          ) : null}
           <ul className="flex flex-col gap-3">
             {rows.map((row) => {
               const trackedAt = row.lastInteractionAt ?? row.contactedAt ?? row.createdAt;
@@ -306,17 +260,24 @@ export default function DemoRequestsPage() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {row.status === 'NEW' && (
-                      <Button
-                        type="button"
-                        size="sm"
+                    <label className="flex items-center gap-2 text-sm font-medium">
+                      Phase
+                      <select
+                        aria-label={`Phase de ${row.establishmentName}`}
+                        value={row.status}
                         disabled={savingId === row.id}
-                        onClick={() => void updateStatus(row.id, 'CONTACTED')}
-                        className="transition-all duration-200"
+                        onChange={(event) =>
+                          void updateStatus(row.id, event.target.value as DemoRequestStatus)
+                        }
+                        className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground transition-all duration-200 disabled:opacity-60"
                       >
-                        Marquer comme contactée
-                      </Button>
-                    )}
+                        {(Object.keys(STATUS_LABELS) as DemoRequestStatus[]).map((status) => (
+                          <option key={status} value={status}>
+                            {STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <Button
                       type="button"
                       variant="ghost"
@@ -390,21 +351,6 @@ export default function DemoRequestsPage() {
                         </Button>
                       </>
                     )}
-                    <select
-                      aria-label={`Statut de ${row.establishmentName}`}
-                      value={row.status}
-                      disabled={savingId === row.id}
-                      onChange={(event) =>
-                        void updateStatus(row.id, event.target.value as DemoRequestStatus)
-                      }
-                      className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground transition-all duration-200 disabled:opacity-60"
-                    >
-                      {(Object.keys(STATUS_LABELS) as DemoRequestStatus[]).map((status) => (
-                        <option key={status} value={status}>
-                          {STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </li>
               );

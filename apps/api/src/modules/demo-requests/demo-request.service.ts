@@ -107,6 +107,7 @@ export async function listDemoRequests(filter: {
   isTest?: boolean;
   active?: boolean;
   limit: number;
+  cursor?: string;
 }): Promise<DemoRequest[]> {
   return db.demoRequest.findMany({
     where: {
@@ -117,8 +118,9 @@ export async function listDemoRequests(filter: {
           : {}),
       ...(filter.isTest === undefined ? {} : { isTest: filter.isTest }),
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: filter.limit,
+    ...(filter.cursor ? { cursor: { id: filter.cursor }, skip: 1 } : {}),
   });
 }
 

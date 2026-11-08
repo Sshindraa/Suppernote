@@ -41,7 +41,9 @@ describe('suivi du pic d’appels simultanés', () => {
     const data = new Map<string, string>();
     const store = {
       get: vi.fn(async (k: string) => data.get(k) ?? null),
-      set: vi.fn(async (k: string, v: string) => void data.set(k, v)),
+      set: vi.fn(async (k: string, v: string) => {
+        data.set(k, v);
+      }),
     };
     const flush = () => new Promise((resolve) => setImmediate(resolve));
     const day = new Date('2026-11-08T12:00:00Z');
@@ -116,8 +118,12 @@ describe('seuil réglé depuis le dashboard', () => {
     const data = new Map<string, string>();
     return {
       get: vi.fn(async (k: string) => data.get(k) ?? null),
-      set: vi.fn(async (k: string, v: string) => void data.set(k, v)),
-      del: vi.fn(async (k: string) => void data.delete(k)),
+      set: vi.fn(async (k: string, v: string) => {
+        data.set(k, v);
+      }),
+      del: vi.fn(async (k: string) => {
+        data.delete(k);
+      }),
     };
   }
 

@@ -162,6 +162,52 @@ export function evaluateQueueStates(
   return findings;
 }
 
+// ─── Mémoire de Redis ──────────────────────────────────────
+
+/**
+ * À 70 % du plafond il reste 30 % de marge pour réagir (relever le plafond ou nettoyer) avant que Redis
+ * ne refuse les écritures, ce qui ferait échouer les files de tâches. Le plafond lui-même est lu dans
+ * Redis (`maxmemory`), jamais recopié ici.
+ */
+export const REDIS_MEMORY_WARNING_RATIO = 0.7;
+
+export interface RedisMemory {
+  usedBytes: number;
+  /** Plafond `maxmemory` en octets ; 0 = aucun plafond. */
+  maxBytes: number;
+}
+
+export function evaluateRedisMemory(memory: RedisMemory): SystemFinding | null {
+  const mb = (bytes: number) => `${Math.round(bytes / 1_048_576)} Mo`;
+  if (memory.maxBytes <= 0) {
+    return {
+      kind: 'redis_no_memory_cap',
+      severity: 'warning',
+      identifier: 'global',
+      summary: 'Redis n’a aucun plafond de mémoire',
+      detail: [
+        `Redis utilise ${mb(memory.usedBytes)} sans plafond (maxmemory = 0).`,
+        'Le plafond est perdu quand le conteneur redémarre tant que infra/docker-compose.yml',
+        'n’a pas été appliqué : sokar-deploy-root apply-redis-config prod.',
+      ].join('\n'),
+    };
+  }
+  const ratio = memory.usedBytes / memory.maxBytes;
+  if (ratio < REDIS_MEMORY_WARNING_RATIO) return null;
+  return {
+    kind: 'redis_memory_high',
+    severity: 'warning',
+    identifier: 'global',
+    summary: `Redis à ${Math.round(ratio * 100)} % de son plafond de mémoire`,
+    detail: [
+      `${mb(memory.usedBytes)} utilisés sur ${mb(memory.maxBytes)} (alerte à ${Math.round(REDIS_MEMORY_WARNING_RATIO * 100)} %).`,
+      'Au plafond, Redis refuse les écritures (noeviction) : les files de tâches échouent.',
+      'Relever maxmemory dans infra/docker-compose.yml puis appliquer avec apply-redis-config,',
+      'ou chercher ce qui grossit (cache audio, jobs conservés).',
+    ].join('\n'),
+  };
+}
+
 // ─── Webhooks Telnyx en erreur ─────────────────────────────
 
 /** Santé des webhooks lue dans Redis (voir webhook-health.ts) : fenêtre de 15 min contre la semaine. */

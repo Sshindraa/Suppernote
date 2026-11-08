@@ -31,11 +31,13 @@ import {
   queueJobsGauge,
   callsMissingTranscriptGauge,
   reservationsMissingSmsGauge,
+  redisMemoryRatioGauge,
 } from '../../observability/metrics';
 import { refreshVoiceReservationQualityMetrics } from '../../observability/voice-reservation-quality';
 import {
   collectQueueStates,
   evaluateQueueStates,
+  evaluateRedisMemory,
   evaluateTelnyxWebhookHealth,
   findCallsWithoutTranscript,
   evaluateCallsWithoutTranscript,
@@ -119,6 +121,22 @@ export const systemHealthWorker = new Worker(
       if (finding) findings.push(finding);
     } catch (err) {
       log.error({ err }, '[system-health] Telnyx webhook check failed');
+    }
+
+    // 2 bis. Mémoire de Redis contre son plafond (maxmemory lu dans Redis).
+    try {
+      const [info, cap] = await Promise.all([
+        redisCache.info('memory'),
+        redisCache.config('GET', 'maxmemory'),
+      ]);
+      const usedBytes = Number(/used_memory:(\d+)/.exec(info)?.[1] ?? 0);
+      // `CONFIG GET maxmemory` rend [nom, valeur].
+      const maxBytes = Number((cap as string[])[1] ?? 0);
+      redisMemoryRatioGauge.set(maxBytes > 0 ? usedBytes / maxBytes : 0);
+      const finding = evaluateRedisMemory({ usedBytes, maxBytes });
+      if (finding) findings.push(finding);
+    } catch (err) {
+      log.error({ err }, '[system-health] Redis memory check failed');
     }
 
     // 3. Appels sans transcription / sans outcome.

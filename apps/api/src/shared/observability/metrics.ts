@@ -524,6 +524,12 @@ export function recordVoiceChoiceAnswer(kind: VoiceQualityKind, outcome: VoiceCh
 }
 
 /** Crédit OpenRouter restant (repli vocal, Jev, juge), lu chaque heure. */
+export const redisMemoryRatioGauge = new Gauge({
+  name: 'sokar_redis_memory_ratio',
+  help: 'Mémoire utilisée par Redis divisée par son plafond maxmemory (0 si aucun plafond)',
+  registers: [getRegistry()],
+});
+
 export const openRouterCreditUsd = new Gauge({
   name: 'sokar_openrouter_credit_usd',
   help: 'Crédit OpenRouter restant en dollars',

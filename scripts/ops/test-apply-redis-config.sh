@@ -8,14 +8,19 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d /tmp/sokar-redis-config-test.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Extrait la fonction et remplace le chemin absolu de docker par la fonction simulée.
+# Faux serveur : infra/.env (Postgres, sans retour à la ligne final) et fichier d'environnement de Grafana.
+mkdir -p "$TMP/root/infra"
+printf 'POSTGRES_PASSWORD=pg-secret' > "$TMP/root/infra/.env"
+printf 'GRAFANA_ADMIN_PASSWORD=gf-secret\n' > "$TMP/grafana.env"
+
+# Extrait la fonction ; le chemin de docker et celui du fichier Grafana sont remplacés pour le test.
 awk '/^apply_redis_config\(\) \{/,/^}/' "$ROOT_DIR/scripts/ops/sokar-deploy-root.sh" \
-  | sed 's#/usr/bin/docker#docker#g' > "$TMP/fn.sh"
+  | sed -e 's#/usr/bin/docker#docker#g' -e "s#/etc/sokar/grafana.env#$TMP/grafana.env#g" > "$TMP/fn.sh"
 test -s "$TMP/fn.sh"
 
 CALLS="$TMP/calls.log"
 ENVIRONMENT=prod
-ROOT=/opt/sokar
+ROOT="$TMP/root"
 sleep() { :; }
 usage() { echo usage >&2; exit 2; }
 
@@ -23,9 +28,23 @@ SESSIONS="sokar_voice_active_sessions 0"
 PS_ID="abc123"
 VOLUME_NAME="infra_redis-data"
 curl() { printf '%s\n' "$SESSIONS"; }
+# Chemin du fichier fusionné connu du test, pour vérifier qu'il est supprimé en sortie.
+MERGED_ENV="$TMP/merged.env"
+mktemp() { : > "$MERGED_ENV"; echo "$MERGED_ENV"; }
 docker() {
-  echo "docker $*" >> "$CALLS"
-  case "$*" in
+  local all="$*" envfile="" prev=""
+  echo "docker $all" >> "$CALLS"
+  for arg in "$@"; do
+    [ "$prev" = "--env-file" ] && envfile="$arg"
+    prev="$arg"
+  done
+  # Comme Compose, refuser de lire le fichier si un mot de passe obligatoire manque (ou si les deux
+  # fichiers ont été collés sur une seule ligne faute de retour à la ligne).
+  if [ -n "$envfile" ]; then
+    grep -q '^POSTGRES_PASSWORD=pg-secret$' "$envfile" || { echo "POSTGRES_PASSWORD manquant" >&2; return 1; }
+    grep -q '^GRAFANA_ADMIN_PASSWORD=gf-secret$' "$envfile" || { echo "GRAFANA_ADMIN_PASSWORD manquant" >&2; return 1; }
+  fi
+  case "$all" in
     *"ps -q redis"*) printf '%s\n' "$PS_ID" ;;
     *inspect*) printf '%s' "$VOLUME_NAME" ;;
     *"redis-cli ping"*) echo PONG ;;
@@ -35,7 +54,8 @@ docker() {
 # shellcheck disable=SC1091
 source "$TMP/fn.sh"
 
-run() { : > "$CALLS"; ( apply_redis_config >/dev/null 2>&1 ) && echo 0 || echo $?; }
+# Chaque cas tourne dans un sous-shell : la fonction se termine par `exit` en cas d'abandon.
+run() { : > "$CALLS"; ( apply_redis_config "${1:-apply}" >/dev/null 2>&1 ) && echo 0 || echo $?; }
 not_touched() { ! grep -q "up -d" "$CALLS"; }
 
 # 1. Appels en cours : abandon, Redis intact.
@@ -57,13 +77,24 @@ VOLUME_NAME=""
 test "$(run)" = 1; not_touched
 VOLUME_NAME="infra_redis-data"
 
-# 5. Chemin heureux : écriture sur disque, puis seulement le service redis, puis vérification.
+# 5. Mode check : tous les contrôles passent, rien n'est modifié.
+test "$(run check)" = 0
+grep -q "config --quiet" "$CALLS"
+not_touched
+! grep -q "redis-cli save" "$CALLS"
+
+# 6. Mode inconnu : refusé.
+test "$(run nimporte)" = 2
+
+# 7. Chemin heureux : écriture sur disque, puis seulement le service redis, puis vérification.
 test "$(run)" = 0
 grep -q "exec -T redis redis-cli save" "$CALLS"
 grep -q "up -d --no-deps redis" "$CALLS"
-# Les deux fichiers d'environnement sont transmis : le compose exige aussi le mot de passe de Grafana.
-grep -q -- "--env-file /opt/sokar/infra/.env --env-file /etc/sokar/grafana.env" "$CALLS"
 grep -q "config get maxmemory" "$CALLS"
 test "$(grep -n 'redis-cli save' "$CALLS" | cut -d: -f1)" -lt "$(grep -n 'up -d' "$CALLS" | cut -d: -f1)"
+# Jamais deux --env-file sur une même commande (cette version de Compose n'utilise que le dernier).
+! grep -E -- '--env-file.*--env-file' "$CALLS"
+# Le fichier fusionné contenait les deux mots de passe (vérifié par le faux docker) puis est supprimé en sortie.
+test ! -e "$MERGED_ENV"
 
 echo "apply-redis-config: OK"

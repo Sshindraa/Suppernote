@@ -11,7 +11,7 @@ PRIVILEGED_WRAPPER="/usr/local/sbin/sokar-deploy-root"
 SUDOERS_DST="/etc/sudoers.d/deploy"
 
 usage() {
-    echo "Usage: $0 {check-cert|clean-next|install-nginx|restore-nginx|reload-nginx|install-runtime|configure-watchdog|configure-grafana|self-update|check-prod-vhost|start-localstack|stop-localstack|validate-monitoring|start-prometheus|start-grafana|apply-redis-config|backup-db|restore-test} {prod|staging} [dashboard|connect]" >&2
+    echo "Usage: $0 {check-cert|clean-next|install-nginx|restore-nginx|reload-nginx|install-runtime|configure-watchdog|configure-grafana|self-update|check-prod-vhost|start-localstack|stop-localstack|validate-monitoring|start-prometheus|start-grafana|apply-redis-config|backup-db|restore-test} {prod|staging} [dashboard|connect|check]" >&2
     exit 2
 }
 
@@ -232,13 +232,22 @@ start_prometheus() {
 # Redis est coupé environ 5 secondes. Garde-fous : aucun appel vocal en cours, le conteneur actuel est bien
 # géré par ce fichier et garde son volume de données (sinon la file BullMQ serait perdue), et les données sont
 # écrites sur disque juste avant. Seul le service redis est touché.
+# Mode `check` : exécute tous les contrôles sans rien modifier.
+REDIS_CONFIG_TMP_ENV=""
 apply_redis_config() {
     [ "$ENVIRONMENT" = "prod" ] || usage
-    # Le fichier compose décrit aussi Grafana, dont le mot de passe est obligatoire à l'interpolation :
-    # sans son fichier d'environnement, même `config` échoue. Seul le service redis est ensuite touché.
+    local mode="${1:-apply}"
+    case "$mode" in apply|check) ;; *) usage ;; esac
+
+    # Le compose décrit aussi Postgres et Grafana, dont les mots de passe sont obligatoires à l'interpolation,
+    # et cette version de Compose n'utilise que le dernier --env-file : on fusionne les deux dans un fichier
+    # temporaire privé (jamais exécuté, seulement lu par Compose), supprimé en sortie.
+    REDIS_CONFIG_TMP_ENV="$(mktemp)"
+    trap 'rm -f "$REDIS_CONFIG_TMP_ENV"' EXIT
+    chmod 600 "$REDIS_CONFIG_TMP_ENV"
+    { cat "$ROOT/infra/.env"; printf '\n'; cat /etc/sokar/grafana.env; } > "$REDIS_CONFIG_TMP_ENV"
     local compose=(/usr/bin/docker compose --project-name infra
-        --env-file "$ROOT/infra/.env" --env-file /etc/sokar/grafana.env
-        -f "$ROOT/infra/docker-compose.yml")
+        --env-file "$REDIS_CONFIG_TMP_ENV" -f "$ROOT/infra/docker-compose.yml")
 
     local sessions
     sessions="$(curl -fsS --max-time 3 http://127.0.0.1:4000/metrics 2>/dev/null \
@@ -261,6 +270,11 @@ apply_redis_config() {
     if [ -z "$(/usr/bin/docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")" ]; then
         echo "Abandon : /data de Redis n'est pas un volume nommé, les données seraient perdues." >&2
         exit 1
+    fi
+
+    if [ "$mode" = "check" ]; then
+        echo "Contrôles réussis : conteneur Redis géré par le compose, volume nommé, aucun appel en cours. Rien modifié."
+        return 0
     fi
 
     "${compose[@]}" exec -T redis redis-cli save
@@ -379,8 +393,8 @@ case "$ACTION" in
         validate_monitoring
         ;;
     apply-redis-config)
-        [ "$#" -eq 2 ] || usage
-        apply_redis_config
+        { [ "$#" -eq 2 ] || [ "$#" -eq 3 ]; } || usage
+        apply_redis_config "${3:-apply}"
         ;;
     start-grafana)
         [ "$#" -eq 2 ] || usage

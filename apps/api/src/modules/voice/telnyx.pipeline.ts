@@ -206,7 +206,17 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
         ]);
 
         if (!safe) {
-          app.log.warn({ restaurantId: ctx.id }, 'Circuit breaker triggered');
+          // L'appelant entend un message d'occupation au lieu d'une sonnerie sans réponse.
+          voiceCallsRefusedTotal.inc({ reason: 'circuit_breaker' });
+          app.log.warn({ restaurantId: ctx.id }, 'Circuit breaker triggered — busy message');
+          try {
+            await answerSuspendedCall(payload.call_control_id, ctx.name, undefined, { busy: true });
+          } catch (err) {
+            app.log.error(
+              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
+              'Busy call answer failed',
+            );
+          }
           return reply.send({ result: 'ok' });
         }
 

@@ -3098,6 +3098,7 @@ model DemoRequest {
   mainProblem       String?           @map("main_problem") @db.VarChar(500)
   pageVersion       String            @map("page_version") @db.VarChar(40)
   status            DemoRequestStatus @default(NEW)
+  isTest            Boolean           @default(false) @map("is_test")
   notifiedAt        DateTime?         @map("notified_at")
   contactedAt       DateTime?         @map("contacted_at")
   lastInteractionAt DateTime?         @map("last_interaction_at")

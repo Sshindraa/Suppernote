@@ -7,7 +7,7 @@ import { useApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 type DemoRequestStatus = 'NEW' | 'CONTACTED' | 'DEMO_DONE' | 'CLOSED';
-type StatusFilter = DemoRequestStatus | 'ALL';
+type StatusFilter = DemoRequestStatus | 'ALL' | 'ACTIVE';
 
 interface DemoRequestRow {
   id: string;
@@ -17,6 +17,7 @@ interface DemoRequestRow {
   currentTool: string | null;
   mainProblem: string | null;
   status: DemoRequestStatus;
+  isTest: boolean;
   notifiedAt: string | null;
   contactedAt: string | null;
   lastInteractionAt: string | null;
@@ -32,6 +33,7 @@ const STATUS_LABELS: Record<DemoRequestStatus, string> = {
 };
 
 const FILTER_LABELS: Record<StatusFilter, string> = {
+  ACTIVE: 'À traiter',
   ALL: 'Toutes',
   ...STATUS_LABELS,
 };
@@ -65,7 +67,8 @@ function toDateTimeLocal(value: string) {
  */
 export default function DemoRequestsPage() {
   const { get, patch, post } = useApi();
-  const [filter, setFilter] = useState<StatusFilter>('ALL');
+  const [filter, setFilter] = useState<StatusFilter>('ACTIVE');
+  const [showTests, setShowTests] = useState(false);
   const [rows, setRows] = useState<DemoRequestRow[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -82,7 +85,9 @@ export default function DemoRequestsPage() {
     setRows(null);
     try {
       const params = new URLSearchParams({ limit: '200' });
-      if (filter !== 'ALL') params.set('status', filter);
+      params.set('isTest', String(showTests));
+      if (filter === 'ACTIVE') params.set('active', 'true');
+      else if (filter !== 'ALL') params.set('status', filter);
       const query = `?${params.toString()}`;
       const response = await get<{ data: DemoRequestRow[] }>(`/admin/demo-requests${query}`);
       // Une réponse arrivée en retard pour un autre filtre est ignorée.
@@ -92,7 +97,7 @@ export default function DemoRequestsPage() {
       if (current !== requestId.current) return;
       setLoadFailed(true);
     }
-  }, [filter, get]);
+  }, [filter, get, showTests]);
 
   useEffect(() => {
     void load();
@@ -107,8 +112,27 @@ export default function DemoRequestsPage() {
       });
       setRows(
         (current) =>
-          current?.map((row) => (row.id === id ? { ...row, ...response.data } : row)) ?? current,
+          current
+            ?.map((row) => (row.id === id ? { ...row, ...response.data } : row))
+            .filter((row) =>
+              filter === 'ACTIVE'
+                ? row.status === 'NEW' || row.status === 'CONTACTED'
+                : filter === 'ALL' || row.status === filter,
+            ) ?? current,
       );
+    } catch {
+      setSaveFailed(true);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function setTest(id: string, isTest: boolean) {
+    setSavingId(id);
+    setSaveFailed(false);
+    try {
+      await patch(`/admin/demo-requests/${id}/test`, { isTest });
+      setRows((current) => current?.filter((row) => row.id !== id) ?? current);
     } catch {
       setSaveFailed(true);
     } finally {
@@ -162,7 +186,27 @@ export default function DemoRequestsPage() {
             {FILTER_LABELS[option]}
           </Button>
         ))}
+        <Button
+          type="button"
+          variant={showTests ? 'default' : 'outline'}
+          size="sm"
+          aria-pressed={showTests}
+          onClick={() => {
+            setShowTests(!showTests);
+            setFilter(showTests ? 'ACTIVE' : 'ALL');
+          }}
+          className="transition-all duration-200"
+        >
+          {showTests ? 'Voir les demandes' : 'Voir les tests'}
+        </Button>
       </div>
+
+      {rows && (
+        <p className="text-sm text-muted-foreground">
+          {rows.length} demande(s) affichée(s){rows.length === 200 ? ' · limite atteinte' : ''}
+          {showTests ? ' · Tests' : ''}
+        </p>
+      )}
 
       {saveFailed && (
         <p role="alert" className="text-sm text-destructive">
@@ -210,12 +254,29 @@ export default function DemoRequestsPage() {
                 >
                   <div className="flex min-w-0 flex-col gap-1">
                     <p className="font-semibold text-foreground">{row.establishmentName}</p>
+                    {row.isTest && <p className="text-xs font-medium text-foreground">Test</p>}
                     {row.pageVersion === 'demo-assistant-tel-v1' && (
                       <p className="text-xs text-muted-foreground">Source : démo du téléphone</p>
                     )}
                     <p className="break-all text-sm text-muted-foreground">
-                      {row.contactEmail}
-                      {row.contactPhone ? ` · ${row.contactPhone}` : ''}
+                      <a
+                        className="underline transition-all duration-200"
+                        href={`mailto:${encodeURIComponent(row.contactEmail)}`}
+                      >
+                        {row.contactEmail}
+                      </a>
+                      {row.contactPhone && (
+                        <>
+                          {' '}
+                          ·{' '}
+                          <a
+                            className="underline transition-all duration-200"
+                            href={`tel:${row.contactPhone.replace(/[^+\d]/g, '')}`}
+                          >
+                            {row.contactPhone}
+                          </a>
+                        </>
+                      )}
                     </p>
                     {row.currentTool && (
                       <p className="text-sm text-muted-foreground">
@@ -245,6 +306,27 @@ export default function DemoRequestsPage() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {row.status === 'NEW' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={savingId === row.id}
+                        onClick={() => void updateStatus(row.id, 'CONTACTED')}
+                        className="transition-all duration-200"
+                      >
+                        Marquer comme contactée
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={savingId === row.id}
+                      onClick={() => void setTest(row.id, !row.isTest)}
+                      className="transition-all duration-200"
+                    >
+                      {row.isTest ? 'Retirer le marquage test' : 'Marquer comme test'}
+                    </Button>
                     {editingInteractionId === row.id ? (
                       <>
                         <input

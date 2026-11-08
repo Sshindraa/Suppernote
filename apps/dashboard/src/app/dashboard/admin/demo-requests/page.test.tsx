@@ -21,6 +21,7 @@ const notifiedRequest = {
   currentTool: 'Cahier',
   mainProblem: 'Appels pendant le service',
   status: 'NEW',
+  isTest: false,
   notifiedAt: '2026-10-13T10:01:00.000Z',
   contactedAt: null,
   lastInteractionAt: null,
@@ -42,6 +43,31 @@ describe('DemoRequestsPage', () => {
     api.get.mockReset();
     api.patch.mockReset();
     api.post.mockReset();
+  });
+
+  it('affiche les demandes actives sans tests et permet de marquer un test', async () => {
+    api.get.mockResolvedValue({ data: [notifiedRequest] });
+    api.patch.mockResolvedValue({ data: { ...notifiedRequest, isTest: true } });
+    render(<DemoRequestsPage />);
+    await screen.findByText('Le Bistrot du Coin');
+    expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200&isTest=false&active=true');
+    expect(screen.getByRole('link', { name: 'contact@bistrot.example' })).toHaveAttribute(
+      'href',
+      'mailto:contact%40bistrot.example',
+    );
+    expect(screen.getByRole('link', { name: '+33 6 12 34 56 78' })).toHaveAttribute(
+      'href',
+      'tel:+33612345678',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Marquer comme test' }));
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/admin/demo-requests/dr_1/test', { isTest: true }),
+    );
+    await waitFor(() => expect(screen.queryByText('Le Bistrot du Coin')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Voir les tests' }));
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200&isTest=true'),
+    );
   });
 
   it('affiche chaque demande avec son état de notification', async () => {
@@ -70,6 +96,17 @@ describe('DemoRequestsPage', () => {
       });
     });
     expect(await screen.findByLabelText('Statut de Le Bistrot du Coin')).toHaveValue('CONTACTED');
+  });
+
+  it('marque une demande comme contactée sans envoyer de message', async () => {
+    api.get.mockResolvedValue({ data: [notifiedRequest] });
+    api.patch.mockResolvedValue({ data: { ...notifiedRequest, status: 'CONTACTED' } });
+    render(<DemoRequestsPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Marquer comme contactée' }));
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/admin/demo-requests/dr_1', { status: 'CONTACTED' }),
+    );
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('signale les demandes à examiner et peut enregistrer le dernier échange', async () => {

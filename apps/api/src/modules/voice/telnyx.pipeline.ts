@@ -191,11 +191,11 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
         }
 
         // ── Parallélisation des 3 lectures indépendantes (ctx.id only) ──
-        // Avant : checkMarginHealth → isVoicePipelineEnabled → lookupOrCreate
+        // Avant : recordMonthlyCall → isVoicePipelineEnabled → lookupOrCreate
         //         (3 awaits séquentiels = ~50-150ms cumulés)
         // Après : Promise.all des 3 en parallèle = max(3) au lieu de sum(3)
-        const [safe, voiceEnabled, billingSuspended, customer] = await Promise.all([
-          RestaurantService.checkMarginHealth(ctx.id),
+        const [, voiceEnabled, billingSuspended, customer] = await Promise.all([
+          RestaurantService.recordMonthlyCall(ctx.id),
           isVoicePipelineEnabled(ctx.id),
           isBillingSuspended(ctx.id),
           payload.from
@@ -204,21 +204,6 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
               )
             : Promise.resolve(null),
         ]);
-
-        if (!safe) {
-          // L'appelant entend un message d'occupation au lieu d'une sonnerie sans réponse.
-          voiceCallsRefusedTotal.inc({ reason: 'circuit_breaker' });
-          app.log.warn({ restaurantId: ctx.id }, 'Circuit breaker triggered — busy message');
-          try {
-            await answerSuspendedCall(payload.call_control_id, ctx.name, undefined, { busy: true });
-          } catch (err) {
-            app.log.error(
-              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
-              'Busy call answer failed',
-            );
-          }
-          return reply.send({ result: 'ok' });
-        }
 
         // Kill switch — drop the call before any expensive work (DB write,
         // session create, queue enqueue). Telnyx will fall back to voicemail

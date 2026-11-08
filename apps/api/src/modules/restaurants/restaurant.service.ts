@@ -3,7 +3,6 @@ import { getCachedContext, setCachedContext, redisCache } from '../../shared/red
 import * as Sentry from '@sentry/node';
 import {
   CARTESIA_MODEL,
-  CIRCUIT_BREAKER_HOURLY_LIMIT,
   DEFAULT_MAX_PARTY_SIZE,
   DEFAULT_CARTESIA_VOICE_ID,
   INTERNAL_CALL_ALERT_THRESHOLD,
@@ -11,7 +10,7 @@ import {
 } from '@suppernote/config';
 import { voiceConfig } from '../../env';
 import { getRestaurantPlanOverride } from '../../shared/configcat';
-import { DAY_SECONDS, HOUR_SECONDS } from '../../shared/constants/time.js';
+import { DAY_SECONDS } from '../../shared/constants/time.js';
 import { getVoiceLlmProvider, type VoiceLlmProvider } from '../voice/llm-provider';
 import { isPublicConnectPage } from '../connect/connect.types';
 import { normalizeOpeningHours, isConnectDemoSlug } from '@suppernote/shared';
@@ -84,13 +83,6 @@ function getCurrentMonthKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
-function getHourKey() {
-  const d = new Date();
-  return [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours()]
-    .map((n) => String(n).padStart(2, '0'))
-    .join('-');
-}
-
 function buildProviderConfig(restaurant: {
   carrier: string;
   personality: { voiceIdCa: string | null } | null;
@@ -268,7 +260,12 @@ export class RestaurantService {
     return effectivePlan === context.plan ? context : { ...context, plan: effectivePlan };
   }
 
-  static async checkMarginHealth(restaurantId: string): Promise<boolean> {
+  /**
+   * Compte les appels du mois et prévient (Sentry) au-delà du seuil de suivi interne. Il n'y a plus de
+   * disjoncteur horaire : il refusait des appels sur un chiffre posé à la main (200/h) ; le plafond d'appels
+   * simultanés (call-capacity.ts) protège le serveur.
+   */
+  static async recordMonthlyCall(restaurantId: string): Promise<void> {
     const monthKey = getCurrentMonthKey();
     const countKey = `infra:calls:${restaurantId}:${monthKey}`;
     const count = await redisCache.incr(countKey);
@@ -280,21 +277,6 @@ export class RestaurantService {
         tags: { restaurantId, monthKey },
       });
     }
-
-    const hourKey = `infra:calls:${restaurantId}:${getHourKey()}`;
-    const hourCount = await redisCache.incr(hourKey);
-    if (hourCount === 1) await redisCache.expire(hourKey, HOUR_SECONDS);
-
-    if (hourCount > CIRCUIT_BREAKER_HOURLY_LIMIT) {
-      Sentry.captureMessage(
-        `[CIRCUIT_BREAKER] Restaurant ${restaurantId}: ${hourCount} appels en 1h`,
-        {
-          level: 'error',
-        },
-      );
-      return false;
-    }
-    return true;
   }
 
   static isOpen(ctx: { openingHours: unknown }, date: string, time: string): boolean {

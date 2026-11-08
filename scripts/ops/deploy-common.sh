@@ -838,6 +838,29 @@ api_env_fingerprint() {
 }
 
 # Redémarrer les services PM2 + Nginx (+ LocalStack en prod)
+# Attend la fin des appels vocaux en cours avant de remplacer l'API : ce process garde les sessions en
+# mémoire, un redémarrage coupe donc les appels. Au-delà du délai on déploie quand même (correctif urgent).
+# Sans mesure (API arrêtée, métrique absente) il n'y a rien à attendre.
+wait_for_voice_idle() {
+    local max="${VOICE_DRAIN_MAX_SECONDS:-300}" step="${VOICE_DRAIN_POLL_SECONDS:-5}" waited=0 sessions
+    [ -n "${PORT_API:-}" ] || return 0
+    while :; do
+        sessions="$(curl -fsS -m 3 "http://127.0.0.1:${PORT_API}/metrics" 2>/dev/null \
+            | awk '/^sokar_voice_active_sessions /{print $2; exit}' || true)"
+        case "$sessions" in
+            ''|*[!0-9.]*) return 0 ;;
+            0|0.0) return 0 ;;
+        esac
+        if [ "$waited" -ge "$max" ]; then
+            log_warn "Appels encore en cours après ${max}s (${sessions}) : déploiement quand même."
+            return 0
+        fi
+        log info "⏳ ${sessions} appel(s) vocal(aux) en cours, attente avant de remplacer l'API..."
+        sleep "$step"
+        waited=$((waited + step))
+    done
+}
+
 restart_services() {
     log info ""
     log info "📦 Restarting ${DEPLOY_ENV} services..."
@@ -864,6 +887,7 @@ restart_services() {
     if [ "${NEED_API:-false}" = true ] || { [ -n "${SOKAR_API_ENV_BEFORE:-}" ] && [ "$SOKAR_API_ENV_BEFORE" != "$(api_env_fingerprint "$SOKAR_ROOT/apps/api/.env")" ]; }; then
         TO_START="$TO_START $PM2_API $PM2_WORKERS"
     fi
+    case " $TO_START " in *" $PM2_API "*) wait_for_voice_idle ;; esac
     # Une app absente ou arrêtée (pm2 delete, plantage) est aussi relancée : l'ancien
     # `pm2 start <ecosystem>` la remontait, et le runbook impose un `pm2 delete`.
     local APP PID

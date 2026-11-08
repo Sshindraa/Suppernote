@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useApi } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { getErrorMessage } from '@/types/api';
+import { SystemCharts } from './SystemCharts';
 
 type Level = 'ok' | 'warning' | 'critical';
 
@@ -153,7 +154,7 @@ export default function AdminCapacityPage() {
     return (
       <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
         <Loader2 className="animate-spin" size={18} />
-        Chargement de la capacité vocale…
+        Chargement de la capacité…
       </div>
     );
   }
@@ -164,9 +165,9 @@ export default function AdminCapacityPage() {
         <div className="flex items-center gap-3">
           <Gauge className="text-primary" size={22} />
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Capacité vocale</h1>
+            <h1 className="text-xl font-semibold text-foreground">Capacité et système</h1>
             <p className="text-sm text-muted-foreground">
-              Appels simultanés : seuil actuel, usage, et réglage sans redéploiement.
+              Appels simultanés (seuil, usage, réglage sans redéploiement) et courbes du système.
             </p>
           </div>
         </div>
@@ -366,6 +367,8 @@ export default function AdminCapacityPage() {
           </Card>
         </>
       )}
+
+      <SystemCharts />
     </div>
   );
 }

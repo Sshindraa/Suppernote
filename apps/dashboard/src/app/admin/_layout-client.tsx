@@ -28,7 +28,7 @@ const adminNavigation = [
   { href: '/admin', label: 'Vue générale', icon: LayoutDashboard },
   { href: '/admin/margin', label: 'Coûts opérationnels', icon: BarChart3 },
   { href: '/admin/health', label: 'Santé des restaurants', icon: Activity },
-  { href: '/admin/capacity', label: 'Capacité vocale', icon: Gauge },
+  { href: '/admin/capacity', label: 'Capacité et système', icon: Gauge },
   { href: '/admin/provisioning', label: 'Provisioning', icon: Radio },
   { href: '/admin/onboarding', label: 'Onboarding — cohorte', icon: Route },
   { href: '/admin/demo-requests', label: 'Demandes de démo', icon: Inbox },

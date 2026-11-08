@@ -179,6 +179,27 @@ test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 stop sokar-dashboard\npm2 start eco.
 NEXT_BUILD_ACTIVATED_DASHBOARD=false NEXT_BUILD_ACTIVATED_CONNECT=false NEED_API=true restart_services >/dev/null
 test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only sokar-api\npm2 start eco.js --only sokar-workers\npm2 save')"
 
+# Appels vocaux en cours : le remplacement de l'API attend leur fin, puis part ; au-delà du délai, il part quand même.
+VOICE_POLLS="$TMP_ROOT/voice-polls.log"
+voice_metrics=""
+curl() { printf '.' >> "$VOICE_POLLS"; printf '%s\n' "$voice_metrics"; }
+log_warn() { echo "WARN $*" >&2; }
+PORT_API=4100 VOICE_DRAIN_POLL_SECONDS=0
+voice_metrics='sokar_voice_active_sessions 0'
+: > "$VOICE_POLLS"; wait_for_voice_idle >/dev/null
+test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
+voice_metrics=''
+: > "$VOICE_POLLS"; wait_for_voice_idle >/dev/null
+test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
+voice_metrics='sokar_voice_active_sessions 3'
+: > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=0 wait_for_voice_idle >/dev/null 2>&1
+test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
+voice_metrics='sokar_voice_active_sessions 3'
+: > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=2 VOICE_DRAIN_POLL_SECONDS=1 wait_for_voice_idle >/dev/null 2>&1
+test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 3
+unset -f curl
+unset PORT_API VOICE_DRAIN_POLL_SECONDS
+
 # Une app absente (pm2 delete, plantage) est relancée même sans changement de code.
 PM2_DOWN=sokar-api
 : > "$PM2_CALLS"

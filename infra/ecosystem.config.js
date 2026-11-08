@@ -22,7 +22,7 @@ module.exports = {
       // Health check readiness (P0 DEP-005) : PM2 attend le signal 'ready' de l'API.
       wait_ready: true,
       listen_timeout: 30000,
-      kill_timeout: 8000,
+      kill_timeout: 30000, // > VOICE_SHUTDOWN_GRACE_MS : laisse finir les appels en cours
       // Restart strategy : backoff exponentiel pour éviter les crash loops.
       exp_backoff_restart_delay: 4000,
       max_restarts: 10,

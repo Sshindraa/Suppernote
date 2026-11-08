@@ -8,14 +8,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP="$(mktemp -d /tmp/sokar-redis-config-test.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
-# Faux serveur : infra/.env (Postgres, sans retour à la ligne final) et fichier d'environnement de Grafana.
 mkdir -p "$TMP/root/infra"
-printf 'POSTGRES_PASSWORD=pg-secret' > "$TMP/root/infra/.env"
-printf 'GRAFANA_ADMIN_PASSWORD=gf-secret\n' > "$TMP/grafana.env"
 
-# Extrait la fonction ; le chemin de docker et celui du fichier Grafana sont remplacés pour le test.
+# Extrait la fonction ; le chemin de docker est remplacé par la fonction simulée.
 awk '/^apply_redis_config\(\) \{/,/^}/' "$ROOT_DIR/scripts/ops/sokar-deploy-root.sh" \
-  | sed -e 's#/usr/bin/docker#docker#g' -e "s#/etc/sokar/grafana.env#$TMP/grafana.env#g" > "$TMP/fn.sh"
+  | sed -e 's#/usr/bin/docker#docker#g' > "$TMP/fn.sh"
 test -s "$TMP/fn.sh"
 
 CALLS="$TMP/calls.log"
@@ -28,22 +25,12 @@ SESSIONS="sokar_voice_active_sessions 0"
 PS_ID="abc123"
 VOLUME_NAME="infra_redis-data"
 curl() { printf '%s\n' "$SESSIONS"; }
-# Chemin du fichier fusionné connu du test, pour vérifier qu'il est supprimé en sortie.
-MERGED_ENV="$TMP/merged.env"
-mktemp() { : > "$MERGED_ENV"; echo "$MERGED_ENV"; }
 docker() {
-  local all="$*" envfile="" prev=""
+  local all="$*"
   echo "docker $all" >> "$CALLS"
-  for arg in "$@"; do
-    [ "$prev" = "--env-file" ] && envfile="$arg"
-    prev="$arg"
-  done
-  # Comme Compose, refuser de lire le fichier si un mot de passe obligatoire manque (ou si les deux
-  # fichiers ont été collés sur une seule ligne faute de retour à la ligne).
-  if [ -n "$envfile" ]; then
-    grep -q '^POSTGRES_PASSWORD=pg-secret$' "$envfile" || { echo "POSTGRES_PASSWORD manquant" >&2; return 1; }
-    grep -q '^GRAFANA_ADMIN_PASSWORD=gf-secret$' "$envfile" || { echo "GRAFANA_ADMIN_PASSWORD manquant" >&2; return 1; }
-  fi
+  # Comme Compose, refuser de lire le fichier si un mot de passe obligatoire manque.
+  [ -n "${POSTGRES_PASSWORD:-}" ] || { echo "POSTGRES_PASSWORD manquant" >&2; return 1; }
+  [ -n "${GRAFANA_ADMIN_PASSWORD:-}" ] || { echo "GRAFANA_ADMIN_PASSWORD manquant" >&2; return 1; }
   case "$all" in
     *"ps -q redis"*) printf '%s\n' "$PS_ID" ;;
     *inspect*) printf '%s' "$VOLUME_NAME" ;;
@@ -92,9 +79,8 @@ grep -q "exec -T redis redis-cli save" "$CALLS"
 grep -q "up -d --no-deps redis" "$CALLS"
 grep -q "config get maxmemory" "$CALLS"
 test "$(grep -n 'redis-cli save' "$CALLS" | cut -d: -f1)" -lt "$(grep -n 'up -d' "$CALLS" | cut -d: -f1)"
-# Jamais deux --env-file sur une même commande (cette version de Compose n'utilise que le dernier).
-! grep -E -- '--env-file.*--env-file' "$CALLS"
-# Le fichier fusionné contenait les deux mots de passe (vérifié par le faux docker) puis est supprimé en sortie.
-test ! -e "$MERGED_ENV"
+# Aucun fichier d'environnement lu : l'application n'a pas le même (infra/.env), et aucun secret n'est touché.
+! grep -E -- '--env-file ' "$CALLS" | grep -v -- '--env-file /dev/null'
+grep -q -- '--env-file /dev/null' "$CALLS"
 
 echo "apply-redis-config: OK"

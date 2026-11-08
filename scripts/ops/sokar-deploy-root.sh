@@ -11,7 +11,7 @@ PRIVILEGED_WRAPPER="/usr/local/sbin/sokar-deploy-root"
 SUDOERS_DST="/etc/sudoers.d/deploy"
 
 usage() {
-    echo "Usage: $0 {check-cert|clean-next|install-nginx|restore-nginx|reload-nginx|install-runtime|configure-watchdog|configure-grafana|self-update|check-prod-vhost|start-localstack|stop-localstack|validate-monitoring|start-prometheus|start-grafana|backup-db|restore-test} {prod|staging} [dashboard|connect]" >&2
+    echo "Usage: $0 {check-cert|clean-next|install-nginx|restore-nginx|reload-nginx|install-runtime|configure-watchdog|configure-grafana|self-update|check-prod-vhost|start-localstack|stop-localstack|validate-monitoring|start-prometheus|start-grafana|apply-redis-config|backup-db|restore-test} {prod|staging} [dashboard|connect]" >&2
     exit 2
 }
 
@@ -228,6 +228,54 @@ start_prometheus() {
     exit 1
 }
 
+# Applique la définition de Redis de infra/docker-compose.yml (plafond mémoire) en recréant le conteneur :
+# Redis est coupé environ 5 secondes. Garde-fous : aucun appel vocal en cours, le conteneur actuel est bien
+# géré par ce fichier et garde son volume de données (sinon la file BullMQ serait perdue), et les données sont
+# écrites sur disque juste avant. Seul le service redis est touché.
+apply_redis_config() {
+    [ "$ENVIRONMENT" = "prod" ] || usage
+    local compose=(/usr/bin/docker compose --project-name infra
+        --env-file "$ROOT/infra/.env" -f "$ROOT/infra/docker-compose.yml")
+
+    local sessions
+    sessions="$(curl -fsS --max-time 3 http://127.0.0.1:4000/metrics 2>/dev/null \
+        | awk '/^sokar_voice_active_sessions /{print $2; exit}' || true)"
+    case "$sessions" in
+        0|0.0) ;;
+        *)
+            echo "Abandon : appels vocaux en cours ou mesure indisponible (${sessions:-aucune})." >&2
+            exit 1
+            ;;
+    esac
+
+    "${compose[@]}" config --quiet
+    local container
+    container="$("${compose[@]}" ps -q redis)"
+    if [ -z "$container" ]; then
+        echo "Abandon : le conteneur Redis en cours n'est pas géré par infra/docker-compose.yml." >&2
+        exit 1
+    fi
+    if [ -z "$(/usr/bin/docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")" ]; then
+        echo "Abandon : /data de Redis n'est pas un volume nommé, les données seraient perdues." >&2
+        exit 1
+    fi
+
+    "${compose[@]}" exec -T redis redis-cli save
+    "${compose[@]}" up -d --no-deps redis
+
+    local attempt
+    for attempt in $(seq 1 30); do
+        if [ "$("${compose[@]}" exec -T redis redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
+            "${compose[@]}" exec -T redis redis-cli config get maxmemory
+            "${compose[@]}" exec -T redis redis-cli config get maxmemory-policy
+            return 0
+        fi
+        sleep 1
+    done
+    echo "Redis n'a pas répondu dans les 30 secondes." >&2
+    exit 1
+}
+
 validate_monitoring() {
     [ "$ENVIRONMENT" = "prod" ] || usage
     /usr/bin/docker compose \
@@ -326,6 +374,10 @@ case "$ACTION" in
     validate-monitoring)
         [ "$#" -eq 2 ] || usage
         validate_monitoring
+        ;;
+    apply-redis-config)
+        [ "$#" -eq 2 ] || usage
+        apply_redis_config
         ;;
     start-grafana)
         [ "$#" -eq 2 ] || usage

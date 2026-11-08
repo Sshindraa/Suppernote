@@ -37,11 +37,12 @@ function makeDependencies() {
   return { dependencies, dispatch };
 }
 
-const telnyxAlert = (value: number) => ({
+const telnyxAlert = (remaining: number, runwayDays: number | null) => ({
   provider: 'telnyx' as const,
-  value,
+  remaining,
+  runwayDays,
   levels: TELNYX_BALANCE_LEVELS,
-  summary: () => `solde ${value}`,
+  summary: () => `solde ${remaining}`,
   detail: [],
 });
 
@@ -51,23 +52,39 @@ describe('alertes de solde fournisseur', () => {
   it('alerte une seule fois par niveau franchi, puis se relâche après une recharge', async () => {
     const { dependencies, dispatch } = makeDependencies();
 
-    expect(await dispatchLevelAlerts(telnyxAlert(2.43), dependencies)).toEqual({
+    // 0,5 jour de réserve : les deux niveaux sont franchis d'un coup.
+    expect(await dispatchLevelAlerts(telnyxAlert(2.43, 0.5), dependencies)).toEqual({
       dispatched: 2,
       suppressed: 0,
     });
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'telnyx_balance_critical', severity: 'critical' }),
     );
-    expect(await dispatchLevelAlerts(telnyxAlert(2.4), dependencies)).toEqual({
+    expect(await dispatchLevelAlerts(telnyxAlert(2.4, 0.49), dependencies)).toEqual({
       dispatched: 0,
       suppressed: 2,
     });
 
-    await dispatchLevelAlerts(telnyxAlert(50), dependencies);
-    expect(await dispatchLevelAlerts(telnyxAlert(10), dependencies)).toEqual({
+    await dispatchLevelAlerts(telnyxAlert(50, 20), dependencies);
+    // 2 jours de réserve : seul le niveau d'avertissement est franchi.
+    expect(await dispatchLevelAlerts(telnyxAlert(10, 2), dependencies)).toEqual({
       dispatched: 1,
       suppressed: 0,
     });
+  });
+
+  it('un solde bas ne déclenche rien tant que la dépense est faible', async () => {
+    const { dependencies, dispatch } = makeDependencies();
+    await dispatchLevelAlerts(telnyxAlert(4, 400), dependencies);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('sans historique de dépense, n’alerte que sur un solde épuisé', async () => {
+    const { dependencies, dispatch } = makeDependencies();
+    await dispatchLevelAlerts(telnyxAlert(3, null), dependencies);
+    expect(dispatch).not.toHaveBeenCalled();
+    await dispatchLevelAlerts(telnyxAlert(0, null), dependencies);
+    expect(dispatch).toHaveBeenCalled();
   });
 });
 

@@ -29,6 +29,7 @@ import { callFinalizationDependencies } from './call-finalization.dependencies';
 import { buildSmsJobId, buildTelnyxWebhookJobId } from '../../shared/queue/job-options';
 import { isVoicePipelineEnabled } from '../../shared/configcat';
 import { isBillingSuspended } from '../billing/billing.service';
+import { recordWebhookOutcome } from '../../shared/observability/webhook-health';
 import { answerSuspendedCall, handleSuspendedCallEvent, isSuspendedCall } from './suspended-call';
 import { isAtCallCapacity } from './call-capacity';
 import { telnyxFetch } from '../../shared/telnyx/http-agent';
@@ -93,6 +94,7 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
           event: webhookEventLabel(req.url),
           result: reply.statusCode >= 500 ? 'error' : 'processed',
         });
+        recordWebhookOutcome(reply.statusCode >= 500 ? 'error' : 'processed');
       }
     } catch {
       // La métrique ne doit jamais casser le webhook.

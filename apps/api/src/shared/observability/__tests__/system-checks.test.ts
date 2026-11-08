@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   collectQueueStates,
   evaluateQueueStates,
+  evaluateRedisMemory,
   evaluateTelnyxWebhookHealth,
+  REDIS_MEMORY_WARNING_RATIO,
   evaluateCallsWithoutTranscript,
   findCallsWithoutTranscript,
   evaluateReservationsWithoutSms,
@@ -86,6 +88,37 @@ describe('evaluateQueueStates', () => {
     expect(evaluateQueueStates({ 'sms-client': okCounts, 'dead-letter': okCounts })).toHaveLength(
       0,
     );
+  });
+});
+
+describe('evaluateRedisMemory', () => {
+  const MB = 1_048_576;
+
+  it('sous 70 % du plafond → pas d’alerte', () => {
+    expect(evaluateRedisMemory({ usedBytes: 600 * MB, maxBytes: 1024 * MB })).toBeNull();
+  });
+
+  it('à 70 % du plafond ou plus → avertissement avec le pourcentage réel', () => {
+    const exactly = evaluateRedisMemory({
+      usedBytes: REDIS_MEMORY_WARNING_RATIO * 1024 * MB,
+      maxBytes: 1024 * MB,
+    });
+    expect(exactly).toMatchObject({ kind: 'redis_memory_high', severity: 'warning' });
+
+    const high = evaluateRedisMemory({ usedBytes: 950 * MB, maxBytes: 1024 * MB });
+    expect(high?.summary).toBe('Redis à 93 % de son plafond de mémoire');
+    expect(high?.detail).toContain('950 Mo utilisés sur 1024 Mo');
+  });
+
+  it('suit le plafond réel : le même usage n’alerte pas avec un plafond plus haut', () => {
+    expect(evaluateRedisMemory({ usedBytes: 800 * MB, maxBytes: 1024 * MB })).not.toBeNull();
+    expect(evaluateRedisMemory({ usedBytes: 800 * MB, maxBytes: 2048 * MB })).toBeNull();
+  });
+
+  it('sans plafond (maxmemory = 0) → avertit que le plafond est perdu', () => {
+    const finding = evaluateRedisMemory({ usedBytes: 95 * MB, maxBytes: 0 });
+    expect(finding).toMatchObject({ kind: 'redis_no_memory_cap', severity: 'warning' });
+    expect(finding?.detail).toContain('apply-redis-config');
   });
 });
 

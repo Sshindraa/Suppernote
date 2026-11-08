@@ -294,6 +294,8 @@ CEREBRAS_API_KEY="csk-..."
 CEREBRAS_BASE_URL="https://api.cerebras.ai/v1"
 VOICE_LLM_MODEL="qwen-3.8-27b"
 VOICE_LLM_TIMEOUT_MS="8000"
+# Adresse de Prometheus lue par la page admin « Capacité et système » (courbes). Défaut : le Prometheus local.
+# PROMETHEUS_URL="http://127.0.0.1:9090"
 # Seuil d'appels vocaux simultanés par process API : CALCULÉ (capacity-model.ts) à partir du coût CPU et mémoire
 # mesuré sur les appels réels et de la limite mémoire PM2 (PROCESS_MEMORY_LIMIT_MB, posée par l'écosystème).
 # Ne le définir que pour IMPOSER une valeur ; le dashboard admin (Capacité vocale) la remplace aussi.

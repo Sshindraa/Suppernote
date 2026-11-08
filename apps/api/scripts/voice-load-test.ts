@@ -62,8 +62,8 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * La route de simulation passe par `checkMarginHealth`, qui compte les appels par
- * établissement et par heure dans Redis et refuse au-delà du seuil. Le harnais
+ * La route de simulation passe par `recordMonthlyCall`, qui compte les appels par
+ * établissement dans Redis (plus de refus horaire depuis la suppression du disjoncteur). Le harnais
  * travaille sur une base Redis isolée : on remet uniquement ces compteurs à zéro
  * pour pouvoir créer N sessions, sans toucher aux autres clés.
  */

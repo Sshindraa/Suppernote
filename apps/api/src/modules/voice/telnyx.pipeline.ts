@@ -191,11 +191,11 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
         }
 
         // ── Parallélisation des 3 lectures indépendantes (ctx.id only) ──
-        // Avant : checkMarginHealth → isVoicePipelineEnabled → lookupOrCreate
+        // Avant : recordMonthlyCall → isVoicePipelineEnabled → lookupOrCreate
         //         (3 awaits séquentiels = ~50-150ms cumulés)
         // Après : Promise.all des 3 en parallèle = max(3) au lieu de sum(3)
-        const [safe, voiceEnabled, billingSuspended, customer] = await Promise.all([
-          RestaurantService.checkMarginHealth(ctx.id),
+        const [, voiceEnabled, billingSuspended, customer] = await Promise.all([
+          RestaurantService.recordMonthlyCall(ctx.id),
           isVoicePipelineEnabled(ctx.id),
           isBillingSuspended(ctx.id),
           payload.from
@@ -204,11 +204,6 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
               )
             : Promise.resolve(null),
         ]);
-
-        if (!safe) {
-          app.log.warn({ restaurantId: ctx.id }, 'Circuit breaker triggered');
-          return reply.send({ result: 'ok' });
-        }
 
         // Kill switch — drop the call before any expensive work (DB write,
         // session create, queue enqueue). Telnyx will fall back to voicemail

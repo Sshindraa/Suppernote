@@ -5,7 +5,7 @@
  *  - loadContext : cache hit/miss, projection des champs,
  *    application du plan override (ConfigCat), TTL Redis.
  *  - invalidateRestaurantContextCache : no-op si phoneNumber vide.
- *  - checkMarginHealth : incrément mensuel + horaire, Sentry sur seuil.
+ *  - recordMonthlyCall : incrément mensuel, Sentry sur seuil.
  *  - isOpen : pure function, ouvre/ferme selon openingHours, cas closed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -207,16 +207,17 @@ describe('invalidateRestaurantContextCache', () => {
   });
 });
 
-describe('RestaurantService.checkMarginHealth', () => {
+describe('RestaurantService.recordMonthlyCall', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('incrémente le compteur mensuel et met un TTL de 33 jours', async () => {
-    vi.mocked(redisCache.incr).mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+    vi.mocked(redisCache.incr).mockResolvedValueOnce(1);
 
-    const ok = await RestaurantService.checkMarginHealth('rest-1');
+    await RestaurantService.recordMonthlyCall('rest-1');
 
+    expect(redisCache.incr).toHaveBeenCalledTimes(1);
     expect(redisCache.incr).toHaveBeenCalledWith(
       expect.stringMatching(/^infra:calls:rest-1:\d{4}-\d{2}$/),
     );
@@ -224,43 +225,25 @@ describe('RestaurantService.checkMarginHealth', () => {
       expect.stringMatching(/^infra:calls:rest-1:\d{4}-\d{2}$/),
       33 * 24 * 3600,
     );
-    expect(ok).toBe(true);
   });
 
-  it('incrémente le compteur horaire avec TTL 1h', async () => {
-    vi.mocked(redisCache.incr).mockResolvedValueOnce(1).mockResolvedValueOnce(1);
+  it('ne compte plus par heure et ne refuse jamais un appel', async () => {
+    vi.mocked(redisCache.incr).mockResolvedValue(9999);
 
-    await RestaurantService.checkMarginHealth('rest-1');
+    await expect(RestaurantService.recordMonthlyCall('rest-1')).resolves.toBeUndefined();
 
-    expect(redisCache.incr).toHaveBeenCalledWith(
-      expect.stringMatching(/^infra:calls:rest-1:\d{4}-\d{2}-\d{2}-\d{2}$/),
-    );
-    expect(redisCache.expire).toHaveBeenCalledWith(
-      expect.stringMatching(/^infra:calls:rest-1:\d{4}-\d{2}-\d{2}-\d{2}$/),
-      3600,
-    );
-  });
-
-  it('retourne false et émet une alerte Sentry si le seuil horaire est dépassé', async () => {
-    // Premier incr (mois) = 1 (sous le seuil mensuel), second incr (heure) = 9999
-    vi.mocked(redisCache.incr).mockResolvedValueOnce(1).mockResolvedValueOnce(9999);
-
-    const ok = await RestaurantService.checkMarginHealth('rest-1');
-
-    expect(ok).toBe(false);
-    expect(Sentry.captureMessage).toHaveBeenCalledWith(
+    expect(redisCache.incr).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureMessage).not.toHaveBeenCalledWith(
       expect.stringContaining('[CIRCUIT_BREAKER]'),
-      expect.objectContaining({ level: 'error' }),
+      expect.anything(),
     );
   });
 
-  it('émet un warning Sentry quand le seuil mensuel est dépassé (sans bloquer)', async () => {
-    // Mois = 9999, heure = 1 (sous le seuil circuit breaker)
-    vi.mocked(redisCache.incr).mockResolvedValueOnce(9999).mockResolvedValueOnce(1);
+  it('émet un warning Sentry quand le seuil mensuel est dépassé', async () => {
+    vi.mocked(redisCache.incr).mockResolvedValueOnce(9999);
 
-    const ok = await RestaurantService.checkMarginHealth('rest-1');
+    await RestaurantService.recordMonthlyCall('rest-1');
 
-    expect(ok).toBe(true); // circuit breaker non déclenché
     expect(Sentry.captureMessage).toHaveBeenCalledWith(
       expect.stringContaining('[MARGIN]'),
       expect.objectContaining({ level: 'warning' }),
@@ -268,15 +251,10 @@ describe('RestaurantService.checkMarginHealth', () => {
   });
 
   it('ne set pas expire sur les incréments suivants (TTL déjà fixé)', async () => {
-    // incr > 1 → le code ne doit PAS appeler expire
-    vi.mocked(redisCache.incr)
-      .mockResolvedValueOnce(5) // mois > 1
-      .mockResolvedValueOnce(5); // heure > 1
+    vi.mocked(redisCache.incr).mockResolvedValueOnce(5);
 
-    await RestaurantService.checkMarginHealth('rest-1');
+    await RestaurantService.recordMonthlyCall('rest-1');
 
-    // expire n'est appelé qu'une fois (ou jamais selon implémentation)
-    // Le code n'appelle expire QUE quand count === 1
     expect(redisCache.expire).not.toHaveBeenCalled();
   });
 });

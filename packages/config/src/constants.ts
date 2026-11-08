@@ -24,7 +24,6 @@ export const PLAN_PRICE_MAP: Record<string, number> = {
 };
 
 export const INTERNAL_CALL_ALERT_THRESHOLD = 3000;
-export const CIRCUIT_BREAKER_HOURLY_LIMIT = 200;
 export const REDIS_CTX_TTL_SECONDS = 300;
 export const SMS_RATE_LIMIT_SECONDS = 900;
 /** Default maximum group size shared by online and phone reservations. */

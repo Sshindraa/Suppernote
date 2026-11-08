@@ -299,7 +299,7 @@ describe('demo-request.routes', () => {
       expect(res.json().data).toHaveLength(1);
       expect(db.demoRequest.findMany).toHaveBeenCalledWith({
         where: { status: 'NEW' },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 20,
       });
     });
@@ -309,14 +309,16 @@ describe('demo-request.routes', () => {
       vi.mocked(db.demoRequest.findMany).mockResolvedValue([]);
       const res = await app.inject({
         method: 'GET',
-        url: '/admin/demo-requests?active=true&isTest=false&limit=20',
+        url: '/admin/demo-requests?active=true&isTest=false&limit=20&cursor=dr_1',
         headers: OPERATOR_HEADERS,
       });
       expect(res.statusCode).toBe(200);
       expect(db.demoRequest.findMany).toHaveBeenCalledWith({
         where: { status: { in: ['NEW', 'CONTACTED'] }, isTest: false },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 20,
+        cursor: { id: 'dr_1' },
+        skip: 1,
       });
     });
 

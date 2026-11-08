@@ -45,29 +45,20 @@ describe('DemoRequestsPage', () => {
     api.post.mockReset();
   });
 
-  it('affiche les demandes actives sans tests et permet de marquer un test', async () => {
-    api.get.mockResolvedValue({ data: [notifiedRequest] });
+  it('affiche ensemble les phases et les tests, et conserve la fiche après marquage', async () => {
+    const test = { ...unnotifiedRequest, isTest: true, status: 'CLOSED' };
+    api.get.mockResolvedValue({ data: [notifiedRequest, test] });
     api.patch.mockResolvedValue({ data: { ...notifiedRequest, isTest: true } });
     render(<DemoRequestsPage />);
-    await screen.findByText('Le Bistrot du Coin');
-    expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200&isTest=false&active=true');
-    expect(screen.getByRole('link', { name: 'contact@bistrot.example' })).toHaveAttribute(
-      'href',
-      'mailto:contact%40bistrot.example',
-    );
-    expect(screen.getByRole('link', { name: '+33 6 12 34 56 78' })).toHaveAttribute(
-      'href',
-      'tel:+33612345678',
-    );
+    expect(await screen.findByText('La Table du Marché')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200');
+    expect(screen.getByLabelText('Phase de La Table du Marché')).toHaveValue('CLOSED');
+    expect(screen.getByText('Test')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Marquer comme test' }));
     await waitFor(() =>
       expect(api.patch).toHaveBeenCalledWith('/admin/demo-requests/dr_1/test', { isTest: true }),
     );
-    await waitFor(() => expect(screen.queryByText('Le Bistrot du Coin')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Voir les tests' }));
-    await waitFor(() =>
-      expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200&isTest=true'),
-    );
+    expect(screen.getByText('Le Bistrot du Coin')).toBeInTheDocument();
   });
 
   it('affiche chaque demande avec son état de notification', async () => {
@@ -87,7 +78,7 @@ describe('DemoRequestsPage', () => {
     api.patch.mockResolvedValue({ data: { ...notifiedRequest, status: 'CONTACTED' } });
 
     render(<DemoRequestsPage />);
-    const select = await screen.findByLabelText('Statut de Le Bistrot du Coin');
+    const select = await screen.findByLabelText('Phase de Le Bistrot du Coin');
     fireEvent.change(select, { target: { value: 'CONTACTED' } });
 
     await waitFor(() => {
@@ -95,18 +86,7 @@ describe('DemoRequestsPage', () => {
         status: 'CONTACTED',
       });
     });
-    expect(await screen.findByLabelText('Statut de Le Bistrot du Coin')).toHaveValue('CONTACTED');
-  });
-
-  it('marque une demande comme contactée sans envoyer de message', async () => {
-    api.get.mockResolvedValue({ data: [notifiedRequest] });
-    api.patch.mockResolvedValue({ data: { ...notifiedRequest, status: 'CONTACTED' } });
-    render(<DemoRequestsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Marquer comme contactée' }));
-    await waitFor(() =>
-      expect(api.patch).toHaveBeenCalledWith('/admin/demo-requests/dr_1', { status: 'CONTACTED' }),
-    );
-    expect(api.post).not.toHaveBeenCalled();
+    expect(await screen.findByLabelText('Phase de Le Bistrot du Coin')).toHaveValue('CONTACTED');
   });
 
   it('signale les demandes à examiner et peut enregistrer le dernier échange', async () => {
@@ -182,39 +162,21 @@ describe('DemoRequestsPage', () => {
 
     render(<DemoRequestsPage />);
 
-    expect(await screen.findByText('Aucune demande pour ce filtre.')).toBeInTheDocument();
+    expect(await screen.findByText('Aucune demande pour le moment.')).toBeInTheDocument();
   });
 
-  it('prévient quand la liste est tronquée aux 200 demandes les plus récentes', async () => {
-    api.get.mockResolvedValue({
-      data: Array.from({ length: 200 }, (_, index) => ({
-        ...notifiedRequest,
-        id: `request-${index}`,
-        establishmentName: `Établissement ${index}`,
-      })),
-    });
-
-    render(<DemoRequestsPage />);
-
-    expect(
-      await screen.findByText(/Les 200 demandes les plus récentes sont affichées/),
-    ).toBeInTheDocument();
-  });
-
-  it('n’affiche plus la liste précédente quand le filtre change', async () => {
+  it('charge les demandes au-delà de 200', async () => {
     api.get
-      .mockResolvedValueOnce({ data: [notifiedRequest] })
-      .mockImplementation(() => new Promise(() => undefined));
+      .mockResolvedValueOnce({
+        data: Array.from({ length: 200 }, (_, index) => ({
+          ...notifiedRequest,
+          id: `request-${index}`,
+          establishmentName: `Établissement ${index}`,
+        })),
+      })
+      .mockResolvedValueOnce({ data: [unnotifiedRequest] });
     render(<DemoRequestsPage />);
-    await screen.findByText('Le Bistrot du Coin');
-
-    fireEvent.click(
-      screen
-        .getAllByRole('button')
-        .find((button) => /Contactées?/i.test(button.textContent ?? ''))!,
-    );
-
-    expect(await screen.findByText('Chargement des demandes…')).toBeInTheDocument();
-    expect(screen.queryByText('Le Bistrot du Coin')).toBeNull();
+    expect(await screen.findByText('La Table du Marché')).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/admin/demo-requests?limit=200&cursor=request-199');
   });
 });

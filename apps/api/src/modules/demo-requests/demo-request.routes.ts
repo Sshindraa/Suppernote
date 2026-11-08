@@ -52,6 +52,7 @@ const OperatorListQuery = z.object({
     .transform((value) => value === 'true')
     .optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().min(1).max(64).optional(),
 });
 
 const OperatorStatusBody = z.object({

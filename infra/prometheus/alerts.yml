@@ -48,7 +48,8 @@ groups:
     interval: 5m
     rules:
       # Webhook Telnyx en erreur : signature rejetée ou handler 5xx.
-      # Miroir du check in-app sur sokar_telnyx_webhook_events_total.
+      # Indicatif seulement : le vrai contrôle (system-health) compare la fenêtre au taux habituel de la semaine,
+      # compté dans Redis (webhook-health.ts), et non à un nombre fixe.
       - alert: TelnyxWebhookErrors
         expr: increase(sokar_telnyx_webhook_events_total{result=~"error|rejected"}[15m]) > 5
         for: 5m

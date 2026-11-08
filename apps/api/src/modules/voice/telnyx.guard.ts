@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { telnyxWebhookEventsTotal } from '../../shared/observability/metrics';
+import { recordWebhookOutcome } from '../../shared/observability/webhook-health';
 
 function _toBytes(str: string): Uint8Array {
   return new TextEncoder().encode(str);
@@ -23,6 +24,7 @@ export function webhookEventLabel(url: string | undefined): string {
 function trackRejected(req: FastifyRequest): void {
   try {
     telnyxWebhookEventsTotal.inc({ event: webhookEventLabel(req.url), result: 'rejected' });
+    recordWebhookOutcome('rejected');
   } catch {
     // La métrique ne doit jamais casser le guard.
   }

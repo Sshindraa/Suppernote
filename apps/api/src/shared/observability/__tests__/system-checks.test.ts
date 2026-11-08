@@ -2,18 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   collectQueueStates,
   evaluateQueueStates,
-  captureTelnyxWebhookSnapshot,
-  evaluateTelnyxWebhookErrors,
+  evaluateTelnyxWebhookHealth,
   evaluateCallsWithoutTranscript,
   findCallsWithoutTranscript,
   evaluateReservationsWithoutSms,
   findReservationsWithoutConfirmationSms,
   CONFIRMATION_SMS_SENT_EVENT,
   FAILED_JOBS_THRESHOLD,
-  TELNYX_WEBHOOK_ERROR_THRESHOLD,
   type QueueStateCounts,
 } from '../system-checks';
-import { telnyxWebhookEventsTotal } from '../metrics';
 
 // Les files BullMQ sont stubées : collectQueueStates est testé sans Redis.
 const queueMocks = vi.hoisted(() => ({
@@ -92,41 +89,27 @@ describe('evaluateQueueStates', () => {
   });
 });
 
-describe('evaluateTelnyxWebhookErrors', () => {
-  it('premier tick (pas de snapshot) → pas d’alerte', () => {
-    expect(evaluateTelnyxWebhookErrors(null, { 'voice|error': 10 })).toBeNull();
+describe('evaluateTelnyxWebhookHealth', () => {
+  const health = (abnormal: boolean, expected: number | null) => ({
+    window: { errors: 4, total: 9 },
+    baseline: { errors: 2, total: 5000 },
+    abnormal,
+    expected,
   });
 
-  it('delta sous le seuil → pas d’alerte', () => {
-    const prev = { 'voice|processed': 10, 'voice|error': 1 };
-    const cur = { 'voice|processed': 20, 'voice|error': 1 + TELNYX_WEBHOOK_ERROR_THRESHOLD - 1 };
-    expect(evaluateTelnyxWebhookErrors(prev, cur)).toBeNull();
+  it('fenêtre normale → pas d’alerte', () => {
+    expect(evaluateTelnyxWebhookHealth(health(false, 0.01))).toBeNull();
   });
 
-  it('delta ≥ seuil → critique', () => {
-    const prev = { 'voice|error': 0, 'voice|rejected': 0 };
-    const cur = { 'voice|error': 3, 'voice|rejected': TELNYX_WEBHOOK_ERROR_THRESHOLD - 2 };
-    const finding = evaluateTelnyxWebhookErrors(prev, cur);
+  it('fenêtre anormale → critique, avec le taux attendu dans le détail', () => {
+    const finding = evaluateTelnyxWebhookHealth(health(true, 0.02));
     expect(finding).toMatchObject({ kind: 'telnyx_webhook_errors', severity: 'critical' });
+    expect(finding?.summary).toContain('4 webhooks Telnyx en erreur sur 9');
+    expect(finding?.detail).toContain('0.02 attendus');
   });
 
-  it('restart du process (compteur remis à zéro) → pas de delta négatif', () => {
-    const prev = { 'voice|error': 100 };
-    const cur = { 'voice|error': 1 };
-    expect(evaluateTelnyxWebhookErrors(prev, cur)).toBeNull();
-  });
-});
-
-describe('captureTelnyxWebhookSnapshot', () => {
-  it('capture les valeurs du compteur par event|result', async () => {
-    telnyxWebhookEventsTotal.reset();
-    telnyxWebhookEventsTotal.inc({ event: 'voice', result: 'processed' });
-    telnyxWebhookEventsTotal.inc({ event: 'voice', result: 'rejected' }, 2);
-
-    const snap = await captureTelnyxWebhookSnapshot();
-
-    expect(snap['voice|processed']).toBe(1);
-    expect(snap['voice|rejected']).toBe(2);
+  it('sans historique fiable → le détail dit que la majorité échoue', () => {
+    expect(evaluateTelnyxWebhookHealth(health(true, null))?.detail).toContain('la majorité échoue');
   });
 });
 

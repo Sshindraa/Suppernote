@@ -19,7 +19,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { queues } from '../queue/queues';
 import { logger } from '../logger/pino';
-import { telnyxWebhookEventsTotal } from './metrics';
 
 // ─── Types ─────────────────────────────────────────────────
 
@@ -57,8 +56,6 @@ export const SMS_WINDOW_HOURS = 24;
 export const SMS_GRACE_MINUTES = 30;
 /** Nombre d'appels manquants à partir duquel l'alerte devient critique. */
 export const CALLS_CRITICAL_COUNT = 3;
-/** Webhooks Telnyx en erreur/rejetés sur une fenêtre de 5 min avant alerte. */
-export const TELNYX_WEBHOOK_ERROR_THRESHOLD = 5;
 
 /** Événement d'audit écrit par outbound-confirm.worker après envoi du SMS. */
 export const CONFIRMATION_SMS_SENT_EVENT = 'reservation_confirmation_sms_sent';
@@ -167,44 +164,32 @@ export function evaluateQueueStates(
 
 // ─── Webhooks Telnyx en erreur ─────────────────────────────
 
-/** Snapshot du compteur webhook : clé "event|result" → valeur cumulée. */
-export type TelnyxWebhookSnapshot = Record<string, number>;
-
-/** Capture les valeurs actuelles du compteur (en mémoire, prom-client). */
-export async function captureTelnyxWebhookSnapshot(): Promise<TelnyxWebhookSnapshot> {
-  const snap: TelnyxWebhookSnapshot = {};
-  const metric = await telnyxWebhookEventsTotal.get();
-  for (const { labels, value } of metric.values) {
-    const lbls = labels as Record<string, string>;
-    snap[`${lbls.event}|${lbls.result}`] = value;
-  }
-  return snap;
+/** Santé des webhooks lue dans Redis (voir webhook-health.ts) : fenêtre de 15 min contre la semaine. */
+export interface TelnyxWebhookHealth {
+  window: { errors: number; total: number };
+  baseline: { errors: number; total: number };
+  abnormal: boolean;
+  expected: number | null;
 }
 
 /**
- * Évalue le delta de webhooks en erreur / rejetés entre deux snapshots
- * (fenêtre = intervalle du scheduler, 5 min). Premier tick ou restart du
- * process (compteur reparti à zéro) → pas d'alerte, nouvelle baseline.
+ * Alerte quand les erreurs de la fenêtre sont trop nombreuses pour le hasard au regard du taux habituel
+ * (voir alert-math.ts), ou, sans historique fiable, quand la majorité des webhooks échoue.
  */
-export function evaluateTelnyxWebhookErrors(
-  prev: TelnyxWebhookSnapshot | null,
-  cur: TelnyxWebhookSnapshot,
-): SystemFinding | null {
-  if (!prev) return null;
-  let delta = 0;
-  for (const [key, value] of Object.entries(cur)) {
-    if (!key.endsWith('|error') && !key.endsWith('|rejected')) continue;
-    delta += Math.max(0, value - (prev[key] ?? 0));
-  }
-  if (delta < TELNYX_WEBHOOK_ERROR_THRESHOLD) return null;
+export function evaluateTelnyxWebhookHealth(health: TelnyxWebhookHealth): SystemFinding | null {
+  if (!health.abnormal) return null;
+  const { window, baseline, expected } = health;
   return {
     kind: 'telnyx_webhook_errors',
     severity: 'critical',
     identifier: 'global',
-    summary: `${delta} webhooks Telnyx en erreur ou rejetés sur 5 min`,
+    summary: `${window.errors} webhooks Telnyx en erreur sur ${window.total} en 15 min`,
     detail: [
-      `${delta} webhooks Telnyx ont été rejetés (signature invalide) ou ont répondu 5xx`,
-      `sur la dernière fenêtre de 5 min (seuil ${TELNYX_WEBHOOK_ERROR_THRESHOLD}).`,
+      `${window.errors} webhooks sur ${window.total} ont été rejetés (signature invalide) ou ont répondu 5xx`,
+      expected === null
+        ? 'sur les 15 dernières minutes : la majorité échoue (historique de la semaine insuffisant).'
+        : `sur les 15 dernières minutes, pour ${expected.toFixed(2)} attendus au taux habituel de la semaine ` +
+          `(${baseline.errors} erreurs sur ${baseline.total}).`,
       'Les appels entrants ne sont peut-être plus traités.',
       "Vérifier les logs API (grep 'telnyx-guard' et 'voice/telnyx'), la clé publique",
       'TELNYX_PUBLIC_KEY et la file telnyx-webhooks.',

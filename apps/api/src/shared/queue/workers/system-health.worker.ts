@@ -26,6 +26,7 @@ import { db } from '../../db/client';
 import { setupWorkerListeners, jobLogger } from './helper';
 import { logger } from '../../logger/pino';
 import { dispatchSystemFindings } from '../../observability/system-alerts';
+import { evaluateWebhookHealth } from '../../observability/webhook-health';
 import {
   queueJobsGauge,
   callsMissingTranscriptGauge,
@@ -35,15 +36,13 @@ import { refreshVoiceReservationQualityMetrics } from '../../observability/voice
 import {
   collectQueueStates,
   evaluateQueueStates,
-  captureTelnyxWebhookSnapshot,
-  evaluateTelnyxWebhookErrors,
+  evaluateTelnyxWebhookHealth,
   findCallsWithoutTranscript,
   evaluateCallsWithoutTranscript,
   findReservationsWithoutConfirmationSms,
   evaluateReservationsWithoutSms,
   type QueueStateCounts,
   type SystemFinding,
-  type TelnyxWebhookSnapshot,
 } from '../../observability/system-checks';
 
 export type SystemHealthJobData = Record<string, never>;
@@ -55,33 +54,6 @@ export type SystemHealthJobData = Record<string, never>;
  */
 const SMS_SINCE_KEY = 'sokar:system-health:sms-since';
 const SMS_SINCE_TTL_SECONDS = 30 * 24 * 3600;
-
-/** Snapshot précédent du compteur webhook Telnyx (fenêtre de 5 min). */
-const WEBHOOK_SNAPSHOT_KEY = 'sokar:system-health:webhook-snapshot';
-const WEBHOOK_SNAPSHOT_TTL_SECONDS = 900;
-
-async function loadWebhookSnapshot(): Promise<TelnyxWebhookSnapshot | null> {
-  try {
-    const raw = await redisCache.get(WEBHOOK_SNAPSHOT_KEY);
-    return raw ? (JSON.parse(raw) as TelnyxWebhookSnapshot) : null;
-  } catch (err) {
-    logger.warn({ err }, '[system-health] Failed to load webhook snapshot');
-    return null;
-  }
-}
-
-async function saveWebhookSnapshot(snapshot: TelnyxWebhookSnapshot): Promise<void> {
-  try {
-    await redisCache.set(
-      WEBHOOK_SNAPSHOT_KEY,
-      JSON.stringify(snapshot),
-      'EX',
-      WEBHOOK_SNAPSHOT_TTL_SECONDS,
-    );
-  } catch (err) {
-    logger.warn({ err }, '[system-health] Failed to save webhook snapshot');
-  }
-}
 
 async function getSmsSinceMarker(): Promise<Date> {
   const now = Date.now();
@@ -141,13 +113,10 @@ export const systemHealthWorker = new Worker(
     publishQueueGauges(states);
     findings.push(...evaluateQueueStates(states));
 
-    // 2. Webhooks Telnyx en erreur / rejetés (delta sur 5 min).
+    // 2. Webhooks Telnyx en erreur / rejetés : fenêtre de 15 min contre le taux habituel de la semaine.
     try {
-      const prevWebhook = await loadWebhookSnapshot();
-      const curWebhook = await captureTelnyxWebhookSnapshot();
-      const finding = evaluateTelnyxWebhookErrors(prevWebhook, curWebhook);
+      const finding = evaluateTelnyxWebhookHealth(await evaluateWebhookHealth());
       if (finding) findings.push(finding);
-      await saveWebhookSnapshot(curWebhook);
     } catch (err) {
       log.error({ err }, '[system-health] Telnyx webhook check failed');
     }

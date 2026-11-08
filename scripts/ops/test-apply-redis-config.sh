@@ -61,6 +61,8 @@ VOLUME_NAME="infra_redis-data"
 test "$(run)" = 0
 grep -q "exec -T redis redis-cli save" "$CALLS"
 grep -q "up -d --no-deps redis" "$CALLS"
+# Les deux fichiers d'environnement sont transmis : le compose exige aussi le mot de passe de Grafana.
+grep -q -- "--env-file /opt/sokar/infra/.env --env-file /etc/sokar/grafana.env" "$CALLS"
 grep -q "config get maxmemory" "$CALLS"
 test "$(grep -n 'redis-cli save' "$CALLS" | cut -d: -f1)" -lt "$(grep -n 'up -d' "$CALLS" | cut -d: -f1)"
 

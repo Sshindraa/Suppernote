@@ -19,6 +19,7 @@ import { warmupTelnyxConnection } from './shared/telnyx/http-agent';
 import { initGreetingCache } from './modules/voice/stream/greeting-cache';
 import { waitForVoiceCallsToEnd } from './modules/voice/stream/shutdown-drain';
 import { startCapacitySampler } from './modules/voice/capacity-sampler';
+import { startCapacityLimitPublisher } from './modules/voice/call-capacity';
 import { initVoiceFillerCache } from './modules/voice/stream/voice-filler';
 import { reservationManagementRoutes } from './modules/reservations/reservation-management.routes';
 import { smsInboundRoutes } from './modules/sms/sms-inbound.routes';
@@ -332,10 +333,12 @@ async function start() {
 
   // Mesure ce que coûtent les appels réels : c'est de là que vient le seuil d'appels simultanés.
   const stopCapacitySampler = startCapacitySampler();
+  const stopCapacityLimitPublisher = startCapacityLimitPublisher();
 
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down gracefully...');
     stopCapacitySampler();
+    stopCapacityLimitPublisher();
     // Les sessions vocales vivent en mémoire : fermer l'API coupe les appels en cours.
     await waitForVoiceCallsToEnd().catch((err) => logger.warn({ err }, 'Voice drain failed'));
     await app.close();

@@ -121,6 +121,20 @@ export async function currentCapacityLimit(
   return value;
 }
 
+/**
+ * Publie le seuil dans la jauge `sokar_voice_capacity_limit` dès le démarrage puis toutes les 15 s. Sans cela
+ * la jauge restait à 0 jusqu'au premier appel, et l'alerte « sessions / seuil » divisait par zéro.
+ */
+export function startCapacityLimitPublisher(intervalMs = OVERRIDE_CACHE_MS): () => void {
+  const publish = () => {
+    currentCapacityLimit().catch(() => undefined);
+  };
+  publish();
+  const timer = setInterval(publish, intervalMs);
+  timer.unref();
+  return () => clearInterval(timer);
+}
+
 export async function setCapacityLimit(
   limit: number,
   actor: string,

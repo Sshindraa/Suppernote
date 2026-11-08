@@ -13,6 +13,7 @@ import {
   currentCapacityLimit,
   getVoiceCapacityReport,
   setCapacityLimit,
+  startCapacityLimitPublisher,
   isAtCallCapacity,
   maxConcurrentCalls,
   recordVoicePeak,
@@ -203,5 +204,30 @@ describe('seuil réglé depuis le dashboard', () => {
     expect(report.history).toHaveLength(7);
     expect(report.history[6].day).toBe('2026-11-08');
     expect(report.utilization).toBeCloseTo(31 / 60);
+  });
+});
+
+describe('publication du seuil dans la jauge', () => {
+  it('publie le seuil dès le démarrage, sans attendre un appel', async () => {
+    vi.useFakeTimers();
+    vi.stubEnv('VOICE_MAX_CONCURRENT_CALLS', '77');
+    const { voiceCapacityLimitGauge } = await import('../../../shared/observability/metrics');
+    voiceCapacityLimitGauge.set(0);
+    // Le cache de 15 s peut contenir une valeur d'un test précédent : on le vide par un réglage.
+    await clearCapacityLimit({
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn(),
+      del: vi.fn().mockResolvedValue(1),
+    });
+
+    const stop = startCapacityLimitPublisher(1_000);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1_000);
+    stop();
+
+    const { values } = await voiceCapacityLimitGauge.get();
+    expect(values[0].value).toBeGreaterThan(0);
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 });

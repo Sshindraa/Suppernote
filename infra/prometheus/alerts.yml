@@ -65,7 +65,7 @@ groups:
       # avant d'être atteint ; l'alerte d'usage sur 7 jours est émise par le job voice-capacity-check.
       # Réévaluer sur le VPS : voir docs/audits/2026-09-21-voice-load-report.md.
       - alert: VoiceSessionsHigh
-        expr: sokar_voice_active_sessions / sokar_voice_capacity_limit > 0.5
+        expr: sokar_voice_capacity_limit > 0 and sokar_voice_active_sessions / sokar_voice_capacity_limit > 0.5
         for: 2m
         labels:
           severity: warning

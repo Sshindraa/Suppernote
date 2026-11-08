@@ -17,6 +17,16 @@ export function suspendedCallMessage(restaurantName: string | null | undefined):
   ].join(' ');
 }
 
+/** Appel refusé parce que le serveur est au plafond d'appels simultanés (voir call-capacity.ts). */
+export function busyCallMessage(restaurantName: string | null | undefined): string {
+  const name = restaurantName?.trim();
+  return [
+    name ? `Bonjour, vous êtes bien chez ${name}.` : 'Bonjour.',
+    'Toutes nos lignes sont occupées pour le moment.',
+    'Merci de rappeler dans quelques minutes. Au revoir.',
+  ].join(' ');
+}
+
 export interface SuspendedCallActions {
   answer(callControlId: string, clientState: string): Promise<void>;
   speak(callControlId: string, text: string, clientState: string): Promise<void>;
@@ -29,9 +39,13 @@ export function isSuspendedCall(state: Record<string, unknown> | null): boolean 
   return state?.kind === SUSPENDED_CALL_KIND;
 }
 
-function encodeState(restaurantName: string | null | undefined): string {
+function encodeState(restaurantName: string | null | undefined, busy = false): string {
   return Buffer.from(
-    JSON.stringify({ kind: SUSPENDED_CALL_KIND, name: restaurantName?.slice(0, 80) ?? null }),
+    JSON.stringify({
+      kind: SUSPENDED_CALL_KIND,
+      name: restaurantName?.slice(0, 80) ?? null,
+      ...(busy ? { busy: true } : {}),
+    }),
   ).toString('base64');
 }
 
@@ -40,8 +54,9 @@ export async function answerSuspendedCall(
   callControlId: string,
   restaurantName: string | null | undefined,
   actions: SuspendedCallActions = telnyxSuspendedCallActions,
+  options: { busy?: boolean } = {},
 ): Promise<void> {
-  await actions.answer(callControlId, encodeState(restaurantName));
+  await actions.answer(callControlId, encodeState(restaurantName, options.busy));
 }
 
 export async function handleSuspendedCallEvent(
@@ -53,7 +68,12 @@ export async function handleSuspendedCallEvent(
   switch (eventType) {
     case 'call.answered': {
       const name = typeof state.name === 'string' ? state.name : null;
-      await actions.speak(callControlId, suspendedCallMessage(name), encodeState(name));
+      const busy = state.busy === true;
+      await actions.speak(
+        callControlId,
+        busy ? busyCallMessage(name) : suspendedCallMessage(name),
+        encodeState(name, busy),
+      );
       return 'spoken';
     }
     case 'call.speak.ended':

@@ -18,6 +18,8 @@ import { telnyxVoiceRoutes } from './modules/voice/telnyx.pipeline';
 import { warmupTelnyxConnection } from './shared/telnyx/http-agent';
 import { initGreetingCache } from './modules/voice/stream/greeting-cache';
 import { waitForVoiceCallsToEnd } from './modules/voice/stream/shutdown-drain';
+import { startCapacitySampler } from './modules/voice/capacity-sampler';
+import { startCapacityLimitPublisher } from './modules/voice/call-capacity';
 import { initVoiceFillerCache } from './modules/voice/stream/voice-filler';
 import { reservationManagementRoutes } from './modules/reservations/reservation-management.routes';
 import { smsInboundRoutes } from './modules/sms/sms-inbound.routes';
@@ -60,6 +62,7 @@ import { flagsRoutes } from './modules/admin/flags.routes';
 import { onboardingFunnelRoutes } from './modules/admin/onboarding-funnel.routes';
 import { provisioningRoutes } from './modules/admin/provisioning.routes';
 import { restaurantHealthRoutes } from './modules/admin/restaurant-health.routes';
+import { voiceCapacityRoutes } from './modules/admin/voice-capacity.routes';
 import { adminCustomerRepairRoutes } from './modules/admin/customer-repair.routes';
 import { posRoutes } from './modules/pos/pos.routes';
 import { reservationPaymentRoutes } from './modules/reservation-payments/reservation-payment.routes';
@@ -286,6 +289,7 @@ export async function buildApp() {
   await app.register(onboardingFunnelRoutes);
   await app.register(provisioningRoutes);
   await app.register(restaurantHealthRoutes);
+  await app.register(voiceCapacityRoutes);
   await app.register(adminCustomerRepairRoutes);
   await app.register(posRoutes);
   await app.register(reservationPaymentRoutes);
@@ -327,8 +331,14 @@ export async function buildApp() {
 async function start() {
   const app = await buildApp();
 
+  // Mesure ce que coûtent les appels réels : c'est de là que vient le seuil d'appels simultanés.
+  const stopCapacitySampler = startCapacitySampler();
+  const stopCapacityLimitPublisher = startCapacityLimitPublisher();
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down gracefully...');
+    stopCapacitySampler();
+    stopCapacityLimitPublisher();
     // Les sessions vocales vivent en mémoire : fermer l'API coupe les appels en cours.
     await waitForVoiceCallsToEnd().catch((err) => logger.warn({ err }, 'Voice drain failed'));
     await app.close();

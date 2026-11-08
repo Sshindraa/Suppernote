@@ -290,6 +290,31 @@ export const voiceTtsContextFailureTotal = new Counter({
   registers: [getRegistry()],
 });
 
+export const voiceCapacityLimitGauge = new Gauge({
+  name: 'sokar_voice_capacity_limit',
+  help: "Seuil actuel d'appels vocaux simultanés par process API (VOICE_MAX_CONCURRENT_CALLS)",
+  registers: [getRegistry()],
+});
+
+export const voiceCapacityPeakGauge = new Gauge({
+  name: 'sokar_voice_capacity_peak_7d',
+  help: "Plus fort nombre d'appels vocaux simultanés observé sur 7 jours",
+  registers: [getRegistry()],
+});
+
+export const voiceCapacityUtilizationGauge = new Gauge({
+  name: 'sokar_voice_capacity_utilization',
+  help: 'Pic sur 7 jours divisé par le seuil actuel (1 = seuil atteint)',
+  registers: [getRegistry()],
+});
+
+export const voiceCallsRefusedTotal = new Counter({
+  name: 'sokar_voice_calls_refused_total',
+  help: 'Appels entrants refusés avant toute session vocale, par raison',
+  labelNames: ['reason'] as const,
+  registers: [getRegistry()],
+});
+
 export const voiceTtsCacheTotal = new Counter({
   name: 'sokar_voice_tts_cache_total',
   help: 'Lectures du cache TTS par type (accueil ou réplique) et résultat',

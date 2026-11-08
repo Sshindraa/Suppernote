@@ -3,10 +3,10 @@
  *
  * Covers:
  *  - call.initiated
- *      • happy path: loadContext, checkMarginHealth, isVoicePipelineEnabled,
+ *      • happy path: loadContext, recordMonthlyCall, isVoicePipelineEnabled,
  *        CustomerService.lookupOrCreate, db.call.create, CallSessionManager.create,
  *        queues.telnyxWebhooks.add
- *      • guard rails: circuit breaker, feature-flag kill switch, restaurant not found,
+ *      • guard rails: feature-flag kill switch, restaurant not found,
  *        VIP push
  *  - call.hangup: duration update, incrementVisit only when a reservation was made
  *  - /voice/telnyx/end: upsert with the detected outcome
@@ -35,7 +35,7 @@ vi.mock('../telnyx.guard', () => ({
 vi.mock('../../restaurants/restaurant.service', () => ({
   RestaurantService: {
     loadContext: vi.fn(),
-    checkMarginHealth: vi.fn(),
+    recordMonthlyCall: vi.fn(),
   },
 }));
 
@@ -88,7 +88,7 @@ import { isBillingSuspended } from '../../billing/billing.service';
 import { CallSessionManager } from '../stream/manager';
 
 const mockLoadContext = vi.mocked(RestaurantService.loadContext);
-const mockCheckMarginHealth = vi.mocked(RestaurantService.checkMarginHealth);
+const mockRecordMonthlyCall = vi.mocked(RestaurantService.recordMonthlyCall);
 const mockLookupOrCreate = vi.mocked(CustomerService.lookupOrCreate);
 const mockBuildVipPromptExtra = vi.mocked(CustomerService.buildVipPromptExtra);
 const mockIncrementVisit = vi.mocked(CustomerService.incrementVisit);
@@ -213,7 +213,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('tout restaurant : profil CRM chargé et contexte client', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue(knownCaller);
     mockBuildVipPromptExtra.mockReturnValue('');
@@ -232,7 +232,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('happy path: pre-creates the session and enqueues the answer job', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx({ onlineReservationsActive: true }));
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue({
       id: 'cust-1',
@@ -255,7 +255,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
     expect(res.json()).toEqual({ result: 'ok' });
 
     expect(mockLoadContext).toHaveBeenCalledWith('+33****0000');
-    expect(mockCheckMarginHealth).toHaveBeenCalledWith('rest-1');
+    expect(mockRecordMonthlyCall).toHaveBeenCalledWith('rest-1');
     expect(mockIsVoicePipelineEnabled).toHaveBeenCalledWith('rest-1');
     expect(mockLookupOrCreate).toHaveBeenCalledWith('rest-1', '+33****0001');
 
@@ -296,7 +296,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('rejoue la réponse via la queue quand Telnyx renvoie une erreur HTTP', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockBuildVipPromptExtra.mockReturnValue('');
     mockTelnyxFetch.mockResolvedValueOnce(
@@ -327,7 +327,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('rejoue la réponse via la queue après une erreur réseau Telnyx', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockBuildVipPromptExtra.mockReturnValue('');
     mockTelnyxFetch.mockRejectedValueOnce(new Error('connect ETIMEDOUT'));
@@ -350,7 +350,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('renvoie une erreur si le décrochage et son secours échouent tous les deux', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockTelnyxFetch.mockRejectedValueOnce(new Error('network unavailable'));
     vi.mocked(queues.telnyxWebhooks.add).mockRejectedValueOnce(new Error('queue unavailable'));
@@ -374,7 +374,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('conserve la session active lorsque Telnyx répète le début de l’appel', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     const first = await app.inject({
       method: 'POST',
@@ -406,7 +406,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('réutilise une seule session pour deux notifications simultanées', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     const manager = CallSessionManager.getInstance();
     const create = vi.spyOn(manager, 'create');
@@ -436,32 +436,14 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ result: 'ok' });
-    expect(mockCheckMarginHealth).not.toHaveBeenCalled();
+    expect(mockRecordMonthlyCall).not.toHaveBeenCalled();
     expect(queues.telnyxWebhooks.add).not.toHaveBeenCalled();
-    expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
-  });
-
-  it('drops the call when margin health (circuit breaker) is unsafe', async () => {
-    mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(false);
-
-    const res = await app.inject({
-      method: 'POST',
-      url: '/voice/telnyx',
-      payload: makeInitiatedPayload(),
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ result: 'ok' });
-    // With Promise.all, lookupOrCreate runs in parallel with checkMarginHealth.
-    // The guard still prevents session creation and answer call.
-    expect(mockTelnyxFetch).not.toHaveBeenCalled();
     expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
   });
 
   it('drops the call when the voice pipeline feature flag is off (kill switch)', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(false);
 
     const res = await app.inject({
@@ -480,7 +462,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('plays a short message instead of a voice session when the subscription has ended', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockIsBillingSuspended.mockResolvedValueOnce(true);
 
@@ -505,7 +487,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('plays a busy message instead of a voice session when the call capacity is reached', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     vi.mocked(isAtCallCapacity).mockResolvedValueOnce(true);
 
@@ -529,7 +511,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
   it('sends a VIP push notification when the caller is VIP and VIP_PUSH_ENABLED=true', async () => {
     process.env.VIP_PUSH_ENABLED = 'true';
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue({
       id: 'cust-vip',
@@ -562,7 +544,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
   it('does NOT send a VIP push when VIP_PUSH_ENABLED is unset (default off)', async () => {
     // process.env.VIP_PUSH_ENABLED is deleted in beforeEach
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue({
       id: 'cust-vip',
@@ -587,7 +569,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('handles missing caller (payload.from absent) without throwing', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockBuildVipPromptExtra.mockReturnValue('');
 
@@ -609,7 +591,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
 
   it('swallows Prisma P2002 (duplicate call record) silently on retry', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue({
       id: 'cust-1',
@@ -977,7 +959,7 @@ describe('POST /voice/telnyx — call.initiated — non-P2002 Prisma error handl
 
   it('rethrows a non-P2002 Prisma error from db.call.create (returns 500)', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
-    mockCheckMarginHealth.mockResolvedValue(true);
+    mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
     mockLookupOrCreate.mockResolvedValue({
       id: 'cust-1',

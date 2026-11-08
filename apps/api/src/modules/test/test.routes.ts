@@ -76,12 +76,7 @@ export async function testRoutes(app: FastifyInstance) {
       }
 
       const ctx = await RestaurantService.loadContext(phone);
-      const safe = await RestaurantService.checkMarginHealth(ctx.id);
-      if (!safe) {
-        return reply
-          .status(429)
-          .send({ error: "Circuit breaker triggered — trop d'appels récents" });
-      }
+      await RestaurantService.recordMonthlyCall(ctx.id);
 
       const caller = await CustomerService.lookupOrCreate(ctx.id, callerPhone);
       const customer = await CustomerService.withVoiceProfile(ctx.id, caller);

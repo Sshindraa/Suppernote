@@ -31,6 +31,8 @@ export function OnboardingAccessBoundary({
     ONBOARDING_TASK_KEYS.every((key) =>
       state.steps.some((step) => step.key === key && step.status === 'completed'),
     );
+  // Accès demandé pour le restaurant de test RGPD, sans activer ses canaux.
+  const testRestaurant = state?.restaurant?.id === 'org_3ITQ1oVrrbAPwz0xJKAq084CBAc';
 
   // Exception de qualification déclarée côté serveur : aucun canal n'est marqué terminé.
   // L'API conserve ses contrôles Clerk, de rôle, de site et de formule.
@@ -53,14 +55,19 @@ export function OnboardingAccessBoundary({
     if (!enforceAccess || loading) return;
     if (complete && pathname === '/onboarding') {
       router.replace('/dashboard');
-    } else if (!complete && !crmQualification && pathname.startsWith('/dashboard')) {
+    } else if (
+      !complete &&
+      !testRestaurant &&
+      !crmQualification &&
+      pathname.startsWith('/dashboard')
+    ) {
       router.replace('/onboarding');
     }
-  }, [complete, crmQualification, enforceAccess, loading, pathname, router]);
+  }, [complete, testRestaurant, crmQualification, enforceAccess, loading, pathname, router]);
 
   if (!enforceAccess) return <>{children}</>;
 
-  if (!loading && (complete || crmQualification) && pathname !== '/onboarding')
+  if (!loading && (complete || testRestaurant || crmQualification) && pathname !== '/onboarding')
     return <>{children}</>;
   if (!loading && complete && pathname === '/onboarding') {
     return (

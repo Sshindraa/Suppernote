@@ -94,6 +94,16 @@ it('redirige un dashboard incomplet vers la route onboarding', async () => {
   mount();
   await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/onboarding'));
 });
+it('ouvre le dashboard du restaurant de test sans valider ses étapes', () => {
+  mocks.state = stateWith('pending');
+  mocks.state.restaurant = {
+    id: 'org_3ITQ1oVrrbAPwz0xJKAq084CBAc',
+  } as OnboardingState['restaurant'];
+  mount();
+  expect(screen.getByText('Réservations accessibles')).toBeInTheDocument();
+  expect(mocks.replace).not.toHaveBeenCalled();
+  expect(mocks.state.steps.every((step) => step.status === 'pending')).toBe(true);
+});
 it('retourne au dashboard une fois toutes les étapes validées', async () => {
   mocks.state = stateWith('completed');
   mocks.pathname = '/onboarding';

@@ -233,21 +233,20 @@ start_prometheus() {
 # géré par ce fichier et garde son volume de données (sinon la file BullMQ serait perdue), et les données sont
 # écrites sur disque juste avant. Seul le service redis est touché.
 # Mode `check` : exécute tous les contrôles sans rien modifier.
-REDIS_CONFIG_TMP_ENV=""
 apply_redis_config() {
     [ "$ENVIRONMENT" = "prod" ] || usage
     local mode="${1:-apply}"
     case "$mode" in apply|check) ;; *) usage ;; esac
 
-    # Le compose décrit aussi Postgres et Grafana, dont les mots de passe sont obligatoires à l'interpolation,
-    # et cette version de Compose n'utilise que le dernier --env-file : on fusionne les deux dans un fichier
-    # temporaire privé (jamais exécuté, seulement lu par Compose), supprimé en sortie.
-    REDIS_CONFIG_TMP_ENV="$(mktemp)"
-    trap 'rm -f "$REDIS_CONFIG_TMP_ENV"' EXIT
-    chmod 600 "$REDIS_CONFIG_TMP_ENV"
-    { cat "$ROOT/infra/.env"; printf '\n'; cat /etc/sokar/grafana.env; } > "$REDIS_CONFIG_TMP_ENV"
+    # Le compose décrit aussi Postgres et Grafana, dont les mots de passe sont obligatoires pour interpréter
+    # le fichier. Ils ne servent pas à recréer Redis et Compose ne touche que le service nommé : on fournit des
+    # valeurs neutres plutôt que de lire des fichiers de secrets. `--env-file /dev/null` empêche Compose de
+    # lire infra/.env, qui est le fichier d'environnement de l'application et non celui de ce compose.
+    # (Texte neutre, pas un secret : aucun service autre que redis n'est jamais créé ni modifié.)
+    local unused_by_redis="non-utilise-par-redis"
+    export POSTGRES_PASSWORD=$unused_by_redis GRAFANA_ADMIN_PASSWORD=$unused_by_redis
     local compose=(/usr/bin/docker compose --project-name infra
-        --env-file "$REDIS_CONFIG_TMP_ENV" -f "$ROOT/infra/docker-compose.yml")
+        --env-file /dev/null -f "$ROOT/infra/docker-compose.yml")
 
     local sessions
     sessions="$(curl -fsS --max-time 3 http://127.0.0.1:4000/metrics 2>/dev/null \

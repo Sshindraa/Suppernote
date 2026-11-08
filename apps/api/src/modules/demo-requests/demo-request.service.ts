@@ -104,13 +104,31 @@ export async function markDemoRequestNotified(id: string): Promise<void> {
 
 export async function listDemoRequests(filter: {
   status?: DemoRequestStatus;
+  isTest?: boolean;
+  active?: boolean;
   limit: number;
 }): Promise<DemoRequest[]> {
   return db.demoRequest.findMany({
-    where: filter.status ? { status: filter.status } : {},
+    where: {
+      ...(filter.status
+        ? { status: filter.status }
+        : filter.active
+          ? { status: { in: ['NEW', 'CONTACTED'] } }
+          : {}),
+      ...(filter.isTest === undefined ? {} : { isTest: filter.isTest }),
+    },
     orderBy: { createdAt: 'desc' },
     take: filter.limit,
   });
+}
+
+export async function markDemoRequestTest(
+  id: string,
+  isTest: boolean,
+): Promise<DemoRequest | null> {
+  const current = await db.demoRequest.findUnique({ where: { id } });
+  if (!current) return null;
+  return db.demoRequest.update({ where: { id }, data: { isTest } });
 }
 
 export async function getDemoRequestSummary() {

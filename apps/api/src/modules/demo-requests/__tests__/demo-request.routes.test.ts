@@ -304,6 +304,52 @@ describe('demo-request.routes', () => {
       });
     });
 
+    it('filtre les demandes actives et les tests avant la limite', async () => {
+      const app = await getApp();
+      vi.mocked(db.demoRequest.findMany).mockResolvedValue([]);
+      const res = await app.inject({
+        method: 'GET',
+        url: '/admin/demo-requests?active=true&isTest=false&limit=20',
+        headers: OPERATOR_HEADERS,
+      });
+      expect(res.statusCode).toBe(200);
+      expect(db.demoRequest.findMany).toHaveBeenCalledWith({
+        where: { status: { in: ['NEW', 'CONTACTED'] }, isTest: false },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+    });
+
+    it('réserve le marquage test aux opérateurs et accepte uniquement un booléen', async () => {
+      const app = await getApp();
+      const forbidden = await app.inject({
+        method: 'PATCH',
+        url: '/admin/demo-requests/dr_1/test',
+        payload: { isTest: true },
+      });
+      expect(forbidden.statusCode).toBe(401);
+      const invalid = await app.inject({
+        method: 'PATCH',
+        url: '/admin/demo-requests/dr_1/test',
+        headers: OPERATOR_HEADERS,
+        payload: { isTest: 'true' },
+      });
+      expect(invalid.statusCode).toBe(400);
+      vi.mocked(db.demoRequest.findUnique).mockResolvedValue(demoRequest() as never);
+      vi.mocked(db.demoRequest.update).mockResolvedValue(demoRequest({ isTest: true }) as never);
+      const ok = await app.inject({
+        method: 'PATCH',
+        url: '/admin/demo-requests/dr_1/test',
+        headers: OPERATOR_HEADERS,
+        payload: { isTest: true },
+      });
+      expect(ok.statusCode).toBe(200);
+      expect(db.demoRequest.update).toHaveBeenCalledWith({
+        where: { id: 'dr_1' },
+        data: { isTest: true },
+      });
+    });
+
     it('horodate le premier passage à CONTACTED et refuse un statut inconnu', async () => {
       const app = await getApp();
       vi.mocked(db.demoRequest.findUnique).mockResolvedValue(demoRequest() as never);

@@ -6,6 +6,7 @@ import {
   createDemoRequest,
   getDemoRequestSummary,
   listDemoRequests,
+  markDemoRequestTest,
   markDemoRequestNotified,
   notifyDemoRequest,
   recordDemoRequestInteraction,
@@ -42,6 +43,14 @@ const PublicDemoRequestBody = z.object({
 
 const OperatorListQuery = z.object({
   status: z.enum(DEMO_REQUEST_STATUSES).optional(),
+  isTest: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+  active: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
 
@@ -145,6 +154,20 @@ export async function demoRequestRoutes(app: FastifyInstance) {
     { preHandler: requireSokarOperator() },
     async (_request, reply) => {
       return reply.send(await getDemoRequestSummary());
+    },
+  );
+
+  app.patch(
+    '/admin/demo-requests/:id/test',
+    { preHandler: requireSokarOperator() },
+    async (request, reply) => {
+      const params = DemoRequestParams.safeParse(request.params);
+      const body = z.object({ isTest: z.boolean() }).strict().safeParse(request.body);
+      if (!params.success || !body.success)
+        return reply.status(400).send({ error: 'VALIDATION_ERROR' });
+      const updated = await markDemoRequestTest(params.data.id, body.data.isTest);
+      if (!updated) return reply.status(404).send({ error: 'DEMO_REQUEST_NOT_FOUND' });
+      return reply.send({ data: updated });
     },
   );
 

@@ -6,39 +6,49 @@ import {
   voiceCapacityUtilizationGauge,
 } from '../../shared/observability/metrics';
 import { activeVoiceSessions } from './stream/shutdown-drain';
+import { computeCapacity, type CapacityBasis } from './capacity-model';
+import { readCapacityStats } from './capacity-sampler';
 
 /**
  * Seuil d'appels simultanés par processus API, suivi pour être relevé AVANT d'être atteint.
  * Le refus d'un appel au seuil n'est qu'un dernier filet : l'usage réel (pic sur 7 jours) est comparé
  * au seuil chaque heure, et une alerte part à 50 % (anticiper) puis 70 % (relever maintenant).
- * Le seuil vient de VOICE_MAX_CONCURRENT_CALLS. Valeur par défaut = estimation, pas une mesure sur le VPS :
- * mesure locale du 21/09 (saturation vers 100 sessions sans STT ni TTS réels), voir
- * docs/audits/2026-09-21-voice-load-report.md.
+ * Le seuil est CALCULÉ (capacity-model.ts) à partir de ce que coûtent les appels réels (capacity-sampler.ts)
+ * et de la limite mémoire du processus ; un réglage du dashboard ou VOICE_MAX_CONCURRENT_CALLS le remplace.
  */
-export const DEFAULT_MAX_CONCURRENT_CALLS = 60;
 const PEAK_RETENTION_DAYS = 7;
 const WARNING_RATIO = 0.5;
 const CRITICAL_RATIO = 0.7;
+/** Limite de redémarrage PM2 de l'API (`max_memory_restart`), recopiée dans l'environnement par l'écosystème. */
+const DEFAULT_PROCESS_MEMORY_LIMIT_MB = 500;
 
-export function maxConcurrentCalls(raw = process.env.VOICE_MAX_CONCURRENT_CALLS): number {
+/** Seuil imposé par l'environnement, ou null s'il n'y en a pas. */
+export function maxConcurrentCalls(raw = process.env.VOICE_MAX_CONCURRENT_CALLS): number | null {
   const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_CONCURRENT_CALLS;
+  return raw !== undefined && Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-voiceCapacityLimitGauge.set(maxConcurrentCalls());
+function processMemoryLimitBytes(raw = process.env.PROCESS_MEMORY_LIMIT_MB): number {
+  const parsed = Number(raw);
+  return (
+    (Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PROCESS_MEMORY_LIMIT_MB) * 1024 * 1024
+  );
+}
 
-// ── Seuil courant : réglé depuis le dashboard admin, sinon variable d'environnement, sinon défaut ──
+// ── Seuil courant : dashboard admin, sinon variable d'environnement, sinon calcul sur mesures ──
 
 const OVERRIDE_KEY = 'sokar:voice:capacity-limit';
 const OVERRIDE_CACHE_MS = 15_000;
 export const CAPACITY_LIMIT_MIN = 1;
 export const CAPACITY_LIMIT_MAX = 500;
 
-export type CapacitySource = 'dashboard' | 'env' | 'default';
+export type CapacitySource = 'dashboard' | 'env' | 'calculated';
 
 export interface CapacityLimit {
   limit: number;
   source: CapacitySource;
+  /** Détail du calcul quand le seuil est calculé. */
+  basis?: CapacityBasis;
   setBy?: string;
   setAt?: string;
 }
@@ -51,21 +61,23 @@ export interface LimitStore {
 
 let limitCache: { value: CapacityLimit; at: number } | null = null;
 
-function envLimit(): CapacityLimit {
-  const fromEnv = process.env.VOICE_MAX_CONCURRENT_CALLS;
-  return {
-    limit: maxConcurrentCalls(fromEnv),
-    source: Number.isInteger(Number(fromEnv)) && Number(fromEnv) > 0 ? 'env' : 'default',
-  };
+async function calculatedLimit(readStats: typeof readCapacityStats): Promise<CapacityLimit> {
+  const { limit, basis } = computeCapacity(await readStats(), {
+    memoryLimitBytes: processMemoryLimitBytes(),
+    currentRssBytes: process.memoryUsage().rss,
+  });
+  return { limit, source: 'calculated', basis };
 }
 
 /** Seuil en vigueur. Lecture Redis mise en cache 15 s : aucun coût sur le chemin d'un appel. */
 export async function currentCapacityLimit(
   store: LimitStore = redisCache as unknown as LimitStore,
   now = Date.now(),
+  readStats: typeof readCapacityStats = readCapacityStats,
 ): Promise<CapacityLimit> {
   if (limitCache && now - limitCache.at < OVERRIDE_CACHE_MS) return limitCache.value;
-  let value = envLimit();
+  const fromEnv = maxConcurrentCalls();
+  let value: CapacityLimit | null = fromEnv !== null ? { limit: fromEnv, source: 'env' } : null;
   try {
     const raw = await store.get(OVERRIDE_KEY);
     const parsed = raw ? (JSON.parse(raw) as { limit?: number; by?: string; at?: string }) : null;
@@ -79,6 +91,30 @@ export async function currentCapacityLimit(
     }
   } catch {
     // Redis indisponible : on garde la variable d'environnement, jamais un refus d'appel.
+  }
+  if (value === null) {
+    try {
+      value = await calculatedLimit(readStats);
+    } catch {
+      // Sans mesures lisibles, la seule limite connue est celle de la mémoire du processus au repos.
+      value = {
+        limit: computeCapacity(
+          {
+            idleCpu: null,
+            idleRss: null,
+            activeSamples: 0,
+            sumSessions: 0,
+            sumDeltaCpu: 0,
+            sumDeltaRss: 0,
+          },
+          {
+            memoryLimitBytes: processMemoryLimitBytes(),
+            currentRssBytes: process.memoryUsage().rss,
+          },
+        ).limit,
+        source: 'calculated',
+      };
+    }
   }
   limitCache = { value, at: now };
   voiceCapacityLimitGauge.set(value.limit);
@@ -214,9 +250,8 @@ export async function checkVoiceCapacityHeadroom(
       detail: [
         `pic sur 7 jours=${peak} appels simultanés`,
         `seuil actuel=${deps.limit} (VOICE_MAX_CONCURRENT_CALLS)`,
-        'Le seuil par défaut est une estimation, pas une mesure sur le VPS : mesurer avec',
-        'apps/api/scripts/voice-load-test.ts hors heures de service, puis relever le seuil',
-        "ou ajouter un second processus avant de l'atteindre.",
+        'Le seuil est calculé sur les mesures réelles (page admin Capacité vocale) : relever la mémoire',
+        "allouée au processus ou ajouter un second processus avant de l'atteindre.",
       ].join('\n'),
     });
   }
@@ -233,7 +268,8 @@ export interface CapacityReport extends CapacityLimit {
   level: CapacityLevel;
   thresholds: { warning: number; critical: number };
   history: Array<{ day: string; peak: number }>;
-  measuredOnVps: false;
+  /** Vrai quand le coût CPU par appel a été mesuré sur du trafic réel. */
+  cpuMeasured: boolean;
   generatedAt: string;
 }
 
@@ -269,7 +305,7 @@ export async function getVoiceCapacityReport(
       utilization >= CRITICAL_RATIO ? 'critical' : utilization >= WARNING_RATIO ? 'warning' : 'ok',
     thresholds: { warning: WARNING_RATIO, critical: CRITICAL_RATIO },
     history,
-    measuredOnVps: false,
+    cpuMeasured: (current.basis?.cpuPerSession ?? null) !== null,
     generatedAt: now.toISOString(),
   };
 }

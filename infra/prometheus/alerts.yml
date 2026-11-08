@@ -72,7 +72,7 @@ groups:
           team: sokar
         annotations:
           summary: '{{ $value }} appels vocaux simultanés'
-          description: 'Le process API tient plus de la moitié de son seuil actuel de sessions simultanées (sokar_voice_capacity_limit, VOICE_MAX_CONCURRENT_CALLS, 60 par défaut). Anticiper la hausse de capacité. La saturation CPU a été mesurée vers 100 sessions ; au-delà, la latence vocale se dégrade avant la panne. Vérifier le CPU (top, pm2 monit) et envisager un second process voice.'
+          description: 'Le process API tient plus de la moitié de son seuil actuel de sessions simultanées (sokar_voice_capacity_limit, calculé sur les mesures réelles). Anticiper la hausse de capacité. La saturation CPU a été mesurée vers 100 sessions ; au-delà, la latence vocale se dégrade avant la panne. Vérifier le CPU (top, pm2 monit) et envisager un second process voice.'
 
       # Jobs en échec : une file dépasse le seuil in-app (5 failed).
       - alert: QueueFailedJobs

@@ -13,9 +13,22 @@ import { getErrorMessage } from '@/types/api';
 
 type Level = 'ok' | 'warning' | 'critical';
 
+interface CapacityBasis {
+  samples: number;
+  cpuPerSession: number | null;
+  rssPerSessionBytes: number;
+  rssPerSessionSource: 'measured' | 'benchmark';
+  baselineRssBytes: number;
+  memoryLimitBytes: number;
+  cpuLimit: number | null;
+  memoryLimit: number;
+  binding: 'cpu' | 'memory';
+}
+
 interface CapacityReport {
   limit: number;
-  source: 'dashboard' | 'env' | 'default';
+  source: 'dashboard' | 'env' | 'calculated';
+  basis?: CapacityBasis;
   setBy?: string;
   setAt?: string;
   activeNow: number;
@@ -25,14 +38,14 @@ interface CapacityReport {
   level: Level;
   thresholds: { warning: number; critical: number };
   history: Array<{ day: string; peak: number }>;
-  measuredOnVps: boolean;
+  cpuMeasured: boolean;
   generatedAt: string;
 }
 
 const SOURCE_LABELS: Record<CapacityReport['source'], string> = {
   dashboard: 'Réglé depuis cette page',
   env: 'Variable d’environnement',
-  default: 'Valeur par défaut (estimation)',
+  calculated: 'Calculé sur les mesures',
 };
 
 const LEVEL_COPY: Record<Level, { label: string; hint: string }> = {
@@ -48,6 +61,44 @@ const LEVEL_COPY: Record<Level, { label: string; hint: string }> = {
 };
 
 const percent = (ratio: number) => `${Math.round(ratio * 100)} %`;
+const MIN_SAMPLES = 180;
+const megabytes = (bytes: number) =>
+  `${(bytes / (1024 * 1024)).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
+
+function CapacityBasisCard({ basis }: { basis: CapacityBasis }) {
+  const availableBytes = basis.memoryLimitBytes * 0.8 - basis.baselineRssBytes;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-medium">Comment le seuil est calculé</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        <p>
+          <span className="font-medium text-foreground">Mémoire : {basis.memoryLimit} appels.</span>{' '}
+          Limite du processus {megabytes(basis.memoryLimitBytes)} × 80 % −{' '}
+          {megabytes(basis.baselineRssBytes)} au repos = {megabytes(Math.max(0, availableBytes))}{' '}
+          disponibles, divisés par {megabytes(basis.rssPerSessionBytes)} par appel (
+          {basis.rssPerSessionSource === 'measured'
+            ? 'mesuré sur les appels réels'
+            : 'relevé du rapport de charge du 21/09, en attendant les appels réels'}
+          ).
+        </p>
+        <p>
+          <span className="font-medium text-foreground">
+            CPU : {basis.cpuLimit !== null ? `${basis.cpuLimit} appels` : 'pas encore mesuré'}.
+          </span>{' '}
+          {basis.cpuPerSession !== null
+            ? `70 % d’un cœur ÷ ${(basis.cpuPerSession * 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} % de cœur par appel (mesuré).`
+            : `${basis.samples} mesures de 10 s avec au moins un appel sur ${MIN_SAMPLES} requises : le coût CPU par appel est appris sur le trafic réel.`}
+        </p>
+        <p>
+          Facteur limitant :{' '}
+          <Badge variant="outline">{basis.binding === 'cpu' ? 'CPU' : 'Mémoire'}</Badge>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function AdminCapacityPage() {
   const { get, put, del } = useApi();
@@ -246,15 +297,16 @@ export default function AdminCapacityPage() {
             </CardContent>
           </Card>
 
+          {report.source === 'calculated' && report.basis && (
+            <CapacityBasisCard basis={report.basis} />
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium">Régler le seuil</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                {report.measuredOnVps
-                  ? 'Seuil mesuré sur le serveur.'
-                  : 'Ce seuil est une estimation : il n’a pas été mesuré sur le serveur de production. Mesurez la capacité réelle hors heures de service avant de le relever.'}{' '}
                 Au seuil, un appel entrant reçoit un message d’occupation puis est raccroché : c’est
                 un dernier filet, le suivi ci-dessus sert à relever la capacité avant.
               </p>

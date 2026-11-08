@@ -8,7 +8,6 @@ vi.mock('../../../shared/logger/pino', () => ({
 }));
 
 import {
-  DEFAULT_MAX_CONCURRENT_CALLS,
   checkVoiceCapacityHeadroom,
   clearCapacityLimit,
   currentCapacityLimit,
@@ -21,12 +20,12 @@ import {
 } from '../call-capacity';
 
 describe('plafond d’appels simultanés', () => {
-  it('lit VOICE_MAX_CONCURRENT_CALLS, sinon la valeur par défaut', () => {
+  it('lit VOICE_MAX_CONCURRENT_CALLS, sinon aucun seuil imposé', () => {
     expect(maxConcurrentCalls('25')).toBe(25);
-    expect(maxConcurrentCalls(undefined)).toBe(DEFAULT_MAX_CONCURRENT_CALLS);
-    expect(maxConcurrentCalls('0')).toBe(DEFAULT_MAX_CONCURRENT_CALLS);
-    expect(maxConcurrentCalls('abc')).toBe(DEFAULT_MAX_CONCURRENT_CALLS);
-    expect(maxConcurrentCalls('2.5')).toBe(DEFAULT_MAX_CONCURRENT_CALLS);
+    expect(maxConcurrentCalls(undefined)).toBeNull();
+    expect(maxConcurrentCalls('0')).toBeNull();
+    expect(maxConcurrentCalls('abc')).toBeNull();
+    expect(maxConcurrentCalls('2.5')).toBeNull();
   });
 
   it('refuse à partir du plafond, pas avant', async () => {
@@ -143,6 +142,26 @@ describe('seuil réglé depuis le dashboard', () => {
     vi.unstubAllEnvs();
   });
 
+  it('sans réglage ni variable, le seuil est calculé sur les mesures', async () => {
+    vi.stubEnv('VOICE_MAX_CONCURRENT_CALLS', '');
+    vi.stubEnv('PROCESS_MEMORY_LIMIT_MB', '500');
+    const store = memoryStore();
+    await clearCapacityLimit(store);
+    const stats = async () => ({
+      idleCpu: 0.02,
+      idleRss: 200 * 1024 * 1024,
+      activeSamples: 400,
+      sumSessions: 1_600,
+      sumDeltaCpu: 16, // 1 % de cœur par appel
+      sumDeltaRss: 1_600 * 2 * 1024 * 1024, // 2 Mo par appel
+    });
+    const result = await currentCapacityLimit(store, Date.now() + 300_000, stats);
+    // CPU : 0,7 / 0,01 = 70. Mémoire : (500 × 0,8 − 200) / 2 = 100. Le plus bas des deux.
+    expect(result).toMatchObject({ limit: 70, source: 'calculated' });
+    expect(result.basis).toMatchObject({ binding: 'cpu', cpuLimit: 70, memoryLimit: 100 });
+    vi.unstubAllEnvs();
+  });
+
   it('refuse un seuil hors bornes sans rien écrire', async () => {
     const store = memoryStore();
     await expect(setCapacityLimit(0, 'u', store)).rejects.toThrow(RangeError);
@@ -171,7 +190,7 @@ describe('seuil réglé depuis le dashboard', () => {
       },
       activeCount: async () => 4,
       now,
-      limit: { limit: 60, source: 'default' },
+      limit: { limit: 60, source: 'calculated' },
     });
     expect(report).toMatchObject({
       limit: 60,
@@ -179,7 +198,7 @@ describe('seuil réglé depuis le dashboard', () => {
       peakToday: 9,
       peak7d: 31,
       level: 'warning',
-      measuredOnVps: false,
+      cpuMeasured: false,
     });
     expect(report.history).toHaveLength(7);
     expect(report.history[6].day).toBe('2026-11-08');

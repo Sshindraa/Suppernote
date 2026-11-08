@@ -7,7 +7,18 @@ vi.mock('@/lib/api', () => ({ useApi: () => mocks }));
 
 const report = {
   limit: 60,
-  source: 'default' as const,
+  source: 'calculated' as const,
+  basis: {
+    samples: 40,
+    cpuPerSession: null,
+    rssPerSessionBytes: 2.77 * 1024 * 1024,
+    rssPerSessionSource: 'benchmark' as const,
+    baselineRssBytes: 218 * 1024 * 1024,
+    memoryLimitBytes: 500 * 1024 * 1024,
+    cpuLimit: null,
+    memoryLimit: 65,
+    binding: 'memory' as const,
+  },
   activeNow: 3,
   peakToday: 9,
   peak7d: 31,
@@ -18,7 +29,7 @@ const report = {
     { day: '2026-11-07', peak: 12 },
     { day: '2026-11-08', peak: 9 },
   ],
-  measuredOnVps: false,
+  cpuMeasured: false,
   generatedAt: '2026-11-08T12:00:00.000Z',
 };
 
@@ -33,7 +44,11 @@ describe('capacité vocale (admin)', () => {
     expect(await screen.findByText('Capacité vocale')).toBeTruthy();
     expect(await screen.findByText(/52 % du seuil/)).toBeTruthy();
     expect(screen.getByText(/Anticiper/)).toBeTruthy();
-    expect(screen.getByText('Valeur par défaut (estimation)')).toBeTruthy();
+    expect(screen.getByText('Calculé sur les mesures')).toBeTruthy();
+    expect(screen.getByText('Comment le seuil est calculé')).toBeTruthy();
+    expect(screen.getByText(/Mémoire : 65 appels/)).toBeTruthy();
+    expect(screen.getByText(/CPU : pas encore mesuré/)).toBeTruthy();
+    expect(screen.getByText(/40 mesures de 10 s/)).toBeTruthy();
     expect(mocks.get).toHaveBeenCalledWith('admin/voice-capacity');
   });
 

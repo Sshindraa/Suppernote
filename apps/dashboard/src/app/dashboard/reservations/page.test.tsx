@@ -522,7 +522,7 @@ describe('ReservationsPage', () => {
       ).not.toBeInTheDocument(),
     );
     expect(
-      mocks.get.mock.calls.filter(([path]) => String(path).startsWith('reservations?')),
+      mocks.get.mock.calls.filter(([path]) => String(path).startsWith('v2/reservations/day?')),
     ).toHaveLength(2);
   });
 
@@ -671,7 +671,7 @@ describe('ReservationsPage', () => {
     expect(screen.queryByText(/Cannot seat/)).toBeNull();
     // Chargement initial + rafraîchissement après le conflit.
     expect(
-      mocks.get.mock.calls.filter(([path]) => String(path).startsWith('reservations?')),
+      mocks.get.mock.calls.filter(([path]) => String(path).startsWith('v2/reservations/day?')),
     ).toHaveLength(2);
   });
 
@@ -872,10 +872,27 @@ describe('ReservationsPage — jour affiché', () => {
   it('charge les réservations du jour, pas tout l’historique du compte', async () => {
     render(<ReservationsPage />);
     await waitFor(() => {
-      expect(mocks.get).toHaveBeenCalledWith('reservations?date=2026-10-17');
+      expect(mocks.get).toHaveBeenCalledWith('v2/reservations/day?date=2026-10-17');
     });
     expect(mocks.get).not.toHaveBeenCalledWith(expect.stringContaining('limit=100'));
     expect(await screen.findByText(/Aucune réservation le samedi 17 octobre/i)).toBeInTheDocument();
+  });
+
+  it('affiche toutes les réservations du jour au-delà de 50 à la même heure', async () => {
+    const rows = Array.from({ length: 51 }, (_, index) =>
+      makeReservation({
+        id: `r-${index}`,
+        customerName: `Client ${index}`,
+        reservedAt: '2026-10-17T19:00:00.000Z',
+      }),
+    );
+    mocks.get.mockImplementation((path: string) => {
+      if (path === 'v2/reservations/day?date=2026-10-17') return Promise.resolve(rows);
+      return Promise.resolve([]);
+    });
+    render(<ReservationsPage />);
+    expect(await screen.findByText('Client 50')).toBeInTheDocument();
+    for (const row of rows) expect(screen.getAllByText(row.customerName)).toHaveLength(1);
   });
 
   it('passe au jour suivant en gardant la barre de dates à l’écran', async () => {
@@ -885,7 +902,7 @@ describe('ReservationsPage — jour affiché', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Jour suivant' }));
 
     await waitFor(() => {
-      expect(mocks.get).toHaveBeenCalledWith('reservations?date=2026-10-18');
+      expect(mocks.get).toHaveBeenCalledWith('v2/reservations/day?date=2026-10-18');
     });
     expect(
       await screen.findByText(/Aucune réservation le dimanche 18 octobre/i),
@@ -899,7 +916,9 @@ describe('ReservationsPage — jour affiché', () => {
       await screen.findByRole('button', { name: 'Choisir une date dans le calendrier' }),
     );
     fireEvent.click(screen.getByRole('button', { name: /dimanche 18 octobre 2026/i }));
-    await waitFor(() => expect(mocks.get).toHaveBeenCalledWith('reservations?date=2026-10-18'));
+    await waitFor(() =>
+      expect(mocks.get).toHaveBeenCalledWith('v2/reservations/day?date=2026-10-18'),
+    );
   });
 
   it('actualise le compteur de la file dès le chargement et au changement de jour', async () => {
@@ -947,7 +966,7 @@ describe('ReservationsPage — lien depuis la carte « Ce soir »', () => {
     expect(
       await screen.findByRole('dialog', { name: 'Détail de la réservation' }),
     ).toBeInTheDocument();
-    expect(mocks.get).toHaveBeenCalledWith('reservations?date=2099-06-05');
+    expect(mocks.get).toHaveBeenCalledWith('v2/reservations/day?date=2099-06-05');
   });
 
   it('retire la réservation et le jour de l’URL à la fermeture, pour les rouvrir au clic suivant', async () => {

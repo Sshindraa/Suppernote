@@ -143,6 +143,23 @@ describe('reservation.routes', () => {
   });
 
   describe('GET /reservations', () => {
+    it('scopes the day snapshot and requires a valid date', async () => {
+      const app = await getApp();
+      const find = vi.spyOn(ReservationService, 'findDaySnapshot').mockResolvedValue([]);
+      const headers = { authorization: 'Bearer test' };
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations/day?date=2099-06-05', headers }))
+          .statusCode,
+      ).toBe(200);
+      expect(find).toHaveBeenCalledWith('test-rest-1', '2099-06-05');
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations/day', headers })).statusCode,
+      ).toBe(400);
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations/day?date=2099-06-05' }))
+          .statusCode,
+      ).toBe(401);
+    });
     it('retourne les réservations du restaurant authentifié', async () => {
       const app = await getApp();
       const reservations = [
@@ -202,6 +219,34 @@ describe('reservation.routes', () => {
 
       expect(res.statusCode).toBe(200);
       expect(ReservationService.findByRestaurant).toHaveBeenCalledWith('test-rest-1', '2099-06-05');
+    });
+
+    it('transmet la pagination explicite et ses valeurs par défaut', async () => {
+      const app = await getApp();
+      const find = vi.spyOn(ReservationService, 'findByRestaurant').mockResolvedValue([]);
+      const headers = { authorization: 'Bearer test' };
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations', headers })).statusCode,
+      ).toBe(200);
+      expect(find).toHaveBeenLastCalledWith('test-rest-1', undefined, { limit: 50, offset: 0 });
+      expect(
+        (await app.inject({ method: 'GET', url: '/reservations?limit=10', headers })).statusCode,
+      ).toBe(200);
+      expect(find).toHaveBeenLastCalledWith('test-rest-1', undefined);
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations?limit=10&offset=20', headers }))
+          .statusCode,
+      ).toBe(200);
+      expect(find).toHaveBeenLastCalledWith('test-rest-1', undefined, { limit: 10, offset: 20 });
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations?offset=20', headers }))
+          .statusCode,
+      ).toBe(200);
+      expect(find).toHaveBeenLastCalledWith('test-rest-1', undefined, { limit: 50, offset: 20 });
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations?limit=101', headers }))
+          .statusCode,
+      ).toBe(400);
     });
 
     it('rejette une date invalide avec 400', async () => {

@@ -250,11 +250,9 @@ function simulationResponse(input: SimulationRequest) {
   };
 }
 
-async function openInlineSimulator(page: Page) {
-  const trigger = page.getByText('Simuler un placement · Copilot', { exact: true });
-  await expect(trigger).toBeVisible();
-  await trigger.click();
-  await expect(page.locator('#sim-party-size')).toBeVisible();
+async function openSimulator(page: Page) {
+  await page.getByRole('button', { name: 'Simuler', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Simuler un placement' })).toBeVisible();
 }
 
 /**
@@ -265,7 +263,7 @@ async function openInlineSimulator(page: Page) {
  * Ce test vérifie que :
  *  - la vue Live s'affiche sans bandeau d'erreur ;
  *  - la navigation vers l'édition fonctionne ;
- *  - les onglets "Sections & tables" et "Plan visuel" s'affichent ;
+ *  - les onglets "Tables" et "Plan visuel" s'affichent ;
  *  - les tables du plan demo (T1, T3, T4) sont rendues.
  */
 
@@ -360,23 +358,24 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     expect(advancedRequests).toBe(0);
   });
 
-  test('passe de Live service à Salle édition, Sections & tables puis Plan visuel', async ({
+  test('passe de Live service à Salle édition, Tables puis Plan visuel', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'iphone-13', 'Parcours de navigation tactile iPhone 13.');
 
     await page.goto('/dashboard/floor-plan', { waitUntil: 'domcontentloaded' });
 
-    // Vue Live par défaut : le plan et les onglets du service sont disponibles.
-    await expect(page.getByRole('tab', { name: 'Plan' })).toBeVisible();
+    // Vue Live par défaut : le plan et l'accès à la liste d'attente sont disponibles.
+    await expect(page.getByTestId('floor-plan-live-stage')).toBeVisible();
+    await expect(page.getByRole('button', { name: "Liste d'attente" })).toBeVisible();
 
     // Bascule vers Salle édition via la navigation tactile.
     await page.getByRole('link', { name: 'Édition' }).click();
     await expect(page.getByRole('tab', { name: 'Plan visuel' })).toBeVisible();
 
-    // Onglet Sections & tables.
-    await page.getByRole('tab', { name: 'Sections & tables' }).click();
-    await expect(page.getByText('Nouvelle section')).toBeVisible();
+    // Onglet Tables.
+    await page.getByRole('tab', { name: 'Tables' }).click();
+    await expect(page.getByText('Tables du plan')).toBeVisible();
 
     // Retour au Plan visuel : les tables demo doivent s'afficher.
     await page.getByRole('tab', { name: 'Plan visuel' }).click();
@@ -388,6 +387,42 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(page.getByRole('button', { name: 'Réessayer' })).toHaveCount(0);
     await expect(page.getByText(/Impossible de charger/)).toHaveCount(0);
     await expect(page.getByText('Route démo non mockée')).toHaveCount(0);
+  });
+
+  test('dépose la table à la position affichée et refuse un chevauchement', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'Glisser-déposer à la souris.');
+
+    await page.goto('/dashboard/floor-plan?view=edit-plan&floorPlanId=e2e-floor-plan');
+    const table = page.getByRole('button', { name: 'T1 · 2 places' });
+    const other = page.getByRole('button', { name: 'T3 · 4 places' });
+    await expect(table).toBeVisible();
+    await expect(other).toBeVisible();
+    const start = (await table.boundingBox())!;
+    const target = (await other.boundingBox())!;
+    const startX = start.x + start.width / 2;
+    const startY = start.y + start.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
+    await expect(page.getByRole('status').filter({ hasText: 'Trop près de T3' })).toBeVisible();
+    await expect(table).toHaveCSS('opacity', '0');
+    await page.mouse.up();
+    await expect(table).toHaveCSS('left', '96px');
+    await expect(table).toHaveCSS('top', '96px');
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 17, startY + 135, { steps: 10 });
+    const preview = page.locator('[aria-hidden="true"] > [aria-label="T1 · 2 places"]');
+    await expect(preview).toBeVisible();
+    const [left, top] = await preview.evaluate((node) => [node.style.left, node.style.top]);
+    expect(top).not.toBe('96px');
+    await page.mouse.up();
+    await expect(table).toHaveCSS('left', left);
+    await expect(table).toHaveCSS('top', top);
   });
 
   test('affiche une table ronde et une fiche tactile dans le viewport iPhone', async ({
@@ -431,32 +466,69 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(page.getByRole('button', { name: 'T1 bis · 3 places' })).toBeVisible();
   });
 
-  test('garde les contrôles Live séparés et lisibles sur iPhone 13', async ({ page }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== 'iphone-13',
-      'Validation spécifique au viewport iPhone 13.',
-    );
-
+  test('adapte la hauteur du plan et garde les commandes dans la fenêtre', async ({
+    page,
+  }, testInfo) => {
     await page.goto('/dashboard/floor-plan?view=service-live&floorPlanId=e2e-floor-plan', {
       waitUntil: 'domcontentloaded',
     });
 
-    const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(3);
-    const tabBoxes = await tabs.evaluateAll((elements) =>
-      elements.map((element) => {
-        const rect = element.getBoundingClientRect();
-        return { x: rect.x, right: rect.right, y: rect.y, bottom: rect.bottom, width: rect.width };
-      }),
-    );
-    expect(tabBoxes.every((box) => box.width > 0)).toBe(true);
-    expect(new Set(tabBoxes.map((box) => box.y)).size).toBe(1);
-    expect(tabBoxes[0]?.right ?? 0).toBeLessThanOrEqual(tabBoxes[1]?.x ?? 0);
-    expect(tabBoxes[1]?.right ?? 0).toBeLessThanOrEqual(tabBoxes[2]?.x ?? 0);
+    const bar = page.getByRole('region', { name: 'État du service' });
+    const plan = page.locator('#service-content');
+    await expect(bar.getByLabel('Date du service')).toBeVisible();
+    await expect(bar.getByRole('button', { name: "Liste d'attente" })).toBeVisible();
+    await expect(plan.getByTestId('floor-plan-live-stage')).toBeVisible();
 
-    await expect(page.getByLabel('Date du service')).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Filtrer par serveur' })).toBeVisible();
-    await expect(page.getByText('Libre', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Compris', exact: true }).click();
+
+    const viewport = page.viewportSize()!;
+    const box = (await plan.boundingBox())!;
+    const bottomGap = viewport.height - box.y - box.height;
+    expect(bottomGap).toBeGreaterThanOrEqual(0);
+    expect(bottomGap).toBeLessThan(testInfo.project.name === 'desktop-1440' ? 40 : 110);
+
+    const commandsFit = await bar.evaluate((element) => element.scrollWidth <= element.clientWidth);
+    expect(commandsFit).toBe(true);
+
+    await page.setViewportSize({ ...viewport, height: viewport.height + 150 });
+    await expect
+      .poll(async () => (await plan.boundingBox())!.height)
+      .toBeGreaterThan(box.height + 140);
+  });
+
+  test('décale le plan à gauche de la fiche sans masquer de table', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'Fiche latérale sur ordinateur.');
+    await page.goto('/dashboard/floor-plan?view=service-live&floorPlanId=e2e-floor-plan');
+    const stage = page.getByTestId('floor-plan-live-stage');
+    const viewport = stage.locator('..');
+    const table = stage.getByRole('button', { name: 'T4 · 6 places' });
+    await expect(table).toBeVisible();
+    const original = (await viewport.boundingBox())!;
+    await table.click();
+    const close = page.getByRole('button', { name: 'Fermer la fiche de la table' });
+    await expect(close).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Walk-in' })).toBeVisible();
+    await expect
+      .poll(async () => (await viewport.boundingBox())!.width)
+      .toBeLessThan(original.width - 250);
+    await expect
+      .poll(async () => {
+        const bounds = (await viewport.boundingBox())!;
+        const tables = await stage.getByRole('button', { name: /^T[134] ·/ }).all();
+        const boxes = await Promise.all(tables.map((item) => item.boundingBox()));
+        return (
+          boxes.length === 3 &&
+          boxes.every(
+            (box) =>
+              box && box.x >= bounds.x - 1 && box.x + box.width <= bounds.x + bounds.width + 1,
+          )
+        );
+      })
+      .toBe(true);
+    await close.click();
+    await expect
+      .poll(async () => (await viewport.boundingBox())!.width)
+      .toBeCloseTo(original.width);
   });
 
   test('libère le canvas avec une fiche tactile sur iPad portrait', async ({ page }, testInfo) => {
@@ -484,16 +556,9 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     );
   });
 
-  test('simule un placement direct sans ajouter de refus contradictoire', async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === 'iphone-13',
-      'Le simulateur inline est réservé aux écrans md et plus.',
-    );
-
+  test('simule un placement direct sans ajouter de refus contradictoire', async ({ page }) => {
     await page.goto('/dashboard/floor-plan', { waitUntil: 'domcontentloaded' });
-    await openInlineSimulator(page);
+    await openSimulator(page);
 
     await page.locator('#sim-party-size').fill('2');
     await page.locator('#sim-starts-at').fill('2026-07-22T19:00');
@@ -503,16 +568,9 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(page.getByText('Aucune table disponible', { exact: true })).toHaveCount(0);
   });
 
-  test('propose une autre section quand la section préférée est pleine', async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === 'iphone-13',
-      'Le simulateur inline est réservé aux écrans md et plus.',
-    );
-
+  test('propose une autre section quand la section préférée est pleine', async ({ page }) => {
     await page.goto('/dashboard/floor-plan', { waitUntil: 'domcontentloaded' });
-    await openInlineSimulator(page);
+    await openSimulator(page);
 
     await page.locator('#sim-party-size').fill('4');
     await page.locator('#sim-starts-at').fill('2026-07-22T19:00');
@@ -525,16 +583,9 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     ).toBeVisible();
   });
 
-  test('propose le prochain créneau quand le restaurant est complet', async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name === 'iphone-13',
-      'Le simulateur inline est réservé aux écrans md et plus.',
-    );
-
+  test('propose le prochain créneau quand le restaurant est complet', async ({ page }) => {
     await page.goto('/dashboard/floor-plan', { waitUntil: 'domcontentloaded' });
-    await openInlineSimulator(page);
+    await openSimulator(page);
 
     await page.locator('#sim-party-size').fill('6');
     await page.locator('#sim-starts-at').fill('2026-07-22T19:00');

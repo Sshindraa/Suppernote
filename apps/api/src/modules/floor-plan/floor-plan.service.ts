@@ -106,6 +106,7 @@ export type CreateSectionInput = {
 export type UpdateSectionInput = Partial<CreateSectionInput>;
 
 export type CreateTableInput = {
+  id?: string;
   sectionId?: string | null;
   name: string;
   capacity: number;
@@ -119,7 +120,7 @@ export type CreateTableInput = {
   assignedServer?: string | null;
 };
 
-export type UpdateTableInput = Partial<CreateTableInput> & {
+export type UpdateTableInput = Omit<Partial<CreateTableInput>, 'id'> & {
   isActive?: boolean;
 };
 
@@ -135,6 +136,7 @@ export type UpdateFloorPlanInput = Partial<CreateFloorPlanInput> & {
 };
 
 export type CreateWallInput = {
+  id?: string;
   x1: number;
   y1: number;
   x2: number;
@@ -143,9 +145,10 @@ export type CreateWallInput = {
   name?: string | null;
 };
 
-export type UpdateWallInput = Partial<CreateWallInput>;
+export type UpdateWallInput = Omit<Partial<CreateWallInput>, 'id'>;
 
 export type CreateZoneInput = {
+  id?: string;
   name: string;
   sectionId?: string | null;
   x: number;
@@ -155,7 +158,7 @@ export type CreateZoneInput = {
   rotation?: number;
 };
 
-export type UpdateZoneInput = Partial<CreateZoneInput>;
+export type UpdateZoneInput = Omit<Partial<CreateZoneInput>, 'id'>;
 
 export type CreateTableCombinationInput = {
   tableIds: string[];
@@ -437,22 +440,32 @@ export class FloorPlanService {
       }
     }
 
-    return this.prisma.table.create({
-      data: {
-        floorPlanId: resolvedFloorPlanId,
-        sectionId: input.sectionId ?? null,
-        name: input.name,
-        capacity: input.capacity,
-        minCapacity: input.minCapacity ?? DEFAULT_TABLE_MIN_CAPACITY,
-        positionX: input.positionX ?? null,
-        positionY: input.positionY ?? null,
-        width: input.width ?? null,
-        height: input.height ?? null,
-        rotation: input.rotation ?? 0,
-        shape: input.shape ?? 'rect',
-        assignedServer: input.assignedServer ?? null,
-      },
+    const data = {
+      floorPlanId: resolvedFloorPlanId,
+      sectionId: input.sectionId ?? null,
+      name: input.name,
+      capacity: input.capacity,
+      minCapacity: input.minCapacity ?? DEFAULT_TABLE_MIN_CAPACITY,
+      positionX: input.positionX ?? null,
+      positionY: input.positionY ?? null,
+      width: input.width ?? null,
+      height: input.height ?? null,
+      rotation: input.rotation ?? 0,
+      shape: input.shape ?? 'rect',
+      assignedServer: input.assignedServer ?? null,
+    };
+
+    if (!input.id) return this.prisma.table.create({ data });
+
+    const table = await this.prisma.table.upsert({
+      where: { id: input.id },
+      create: { id: input.id, ...data },
+      update: {},
     });
+    if (table.floorPlanId !== resolvedFloorPlanId) {
+      throw new FloorPlanNotFoundError('Table introuvable');
+    }
+    return table;
   }
 
   async updateTable(
@@ -724,17 +737,27 @@ export class FloorPlanService {
   ): Promise<Wall> {
     const resolvedFloorPlanId = await this.resolveFloorPlanId(restaurantId, floorPlanId);
 
-    return this.prisma.wall.create({
-      data: {
-        floorPlanId: resolvedFloorPlanId,
-        x1: input.x1,
-        y1: input.y1,
-        x2: input.x2,
-        y2: input.y2,
-        type: input.type ?? 'wall',
-        name: input.name ?? null,
-      },
+    const data = {
+      floorPlanId: resolvedFloorPlanId,
+      x1: input.x1,
+      y1: input.y1,
+      x2: input.x2,
+      y2: input.y2,
+      type: input.type ?? 'wall',
+      name: input.name ?? null,
+    };
+
+    if (!input.id) return this.prisma.wall.create({ data });
+
+    const wall = await this.prisma.wall.upsert({
+      where: { id: input.id },
+      create: { id: input.id, ...data },
+      update: {},
     });
+    if (wall.floorPlanId !== resolvedFloorPlanId) {
+      throw new FloorPlanNotFoundError('Mur introuvable');
+    }
+    return wall;
   }
 
   async updateWall(
@@ -785,18 +808,28 @@ export class FloorPlanService {
     this.validateZone(input);
     await this.assertSectionBelongsToFloorPlan(input.sectionId, resolvedFloorPlanId);
 
-    return this.prisma.floorPlanZone.create({
-      data: {
-        floorPlanId: resolvedFloorPlanId,
-        sectionId: input.sectionId ?? null,
-        name: input.name.trim(),
-        x: input.x,
-        y: input.y,
-        width: input.width,
-        height: input.height,
-        rotation: input.rotation ?? 0,
-      },
+    const data = {
+      floorPlanId: resolvedFloorPlanId,
+      sectionId: input.sectionId ?? null,
+      name: input.name.trim(),
+      x: input.x,
+      y: input.y,
+      width: input.width,
+      height: input.height,
+      rotation: input.rotation ?? 0,
+    };
+
+    if (!input.id) return this.prisma.floorPlanZone.create({ data });
+
+    const zone = await this.prisma.floorPlanZone.upsert({
+      where: { id: input.id },
+      create: { id: input.id, ...data },
+      update: {},
     });
+    if (zone.floorPlanId !== resolvedFloorPlanId) {
+      throw new FloorPlanNotFoundError('Zone introuvable');
+    }
+    return zone;
   }
 
   async updateZone(

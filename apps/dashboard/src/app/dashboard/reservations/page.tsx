@@ -9,6 +9,7 @@ import { normalizePhone } from '@suppernote/shared';
 import { addDays, format, isSameDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useApi } from '../../../lib/api';
+import { getDayReservations } from '@/lib/day-reservations';
 import {
   getErrorMessage,
   type ServiceCardBadge,
@@ -270,7 +271,7 @@ export default function ReservationsPage() {
     try {
       // Sans `date`, l'API renvoie tout l'historique du compte, du plus ancien au plus récent : le service
       // de ce soir finissait sous des centaines de lignes passées.
-      const data = await get<Reservation[]>(`reservations?date=${dateParam}`);
+      const data = await getDayReservations(get, dateParam);
       setReservations(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Impossible de charger les réservations'));
@@ -330,7 +331,7 @@ export default function ReservationsPage() {
         ),
       );
       try {
-        const data = await get<Reservation[]>(`reservations?date=${dateParam}`);
+        const data = await getDayReservations(get, dateParam);
         setReservations(Array.isArray(data) ? data : []);
       } catch {
         toast.error('Statut mis à jour, mais la liste n’a pas pu être actualisée.');
@@ -342,7 +343,7 @@ export default function ReservationsPage() {
           'Cette réservation a changé entre-temps ou son créneau est terminé. Liste actualisée.',
         );
         try {
-          const data = await get<Reservation[]>(`reservations?date=${dateParam}`);
+          const data = await getDayReservations(get, dateParam);
           setReservations(Array.isArray(data) ? data : []);
         } catch {
           /* le message ci-dessus suffit ; « Actualiser » reste disponible */

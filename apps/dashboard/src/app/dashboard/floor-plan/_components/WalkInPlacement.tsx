@@ -67,7 +67,7 @@ export function WalkInPlacement({
         onClick={() => setOpen(true)}
       >
         <UserPlus size={15} aria-hidden="true" className="mr-1.5 shrink-0" />
-        Placer un client sans réservation
+        Walk-in
       </Button>
     );
   }
@@ -97,7 +97,7 @@ export function WalkInPlacement({
       )}
     >
       <p className="text-sm font-medium text-foreground">
-        Placer un client sans réservation
+        Walk-in
         <span className="font-normal text-muted-foreground">
           {' · '}
           {table.name}

@@ -13,9 +13,8 @@ describe('FirstServiceGuide', () => {
   it('pointe les deux gestes la première fois, puis se ferme et s’en souvient', () => {
     const { unmount } = render(<FirstServiceGuide />);
     const guide = screen.getByRole('complementary', { name: 'Guide du premier service' });
-    expect(guide).toHaveTextContent('Placer un client sans réservation');
+    expect(guide).toHaveTextContent('Walk-in');
     expect(guide).toHaveTextContent('Libérer la table');
-    expect(guide.textContent).not.toMatch(/walk-?in/i);
 
     fireEvent.click(screen.getByRole('button', { name: 'Compris' }));
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument();

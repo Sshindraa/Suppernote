@@ -1132,6 +1132,7 @@ describe('floorPlanRoutes', () => {
   describe('Affectation serveur — assignedServer', () => {
     it('crée une table avec un serveur affecté', async () => {
       const app = await getApp();
+      const id = 'db72dc3f-1bd7-4271-9a23-c6c053c3d673';
       const createSpy = vi.spyOn(FloorPlanService.prototype, 'createTable').mockResolvedValue({
         id: 'table-2',
         name: 'T2',
@@ -1145,13 +1146,13 @@ describe('floorPlanRoutes', () => {
         method: 'POST',
         url: '/restaurants/test-rest-1/floor-plan/tables',
         headers: { authorization: 'Bearer test' },
-        payload: { sectionId: 'sec-1', name: 'T2', capacity: 2, assignedServer: 'Camille' },
+        payload: { id, sectionId: 'sec-1', name: 'T2', capacity: 2, assignedServer: 'Camille' },
       });
 
       expect(res.statusCode).toBe(201);
       expect(createSpy).toHaveBeenCalledWith(
         'test-rest-1',
-        expect.objectContaining({ assignedServer: 'Camille' }),
+        expect.objectContaining({ id, assignedServer: 'Camille' }),
         undefined,
       );
       expect(res.json()).toMatchObject({ name: 'T2', assignedServer: 'Camille' });

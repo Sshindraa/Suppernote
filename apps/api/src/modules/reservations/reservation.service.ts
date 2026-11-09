@@ -977,7 +977,12 @@ export class ReservationService {
     return updated;
   }
 
-  static async findByRestaurant(restaurantId: string, date?: string) {
+  static async findByRestaurant(
+    restaurantId: string,
+    date?: string,
+    pagination?: { limit: number; offset: number },
+    client: Prisma.TransactionClient = db,
+  ) {
     const where: Prisma.ReservationWhereInput = { restaurantId };
     if (date) {
       const start = new Date(date);
@@ -986,7 +991,7 @@ export class ReservationService {
       end.setHours(23, 59, 59, 999);
       where.reservedAt = { gte: start, lte: end };
     }
-    const reservations = await db.reservation.findMany({
+    const reservations = await client.reservation.findMany({
       where: {
         ...where,
         // Le DELETE legacy est désormais une clôture terminale. L'événement
@@ -994,7 +999,8 @@ export class ReservationService {
         // la réservation ni ses audits de la base.
         auditLog: { none: { event: 'reservation_deleted' } },
       },
-      orderBy: { reservedAt: 'asc' },
+      orderBy: pagination ? [{ reservedAt: 'asc' }, { id: 'asc' }] : { reservedAt: 'asc' },
+      ...(pagination && { take: pagination.limit, skip: pagination.offset }),
       include: {
         table: { select: { name: true } },
         auditLog: {
@@ -1008,6 +1014,26 @@ export class ReservationService {
       ...reservation,
       overbooked: auditLog.length > 0,
     }));
+  }
+
+  static async findDaySnapshot(restaurantId: string, date: string) {
+    return db.$transaction(
+      async (tx) => {
+        const rows: Awaited<ReturnType<typeof ReservationService.findByRestaurant>> = [];
+        let page: typeof rows;
+        do {
+          page = await ReservationService.findByRestaurant(
+            restaurantId,
+            date,
+            { limit: 50, offset: rows.length },
+            tx,
+          );
+          rows.push(...page);
+        } while (page.length === 50);
+        return rows;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   /**

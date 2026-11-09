@@ -43,6 +43,7 @@ describe('canOpenDashboardPath', () => {
   it('renvoie l’équipe de service vers les réservations', () => {
     expect(SERVICE_STAFF_HOME).toBe('/dashboard/reservations');
     expect(canOpenDashboardPath('STAFF', SERVICE_STAFF_HOME)).toBe(true);
+    expect(canOpenDashboardPath('STAFF', '/dashboard/briefing')).toBe(true);
   });
 });
 

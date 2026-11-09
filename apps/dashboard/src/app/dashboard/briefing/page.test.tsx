@@ -35,7 +35,7 @@ describe('BriefingPage', () => {
 
   it('affiche le résumé du jour et les allergies, sans les réservations annulées', async () => {
     apiMocks.get.mockImplementation((path: string) => {
-      if (path === `reservations?date=${today}`) {
+      if (path === `v2/reservations/day?date=${today}`) {
         return Promise.resolve([
           reservation({ id: 'r1', customerName: 'Alice Martin', partySize: 4 }),
           reservation({
@@ -83,23 +83,50 @@ describe('BriefingPage', () => {
   });
 
   it('dit clairement quand rien n’est à servir aujourd’hui', async () => {
-    apiMocks.get.mockResolvedValue([]);
+    apiMocks.get.mockImplementation(async (path: string) =>
+      path.endsWith('/floor-plan') ? { sections: [] } : [],
+    );
 
     render(<BriefingPage />);
 
     expect(await screen.findByText('Aucune réservation à servir aujourd’hui.')).toBeInTheDocument();
   });
 
+  it('affiche les statistiques de salle et recharge les données à la date choisie', async () => {
+    apiMocks.get.mockImplementation(async (path: string) => {
+      if (path.endsWith('/floor-plan')) {
+        return { sections: [], tables: [{ id: 't1', capacity: 4, isActive: true }] };
+      }
+      return [];
+    });
+
+    render(<BriefingPage />);
+    expect(await screen.findByText('0 / 4 places')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Date des statistiques'), {
+      target: { value: '2026-11-07' },
+    });
+    expect(await screen.findByText('0 / 4 places')).toBeInTheDocument();
+    expect(apiMocks.get).toHaveBeenCalledWith(
+      'restaurants/org_test_123/floor-plan/reservations?date=2026-11-07',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
   it('propose de réessayer après une erreur de chargement', async () => {
-    apiMocks.get
+    const loadBriefing = vi
+      .fn()
       .mockRejectedValueOnce(toApiError(500, { message: 'Le briefing est indisponible.' }))
-      .mockResolvedValueOnce([]);
+      .mockResolvedValue([]);
+    apiMocks.get.mockImplementation((path: string) => {
+      if (path.startsWith('v2/reservations/day')) return loadBriefing();
+      return Promise.resolve(path.endsWith('/floor-plan') ? { sections: [] } : []);
+    });
 
     render(<BriefingPage />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Le briefing est indisponible.');
     fireEvent.click(screen.getByRole('button', { name: /Réessayer/ }));
     expect(await screen.findByText('Aucune réservation à servir aujourd’hui.')).toBeInTheDocument();
-    expect(apiMocks.get).toHaveBeenCalledTimes(2);
+    expect(loadBriefing).toHaveBeenCalledTimes(2);
   });
 });

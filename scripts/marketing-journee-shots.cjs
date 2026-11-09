@@ -120,7 +120,7 @@ const hideBottomNav = (page) =>
 async function captureBriefing(context, tag) {
   const page = await context.newPage();
   await page.clock.setFixedTime(new Date(parisTime(11, 0)));
-  await patchJson(page, /\/api\/proxy\/reservations\?date/, renameLea);
+  await patchJson(page, /\/api\/proxy\/v2\/reservations\/day\?date/, renameLea);
   await patchJson(page, /customers\/service-cards/, withAllergy);
   await page.goto(`${BASE_URL}/dashboard/briefing`, { waitUntil: 'load' });
   await page.waitForTimeout(3500);
@@ -132,7 +132,7 @@ async function captureBriefing(context, tag) {
 async function captureCallAndBook(context, tag) {
   const page = await context.newPage();
   await page.clock.setFixedTime(new Date(parisTime(13, 0)));
-  await patchJson(page, /\/api\/proxy\/reservations\?date/, withCamille);
+  await patchJson(page, /\/api\/proxy\/v2\/reservations\/day\?date/, withCamille);
   await patchJson(page, /customers\/service-cards/, withAllergy);
   await patchJson(page, /\/api\/proxy\/calls(\?|$)/, (response) => {
     Object.assign(response.data[0], {

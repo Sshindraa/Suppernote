@@ -55,4 +55,4 @@
 
 ## Décisions récentes
 
-- 2026-11-09 — [Tarifs] Pro et Multi-restaurant utilisent le parcours de souscription ; formule, cadence et nombre de sites sont conservés jusqu’au checkout Stripe.
+- 2026-11-09 — [Tarifs] Le checkout Pro/Multi reste sur staging (Stripe test) ; ouverture live après pilotes qualifiés et preuve de release dédiée.

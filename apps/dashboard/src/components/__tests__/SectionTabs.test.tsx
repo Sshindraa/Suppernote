@@ -99,9 +99,9 @@ describe('SectionTabs', () => {
   it("ne montre à l'équipe de service que les onglets qu'elle peut ouvrir", () => {
     pathnameState.value = '/dashboard/reservations';
     roleState.value = 'STAFF';
-    const { container } = render(<SectionTabs />);
+    render(<SectionTabs />);
 
-    // Briefing et Appels lui sont fermés : il ne reste qu'une entrée, donc aucune rangée.
-    expect(container).toBeEmptyDOMElement();
+    expect(tabLabels()).toEqual(['Réservations', 'Briefing']);
+    expect(screen.queryByRole('link', { name: 'Appels' })).not.toBeInTheDocument();
   });
 });

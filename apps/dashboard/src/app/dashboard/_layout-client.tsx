@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarCheck,
+  ClipboardList,
   Moon,
   Sun,
   Radio,
@@ -48,6 +49,7 @@ function SidebarNavItem({
   active,
   expanded = false,
   onClick,
+  salleLabel = false,
 }: {
   href: string;
   label: string;
@@ -55,6 +57,7 @@ function SidebarNavItem({
   active: boolean;
   expanded?: boolean;
   onClick?: () => void;
+  salleLabel?: boolean;
 }) {
   return (
     <Tooltip>
@@ -72,7 +75,14 @@ function SidebarNavItem({
           )}
         >
           <Icon size={19} strokeWidth={active ? 2.25 : 1.75} />
-          <span className={cn('truncate text-base font-semibold', !expanded && 'sr-only')}>
+          <span
+            className={cn(
+              'truncate',
+              salleLabel ? 'text-sm font-medium' : 'text-base font-semibold',
+              salleLabel && active && 'font-semibold',
+              !expanded && 'sr-only',
+            )}
+          >
             {label}
           </span>
         </Link>
@@ -470,6 +480,7 @@ export function DashboardSidebar({
             <SidebarNavItem
               href="/dashboard/floor-plan?view=service-live"
               label={tNav('live')}
+              salleLabel
               icon={Radio}
               active={salleView !== 'edit-plan'}
               expanded={expanded}
@@ -478,6 +489,7 @@ export function DashboardSidebar({
               <SidebarNavItem
                 href="/dashboard/floor-plan?view=edit-plan"
                 label={tNav('edition')}
+                salleLabel
                 icon={PencilRuler}
                 active={salleView === 'edit-plan'}
                 expanded={expanded}
@@ -486,6 +498,13 @@ export function DashboardSidebar({
           </>
         ) : serviceStaff ? (
           <>
+            <SidebarNavItem
+              href="/dashboard/briefing"
+              label={tNav('briefing')}
+              icon={ClipboardList}
+              active={pathname === '/dashboard/briefing'}
+              expanded={expanded}
+            />
             <SidebarNavItem
               href="/dashboard/reservations"
               label={tNav('reservations')}

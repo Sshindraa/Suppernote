@@ -43,8 +43,9 @@ const salleNavItems = [
   { href: '/dashboard/floor-plan?view=edit-plan', key: 'edition' as const, icon: PencilRuler },
 ];
 
-/** L'équipe de service n'a que les réservations et le service en salle. */
+/** Navigation de l’équipe de service. */
 const staffNavItems = [
+  { href: '/dashboard/briefing', key: 'briefing' as const, icon: ClipboardList },
   { href: '/dashboard/reservations', key: 'reservations' as const, icon: CalendarCheck },
   { href: '/dashboard/floor-plan?view=service-live', key: 'live' as const, icon: Radio },
 ];

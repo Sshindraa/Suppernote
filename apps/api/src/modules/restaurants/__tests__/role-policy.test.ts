@@ -10,6 +10,8 @@ const decide = (
 describe('équipe de service (STAFF)', () => {
   it.each([
     ['GET', '/reservations'],
+    ['GET', '/v2/reservations'],
+    ['GET', '/v2/reservations/day'],
     ['GET', '/restaurants/:id/floor-plan'],
     ['GET', '/restaurants/:id/floor-plans'],
     ['GET', '/restaurants/:id/floor-plans/:floorPlanId'],

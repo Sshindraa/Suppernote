@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '@/lib/api';
 import { getErrorMessage } from '@/types/api';
 import { useIsMobile } from '@/lib/useMediaQuery';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Check, LayoutGrid, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DataFetchError } from '@/components/DataFetchError';
@@ -94,7 +94,7 @@ function TableLine({
           onClick={onDelete}
           className="p-2 text-muted-foreground hover:text-destructive rounded-lg hover:bg-accent transition-all duration-200"
           title="Supprimer la table"
-          aria-label="Supprimer la table"
+          aria-label={`Supprimer la table ${table.name}`}
         >
           <Trash2 size={16} />
         </button>
@@ -104,25 +104,15 @@ function TableLine({
 }
 
 export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
-  const { get, patch, put, post, del, orgId } = useApi();
+  const { get, patch, post, del, orgId } = useApi();
   const isMobile = useIsMobile();
 
   const [floorPlan, setFloorPlan] = useState<FloorPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [newSectionName, setNewSectionName] = useState('');
-  const [newTable, setNewTable] = useState<{
-    sectionId: string;
-    name: string;
-    capacity: string;
-  }>({ sectionId: '', name: '', capacity: '' });
+  const [newTable, setNewTable] = useState({ name: '', capacity: '' });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteTableId, setPendingDeleteTableId] = useState<string | null>(null);
-  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-  const [confirmSectionOpen, setConfirmSectionOpen] = useState(false);
-  const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null);
-
   const fetchFloorPlan = useCallback(async () => {
     if (!orgId) return;
     setLoading(true);
@@ -174,48 +164,18 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
     }
   }
 
-  async function createSection(e: React.FormEvent) {
-    e.preventDefault();
-    if (!orgId || !newSectionName.trim()) return;
-    try {
-      setError('');
-      const section = await post<Section>(`restaurants/${orgId}/floor-plan/sections`, {
-        name: newSectionName.trim(),
-        ...(floorPlanId ? { floorPlanId } : {}),
-      });
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        return { ...prev, sections: [...prev.sections, { ...section, tables: [] }] };
-      });
-      setNewSectionName('');
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Impossible de créer la section'));
-    }
-  }
-
   async function createTable(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId || !newTable.sectionId || !newTable.name.trim() || !newTable.capacity) return;
+    if (!orgId || !newTable.name.trim() || !newTable.capacity) return;
     try {
       setError('');
       const table = await post<Table>(`restaurants/${orgId}/floor-plan/tables`, {
-        sectionId: newTable.sectionId,
         name: newTable.name.trim(),
         capacity: Number(newTable.capacity),
         ...(floorPlanId ? { floorPlanId } : {}),
       });
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          sections: prev.sections.map((section) =>
-            section.id === newTable.sectionId
-              ? { ...section, tables: [...section.tables, table] }
-              : section,
-          ),
-        };
-      });
-      setNewTable({ sectionId: '', name: '', capacity: '' });
+      setFloorPlan((prev) => (prev ? { ...prev, tables: [...(prev.tables ?? []), table] } : prev));
+      setNewTable({ name: '', capacity: '' });
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Impossible de créer la table'));
     }
@@ -245,77 +205,6 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
     }
   }
 
-  function startSectionEdit(section: Section) {
-    setEditingSectionId(section.id);
-    setEditingName(section.name);
-  }
-
-  function cancelSectionEdit() {
-    setEditingSectionId(null);
-    setEditingName('');
-  }
-
-  async function saveSectionName(sectionId: string) {
-    if (!orgId || !editingName.trim()) return;
-    try {
-      setError('');
-      const updated = await put<Section>(`restaurants/${orgId}/floor-plan/sections/${sectionId}`, {
-        name: editingName.trim(),
-        ...(floorPlanId ? { floorPlanId } : {}),
-      });
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          sections: prev.sections.map((section) =>
-            section.id === sectionId
-              ? { ...section, ...updated, tables: updated.tables ?? section.tables }
-              : section,
-          ),
-        };
-      });
-      cancelSectionEdit();
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Impossible de renommer la section'));
-      const originalName = floorPlan?.sections.find((section) => section.id === sectionId)?.name;
-      if (originalName) setEditingName(originalName);
-    }
-  }
-
-  async function deleteSection(sectionId: string) {
-    setPendingDeleteSectionId(sectionId);
-    setConfirmSectionOpen(true);
-  }
-
-  async function confirmDeleteSection() {
-    const sectionId = pendingDeleteSectionId;
-    if (!orgId || !sectionId) return;
-    setConfirmSectionOpen(false);
-    setPendingDeleteSectionId(null);
-    try {
-      setError('');
-      await del(
-        `restaurants/${orgId}/floor-plan/sections/${sectionId}${
-          floorPlanId ? `?floorPlanId=${floorPlanId}` : ''
-        }`,
-      );
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        // Les tables de la section supprimée ne disparaissent pas : elles passent « sans section ».
-        const removed = prev.sections.find((section) => section.id === sectionId);
-        const known = new Set((prev.tables ?? []).map((table) => table.id));
-        const orphaned = (removed?.tables ?? []).filter((table) => !known.has(table.id));
-        return {
-          ...prev,
-          sections: prev.sections.filter((section) => section.id !== sectionId),
-          tables: [...(prev.tables ?? []), ...orphaned],
-        };
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Impossible de supprimer la section'));
-    }
-  }
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -332,14 +221,6 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
     );
   }
 
-  const sectionTableIds = new Set(
-    floorPlan?.sections.flatMap((section) => section.tables.map((table) => table.id)) ?? [],
-  );
-  const unassignedTables = (floorPlan?.tables ?? []).filter(
-    (table) => !sectionTableIds.has(table.id),
-  );
-
-  // Sans plan chargé, ni formulaire « Nouvelle section » (la section créée n'apparaîtrait pas) ni grille.
   if (!floorPlan) {
     return (
       <DataFetchError
@@ -350,6 +231,14 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
     );
   }
 
+  const tables = [
+    ...new Map(
+      [...floorPlan.sections.flatMap((section) => section.tables), ...(floorPlan.tables ?? [])].map(
+        (table) => [table.id, table],
+      ),
+    ).values(),
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -357,22 +246,28 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
           <LayoutGrid className="h-6 w-6 text-primary" />
           <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Plan de salle</h1>
         </div>
-        <form onSubmit={createSection} className="flex items-end gap-2">
+        <form onSubmit={createTable} className="flex flex-wrap items-end gap-2">
           <div className="space-y-1.5">
-            <Label htmlFor="sectionName" className="text-xs text-muted-foreground">
-              Nouvelle section
-            </Label>
+            <Label htmlFor="new-table-name">Nom de la table</Label>
             <Input
-              id="sectionName"
-              value={newSectionName}
-              onChange={(e) => setNewSectionName(e.target.value)}
-              placeholder="Ex. : Salle principale"
-              className="h-10 bg-card border-border"
+              id="new-table-name"
+              value={newTable.name}
+              onChange={(event) => setNewTable({ ...newTable, name: event.target.value })}
             />
           </div>
-          <Button type="submit" disabled={!newSectionName.trim()} size="sm">
-            <Plus size={16} className="mr-1" />
-            Ajouter
+          <div className="w-24 space-y-1.5">
+            <Label htmlFor="new-table-capacity">Couverts</Label>
+            <Input
+              id="new-table-capacity"
+              type="number"
+              min={1}
+              required
+              value={newTable.capacity}
+              onChange={(event) => setNewTable({ ...newTable, capacity: event.target.value })}
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={!newTable.name.trim() || !newTable.capacity}>
+            <Plus size={16} /> Ajouter une table
           </Button>
         </form>
       </div>
@@ -384,188 +279,25 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
         </div>
       ) : null}
 
-      {floorPlan.sections.length === 0 && unassignedTables.length === 0 ? (
-        <div className="sokar-empty">
-          <LayoutGrid size={40} className="opacity-30" />
-          <p className="text-sm">Aucune section dans votre plan de salle</p>
-          <p className="text-xs opacity-60">
-            Créez une section, puis ajoutez vos tables pour commencer.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {floorPlan.sections.map((section) => (
-            <Card key={section.id} className="sokar-card" data-testid="section-card">
-              <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                {editingSectionId === section.id ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void saveSectionName(section.id);
-                    }}
-                    className="flex flex-1 items-center gap-2"
-                  >
-                    <Label htmlFor={`section-name-${section.id}`} className="sr-only">
-                      Nom de la section
-                    </Label>
-                    <Input
-                      id={`section-name-${section.id}`}
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      className="h-9 flex-1 bg-card border-border"
-                      autoFocus
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={!editingName.trim()}
-                      className="transition-all duration-200"
-                    >
-                      <Check size={16} />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={cancelSectionEdit}
-                      className="transition-all duration-200"
-                    >
-                      <X size={16} />
-                    </Button>
-                  </form>
-                ) : (
-                  <>
-                    <CardTitle className="text-base font-medium">{section.name}</CardTitle>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => startSectionEdit(section)}
-                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-all duration-200"
-                        title="Renommer la section"
-                        aria-label="Renommer la section"
-                      >
-                        <Pencil size={16} />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteSection(section.id)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive transition-all duration-200"
-                        title="Supprimer la section"
-                        aria-label="Supprimer la section"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {section.tables.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Aucune table</p>
-                  ) : (
-                    section.tables.map((table) => (
-                      <TableLine
-                        key={table.id}
-                        table={table}
-                        onToggle={(checked) => toggleTable(table.id, checked)}
-                        onDelete={() => deleteTable(table.id)}
-                      />
-                    ))
-                  )}
-                </div>
-
-                <form
-                  onSubmit={createTable}
-                  className="flex items-end gap-2 pt-2 border-t border-border"
-                >
-                  <input type="hidden" value={section.id} />
-                  <div className={cn('space-y-1.5', isMobile ? 'flex-1' : 'w-32')}>
-                    <Label
-                      htmlFor={`table-name-${section.id}`}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Table
-                    </Label>
-                    <Input
-                      id={`table-name-${section.id}`}
-                      value={newTable.sectionId === section.id ? newTable.name : ''}
-                      onChange={(e) =>
-                        setNewTable({
-                          sectionId: section.id,
-                          name: e.target.value,
-                          capacity: newTable.capacity,
-                        })
-                      }
-                      placeholder="Ex. : T1"
-                      className="h-9 bg-card border-border"
-                    />
-                  </div>
-                  <div className="w-20 space-y-1.5">
-                    <Label
-                      htmlFor={`table-capacity-${section.id}`}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Couv.
-                    </Label>
-                    <Input
-                      id={`table-capacity-${section.id}`}
-                      type="number"
-                      min={1}
-                      value={newTable.sectionId === section.id ? newTable.capacity : ''}
-                      onChange={(e) =>
-                        setNewTable({
-                          sectionId: section.id,
-                          name: newTable.name,
-                          capacity: e.target.value,
-                        })
-                      }
-                      placeholder="2"
-                      className="h-9 bg-card border-border"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={
-                      newTable.sectionId !== section.id ||
-                      !newTable.name.trim() ||
-                      !newTable.capacity
-                    }
-                    className="h-9"
-                  >
-                    <Plus size={16} />
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          ))}
-          {unassignedTables.length > 0 ? (
-            <Card className="sokar-card" data-testid="unassigned-card">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-medium">Sans section</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Tables dessinées dans « Plan visuel » sans être rattachées à une section.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {unassignedTables.map((table) => (
-                  <TableLine
-                    key={table.id}
-                    table={table}
-                    onToggle={(checked) => toggleTable(table.id, checked)}
-                    onDelete={() => deleteTable(table.id)}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
-      )}
+      <Card className="sokar-card">
+        <CardHeader>
+          <h2 className="text-base font-semibold">Tables du plan</h2>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {tables.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune table dans ce plan.</p>
+          ) : (
+            tables.map((table) => (
+              <TableLine
+                key={table.id}
+                table={table}
+                onToggle={(checked) => toggleTable(table.id, checked)}
+                onDelete={() => deleteTable(table.id)}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={confirmOpen}
@@ -576,19 +308,6 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
         }}
         title="Supprimer la table"
         description="Êtes-vous sûr de vouloir supprimer cette table ? Cette action est irréversible."
-        confirmLabel="Supprimer"
-        variant="destructive"
-      />
-
-      <ConfirmDialog
-        open={confirmSectionOpen}
-        onConfirm={confirmDeleteSection}
-        onCancel={() => {
-          setConfirmSectionOpen(false);
-          setPendingDeleteSectionId(null);
-        }}
-        title="Supprimer la section"
-        description="Êtes-vous sûr de vouloir supprimer cette section ? Les tables associées ne seront pas supprimées, mais ne seront plus rattachées à une section."
         confirmLabel="Supprimer"
         variant="destructive"
       />

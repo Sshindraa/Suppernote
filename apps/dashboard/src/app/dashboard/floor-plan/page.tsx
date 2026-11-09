@@ -23,9 +23,8 @@ import {
 import { FloorPlanCanvas } from './_components/FloorPlanCanvas';
 import { FirstServiceGuide } from './_components/FirstServiceGuide';
 import { FloorPlanCrud } from './_components/FloorPlanCrud';
-import { ServiceCopilotSimulator } from './_components/ServiceCopilotSimulator';
 import { DataFetchError } from '@/components/DataFetchError';
-import { ChevronDown, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 const ServiceCopilotWidget = dynamic(() => import('../ServiceCopilotWidget'), {
   ssr: false,
@@ -244,7 +243,7 @@ export default function FloorPlanPage() {
               aria-selected={designTab === 'crud'}
               className="h-7 px-2.5 text-xs"
             >
-              Sections & tables
+              Tables
             </Button>
           </div>
           <Button
@@ -276,32 +275,6 @@ export default function FloorPlanPage() {
           onInitialDelayApplied={clearReportedDelay}
           onRequestEdit={openFloorPlanEditor}
         />
-      )}
-      {selectedFloorPlanId && activeView === 'service-live' && (
-        <>
-          <details className="group hidden md:block">
-            <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-border bg-card/70 px-4 py-3 text-sm font-medium text-foreground transition-all duration-200 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-              <span>
-                <span className="block">Simuler un placement · Copilot</span>
-                <span className="mt-1 block text-xs font-normal text-muted-foreground">
-                  Prévisualisation uniquement · aucun client placé
-                </span>
-              </span>
-              <ChevronDown
-                size={17}
-                aria-hidden="true"
-                className="text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-              />
-            </summary>
-            <div className="mt-3">
-              <ServiceCopilotSimulator
-                key={`simulator-${selectedFloorPlanId}`}
-                orgId={orgId}
-                selectedFloorPlanId={selectedFloorPlanId}
-              />
-            </div>
-          </details>
-        </>
       )}
       {selectedFloorPlanId && activeView === 'edit-plan' && designTab === 'visual' && (
         <FloorPlanCanvas

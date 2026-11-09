@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApi } from '@/lib/api';
+import { getDayReservations } from '@/lib/day-reservations';
 import { cn } from '@/lib/utils';
 import { getErrorMessage, type Reservation } from '@/types/api';
+import { RoomStatistics } from './RoomStatistics';
 import { summarizeBriefing, upcomingReservations } from './briefing-summary';
 
 export default function BriefingPage() {
@@ -23,7 +25,7 @@ export default function BriefingPage() {
   useEffect(() => {
     if (!orgId) return;
     const controller = new AbortController();
-    get<Reservation[]>(`reservations?date=${today}`, { signal: controller.signal })
+    getDayReservations(get, today, controller.signal)
       .then((data) => setReservations(data))
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
@@ -152,6 +154,7 @@ export default function BriefingPage() {
           </Card>
         </>
       )}
+      <RoomStatistics key={orgId} today={today} />
     </div>
   );
 }

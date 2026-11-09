@@ -63,6 +63,19 @@ describe('ReservationService.findByRestaurant', () => {
     );
   });
 
+  it('applique la pagination à la requête du restaurant', async () => {
+    vi.mocked(db.reservation.findMany).mockResolvedValue([]);
+    await ReservationService.findByRestaurant('rest-123', '2099-06-05', { limit: 10, offset: 20 });
+    expect(db.reservation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 10,
+        skip: 20,
+        orderBy: [{ reservedAt: 'asc' }, { id: 'asc' }],
+        where: expect.objectContaining({ restaurantId: 'rest-123' }),
+      }),
+    );
+  });
+
   it("filtre par date quand un 'date' est fourni (fenêtre 00:00 → 23:59:59.999)", async () => {
     const restaurantId = 'rest-123';
     const date = '2099-06-05';

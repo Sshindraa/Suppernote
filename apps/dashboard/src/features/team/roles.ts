@@ -15,7 +15,7 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
 export const ROLE_DESCRIPTION: Record<TeamRole, string> = {
   OWNER: 'Tous les accès, dont la facturation et l’équipe.',
   MANAGER: 'Gère le restaurant, les canaux et les clients. Pas la facturation ni l’équipe.',
-  STAFF: 'Réservations et plan de salle pendant le service. Rien d’autre.',
+  STAFF: 'Réservations, briefing et plan de salle pendant le service. Rien d’autre.',
   READ_ONLY: 'Consulte tout, ne modifie rien.',
 };
 
@@ -32,14 +32,18 @@ export function roleLabel(role: string | null | undefined): string {
 /** Page d'accueil de l'équipe de service. */
 export const SERVICE_STAFF_HOME = '/dashboard/reservations';
 
-const SERVICE_STAFF_PATHS = ['/dashboard/reservations', '/dashboard/floor-plan'];
+const SERVICE_STAFF_PATHS = [
+  '/dashboard/reservations',
+  '/dashboard/floor-plan',
+  '/dashboard/briefing',
+];
 
 export function isServiceStaff(role: string | null | undefined): boolean {
   return role === 'STAFF';
 }
 
 /**
- * L'équipe de service n'ouvre que les réservations et le service en salle. La modification du
+ * L'équipe de service accède aux réservations, au briefing et au service en salle. La modification du
  * plan de salle (`?view=edit-plan`) lui est fermée, comme les routes qui l'enregistrent.
  */
 export function canOpenDashboardPath(

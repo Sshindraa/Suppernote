@@ -11,16 +11,16 @@ const table: WalkInTable = { id: 'table-1', name: 'T4', capacity: 4 };
 
 function open(onPlace = vi.fn().mockResolvedValue(undefined), tableUnderTest = table) {
   render(<WalkInPlacement table={tableUnderTest} onPlace={onPlace} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Placer un client sans réservation' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Walk-in' }));
   return { onPlace, form: screen.getByRole('form', { name: 'Placer un client sans réservation' }) };
 }
 
 describe('WalkInPlacement', () => {
-  it('propose un seul bouton, sans emoji ni « walk-in », puis ouvre le formulaire', () => {
+  it('propose un seul bouton, libellé « Walk-in », sans emoji, puis ouvre le formulaire', () => {
     render(<WalkInPlacement table={table} onPlace={vi.fn()} />);
-    const button = screen.getByRole('button', { name: 'Placer un client sans réservation' });
-    expect(button.textContent).toBe('Placer un client sans réservation');
-    expect(document.body.textContent).not.toMatch(/walk-?in|⚡/i);
+    const button = screen.getByRole('button', { name: 'Walk-in' });
+    expect(button.textContent).toBe('Walk-in');
+    expect(document.body.textContent).not.toMatch(/⚡/);
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
 
     fireEvent.click(button);
@@ -121,9 +121,7 @@ describe('WalkInPlacement', () => {
     const { form } = open();
     fireEvent.click(within(form).getByRole('button', { name: 'Annuler' }));
     expect(screen.queryByRole('form')).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Placer un client sans réservation' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Walk-in' })).toBeInTheDocument();
   });
 });
 

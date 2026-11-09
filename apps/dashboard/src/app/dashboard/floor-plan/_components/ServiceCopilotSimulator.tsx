@@ -1,7 +1,5 @@
 'use client';
 
-import { ServiceCopilotAccess } from '@/components/ServiceCopilotAccess';
-
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -26,6 +24,13 @@ import {
 } from '@/types/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -252,248 +257,252 @@ function ServiceCopilotSimulatorContent({
   }
 
   return (
-    <Card className="border-border bg-card">
-      <CardContent className="space-y-4 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
-              <Search size={18} aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Simuler un placement</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Prévisualisez des options pour un groupe sans réservation, sans placer de client.
-              </p>
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="sim-party-size" className="flex items-center gap-1.5">
+              <Users size={14} />
+              Couverts
+            </Label>
+            <Input
+              id="sim-party-size"
+              type="number"
+              min={1}
+              max={99}
+              value={partySize}
+              onChange={(e) => setPartySize(Number(e.target.value))}
+              className="bg-card"
+              inputMode="numeric"
+              disabled={loading}
+              required
+            />
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              role="group"
+              aria-label="Raccourcis de groupe"
+            >
+              <span className="mr-1 text-[11px] text-muted-foreground">Raccourci</span>
+              {[2, 4, 6, 8].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setPartySize(size)}
+                  className={cn(
+                    'min-w-8 rounded-full border px-2 py-1 text-xs font-medium transition-all duration-200',
+                    partySize === size
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                  aria-pressed={partySize === size}
+                  aria-label={`${size} couvert${size > 1 ? 's' : ''}`}
+                >
+                  {size}
+                </button>
+              ))}
             </div>
           </div>
-          <span className="w-fit rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            Prévisualisation
-          </span>
+
+          <div className="space-y-2">
+            <Label htmlFor="sim-starts-at" className="flex items-center gap-1.5">
+              <Clock size={14} />
+              Arrivée
+            </Label>
+            <Input
+              id="sim-starts-at"
+              type="datetime-local"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+              className="bg-card"
+              disabled={loading}
+              required
+            />
+            <div
+              className="flex flex-wrap items-center gap-1.5"
+              role="group"
+              aria-label="Raccourcis d’arrivée"
+            >
+              <span className="mr-1 text-[11px] text-muted-foreground">Dans</span>
+              {[30, 60, 120].map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setStartsAt(getStartsAt(minutes))}
+                  className="rounded-full border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground"
+                >
+                  {minutes < 60 ? `${minutes} min` : `${minutes / 60} h`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sim-section" className="flex items-center gap-1.5">
+              <MapPin size={14} />
+              Zone souhaitée
+            </Label>
+            {sectionsLoading ? (
+              <Skeleton className="h-10 w-full rounded-md" />
+            ) : (
+              <Select
+                value={preferredSectionId || '__all__'}
+                onValueChange={(value) => setPreferredSectionId(value === '__all__' ? '' : value)}
+              >
+                <SelectTrigger id="sim-section" className="bg-card">
+                  <SelectValue placeholder="Toutes les zones" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Toutes les zones</SelectItem>
+                  {sections.map((section) => (
+                    <SelectItem key={section.id} value={section.id}>
+                      {section.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="sim-party-size" className="flex items-center gap-1.5">
-                <Users size={14} />
-                Couverts
-              </Label>
-              <Input
-                id="sim-party-size"
-                type="number"
-                min={1}
-                max={99}
-                value={partySize}
-                onChange={(e) => setPartySize(Number(e.target.value))}
-                className="bg-card"
-                inputMode="numeric"
-                disabled={loading}
-                required
-              />
-              <div
-                className="flex flex-wrap items-center gap-1.5"
-                role="group"
-                aria-label="Raccourcis de groupe"
-              >
-                <span className="mr-1 text-[11px] text-muted-foreground">Raccourci</span>
-                {[2, 4, 6, 8].map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setPartySize(size)}
-                    className={cn(
-                      'min-w-8 rounded-full border px-2 py-1 text-xs font-medium transition-all duration-200',
-                      partySize === size
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                    )}
-                    aria-pressed={partySize === size}
-                    aria-label={`${size} couvert${size > 1 ? 's' : ''}`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sim-starts-at" className="flex items-center gap-1.5">
+        <div className="space-y-3">
+          <button
+            type="button"
+            aria-expanded={showEndTime}
+            aria-controls="sim-end-time"
+            onClick={() => setShowEndTime((visible) => !visible)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:text-foreground"
+          >
+            <ChevronDown
+              size={14}
+              aria-hidden="true"
+              className={cn('transition-transform duration-200', showEndTime && 'rotate-180')}
+            />
+            {showEndTime ? 'Masquer la fin prévue' : 'Ajouter une fin prévue'}
+          </button>
+          {showEndTime ? (
+            <div id="sim-end-time" className="max-w-sm space-y-2">
+              <Label htmlFor="sim-ends-at" className="flex items-center gap-1.5">
                 <Clock size={14} />
-                Arrivée
+                Fin prévue
               </Label>
               <Input
-                id="sim-starts-at"
+                id="sim-ends-at"
                 type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                placeholder="Durée par défaut du restaurant"
                 className="bg-card"
                 disabled={loading}
-                required
               />
-              <div
-                className="flex flex-wrap items-center gap-1.5"
-                role="group"
-                aria-label="Raccourcis d’arrivée"
-              >
-                <span className="mr-1 text-[11px] text-muted-foreground">Dans</span>
-                {[30, 60, 120].map((minutes) => (
-                  <button
-                    key={minutes}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => setStartsAt(getStartsAt(minutes))}
-                    className="rounded-full border border-border px-2 py-1 text-xs font-medium text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground"
-                  >
-                    {minutes < 60 ? `${minutes} min` : `${minutes / 60} h`}
-                  </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+            {loading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                Analyse…
+              </>
+            ) : (
+              'Trouver une table'
+            )}
+          </Button>
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Lecture seule · aucune réservation n’est créée.
+            </p>
+          )}
+        </div>
+      </form>
+
+      {result ? (
+        <div className="space-y-4" role="status" aria-live="polite">
+          <div
+            className={cn(
+              'rounded-xl border p-4 transition-all duration-200',
+              result.feasible
+                ? 'border-success/20 bg-success/[0.04]'
+                : 'border-warning/20 bg-warning/[0.04]',
+            )}
+          >
+            <div className="flex items-start gap-3">
+              {result.feasible ? (
+                <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-success" />
+              ) : (
+                <AlertCircle size={20} className="mt-0.5 shrink-0 text-warning" />
+              )}
+              <p className="text-sm font-medium leading-relaxed text-foreground">
+                {result.explanation}
+              </p>
+            </div>
+          </div>
+
+          {result.scenarios.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Options de placement
+              </p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {result.scenarios.map((scenario) => (
+                  <ScenarioCard
+                    key={scenario.id}
+                    scenario={scenario}
+                    isBest={scenario.id === result.bestScenarioId}
+                  />
                 ))}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sim-section" className="flex items-center gap-1.5">
-                <MapPin size={14} />
-                Zone souhaitée
-              </Label>
-              {sectionsLoading ? (
-                <Skeleton className="h-10 w-full rounded-md" />
-              ) : (
-                <Select
-                  value={preferredSectionId || '__all__'}
-                  onValueChange={(value) => setPreferredSectionId(value === '__all__' ? '' : value)}
-                >
-                  <SelectTrigger id="sim-section" className="bg-card">
-                    <SelectValue placeholder="Toutes les zones" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Toutes les zones</SelectItem>
-                    {sections.map((section) => (
-                      <SelectItem key={section.id} value={section.id}>
-                        {section.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              aria-expanded={showEndTime}
-              aria-controls="sim-end-time"
-              onClick={() => setShowEndTime((visible) => !visible)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:text-foreground"
-            >
-              <ChevronDown
-                size={14}
-                aria-hidden="true"
-                className={cn('transition-transform duration-200', showEndTime && 'rotate-180')}
-              />
-              {showEndTime ? 'Masquer la fin prévue' : 'Ajouter une fin prévue'}
-            </button>
-            {showEndTime ? (
-              <div id="sim-end-time" className="max-w-sm space-y-2">
-                <Label htmlFor="sim-ends-at" className="flex items-center gap-1.5">
-                  <Clock size={14} />
-                  Fin prévue
-                </Label>
-                <Input
-                  id="sim-ends-at"
-                  type="datetime-local"
-                  value={endsAt}
-                  onChange={(e) => setEndsAt(e.target.value)}
-                  placeholder="Durée par défaut du restaurant"
-                  className="bg-card"
-                  disabled={loading}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-              {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                  Analyse…
-                </>
-              ) : (
-                'Trouver une table'
-              )}
-            </Button>
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Lecture seule · aucune réservation n’est créée.
-              </p>
-            )}
-          </div>
-        </form>
-
-        {result ? (
-          <div className="space-y-4" role="status" aria-live="polite">
-            <div
-              className={cn(
-                'rounded-xl border p-4 transition-all duration-200',
-                result.feasible
-                  ? 'border-success/20 bg-success/[0.04]'
-                  : 'border-warning/20 bg-warning/[0.04]',
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {result.feasible ? (
-                  <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-success" />
-                ) : (
-                  <AlertCircle size={20} className="mt-0.5 shrink-0 text-warning" />
-                )}
-                <p className="text-sm font-medium leading-relaxed text-foreground">
-                  {result.explanation}
-                </p>
-              </div>
-            </div>
-
-            {result.scenarios.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Options de placement
-                </p>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {result.scenarios.map((scenario) => (
-                    <ScenarioCard
-                      key={scenario.id}
-                      scenario={scenario}
-                      isBest={scenario.id === result.bestScenarioId}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucun scénario retourné.</p>
-            )}
-          </div>
-        ) : (
-          <div className="sokar-empty min-h-0 p-3 sm:p-4">
-            <p className="text-sm text-muted-foreground">
-              Renseignez les couverts et l&apos;heure d&apos;arrivée pour voir les tables
-              recommandées.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun scénario retourné.</p>
+          )}
+        </div>
+      ) : (
+        <div className="sokar-empty min-h-0 p-3 sm:p-4">
+          <p className="text-sm text-muted-foreground">
+            Renseignez les couverts et l&apos;heure d&apos;arrivée pour voir les tables
+            recommandées.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
 export function ServiceCopilotSimulator(props: ServiceCopilotSimulatorProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
-    <ServiceCopilotAccess fallback={null}>
-      <ServiceCopilotSimulatorContent {...props} />
-    </ServiceCopilotAccess>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        title="Simuler un placement"
+        className="h-8 shrink-0 gap-1.5 rounded-full border-border/70 bg-background/70 px-3 text-muted-foreground shadow-sm transition-all duration-200 hover:bg-muted hover:text-foreground"
+        onClick={() => setDialogOpen(true)}
+      >
+        <Search size={14} aria-hidden="true" />
+        Simuler
+      </Button>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Simuler un placement</DialogTitle>
+            <DialogDescription>
+              Prévisualisez les tables pour un groupe sans réservation. Aucun client n’est placé.
+            </DialogDescription>
+          </DialogHeader>
+          <ServiceCopilotSimulatorContent {...props} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

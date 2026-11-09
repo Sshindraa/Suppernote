@@ -20,7 +20,9 @@ import { TableAllocationService, TableAllocationError } from '../table-allocatio
 import { CapacityAwareAvailabilityService } from '../availability-capacity-aware.service.js';
 
 function makePrismaMock() {
-  const table = { findFirst: vi.fn() };
+  const table = { findFirst: vi.fn(), create: vi.fn(), upsert: vi.fn() };
+  const wall = { create: vi.fn(), upsert: vi.fn() };
+  const floorPlanZone = { create: vi.fn(), upsert: vi.fn() };
   const reservation = {
     findMany: vi.fn(),
     findFirst: vi.fn(),
@@ -41,6 +43,8 @@ function makePrismaMock() {
 
   const prisma: any = {
     table,
+    wall,
+    floorPlanZone,
     reservation,
     reservationAuditLog,
     restaurant,
@@ -49,7 +53,16 @@ function makePrismaMock() {
       fn({ table, reservation, reservationAuditLog, restaurant, floorPlan }),
     ),
   };
-  return { prisma, table, reservation, reservationAuditLog, restaurant, floorPlan };
+  return {
+    prisma,
+    table,
+    wall,
+    floorPlanZone,
+    reservation,
+    reservationAuditLog,
+    restaurant,
+    floorPlan,
+  };
 }
 
 const P2002 = () =>
@@ -80,6 +93,82 @@ describe('FloorPlanService', () => {
 
       expect(mocks.floorPlan.updateMany).not.toHaveBeenCalled();
       expect(mocks.floorPlan.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('créations rejouables', () => {
+    it('réutilise la même table quand une création est rejouée', async () => {
+      const id = 'db72dc3f-1bd7-4271-9a23-c6c053c3d673';
+      const created = { id, floorPlanId: 'fp-1', name: 'T1', capacity: 4 };
+      mocks.table.upsert.mockResolvedValue(created);
+
+      const result = await svc.createTable('rest-1', { id, name: 'T1', capacity: 4 });
+
+      expect(result).toBe(created);
+      expect(mocks.table.upsert).toHaveBeenCalledWith({
+        where: { id },
+        create: expect.objectContaining({ id, floorPlanId: 'fp-1', name: 'T1' }),
+        update: {},
+      });
+    });
+
+    it('réutilise le même mur quand une création est rejouée', async () => {
+      const id = 'db72dc3f-1bd7-4271-9a23-c6c053c3d673';
+      const created = { id, floorPlanId: 'fp-1', x1: 0, y1: 0, x2: 10, y2: 0 };
+      mocks.wall.upsert.mockResolvedValue(created);
+
+      const result = await svc.createWall('rest-1', { id, x1: 0, y1: 0, x2: 10, y2: 0 });
+
+      expect(result).toBe(created);
+      expect(mocks.wall.upsert).toHaveBeenCalledWith({
+        where: { id },
+        create: expect.objectContaining({ id, floorPlanId: 'fp-1' }),
+        update: {},
+      });
+    });
+
+    it('réutilise la même zone quand une création est rejouée', async () => {
+      const id = 'db72dc3f-1bd7-4271-9a23-c6c053c3d673';
+      const created = {
+        id,
+        floorPlanId: 'fp-1',
+        name: 'Terrasse',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 80,
+      };
+      mocks.floorPlanZone.upsert.mockResolvedValue(created);
+
+      const result = await svc.createZone('rest-1', {
+        id,
+        name: 'Terrasse',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 80,
+      });
+
+      expect(result).toBe(created);
+      expect(mocks.floorPlanZone.upsert).toHaveBeenCalledWith({
+        where: { id },
+        create: expect.objectContaining({ id, floorPlanId: 'fp-1' }),
+        update: {},
+      });
+    });
+
+    it('refuse un identifiant déjà associé à un autre plan', async () => {
+      const id = 'db72dc3f-1bd7-4271-9a23-c6c053c3d673';
+      mocks.table.upsert.mockResolvedValue({ id, floorPlanId: 'fp-other' });
+
+      await expect(svc.createTable('rest-1', { id, name: 'T1', capacity: 4 })).rejects.toThrow(
+        FloorPlanNotFoundError,
+      );
+      expect(mocks.table.upsert).toHaveBeenCalledWith({
+        where: { id },
+        create: expect.objectContaining({ id, floorPlanId: 'fp-1' }),
+        update: {},
+      });
     });
   });
 

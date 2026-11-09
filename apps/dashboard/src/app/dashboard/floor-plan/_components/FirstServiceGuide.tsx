@@ -49,10 +49,8 @@ export function FirstServiceGuide() {
           <p className="font-medium text-foreground">Votre premier service</p>
           <p>
             Un client arrive sans réservation : touchez une table libre, puis{' '}
-            <strong className="font-medium text-foreground">
-              Placer un client sans réservation
-            </strong>
-            . La table n’est plus proposée au téléphone ni en ligne.
+            <strong className="font-medium text-foreground">Walk-in</strong>. La table n’est plus
+            proposée au téléphone ni en ligne.
           </p>
           <p>
             Quand il part, touchez sa table puis{' '}

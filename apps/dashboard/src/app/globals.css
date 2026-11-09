@@ -1132,22 +1132,12 @@ body {
   padding-top: 0.5rem;
 }
 
-/* En mode Salle (surtout Live), la page remplit la hauteur utile de l'écran tactile
-   sans laisser de vide mort sous le plan : la barre de service mobile s'ancre
-   directement au-dessus de la barre de navigation. */
-.dashboard-shell-content--salle {
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
-  min-height: calc(100dvh - 1rem);
+/* Réserve la navigation fixe tout en laissant le plan prendre la hauteur disponible. */
+.dashboard-shell-content.dashboard-shell-content--salle {
+  min-height: 100dvh;
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
-}
-
-@media (min-width: 1024px) {
-  .dashboard-shell-content--salle {
-    padding-bottom: 2rem;
-    min-height: auto;
-    display: block;
-  }
 }
 
 .dashboard-mobile-nav {
@@ -1675,7 +1665,8 @@ body {
   }
 
   .dashboard-shell {
-    padding-top: 5.5rem;
+    --dashboard-desktop-header-height: 5.5rem;
+    padding-top: var(--dashboard-desktop-header-height);
   }
 
   .dashboard-shell-content {
@@ -1683,6 +1674,11 @@ body {
     padding-bottom: 2rem;
     padding-left: 16rem;
     padding-top: 0;
+  }
+
+  .dashboard-shell-content.dashboard-shell-content--salle {
+    min-height: calc(100dvh - var(--dashboard-desktop-header-height));
+    padding-bottom: 1.5rem;
   }
 
   .dashboard-shell--sidebar-compact .dashboard-shell-content {

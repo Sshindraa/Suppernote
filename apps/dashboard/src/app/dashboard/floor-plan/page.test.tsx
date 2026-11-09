@@ -85,15 +85,6 @@ describe('FloorPlanPage — switch desktop', () => {
     );
   });
 
-  it('présente la simulation comme une prévisualisation sans placement', async () => {
-    render(<FloorPlanPage />);
-    expect(await screen.findByText('Simuler un placement · Copilot')).toBeInTheDocument();
-    expect(
-      screen.getByText('Prévisualisation uniquement · aucun client placé'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/walk-in/i)).not.toBeInTheDocument();
-  });
-
   it('permet de réessayer après une panne sans laisser le skeleton affiché', async () => {
     apiMocks.get
       .mockRejectedValueOnce(new Error('Impossible de joindre le serveur API'))
@@ -225,22 +216,19 @@ describe('FloorPlanPage — switch desktop', () => {
         'true',
       );
     });
-    expect(screen.getByRole('tab', { name: 'Sections & tables' })).toHaveAttribute(
-      'aria-selected',
-      'false',
-    );
+    expect(screen.getByRole('tab', { name: 'Tables' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByText('design')).toBeInTheDocument();
   });
 
-  it('affiche FloorPlanCrud en cliquant sur Sections & tables', async () => {
+  it('affiche FloorPlanCrud en cliquant sur Tables', async () => {
     mocks.setSearchParams('view=edit-plan');
     render(<FloorPlanPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Sections & tables' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Tables' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Sections & tables' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Tables' }));
 
     expect(screen.getByTestId('floor-plan-crud')).toBeInTheDocument();
     expect(screen.queryByText('design')).not.toBeInTheDocument();
@@ -251,10 +239,10 @@ describe('FloorPlanPage — switch desktop', () => {
     render(<FloorPlanPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Sections & tables' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Tables' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Sections & tables' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Tables' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Plan visuel' }));
 
     expect(screen.getByText('design')).toBeInTheDocument();
@@ -270,7 +258,7 @@ describe('FloorPlanPage — switch desktop', () => {
     });
 
     expect(screen.queryByRole('tab', { name: 'Plan visuel' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Sections & tables' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Tables' })).not.toBeInTheDocument();
   });
 
   it('ouvre la boîte de dialogue de création et crée un plan', async () => {

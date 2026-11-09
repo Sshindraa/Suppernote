@@ -4,6 +4,7 @@ import { useServiceCopilotAccess } from '@/lib/use-service-copilot-access';
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import { useApi } from '@/lib/api';
 import {
   getErrorMessage,
@@ -23,7 +24,7 @@ import {
   type WaitingListEntry,
   type WallType,
 } from '@/types/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,30 +37,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import {
-  format,
-  parseISO,
-  isWithinInterval,
-  isAfter,
-  isSameDay,
-  differenceInMinutes,
-  formatDistanceToNow,
-  addDays,
-  startOfDay,
-  addMinutes,
-} from 'date-fns';
+import { getTableStatus, type TableStatus } from './table-status';
+import { format, parseISO, differenceInMinutes, formatDistanceToNow, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   AlertCircle,
   ZoomIn,
   ZoomOut,
   LocateFixed,
-  Grid3x3,
   Grid2x2,
   Magnet,
-  Save,
   Settings2,
-  Check,
   Maximize2,
   Move,
   Copy,
@@ -69,6 +57,7 @@ import {
   CalendarDays,
   AlertTriangle,
   CircleCheck,
+  CircleHelp,
   UserRound,
   UserX,
   Users,
@@ -76,7 +65,6 @@ import {
   ListOrdered,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Plus,
   Trash2,
   Circle,
@@ -88,7 +76,6 @@ import {
   AlignCenter,
   AlignRight,
   AlignVerticalJustifyCenter,
-  AlignHorizontalJustifyCenter,
   AlignVerticalJustifyStart,
   AlignVerticalJustifyEnd,
   RotateCw,
@@ -98,7 +85,6 @@ import {
   Phone,
   X,
   ArrowRight,
-  Link2,
   type LucideIcon,
 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -131,6 +117,8 @@ import {
   useDroppable,
 } from '@dnd-kit/core';
 import { useUndoHistory } from './useUndoHistory';
+import { PlanWriteQueue, type PlanWriteStatus } from './plan-write-queue';
+import { ServiceCopilotSimulator } from './ServiceCopilotSimulator';
 import { WALK_IN_DEFAULT_NAME, WalkInPlacement, walkInErrorMessage } from './WalkInPlacement';
 import { useIsMobile, useMediaQuery } from '@/lib/useMediaQuery';
 import { ServiceCardBadges, useServiceCards } from '@/components/reservation/service-card-badges';
@@ -140,15 +128,6 @@ const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : us
 const DEFAULT_CANVAS_WIDTH = 1400;
 const DEFAULT_CANVAS_HEIGHT = 900;
 
-// Onglets de la vue service. Déclarés hors composant pour garder le rendu
-// lisible et permettre une navigation clavier conforme au motif ARIA `tablist`.
-const SERVICE_TABS = [
-  { id: 'plan', label: 'Plan' },
-  { id: 'waiting-list', label: "Liste d'attente" },
-  { id: 'stats', label: 'Statistiques' },
-] as const;
-
-type ServiceTabId = (typeof SERVICE_TABS)[number]['id'];
 const GRID_SIZE = 16;
 // L’échelle physique reste un détail d’implémentation : 100 px représentent
 // 1 mètre dans le plan. Les dimensions affichées aux restaurateurs sont donc
@@ -165,6 +144,59 @@ const MIN_ZOOM_TOUCH = 0.3;
 const TOUCH_FIT_FLOOR = 0.45;
 const MAX_ZOOM = 2.0;
 const ZOOM_STEP = 0.1;
+
+function getPlanWriteKey(path: string): string | null {
+  const parts = path.split('?')[0].split('/');
+  const planIndex = parts.findIndex((part) => part === 'floor-plan' || part === 'floor-plans');
+  if (planIndex < 0) return null;
+  if (parts[planIndex] === 'floor-plans') {
+    return parts[planIndex + 1] ? `plan:${parts[planIndex + 1]}` : 'plan:default';
+  }
+
+  const collection = parts[planIndex + 1];
+  if (!collection) return 'plan:default';
+  if (!['tables', 'walls', 'zones', 'sections', 'table-combinations'].includes(collection)) {
+    return null;
+  }
+  return `${collection}:${parts[planIndex + 2] ?? 'collection'}`;
+}
+
+function withPlanCreateId(path: string, body: unknown): unknown {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const parts = path.split('?')[0].split('/');
+  const planIndex = parts.findIndex((part) => part === 'floor-plan');
+  const collection = parts[planIndex + 1];
+  if (planIndex < 0 || parts[planIndex + 2] || !['tables', 'walls', 'zones'].includes(collection)) {
+    return body;
+  }
+  const payload = body as Record<string, unknown>;
+  return { ...payload, id: payload.id ?? crypto.randomUUID() };
+}
+
+function planEntityExists(plan: FloorPlan, path: string): boolean | null {
+  const parts = path.split('?')[0].split('/');
+  const planIndex = parts.findIndex((part) => part === 'floor-plan' || part === 'floor-plans');
+  const collection = parts[planIndex + 1];
+  const id = parts[planIndex + 2];
+  if (!id) return null;
+
+  switch (collection) {
+    case 'tables':
+      return [...(plan.tables ?? []), ...plan.sections.flatMap((section) => section.tables)].some(
+        (table) => table.id === id,
+      );
+    case 'walls':
+      return (plan.walls ?? []).some((wall) => wall.id === id);
+    case 'zones':
+      return (plan.zones ?? []).some((zone) => zone.id === id);
+    case 'sections':
+      return plan.sections.some((section) => section.id === id);
+    case 'table-combinations':
+      return (plan.tableCombinations ?? []).some((combination) => combination.id === id);
+    default:
+      return null;
+  }
+}
 
 /** Borne une échelle de zoom entre la limite du support et le maximum produit. */
 export function clampZoom(value: number, minZoom: number = MIN_ZOOM, maxZoom = MAX_ZOOM) {
@@ -305,7 +337,7 @@ export function computeContentBounds(
   };
 }
 
-/** Cadre les tables et les zones visibles avec une marge autour de leur dessin. */
+/** Cadre les éléments visibles du plan avec une marge autour de leur dessin. */
 export function computeLiveContentBounds(
   zones: Array<Pick<FloorPlanZone, 'x' | 'y' | 'width' | 'height' | 'rotation'>>,
   tables: Array<{
@@ -318,6 +350,7 @@ export function computeLiveContentBounds(
   }>,
   canvasWidth: number,
   canvasHeight: number,
+  walls: Array<Pick<FloorPlanWall, 'x1' | 'y1' | 'x2' | 'y2'>> = [],
 ): ContentBounds | null {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -361,6 +394,12 @@ export function computeLiveContentBounds(
   for (const zone of zones) {
     includeRotatedRectangle(zone.x, zone.y, zone.width, zone.height, zone.rotation ?? 0);
   }
+  for (const wall of walls) {
+    minX = Math.min(minX, wall.x1, wall.x2);
+    minY = Math.min(minY, wall.y1, wall.y2);
+    maxX = Math.max(maxX, wall.x1, wall.x2);
+    maxY = Math.max(maxY, wall.y1, wall.y2);
+  }
 
   if (minX === Number.POSITIVE_INFINITY || canvasWidth <= 0 || canvasHeight <= 0) return null;
   const x = minX - LIVE_CONTENT_FIT_PADDING;
@@ -371,31 +410,6 @@ export function computeLiveContentBounds(
     width: Math.max(1, maxX + LIVE_CONTENT_FIT_PADDING - x),
     height: Math.max(1, maxY + LIVE_CONTENT_FIT_PADDING - y),
   };
-}
-
-/** Centre d'une table dans une zone, en tenant compte de la rotation de la zone. */
-function isTableInsideZone(
-  table: {
-    positionX: number | null;
-    positionY: number | null;
-    width?: number | null;
-    height?: number | null;
-    shape?: TableShape | null;
-  },
-  zone: Pick<FloorPlanZone, 'x' | 'y' | 'width' | 'height' | 'rotation'>,
-) {
-  if (table.positionX === null || table.positionY === null) return false;
-  const size = getTableSize(table);
-  const tableCenterX = table.positionX + size.width / 2;
-  const tableCenterY = table.positionY + size.height / 2;
-  const zoneCenterX = zone.x + zone.width / 2;
-  const zoneCenterY = zone.y + zone.height / 2;
-  const angle = -((zone.rotation ?? 0) * Math.PI) / 180;
-  const deltaX = tableCenterX - zoneCenterX;
-  const deltaY = tableCenterY - zoneCenterY;
-  const localX = deltaX * Math.cos(angle) - deltaY * Math.sin(angle);
-  const localY = deltaX * Math.sin(angle) + deltaY * Math.cos(angle);
-  return Math.abs(localX) <= zone.width / 2 && Math.abs(localY) <= zone.height / 2;
 }
 
 /** Défilement qui centre une zone du plan (ex. les tables) dans la fenêtre. */
@@ -438,10 +452,6 @@ function formatRoomMeters(pixels: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function formatRoomCentimeters(pixels: number): string {
-  return Math.round((pixels / CANVAS_PIXELS_PER_METER) * 100).toLocaleString('fr-FR');
 }
 
 function parseRoomMeters(value: string): number | null {
@@ -502,12 +512,19 @@ const ZONE_MIN_HEIGHT = 80;
 const TABLE_CARD_MIN_WIDTH = 132;
 const TABLE_CARD_MIN_HEIGHT = 66;
 const TABLE_CARD_SEAT_HEIGHT = 32;
-// Version tactile : sur téléphone, la carte blanche masquait les tables du
-// plan. On garde un rectangle compact avec le nom et l'état, sans libellé.
-const COMPACT_TABLE_CARD_MIN_WIDTH = 104;
-const COMPACT_TABLE_CARD_MIN_HEIGHT = 52;
-
-type TableStatus = 'free' | 'reserved' | 'upcoming' | 'late' | 'occupied' | 'inactive';
+function getTableBodyGeometry(width: number, height: number, round: boolean) {
+  const bodyWidth = round
+    ? Math.max(Math.min(width, height), 72)
+    : Math.max(width, TABLE_CARD_MIN_WIDTH);
+  const bodyHeight = round ? bodyWidth : Math.max(TABLE_CARD_MIN_HEIGHT, Math.round(bodyWidth / 2));
+  return {
+    bodyWidth,
+    bodyHeight,
+    top: round
+      ? Math.round((height - bodyHeight) / 2)
+      : Math.max(8, Math.round((height - (bodyHeight + TABLE_CARD_SEAT_HEIGHT)) / 2)),
+  };
+}
 
 /** Proposition d'allocation explicable renvoyée par l'API (Phase 5). */
 type TableSuggestion = {
@@ -622,7 +639,6 @@ type TableForm = {
   capacity: string;
   minCapacity: string;
   shape: TableShape;
-  sectionId: string;
   isActive: boolean;
 };
 
@@ -690,6 +706,38 @@ function getTableSize(table: {
   };
 }
 
+function tableFitsInZone(
+  table: Pick<
+    FloorPlanTable,
+    'positionX' | 'positionY' | 'width' | 'height' | 'rotation' | 'shape'
+  >,
+  zone: FloorPlanZone,
+) {
+  if (table.positionX === null || table.positionY === null) return false;
+  const { width, height, rotation } = getTableSize(table);
+  const tableCenterX = table.positionX + width / 2;
+  const tableCenterY = table.positionY + height / 2;
+  const zoneRotation = ((zone.rotation ?? 0) * Math.PI) / 180;
+  const dx = tableCenterX - (zone.x + zone.width / 2);
+  const dy = tableCenterY - (zone.y + zone.height / 2);
+  const localX = dx * Math.cos(zoneRotation) + dy * Math.sin(zoneRotation) + zone.width / 2;
+  const localY = -dx * Math.sin(zoneRotation) + dy * Math.cos(zoneRotation) + zone.height / 2;
+  const relativeRotation = ((rotation - (zone.rotation ?? 0)) * Math.PI) / 180;
+  const halfWidth =
+    (Math.abs(Math.cos(relativeRotation)) * width + Math.abs(Math.sin(relativeRotation)) * height) /
+    2;
+  const halfHeight =
+    (Math.abs(Math.sin(relativeRotation)) * width + Math.abs(Math.cos(relativeRotation)) * height) /
+    2;
+  const clearMargin = 8;
+  return (
+    localX - halfWidth >= clearMargin &&
+    localX + halfWidth <= zone.width - clearMargin &&
+    localY - halfHeight >= clearMargin &&
+    localY + halfHeight <= zone.height - clearMargin
+  );
+}
+
 const statusClasses: Record<TableStatus, string> = {
   free: 'bg-card border-border text-foreground',
   reserved: 'bg-ring/10 border-ring/60 text-foreground shadow-sm',
@@ -717,66 +765,57 @@ const statusDotClasses: Record<TableStatus, string> = {
   inactive: 'bg-floor-table-muted/80',
 };
 
-function getTableStatus(
-  table: FloorPlanTable,
-  reservations: PlanningReservation[],
-  now: Date,
-): { status: TableStatus; reservation: PlanningReservation | null } {
-  if (!table.isActive) {
-    return { status: 'inactive', reservation: null };
-  }
-
-  const tableRes = reservations.filter(
-    (r) => r.tableId === table.id && !['CANCELLED', 'NO_SHOW'].includes(r.state),
+function getServiceHeader(tables: CanvasTable[], reservations: PlanningReservation[], now: Date) {
+  const seatedTableIds = new Set(
+    reservations.filter((r) => r.state === 'SEATED').map((r) => r.tableId),
   );
-
-  const current = tableRes.find((r) => {
-    const start = parseISO(r.startsAt);
-    const end = parseISO(r.endsAt);
-    return isWithinInterval(now, { start, end }) && r.state === 'SEATED';
-  });
-
-  if (current) {
-    return { status: 'occupied', reservation: current };
+  const planTableIds = new Set(tables.map((table) => table.id));
+  const arrivals = reservations
+    .filter((r) => {
+      const untilArrival = Date.parse(r.startsAt) - now.getTime();
+      return (
+        ['PENDING', 'CONFIRMED'].includes(r.state) &&
+        (!r.tableId || planTableIds.has(r.tableId)) &&
+        untilArrival >= 0 &&
+        untilArrival <= 15 * 60_000
+      );
+    })
+    .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+  const blocked = arrivals.find((r) => r.tableId && seatedTableIds.has(r.tableId));
+  const target = blocked ?? arrivals.find((r) => !r.tableId);
+  if (target) {
+    const minutes = Math.ceil((Date.parse(target.startsAt) - now.getTime()) / 60_000);
+    const timing = minutes <= 1 ? 'Arrivée imminente' : `Arrivée dans ${minutes} min`;
+    const table = tables.find((item) => item.id === target.tableId);
+    const tableName = table?.displayName ?? table?.name;
+    return {
+      text: blocked
+        ? `${tableName ? `${tableName} encore occupée` : 'Table encore occupée'} · ${timing}`
+        : `${timing} · ${target.partySize} couverts sans table`,
+      blocked: Boolean(blocked),
+      target,
+    };
   }
 
-  const late = tableRes.find((r) => {
-    const start = parseISO(r.startsAt);
-    const end = parseISO(r.endsAt);
-    return !isAfter(start, now) && isAfter(end, now) && ['PENDING', 'CONFIRMED'].includes(r.state);
-  });
-
-  if (late) {
-    return { status: 'late', reservation: late };
+  if (arrivals.length) {
+    return {
+      text: `${arrivals.length} ${arrivals.length === 1 ? 'arrivée prévue' : 'arrivées prévues'} dans les 15 min`,
+    };
   }
 
-  const upcoming = tableRes.find((r) => {
-    const start = parseISO(r.startsAt);
-    const diff = differenceInMinutes(start, now);
-    return (
-      isAfter(start, now) &&
-      diff <= 30 &&
-      (isSameDay(start, now) || diff <= 30) &&
-      ['PENDING', 'CONFIRMED'].includes(r.state)
-    );
-  });
-
-  if (upcoming) {
-    return { status: 'upcoming', reservation: upcoming };
-  }
-
-  const reserved = tableRes.find((r) => {
-    const start = parseISO(r.startsAt);
-    return (
-      isAfter(start, now) && isSameDay(start, now) && ['PENDING', 'CONFIRMED'].includes(r.state)
-    );
-  });
-
-  if (reserved) {
-    return { status: 'reserved', reservation: reserved };
-  }
-
-  return { status: 'free', reservation: null };
+  const free = tables.filter(
+    (table) =>
+      !seatedTableIds.has(table.id) && getTableStatus(table, reservations, now).status === 'free',
+  );
+  const inService = tables.some((table) => seatedTableIds.has(table.id));
+  const seats = free.reduce((total, table) => total + table.capacity, 0);
+  return {
+    text: !tables.length
+      ? 'Aucune table sur ce plan'
+      : !free.length
+        ? 'Aucune table libre'
+        : `${inService ? 'Service en cours · ' : ''}${free.length} ${free.length === 1 ? 'table libre' : 'tables libres'} · ${seats} ${seats === 1 ? 'place' : 'places'}`,
+  };
 }
 
 function formatReservationBadge(reservation: PlanningReservation): string {
@@ -811,18 +850,23 @@ function findNextPosition(
   existing: CanvasTable[],
   maxWidth: number,
   maxHeight: number,
-): { x: number; y: number } {
+  rotation = 0,
+  shape: TableShape = 'rect',
+): { x: number; y: number } | null {
   const startX = 32;
   const startY = 32;
   const step = GRID_SIZE;
 
   for (let y = startY; y <= maxHeight - height; y += step) {
     for (let x = startX; x <= maxWidth - width; x += step) {
-      const hasOverlap = existing.some((t) => {
-        const { width: tw, height: th } = getTableSize(t);
-        const tx = t.positionX ?? 0;
-        const ty = t.positionY ?? 0;
-        return x < tx + tw && x + width > tx && y < ty + th && y + height > ty;
+      const hasOverlap = tablePlatesOverlapAtPosition({
+        x,
+        y,
+        width,
+        height,
+        rotation,
+        shape,
+        tables: existing,
       });
       if (!hasOverlap) {
         return { x: Math.round(x), y: Math.round(y) };
@@ -830,7 +874,7 @@ function findNextPosition(
     }
   }
 
-  return { x: startX, y: startY };
+  return null;
 }
 
 const TABLE_ALIGN_GUIDE_DISTANCE = 10;
@@ -907,7 +951,7 @@ export function getTableAlignmentGuides({
             guides[axis] = {
               axis,
               value: referenceValue,
-              position: referenceValue - movingAxis.offset,
+              position: Math.round(referenceValue - movingAxis.offset),
               distance,
             };
           }
@@ -919,44 +963,137 @@ export function getTableAlignmentGuides({
   return guides;
 }
 
-function tableOverlapsAtPosition({
+function getTablePlate(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rotation: number,
+  shape: TableShape | null,
+) {
+  const round = shape === 'round';
+  const { bodyWidth, bodyHeight, top } = getTableBodyGeometry(width, height, round);
+  const left = Math.round((width - bodyWidth) / 2);
+  const radians = (rotation * Math.PI) / 180;
+  const localX = left + bodyWidth / 2 - width / 2;
+  const localY = top + bodyHeight / 2 - height / 2;
+
+  return {
+    x: x + width / 2 + localX * Math.cos(radians) - localY * Math.sin(radians),
+    y: y + height / 2 + localX * Math.sin(radians) + localY * Math.cos(radians),
+    halfWidth: bodyWidth / 2,
+    halfHeight: bodyHeight / 2,
+    radians,
+    round,
+  };
+}
+
+function circleOverlapsTablePlate(
+  circle: { x: number; y: number; radius: number },
+  rectangle: ReturnType<typeof getTablePlate>,
+) {
+  if (rectangle.round) {
+    return (
+      (circle.x - rectangle.x) ** 2 + (circle.y - rectangle.y) ** 2 <
+      (circle.radius + rectangle.halfWidth) ** 2
+    );
+  }
+  const dx = circle.x - rectangle.x;
+  const dy = circle.y - rectangle.y;
+  const localX = dx * Math.cos(rectangle.radians) + dy * Math.sin(rectangle.radians);
+  const localY = -dx * Math.sin(rectangle.radians) + dy * Math.cos(rectangle.radians);
+  const closestX = Math.max(-rectangle.halfWidth, Math.min(rectangle.halfWidth, localX));
+  const closestY = Math.max(-rectangle.halfHeight, Math.min(rectangle.halfHeight, localY));
+  return (localX - closestX) ** 2 + (localY - closestY) ** 2 < circle.radius ** 2;
+}
+
+function findOverlappingTablePlate({
   x,
   y,
   width,
   height,
+  rotation = 0,
+  shape = 'rect',
   tables,
 }: {
   x: number;
   y: number;
   width: number;
   height: number;
+  rotation?: number;
+  shape?: TableShape | null;
   tables: CanvasTable[];
 }) {
-  return tables.some((table) => {
+  const candidate = getTablePlate(x, y, width, height, rotation, shape);
+
+  return tables.find((table) => {
     if (table.positionX === null || table.positionY === null) return false;
-    const size = getTableSize(table);
-    return (
-      x < table.positionX + size.width &&
-      x + width > table.positionX &&
-      y < table.positionY + size.height &&
-      y + height > table.positionY
+    const { width: tableWidth, height: tableHeight, rotation: tableRotation } = getTableSize(table);
+    const other = getTablePlate(
+      table.positionX,
+      table.positionY,
+      tableWidth,
+      tableHeight,
+      tableRotation,
+      table.shape,
     );
+
+    if (candidate.round && other.round) {
+      const radius =
+        Math.min(candidate.halfWidth, candidate.halfHeight) +
+        Math.min(other.halfWidth, other.halfHeight);
+      return (other.x - candidate.x) ** 2 + (other.y - candidate.y) ** 2 < radius ** 2;
+    }
+
+    if (candidate.round || other.round) {
+      const circle = candidate.round ? candidate : other;
+      const rectangle = candidate.round ? other : candidate;
+      return circleOverlapsTablePlate(
+        { x: circle.x, y: circle.y, radius: circle.halfWidth },
+        rectangle,
+      );
+    }
+
+    const axes: Array<[number, number]> = [
+      [Math.cos(candidate.radians), Math.sin(candidate.radians)],
+      [-Math.sin(candidate.radians), Math.cos(candidate.radians)],
+      [Math.cos(other.radians), Math.sin(other.radians)],
+      [-Math.sin(other.radians), Math.cos(other.radians)],
+    ];
+
+    return axes.every(([axisX, axisY]) => {
+      const candidateRadius =
+        candidate.halfWidth *
+          Math.abs(axisX * Math.cos(candidate.radians) + axisY * Math.sin(candidate.radians)) +
+        candidate.halfHeight *
+          Math.abs(-axisX * Math.sin(candidate.radians) + axisY * Math.cos(candidate.radians));
+      const otherRadius =
+        other.halfWidth *
+          Math.abs(axisX * Math.cos(other.radians) + axisY * Math.sin(other.radians)) +
+        other.halfHeight *
+          Math.abs(-axisX * Math.sin(other.radians) + axisY * Math.cos(other.radians));
+      return (
+        Math.abs((other.x - candidate.x) * axisX + (other.y - candidate.y) * axisY) <
+        candidateRadius + otherRadius
+      );
+    });
   });
 }
 
-/**
- * Place une copie au plus près de sa source, en privilégiant la droite puis
- * les autres directions cardinales. En cas de couloir encombré, une recherche
- * radiale sur la grille évite de masquer une table existante ou de sortir du
- * plan. `null` signifie qu'aucune zone libre ne peut accueillir la copie.
- */
-export function findDuplicatePosition(
+export function tablePlatesOverlapAtPosition(
+  candidate: Parameters<typeof findOverlappingTablePlate>[0],
+) {
+  return Boolean(findOverlappingTablePlate(candidate));
+}
+
+/** Cherche la place libre la plus proche du point proposé, sans sortir du plan. */
+export function findNearbyFreeTablePosition(
   table: CanvasTable,
   tables: CanvasTable[],
   canvasWidth: number,
   canvasHeight: number,
 ): { x: number; y: number } | null {
-  const { width, height } = getTableSize(table);
+  const { width, height, rotation } = getTableSize(table);
   const originX = table.positionX ?? TABLE_DUPLICATE_GAP;
   const originY = table.positionY ?? TABLE_DUPLICATE_GAP;
   const positionedTables = tables.filter(
@@ -968,7 +1105,15 @@ export function findDuplicatePosition(
     y >= 0 &&
     x + width <= canvasWidth &&
     y + height <= canvasHeight &&
-    !tableOverlapsAtPosition({ x, y, width, height, tables: positionedTables });
+    !tablePlatesOverlapAtPosition({
+      x,
+      y,
+      width,
+      height,
+      rotation,
+      shape: table.shape,
+      tables: positionedTables,
+    });
 
   const normalise = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
   const directCandidates = [
@@ -1386,8 +1531,128 @@ function WallSegment({
   );
 }
 
+function getRenderedTableChairs(table: CanvasTable, width: number, height: number) {
+  const round = table.shape === 'round';
+  const { bodyWidth, bodyHeight, top } = getTableBodyGeometry(width, height, round);
+  const left = Math.round((width - bodyWidth) / 2);
+  // shortcut: au-delà de huit places, masquer les chaises jusqu’à pouvoir toutes les représenter.
+  const count = table.capacity <= 8 ? Math.max(0, table.capacity) : 0;
+  const chairWidth = Math.min(
+    36,
+    (Math.max(width, TABLE_CARD_MIN_WIDTH) - 8) / (Math.ceil(count / 2) + 1),
+  );
+  return Array.from({ length: count }, (_, index) => {
+    if (round) {
+      const angle = (index / count) * Math.PI * 2 - Math.PI / 2;
+      return {
+        x: left + (bodyWidth / 2) * (1 + Math.cos(angle)),
+        y: top + (bodyHeight / 2) * (1 + Math.sin(angle)),
+        width: chairWidth,
+        rotation: (angle * 180) / Math.PI + 90,
+      };
+    }
+    const rowCount = index % 2 === 0 ? Math.ceil(count / 2) : Math.floor(count / 2);
+    return {
+      x: left + (bodyWidth * (Math.floor(index / 2) + 1)) / (rowCount + 1),
+      y: top + (index % 2) * bodyHeight,
+      width: chairWidth,
+      rotation: 0,
+    };
+  });
+}
+
+export function findOverlappingTableChairs(
+  table: CanvasTable,
+  tables: CanvasTable[],
+  { plateOnly = false } = {},
+) {
+  const getChairsOnPlan = (table: CanvasTable) => {
+    if (table.positionX === null || table.positionY === null) return [];
+    const { positionX, positionY } = table;
+    const { width, height, rotation } = getTableSize(table);
+    const angle = (rotation * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return getRenderedTableChairs(table, width, height).map((chair) => {
+      const x = chair.x - width / 2;
+      const y = chair.y - height / 2;
+      return {
+        x: positionX + width / 2 + x * cos - y * sin,
+        y: positionY + height / 2 + x * sin + y * cos,
+        // shortcut: tester le cœur circulaire des chaises ; affiner si les contacts de bord doivent être signalés.
+        radius: Math.min(chair.width, TABLE_CARD_SEAT_HEIGHT) / 2,
+      };
+    });
+  };
+  if (table.positionX === null || table.positionY === null) return;
+  const size = getTableSize(table);
+  const plate = getTablePlate(
+    table.positionX,
+    table.positionY,
+    size.width,
+    size.height,
+    size.rotation,
+    table.shape,
+  );
+  const movingChairs = getChairsOnPlan(table);
+  return tables.find((other) => {
+    if (other.id === table.id || other.positionX === null || other.positionY === null) return false;
+    const size = getTableSize(other);
+    const otherPlate = getTablePlate(
+      other.positionX,
+      other.positionY,
+      size.width,
+      size.height,
+      size.rotation,
+      other.shape,
+    );
+    return (
+      movingChairs.some((chair) => circleOverlapsTablePlate(chair, otherPlate)) ||
+      getChairsOnPlan(other).some(
+        (chair) =>
+          circleOverlapsTablePlate(chair, plate) ||
+          (!plateOnly &&
+            movingChairs.some(
+              (moving) =>
+                (chair.x - moving.x) ** 2 + (chair.y - moving.y) ** 2 <
+                (chair.radius + moving.radius) ** 2,
+            )),
+      )
+    );
+  });
+}
+
+export function nudgeTableClearOfChairs(
+  table: CanvasTable,
+  neighbours: CanvasTable[],
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  if (table.positionX === null || table.positionY === null) return;
+  const { positionX, positionY } = table;
+  const size = getTableSize(table);
+  // shortcut: huit directions sur deux carreaux ; affiner si les plans serrés nécessitent une recherche continue.
+  for (let radius = 4; radius <= 2 * GRID_SIZE; radius += 4) {
+    for (let direction = 0; direction < 8; direction++) {
+      const angle = (direction * Math.PI) / 4;
+      const x = positionX + Math.round(radius * Math.cos(angle));
+      const y = positionY + Math.round(radius * Math.sin(angle));
+      if (x < 0 || y < 0 || x + size.width > canvasWidth || y + size.height > canvasHeight)
+        continue;
+      if (
+        !findOverlappingTablePlate({ ...size, x, y, shape: table.shape, tables: neighbours }) &&
+        !findOverlappingTableChairs({ ...table, positionX: x, positionY: y }, neighbours, {
+          plateOnly: true,
+        })
+      )
+        return { positionX: x, positionY: y };
+    }
+  }
+}
+
 type TableCardProps = {
   table: CanvasTable;
+  invalidPlacement?: boolean;
   status?: { status: TableStatus; reservation: PlanningReservation | null };
   onClick?: (e?: React.MouseEvent) => void;
   onDoubleClick?: () => void;
@@ -1402,7 +1667,7 @@ type TableCardProps = {
   zoom?: number;
   draggableReservation?: boolean;
   isCombinable?: boolean;
-  hideChairs?: boolean;
+  assignmentCandidate?: boolean;
   editable?: boolean;
   /** Rendu tactile : nom et point d'état seuls, sans libellé ni client. */
   compact?: boolean;
@@ -1410,6 +1675,7 @@ type TableCardProps = {
 
 function TableCard({
   table,
+  invalidPlacement = false,
   status,
   onClick,
   onDoubleClick,
@@ -1424,7 +1690,7 @@ function TableCard({
   zoom = 1,
   draggableReservation,
   isCombinable = false,
-  hideChairs = false,
+  assignmentCandidate = false,
   editable = true,
   compact = false,
 }: TableCardProps) {
@@ -1451,64 +1717,23 @@ function TableCard({
             : status?.status === 'free'
               ? 'text-floor-table-text'
               : 'text-floor-table-muted';
-  const liveStatusDotClass = status ? statusDotClasses[status.status] : null;
   const isRound = table.shape === 'round';
-  const cardMinWidth = compact ? COMPACT_TABLE_CARD_MIN_WIDTH : TABLE_CARD_MIN_WIDTH;
-  const cardMinHeight = compact ? COMPACT_TABLE_CARD_MIN_HEIGHT : TABLE_CARD_MIN_HEIGHT;
-  const rectBodyWidth = Math.max(width, cardMinWidth);
-  // Une table ronde reste un cercle même si une ancienne donnée géométrique
-  // est légèrement rectangulaire. On la centre dans son empreinte au lieu de
-  // transformer silencieusement les dimensions métier.
-  const roundDiameter = Math.max(Math.min(width, height), editable ? 72 : compact ? 104 : 112);
-  const liveBodyWidth = isRound ? roundDiameter : rectBodyWidth;
-  const liveBodyHeight = isRound
-    ? roundDiameter
-    : Math.max(cardMinHeight, Math.round(rectBodyWidth / 2));
+  const {
+    bodyWidth: liveBodyWidth,
+    bodyHeight: liveBodyHeight,
+    top: liveBodyTop,
+  } = getTableBodyGeometry(width, height, isRound);
   const liveBodyLeft = Math.round((width - liveBodyWidth) / 2);
-  const chairsPerRow = Math.ceil(table.capacity / 2);
-  const liveChairWidth = Math.min(36, (rectBodyWidth - 8) / (chairsPerRow + 1));
-  const liveBodyTop = isRound
-    ? Math.round((height - liveBodyHeight) / 2)
-    : Math.max(8, Math.round((height - (liveBodyHeight + TABLE_CARD_SEAT_HEIGHT)) / 2));
-  const roundChairHeight = editable ? 32 : 16;
-  // shortcut: au-delà de huit places, masquer les chaises pour éviter leur chevauchement ; agrandir le plan pour les représenter toutes.
-  const chairCount = !hideChairs && table.capacity <= 8 ? Math.max(0, table.capacity) : 0;
-  const roundChairPositions = isRound
-    ? Array.from({ length: chairCount }, (_, index) => {
-        const angle = (index / chairCount) * Math.PI * 2 - Math.PI / 2;
-        const radiusX = liveBodyWidth / 2;
-        const radiusY = liveBodyHeight / 2;
-        return {
-          left: liveBodyLeft + liveBodyWidth / 2 + Math.cos(angle) * radiusX - liveChairWidth / 2,
-          top: liveBodyTop + liveBodyHeight / 2 + Math.sin(angle) * radiusY - roundChairHeight / 2,
-          rotation: (angle * 180) / Math.PI + 90,
-        };
-      })
-    : [];
-  const referenceStatusLabel = liveStatusLabel ?? `${table.capacity} places`;
-  // Sur téléphone, une forme courte garde l'état lisible dans la carte sans
-  // perdre le libellé métier complet (toujours exposé par aria-label/title).
-  const compactStatusLabel =
-    status?.status === 'free'
-      ? 'Libre'
-      : status?.status === 'reserved'
-        ? 'Réservée'
-        : status?.status === 'upcoming'
-          ? 'Imminente'
-          : status?.status === 'late'
-            ? 'Retard'
-            : status?.status === 'occupied'
-              ? 'Occupée'
-              : status?.status === 'inactive'
-                ? 'Inactive'
-                : referenceStatusLabel;
-  const referenceStatusTextClass = liveStatusLabel ? liveStatusTextClass : 'text-floor-table-muted';
+  const chairs = getRenderedTableChairs(table, width, height);
+  const arrival = status?.status === 'upcoming' ? status.reservation?.startsAt : undefined;
+  const arrivalTime = arrival ? format(parseISO(arrival), 'HH:mm', { locale: fr }) : null;
+  const statusLabel = compact && status?.status === 'late' ? 'Retard' : liveStatusLabel;
 
   return (
     <div
       ref={dragRef}
       className={cn(
-        'group/table relative box-border min-w-0 min-h-0 select-none outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'group/table relative box-border min-w-0 min-h-0 select-none outline-none',
         'overflow-visible',
         !isOverlay && 'absolute',
         className,
@@ -1525,7 +1750,7 @@ function TableCard({
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       aria-label={title}
-      aria-description={`${displayName} · ${table.capacity} places${status ? ` · ${statusMeta[status.status].label}` : ''}${isCombinable ? ' · Peut être combinée avec d’autres tables' : ''}`}
+      aria-description={`${displayName} · ${table.capacity} places${status ? ` · ${statusMeta[status.status].label}` : ''}${assignmentCandidate ? ' · Table proposée pour la réservation sélectionnée' : ''}${isCombinable ? ' · Peut être combinée avec d’autres tables' : ''}`}
       aria-pressed={onClick ? isSelected : undefined}
       onClick={(e) => {
         e.stopPropagation();
@@ -1541,60 +1766,33 @@ function TableCard({
           onClick?.();
         }
       }}
-      title={title}
+      title={`${displayName} · ${table.capacity} places${liveStatusLabel ? ` · ${liveStatusLabel}` : ''}${arrivalTime ? ` à ${arrivalTime}` : ''}`}
       {...dragProps}
     >
-      {isCombinable ? (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-9 left-0 z-40 hidden whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md group-hover/table:block group-focus-visible/table:block"
-        >
-          Tables combinables
-        </span>
-      ) : null}
       <>
-        {isRound
-          ? roundChairPositions.map((chair, index) => (
-              <span
-                key={`round-chair-${index}`}
-                className="absolute z-0 rounded-full border-2 border-floor-table-muted/50 bg-floor-table-chair shadow-sm"
-                style={{
-                  left: chair.left,
-                  top: chair.top,
-                  width: liveChairWidth,
-                  height: roundChairHeight,
-                  transform: `rotate(${chair.rotation}deg)`,
-                }}
-                aria-hidden="true"
-              />
-            ))
-          : Array.from({ length: chairCount }, (_, index) => {
-              const rowCount =
-                index % 2 === 0 ? Math.ceil(chairCount / 2) : Math.floor(chairCount / 2);
-              return (
-                <span
-                  key={`chair-${index}`}
-                  className={cn(
-                    'absolute -translate-y-1/2 rounded-full border-2 border-floor-table-muted/50 bg-floor-table-chair shadow-sm',
-                    editable ? 'z-0 h-8' : 'z-0 h-4',
-                  )}
-                  style={{
-                    left:
-                      liveBodyLeft +
-                      (liveBodyWidth * (Math.floor(index / 2) + 1)) / (rowCount + 1) -
-                      liveChairWidth / 2,
-                    top: liveBodyTop + (index % 2) * liveBodyHeight,
-                    width: liveChairWidth,
-                  }}
-                  aria-hidden="true"
-                />
-              );
-            })}
+        {chairs.map((chair, index) => (
+          <span
+            key={index}
+            className="absolute z-0 rounded-full border-2 border-floor-table-muted/50 bg-floor-table-chair shadow-sm"
+            style={{
+              left: chair.x - chair.width / 2,
+              top: chair.y - TABLE_CARD_SEAT_HEIGHT / 2,
+              width: chair.width,
+              height: TABLE_CARD_SEAT_HEIGHT,
+              transform: `rotate(${chair.rotation}deg)`,
+            }}
+            aria-hidden="true"
+          />
+        ))}
         <div
           className={cn(
             'absolute z-10 overflow-hidden border border-floor-table-muted/15 bg-floor-table-surface shadow-sm',
             isRound ? 'rounded-full' : 'rounded-[0.6rem]',
-            'transition-[border-color,box-shadow] duration-200',
+            'transition-[border-color,box-shadow] duration-200 group-focus-visible/table:ring-2 group-focus-visible/table:ring-primary group-focus-visible/table:ring-offset-2 group-focus-visible/table:ring-offset-background',
+            invalidPlacement && 'border-destructive bg-destructive/25 ring-2 ring-destructive',
+            assignmentCandidate &&
+              !isOverlay &&
+              'border-success/70 ring-2 ring-success/50 ring-offset-2 ring-offset-background',
             isSelected &&
               !isOverlay &&
               'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background',
@@ -1608,21 +1806,9 @@ function TableCard({
         >
           <span
             className={cn('absolute inset-y-0 right-0', isRound ? 'w-2' : 'w-3', liveRailClass)}
-            aria-label={referenceStatusLabel}
-            title={referenceStatusLabel}
+            aria-hidden="true"
+            title={liveStatusLabel ?? undefined}
           />
-          {isCombinable ? (
-            <span
-              className={cn(
-                'absolute z-30 text-floor-table-text',
-                isRound ? 'right-5 top-4' : 'right-4 top-1',
-              )}
-              title="Tables combinables"
-              aria-hidden="true"
-            >
-              <Link2 size={12} />
-            </span>
-          ) : null}
           <div
             className={cn(
               'absolute inset-0 flex flex-col',
@@ -1636,31 +1822,31 @@ function TableCard({
             <p className="max-w-full truncate pr-2 text-[13px] font-bold leading-none text-floor-table-text">
               {displayName}
             </p>
+            <p className="max-w-full truncate text-[11px] font-medium leading-none text-floor-table-text/90">
+              {table.capacity} places
+            </p>
             {status ? (
-              <p className="max-w-full truncate text-[11px] font-medium leading-none text-floor-table-text/90">
-                {table.capacity} places
-              </p>
-            ) : null}
-            <div className="min-w-0 max-w-full leading-tight">
-              <p
+              <div
+                aria-hidden="true"
                 className={cn(
-                  'flex min-w-0 items-center gap-1 truncate text-[11px] font-medium',
-                  referenceStatusTextClass,
+                  'flex min-w-0 max-w-full items-center gap-1 text-[11px] font-medium leading-tight',
+                  liveStatusTextClass,
                 )}
               >
-                {liveStatusDotClass ? (
-                  <span
-                    aria-hidden="true"
-                    className={cn('size-1.5 shrink-0 rounded-full', liveStatusDotClass)}
-                  />
-                ) : null}
-                <span className="truncate">
-                  {compact || status?.status === 'upcoming'
-                    ? compactStatusLabel
-                    : referenceStatusLabel}
-                </span>
-              </p>
-            </div>
+                {status.status === 'free' ? (
+                  <CircleCheck size={12} className="shrink-0 text-success" />
+                ) : arrival && arrivalTime ? (
+                  <>
+                    <Clock3 size={11} className="shrink-0" />
+                    <time dateTime={arrival} className="tabular-nums">
+                      {arrivalTime}
+                    </time>
+                  </>
+                ) : (
+                  <span className="truncate">{statusLabel}</span>
+                )}
+              </div>
+            ) : null}
           </div>
           {status?.reservation && !isOverlay ? (
             <DraggableReservation
@@ -1741,7 +1927,7 @@ function ZoneCard({
   zone,
   isSelected,
   editable,
-  showLabel = true,
+  placingTable,
   onClick,
   onPointerDown,
   onResizeStart,
@@ -1749,16 +1935,18 @@ function ZoneCard({
   zone: FloorPlanZone;
   isSelected?: boolean;
   editable?: boolean;
-  showLabel?: boolean;
-  onClick: () => void;
+  placingTable?: boolean;
+  onClick: (event?: React.MouseEvent<HTMLDivElement>) => void;
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
   onResizeStart?: (event: React.PointerEvent<HTMLDivElement>) => void;
 }) {
   return (
     <div
+      id={`floor-plan-zone-${zone.id}`}
       className={cn(
         'absolute flex flex-col items-center justify-center rounded-xl border border-primary/25 bg-primary/5 px-3 text-center text-muted-foreground transition-[border,background,box-shadow] duration-200',
         editable && 'cursor-move hover:border-primary/50 hover:bg-primary/10',
+        placingTable && 'cursor-crosshair',
         isSelected && 'border-primary bg-primary/10 ring-2 ring-primary/40 ring-offset-1',
       )}
       style={{
@@ -1771,14 +1959,14 @@ function ZoneCard({
       }}
       role="button"
       tabIndex={0}
-      aria-label={`${zone.name}${zone.sectionName ? ` · ${zone.sectionName}` : ''}`}
+      aria-label={`${zone.name}${!editable && zone.sectionName ? ` · ${zone.sectionName}` : ''}`}
       onPointerDown={(event) => {
         event.stopPropagation();
         onPointerDown?.(event);
       }}
       onClick={(event) => {
         event.stopPropagation();
-        onClick();
+        onClick(event);
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -1787,13 +1975,11 @@ function ZoneCard({
         }
       }}
     >
-      {showLabel ? (
-        <>
-          <span className="text-xs font-semibold uppercase tracking-[0.14em]">{zone.name}</span>
-          {zone.sectionName ? <span className="mt-1 text-[10px]">{zone.sectionName}</span> : null}
-        </>
+      <span className="text-xs font-semibold uppercase tracking-[0.14em]">{zone.name}</span>
+      {!editable && zone.sectionName ? (
+        <span className="mt-1 text-[10px]">{zone.sectionName}</span>
       ) : null}
-      {isSelected && editable && onResizeStart ? (
+      {isSelected && editable && !placingTable && onResizeStart ? (
         <div
           className="absolute -bottom-1.5 -right-1.5 z-30 h-3.5 w-3.5 cursor-nwse-resize rounded-sm border border-background bg-primary shadow-sm"
           onPointerDown={(event) => {
@@ -1812,6 +1998,7 @@ function ZoneCard({
 
 type DraggableTableProps = {
   table: CanvasTable;
+  invalidPlacement?: boolean;
   status?: { status: TableStatus; reservation: PlanningReservation | null };
   isSelected?: boolean;
   onClick: (e?: React.MouseEvent) => void;
@@ -1824,7 +2011,7 @@ type DraggableTableProps = {
   draggableReservation?: boolean;
   zoom?: number;
   isCombinable?: boolean;
-  hideChairs?: boolean;
+  assignmentCandidate?: boolean;
   editable?: boolean;
   /** Carte tactile compacte (téléphone) : nom + point d'état seulement. */
   compact?: boolean;
@@ -1832,6 +2019,7 @@ type DraggableTableProps = {
 
 function DraggableTable({
   table,
+  invalidPlacement,
   status,
   isSelected,
   onClick,
@@ -1844,7 +2032,7 @@ function DraggableTable({
   draggableReservation,
   zoom = 1,
   isCombinable = false,
-  hideChairs = false,
+  assignmentCandidate = false,
   editable = true,
   compact = false,
 }: DraggableTableProps) {
@@ -1852,7 +2040,6 @@ function DraggableTable({
     attributes,
     listeners,
     setNodeRef: setDragNodeRef,
-    isDragging,
   } = useDraggable({
     id: table.id,
     data: { table },
@@ -1876,6 +2063,7 @@ function DraggableTable({
   return (
     <TableCard
       table={table}
+      invalidPlacement={invalidPlacement}
       status={status}
       isSelected={isSelected}
       onClick={onClick}
@@ -1886,12 +2074,11 @@ function DraggableTable({
       dragProps={draggable ? { ...attributes, ...listeners } : undefined}
       draggableReservation={draggableReservation}
       isCombinable={isCombinable}
-      hideChairs={hideChairs}
+      assignmentCandidate={assignmentCandidate}
       editable={editable}
       compact={compact}
       className={cn(
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-        isDragging && 'opacity-40 transition-none',
         droppable && isOver && 'ring-2 ring-primary ring-offset-1',
       )}
       style={style}
@@ -1957,7 +2144,6 @@ function PaletteExistingTableCard({
     data: { kind: 'placeTable', table } as Record<string, unknown>,
   });
   const displayName = table.displayName ?? table.name;
-  const sectionLabel = table.sectionName || 'Sans section';
 
   return (
     <div
@@ -1967,8 +2153,8 @@ function PaletteExistingTableCard({
       {...listeners}
       role="button"
       tabIndex={0}
-      title={`${displayName} · ${table.capacity} places · ${sectionLabel} — glissez vers le plan`}
-      aria-label={`${displayName}, ${table.capacity} places, ${sectionLabel} — glissez vers le plan`}
+      title={`${displayName} · ${table.capacity} places — glissez vers le plan`}
+      aria-label={`${displayName}, ${table.capacity} places — glissez vers le plan`}
       onClick={() => onPlace(table)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -1985,224 +2171,9 @@ function PaletteExistingTableCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-semibold text-foreground">{displayName}</span>
         <span className="block truncate text-[10px] text-muted-foreground">
-          {table.capacity} places · {sectionLabel}
+          {table.capacity} places
         </span>
       </span>
-    </div>
-  );
-}
-
-type StatsPanelProps = {
-  reservations: PlanningReservation[];
-  allTables: CanvasTable[];
-  tableStatuses: Map<string, { status: TableStatus; reservation: PlanningReservation | null }>;
-  liveDate: string;
-};
-
-export function StatsPanel({ reservations, allTables, tableStatuses, liveDate }: StatsPanelProps) {
-  const now = new Date();
-  const stats = useMemo(() => {
-    const activeTables = allTables.filter((t) => t.isActive);
-    const inactiveTables = allTables.filter((t) => !t.isActive);
-    const totalCapacity = activeTables.reduce((sum, t) => sum + t.capacity, 0);
-
-    const seated = reservations.filter((r) => r.state === 'SEATED' && r.tableId);
-    const seatedCovers = seated.reduce((sum, r) => sum + r.partySize, 0);
-    const occupancyRate = totalCapacity > 0 ? Math.round((seatedCovers / totalCapacity) * 100) : 0;
-
-    const activeReservations = reservations.filter((r) =>
-      ['CONFIRMED', 'SEATED'].includes(r.state),
-    );
-    const plannedCovers = activeReservations.reduce((sum, r) => sum + r.partySize, 0);
-
-    const lateCount = [...tableStatuses.values()].filter((s) => s.status === 'late').length;
-    const upcomingCount = [...tableStatuses.values()].filter((s) => s.status === 'upcoming').length;
-    const occupiedCount = [...tableStatuses.values()].filter((s) => s.status === 'occupied').length;
-    const freeCount = [...tableStatuses.values()].filter((s) => s.status === 'free').length;
-
-    return {
-      activeTables: activeTables.length,
-      inactiveTables: inactiveTables.length,
-      totalCapacity,
-      seatedCovers,
-      occupancyRate,
-      plannedCovers,
-      lateCount,
-      upcomingCount,
-      occupiedCount,
-      freeCount,
-      totalReservations: reservations.length,
-    };
-  }, [allTables, reservations, tableStatuses]);
-
-  const forecast = useMemo(() => {
-    const dayStart = startOfDay(parseISO(liveDate));
-    const slots = Array.from({ length: 48 }, (_, i) => addMinutes(dayStart, i * 30));
-    return slots
-      .map((slot) => {
-        const covers = reservations.reduce((sum, r) => {
-          if (!r.startsAt || !r.endsAt || r.state === 'CANCELLED' || r.state === 'NO_SHOW') {
-            return sum;
-          }
-          const start = parseISO(r.startsAt);
-          const end = parseISO(r.endsAt);
-          if (isWithinInterval(slot, { start, end })) {
-            return sum + r.partySize;
-          }
-          return sum;
-        }, 0);
-        const newArrivals = reservations.filter((r) => {
-          if (!r.startsAt || r.state === 'CANCELLED' || r.state === 'NO_SHOW') return false;
-          const start = parseISO(r.startsAt);
-          return format(start, 'HH:mm') === format(slot, 'HH:mm');
-        }).length;
-        return { time: format(slot, 'HH:mm'), covers, newArrivals };
-      })
-      .filter((s) => s.covers > 0 || s.newArrivals > 0);
-  }, [reservations, liveDate]);
-
-  const maxSlotCovers = Math.max(1, ...forecast.map((s) => s.covers));
-
-  const { legacyUnseatedCount, legacyUnseatedExamples } = useMemo(() => {
-    const excluded = new Set(['CANCELLED', 'NO_SHOW']);
-    const matches = reservations.filter((r) => !excluded.has(r.state) && !r.tableId);
-    return {
-      legacyUnseatedCount: matches.length,
-      legacyUnseatedExamples: matches.slice(0, 3).map((r) => ({
-        id: r.id,
-        time: r.startsAt ? format(parseISO(r.startsAt), 'HH:mm', { locale: fr }) : '--:--',
-        customerName: r.customerName,
-        partySize: r.partySize,
-      })),
-    };
-  }, [reservations]);
-
-  const overCapacitySlots = useMemo(
-    () => forecast.filter((slot) => slot.covers > stats.totalCapacity),
-    [forecast, stats.totalCapacity],
-  );
-
-  return (
-    <div className="h-full overflow-y-auto p-6">
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-2xl font-semibold">{stats.occupancyRate}%</p>
-          <p className="text-xs text-muted-foreground">Taux d&apos;occupation</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {stats.seatedCovers} / {stats.totalCapacity} places
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-2xl font-semibold">{stats.plannedCovers}</p>
-          <p className="text-xs text-muted-foreground">Couverts prévus</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {stats.totalReservations} réservation{stats.totalReservations > 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-2xl font-semibold">{stats.activeTables}</p>
-          <p className="text-xs text-muted-foreground">Tables actives</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {stats.inactiveTables} inactive{stats.inactiveTables > 1 ? 's' : ''}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-2xl font-semibold">{stats.occupiedCount}</p>
-          <p className="text-xs text-muted-foreground">En service</p>
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {stats.upcomingCount} prochaines · {stats.lateCount} retard
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-4 text-sm font-semibold">Prévisions de couverts par créneau (30 min)</h3>
-        {forecast.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune réservation sur cette journée.</p>
-        ) : (
-          <div className="space-y-3">
-            {forecast.slice(0, 20).map((slot) => (
-              <div key={slot.time} className="flex items-start gap-3">
-                <div className="w-12 shrink-0 text-xs font-medium tabular-nums">{slot.time}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                    <span className="whitespace-nowrap text-xs font-medium tabular-nums">
-                      {slot.covers} couverts
-                    </span>
-                    {slot.newArrivals > 0 ? (
-                      <Badge variant="outline" className="whitespace-nowrap text-[10px]">
-                        {slot.newArrivals} arrivée{slot.newArrivals > 1 ? 's' : ''} à {slot.time}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div
-                    className="h-2 rounded-full bg-primary transition-all"
-                    style={{ width: `${(slot.covers / maxSlotCovers) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Card className="mt-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <AlertTriangle className="text-warning" size={16} />
-            Alertes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {legacyUnseatedCount === 0 && overCapacitySlots.length === 0 ? (
-            <div className="flex items-center gap-2 text-sm text-success">
-              <CircleCheck size={16} />
-              Aucune alerte.
-            </div>
-          ) : (
-            <>
-              {legacyUnseatedCount > 0 && (
-                <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
-                  <div className="flex items-center gap-2 font-medium">
-                    <AlertTriangle size={16} />
-                    {legacyUnseatedCount} réservation{legacyUnseatedCount > 1 ? 's' : ''} sans table
-                  </div>
-                  {legacyUnseatedExamples.length > 0 && (
-                    <ul className="mt-2 space-y-1">
-                      {legacyUnseatedExamples.map((item) => (
-                        <li key={item.id} className="text-xs">
-                          {item.time} ·{' '}
-                          {item.customerName
-                            ? `${item.customerName} · ${item.partySize} couverts`
-                            : `${item.partySize} couverts`}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-              {overCapacitySlots.length > 0 && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                  <div className="flex items-center gap-2 font-medium">
-                    <AlertTriangle size={16} />
-                    Surcapacité détectée
-                  </div>
-                  <ul className="mt-2 space-y-1">
-                    {overCapacitySlots.map((slot) => (
-                      <li key={slot.time} className="flex items-center justify-between text-xs">
-                        <span>{slot.time}</span>
-                        <Badge variant="destructive" className="text-[10px]">
-                          {slot.covers} / {stats.totalCapacity}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -2408,10 +2379,12 @@ function NewTableOverlay({
   shape,
   capacity,
   zoom,
+  invalidPlacement,
 }: {
   shape: TableShape;
   capacity: number;
   zoom: number;
+  invalidPlacement?: boolean;
 }) {
   const table = useMemo<CanvasTable>(
     () => ({
@@ -2435,6 +2408,7 @@ function NewTableOverlay({
   return (
     <TableCard
       table={table}
+      invalidPlacement={invalidPlacement}
       isOverlay
       style={{
         transform: `scale(${zoom})`,
@@ -2497,18 +2471,92 @@ export function FloorPlanCanvas({
   planOptions?: Array<{ id: string; name: string }>;
   onSelectPlan?: (id: string) => void;
 }) {
-  const { get, post, patch, del } = useApi();
+  const api = useApi();
+  const { get } = api;
+  const apiRef = useRef(api);
+  apiRef.current = api;
   const { allowed: copilotAllowed } = useServiceCopilotAccess(mode === 'service', orgId);
+  const [floorPlan, setFloorPlan] = useState<FloorPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [planWriteStatus, setPlanWriteStatus] = useState<PlanWriteStatus>(null);
+  const [retryingPlanWrites, setRetryingPlanWrites] = useState(false);
+  const planWriteQueueRef = useRef<PlanWriteQueue | null>(null);
+  if (!planWriteQueueRef.current) {
+    planWriteQueueRef.current = new PlanWriteQueue(setPlanWriteStatus);
+  }
+  const retryingPlanWritesRef = useRef(false);
   const getRef = useRef(get);
   getRef.current = get;
+  const enqueuePlanWrite = useCallback(
+    <T = unknown,>(path: string, run: () => Promise<T>, retry: () => Promise<T> = run) => {
+      const key = mode === 'service' ? null : getPlanWriteKey(path);
+      return key ? planWriteQueueRef.current!.enqueue(key, run, retry) : run();
+    },
+    [mode],
+  );
+  const post = useCallback(
+    <T = unknown,>(path: string, body?: unknown) => {
+      const payload = withPlanCreateId(path, body);
+      const run = () =>
+        payload === undefined
+          ? apiRef.current.post<T>(path)
+          : apiRef.current.post<T>(path, payload);
+      return enqueuePlanWrite(path, run);
+    },
+    [enqueuePlanWrite],
+  );
+  const patch = useCallback(
+    <T = unknown,>(path: string, body?: unknown) => {
+      const run = () => apiRef.current.patch<T>(path, body);
+      return enqueuePlanWrite(path, run);
+    },
+    [enqueuePlanWrite],
+  );
+  const del = useCallback(
+    <T = unknown,>(path: string) => {
+      const run = () => apiRef.current.del<T>(path);
+      const retry = async () => {
+        const planPath = floorPlanId
+          ? `restaurants/${orgId}/floor-plans/${floorPlanId}`
+          : `restaurants/${orgId}/floor-plan`;
+        const plan = await apiRef.current.get<FloorPlan>(planPath);
+        if (planEntityExists(plan, path) === false) return undefined as T;
+        return run();
+      };
+      return enqueuePlanWrite(path, run, retry);
+    },
+    [enqueuePlanWrite, floorPlanId, orgId],
+  );
   const patchRef = useRef(patch);
   patchRef.current = patch;
   const postRef = useRef(post);
   postRef.current = post;
+  const refreshPlanAfterRetry = useCallback(async () => {
+    const path = floorPlanId
+      ? `restaurants/${orgId}/floor-plans/${floorPlanId}`
+      : `restaurants/${orgId}/floor-plan`;
+    try {
+      setFloorPlan(await apiRef.current.get<FloorPlan>(path));
+      setPlanLoadError('');
+      setError('');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Impossible de synchroniser le plan après la reprise.'));
+    }
+  }, [floorPlanId, orgId]);
+  const retryPlanWrites = useCallback(async () => {
+    if (retryingPlanWritesRef.current) return;
+    retryingPlanWritesRef.current = true;
+    setRetryingPlanWrites(true);
+    try {
+      const writesRecovered = await planWriteQueueRef.current?.retryFailed();
+      if (writesRecovered) await refreshPlanAfterRetry();
+    } finally {
+      retryingPlanWritesRef.current = false;
+      setRetryingPlanWrites(false);
+    }
+  }, [refreshPlanAfterRetry]);
 
-  const [floorPlan, setFloorPlan] = useState<FloorPlan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   // Erreurs par source : le rafraîchissement automatique (10 s) ne doit pas effacer l'échec d'une action,
   // et l'échec du chargement du plan ne doit jamais se lire « Aucune table dans ce plan ».
   const [planLoadError, setPlanLoadError] = useState('');
@@ -2559,7 +2607,9 @@ export function FloorPlanCanvas({
   const compactTableCards = useIsMobile();
   const coarsePointer = useMediaQuery('(pointer: coarse)');
   const [liveDate, setLiveDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [serviceTab, setServiceTab] = useState<ServiceTabId>('plan');
+  const serviceToday = format(new Date(), 'yyyy-MM-dd');
+  const serviceIsToday = liveDate === serviceToday;
+  const [serviceTab, setServiceTab] = useState<'plan' | 'waiting-list'>('plan');
   const [selectedServerFilter, setSelectedServerFilter] = useState<string | null>(null);
   const liveDateRef = useRef(liveDate);
   liveDateRef.current = liveDate;
@@ -2576,12 +2626,34 @@ export function FloorPlanCanvas({
   const [waitingListEntryErrors, setWaitingListEntryErrors] = useState<Record<string, string>>({});
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
   const [loadedLiveDate, setLoadedLiveDate] = useState<string | null>(null);
+  const waitingListCount =
+    loadedLiveDate === liveDate && !waitingListLoading
+      ? waitingList.filter((entry) => entry.status === 'PENDING').length
+      : 0;
   const [selectedServiceTableId, setSelectedServiceTableId] = useState<string | null>(null);
-  const [overlayServiceInspector, setOverlayServiceInspector] = useState(true);
-  const [showWalkInHelp, setShowWalkInHelp] = useState(false);
+  const [unassignedPanelOpen, setUnassignedPanelOpen] = useState(false);
+  const [unassignedPlacement, setUnassignedPlacement] = useState<{
+    reservationId: string | null;
+    suggestions: TableSuggestion[];
+    targetTableId: string | null;
+    message: string | null;
+    loading: boolean;
+  }>({
+    reservationId: null,
+    suggestions: [],
+    targetTableId: null,
+    message: null,
+    loading: false,
+  });
   const [mobileServiceDetailsOpen, setMobileServiceDetailsOpen] = useState(false);
   const [updatingReservationStateId, setUpdatingReservationStateId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<TableSuggestion[]>([]);
+  const [headerAssignment, setHeaderAssignment] = useState<{
+    reservation: PlanningReservation;
+    suggestions?: TableSuggestion[];
+    message?: string;
+    saving?: boolean;
+  } | null>(null);
   const [delayMinutes, setDelayMinutes] = useState(20);
   const [delayImpact, setDelayImpact] = useState<ServiceCopilotDelayImpact | null>(null);
   const [delayImpactReservationId, setDelayImpactReservationId] = useState<string | null>(null);
@@ -2637,12 +2709,8 @@ export function FloorPlanCanvas({
   const [lastSelectedTableId, setLastSelectedTableId] = useState<string | null>(null);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateForm, setDuplicateForm] = useState({
-    count: 6,
-    mode: 'row' as 'row' | 'grid',
+    count: 3,
     spacing: 32,
-    cols: 3,
-    rows: 2,
-    spacingY: 32,
   });
   const [resizeTableId, setResizeTableId] = useState<string | null>(null);
   const resizeStartRef = useRef<{
@@ -2667,6 +2735,13 @@ export function FloorPlanCanvas({
 
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
   const [dragStart, setDragStart] = useState<DragStartInfo | null>(null);
+  const [tableDragPreview, setTableDragPreview] = useState<{
+    positionX: number;
+    positionY: number;
+    blocker?: CanvasTable;
+    chairConflict?: CanvasTable;
+  } | null>(null);
+  const [tableDropOverlapping, setTableDropOverlapping] = useState(false);
   const [autoLayoutLoading, setAutoLayoutLoading] = useState(false);
   const [autoLayoutNotice, setAutoLayoutNotice] = useState(false);
   // Le placement initial ne doit être proposé qu'une seule fois pour un plan
@@ -2689,14 +2764,12 @@ export function FloorPlanCanvas({
   const [bulkCreateForm, setBulkCreateForm] = useState({
     count: '5',
     capacity: '4',
-    sectionId: '',
   });
   const [form, setForm] = useState<TableForm>({
     name: '',
     capacity: '4',
     minCapacity: '1',
     shape: 'rect',
-    sectionId: '',
     isActive: true,
   });
 
@@ -2705,6 +2778,7 @@ export function FloorPlanCanvas({
   const [multiDeleteConfirmOpen, setMultiDeleteConfirmOpen] = useState(false);
 
   const [selectedWallId, setSelectedWallId] = useState<string | null>(null);
+  const [tablePlacementZoneId, setTablePlacementZoneId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [zoneDragStart, setZoneDragStart] = useState<{
     zone: FloorPlanZone;
@@ -2753,8 +2827,6 @@ export function FloorPlanCanvas({
     lengthMeters: formatRoomMeters(DEFAULT_CANVAS_HEIGHT),
   });
   const [settingsError, setSettingsError] = useState('');
-  const [savingPlan, setSavingPlan] = useState(false);
-  const [planSaved, setPlanSaved] = useState(false);
 
   const canvasWidth = floorPlan?.width ?? DEFAULT_CANVAS_WIDTH;
   const canvasHeight = floorPlan?.height ?? DEFAULT_CANVAS_HEIGHT;
@@ -2781,28 +2853,22 @@ export function FloorPlanCanvas({
       const viewport = canvasViewportRef.current;
       if (!viewport) return null;
       const viewportWidth = viewport.clientWidth;
-      const availableHeight =
-        window.innerHeight - viewport.getBoundingClientRect().top - (touchCanvasLayout ? 104 : 16);
-      // shortcut: sous 80 px visibles, laisser défiler la page avant de cadrer le plan.
-      const viewportHeight =
-        live && availableHeight >= 80
-          ? Math.min(viewport.clientHeight, availableHeight)
-          : viewport.clientHeight;
+      const viewportHeight = viewport.clientHeight;
       if (viewportWidth < 40 || viewportHeight < 40) return null;
-      const fitMinimum = live ? 0.01 : minZoom;
-      const fitFloor = live ? fitMinimum : touchCanvasLayout ? TOUCH_FIT_FLOOR : 1;
+      const fitMinimum = 0.01;
+      const fitFloor = touchCanvasLayout ? TOUCH_FIT_FLOOR : fitMinimum;
       // Plancher du dézoom manuel : cadrer le plan entier.
       const fullCanvasZoom = computeFitZoom({
         viewportWidth,
         viewportHeight,
         canvasWidth,
         canvasHeight,
-        minZoom,
+        minZoom: fitMinimum,
         floor: fitFloor,
       });
       const stageBounds = contentBoundsRef.current;
-      let bounds = live && focusTables ? (tableBoundsRef.current ?? stageBounds) : stageBounds;
-      if (live && focusTables && bounds && stageBounds) {
+      let bounds = focusTables ? (tableBoundsRef.current ?? stageBounds) : stageBounds;
+      if (focusTables && bounds && stageBounds) {
         const roomZoom = Math.min(
           viewportWidth / stageBounds.width,
           viewportHeight / stageBounds.height,
@@ -2821,17 +2887,7 @@ export function FloorPlanCanvas({
           minZoom: fitMinimum,
           floor: fitFloor,
         });
-        // En Live, le cadre est déjà réduit au groupe de tables : on peut donc
-        // dépasser 100 % pour remplir utilement la fenêtre sans réintroduire la
-        // hauteur vide de la zone d'édition. L'éditeur garde son plafond à 100 %.
-        const fitCeiling = live && serviceTab === 'plan' ? MAX_ZOOM : 1;
-        nextZoom = clampZoom(
-          live
-            ? Math.min(contentZoom, fitCeiling)
-            : Math.max(Math.min(contentZoom, fitCeiling), fullCanvasZoom),
-          fitMinimum,
-          MAX_ZOOM,
-        );
+        nextZoom = clampZoom(Math.min(contentZoom, MAX_ZOOM), fitMinimum, MAX_ZOOM);
       }
       const scroll =
         live && serviceTab === 'plan' && bounds && stageBounds
@@ -2856,7 +2912,7 @@ export function FloorPlanCanvas({
       setZoom(nextZoom);
       return { zoom: nextZoom, scroll };
     },
-    [canvasHeight, canvasWidth, live, minZoom, serviceTab, touchCanvasLayout],
+    [canvasHeight, canvasWidth, live, serviceTab, touchCanvasLayout],
   );
 
   /**
@@ -2901,12 +2957,9 @@ export function FloorPlanCanvas({
   const resetViewRef = useRef(resetView);
   resetViewRef.current = resetView;
 
-  // Cadrage d'ouverture : sur téléphone et tablette, un plan de 14 m affiché à
-  // 100 % ne montre qu'un quart de la salle. On cadre la zone occupée par les
-  // tables (et on la centre) une fois, puis on respecte le zoom choisi par le
-  // restaurateur.
+  // Même périmètre de cadrage en édition et en service pour garder une échelle
+  // cohérente quand on passe d'une vue à l'autre.
   useIsomorphicLayoutEffect(() => {
-    if (!touchCanvasLayout && !live) return;
     if (loading || error) return;
     if (serviceTab !== 'plan') return;
     const planId = floorPlan?.id;
@@ -2915,12 +2968,12 @@ export function FloorPlanCanvas({
     userAdjustedZoomRef.current = false;
     let retryFrame: number | null = null;
     const applyInitialFit = () => {
-      const fit = fitCanvasToViewport(live);
+      const fit = fitCanvasToViewport(true);
       if (!viewport || !fit) {
         // Le premier frame peut précéder la mesure finale du panneau sur
         // Safari. Un second essai suffit sans installer d'observateur durable.
         retryFrame = window.requestAnimationFrame(() => {
-          const retryFit = fitCanvasToViewport(live);
+          const retryFit = fitCanvasToViewport(true);
           if (!viewport || !retryFit) return;
           viewport.scrollLeft = retryFit.scroll.left;
           viewport.scrollTop = retryFit.scroll.top;
@@ -2938,18 +2991,43 @@ export function FloorPlanCanvas({
     return () => {
       if (retryFrame !== null) window.cancelAnimationFrame(retryFrame);
     };
-  }, [touchCanvasLayout, live, loading, error, serviceTab, floorPlan?.id, fitCanvasToViewport]);
+  }, [loading, error, serviceTab, floorPlan?.id, fitCanvasToViewport]);
+
+  const dockedServiceInspectorOpen =
+    live && !touchCanvasLayout && (selectedServiceTableId !== null || unassignedPanelOpen);
+  useIsomorphicLayoutEffect(() => {
+    if (dockedServiceInspectorOpen) userAdjustedZoomRef.current = false;
+  }, [dockedServiceInspectorOpen]);
 
   useIsomorphicLayoutEffect(() => {
-    if (!live || serviceTab !== 'plan' || overlayServiceInspector || userAdjustedZoomRef.current)
-      return;
+    if (!live || serviceTab !== 'plan') return;
     const viewport = canvasViewportRef.current;
-    const fit = fitCanvasToViewport(true);
-    if (viewport && fit) {
-      viewport.scrollLeft = fit.scroll.left;
-      viewport.scrollTop = fit.scroll.top;
-    }
-  }, [fitCanvasToViewport, live, overlayServiceInspector, selectedServiceTableId, serviceTab]);
+    if (!viewport) return;
+
+    const fitToSize = () => {
+      if (userAdjustedZoomRef.current) return;
+      const fit = fitCanvasToViewport(true);
+      if (!fit) return;
+      window.requestAnimationFrame(() => {
+        viewport.scrollLeft = fit.scroll.left;
+        viewport.scrollTop = fit.scroll.top;
+      });
+    };
+
+    fitToSize();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(fitToSize);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [
+    fitCanvasToViewport,
+    live,
+    loading,
+    dockedServiceInspectorOpen,
+    selectedServiceTableId,
+    unassignedPanelOpen,
+    serviceTab,
+  ]);
 
   // Gestes du plan : pincer pour zoomer, double-tap pour recadrer. Le
   // défilement à un doigt reste natif (voir `touch-action` sur la fenêtre).
@@ -3122,31 +3200,44 @@ export function FloorPlanCanvas({
           ? `date=${liveDate}&floorPlanId=${floorPlanId}`
           : `date=${liveDate}`;
         setWaitingListLoading(true);
-        const [reservationsResult, waitingListResult, delayRecoveriesResult, pulseResult] =
-          await Promise.allSettled([
-            getRef.current<PlanningReservation[]>(
-              `restaurants/${orgId}/floor-plan/reservations?${query}`,
-              {
-                signal: controller.signal,
-              },
-            ),
-            getRef.current<unknown[]>(
-              `restaurants/${orgId}/waiting-list?date=${liveDate}&status=PENDING`,
-              { signal: controller.signal },
-            ),
-            copilotAllowed
-              ? getRef.current<ServiceCopilotDelayRecoveryHistoryResponse>(
-                  `restaurants/${orgId}/service-copilot/delay-recoveries?date=${liveDate}&limit=10`,
-                  { signal: controller.signal },
-                )
-              : Promise.resolve({ recoveries: [] }),
-            getRef.current<ServiceCopilotPulse>(
-              `restaurants/${orgId}/service-copilot/pulse?date=${liveDate}`,
-              { signal: controller.signal },
-            ),
-          ]);
+        const planPath = floorPlanId
+          ? `restaurants/${orgId}/floor-plans/${floorPlanId}`
+          : `restaurants/${orgId}/floor-plan`;
+        const [
+          reservationsResult,
+          waitingListResult,
+          delayRecoveriesResult,
+          pulseResult,
+          planResult,
+        ] = await Promise.allSettled([
+          getRef.current<PlanningReservation[]>(
+            `restaurants/${orgId}/floor-plan/reservations?${query}`,
+            {
+              signal: controller.signal,
+            },
+          ),
+          getRef.current<unknown[]>(
+            `restaurants/${orgId}/waiting-list?date=${liveDate}&status=PENDING`,
+            { signal: controller.signal },
+          ),
+          copilotAllowed
+            ? getRef.current<ServiceCopilotDelayRecoveryHistoryResponse>(
+                `restaurants/${orgId}/service-copilot/delay-recoveries?date=${liveDate}&limit=10`,
+                { signal: controller.signal },
+              )
+            : Promise.resolve({ recoveries: [] }),
+          getRef.current<ServiceCopilotPulse>(
+            `restaurants/${orgId}/service-copilot/pulse?date=${liveDate}`,
+            { signal: controller.signal },
+          ),
+          getRef.current<FloorPlan>(planPath, { signal: controller.signal }),
+        ]);
         if (pollAbortRef.current !== controller) return;
         if (liveDateRef.current !== liveDate) return;
+        if (planResult.status === 'fulfilled') {
+          setFloorPlan(planResult.value);
+          setPlanLoadError('');
+        }
         if (reservationsResult.status === 'rejected') throw reservationsResult.reason;
         let secondaryError = '';
         setReservations(reservationsResult.value);
@@ -3157,6 +3248,7 @@ export function FloorPlanCanvas({
             ),
           );
         } else {
+          setWaitingList([]);
           secondaryError = getErrorMessage(
             waitingListResult.reason,
             "Impossible de charger la liste d'attente",
@@ -3287,6 +3379,34 @@ export function FloorPlanCanvas({
     },
     [orgId, loadReservations],
   );
+
+  async function openHeaderAssignment(reservation: PlanningReservation) {
+    const request = { reservation };
+    setHeaderAssignment(request);
+    try {
+      const result = await getRef.current<{ suggestions?: TableSuggestion[]; reason?: string }>(
+        `restaurants/${orgId}/floor-plan/reservations/${reservation.id}/suggest-table`,
+      );
+      const available = (result.suggestions ?? []).filter(
+        (table) => !reservations.some((r) => r.state === 'SEATED' && r.tableId === table.tableId),
+      );
+      setHeaderAssignment((current) =>
+        current === request
+          ? {
+              reservation,
+              suggestions: available,
+              message: available.length ? undefined : 'Aucune table disponible',
+            }
+          : current,
+      );
+    } catch (err) {
+      setHeaderAssignment((current) =>
+        current === request
+          ? { reservation, message: getErrorMessage(err, 'Impossible de suggérer une table') }
+          : current,
+      );
+    }
+  }
 
   const suggestTable = useCallback(
     async (reservationId: string) => {
@@ -3571,29 +3691,14 @@ export function FloorPlanCanvas({
         );
         setSuggestions([]);
         await loadReservations({ force: true });
+        return true;
       } catch (err) {
         setError(getErrorMessage(err, 'Impossible d’assigner la table'));
+        return false;
       }
     },
     [orgId, loadReservations],
   );
-
-  async function savePlan() {
-    setSavingPlan(true);
-    setError('');
-    try {
-      const path = floorPlanId
-        ? `restaurants/${orgId}/floor-plans/${floorPlanId}`
-        : `restaurants/${orgId}/floor-plan`;
-      const savedPlan = await getRef.current<FloorPlan>(path);
-      setFloorPlan(savedPlan);
-      setPlanSaved(true);
-    } catch (err) {
-      setError(getErrorMessage(err, "Impossible d'enregistrer le plan"));
-    } finally {
-      setSavingPlan(false);
-    }
-  }
 
   useEffect(() => {
     if (!orgId) return;
@@ -3679,70 +3784,37 @@ export function FloorPlanCanvas({
     () => allTables.filter((table) => table.positionX !== null && table.positionY !== null),
     [allTables],
   );
-  const liveTableVisualBounds = useMemo(() => {
-    if (!live) return [];
+  const tableVisualBounds = useMemo(() => {
     return placedTables.map((table) => {
       const { width, height, rotation } = getTableSize(table);
       const round = table.shape === 'round';
-      const bodyWidth = round
-        ? Math.max(Math.min(width, height), compactTableCards ? 104 : 112)
-        : Math.max(width, compactTableCards ? COMPACT_TABLE_CARD_MIN_WIDTH : TABLE_CARD_MIN_WIDTH);
-      const bodyHeight = round
-        ? bodyWidth
-        : Math.max(
-            compactTableCards ? COMPACT_TABLE_CARD_MIN_HEIGHT : TABLE_CARD_MIN_HEIGHT,
-            Math.round(bodyWidth / 2),
-          );
-      const top = round
-        ? Math.round((height - bodyHeight) / 2)
-        : Math.max(8, Math.round((height - (bodyHeight + TABLE_CARD_SEAT_HEIGHT)) / 2));
+      const { bodyWidth, bodyHeight, top } = getTableBodyGeometry(width, height, round);
       const offsetY = top + bodyHeight / 2 - height / 2;
       const angle = (rotation * Math.PI) / 180;
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
       const centerX = table.positionX! + width / 2 - offsetY * sin;
       const centerY = table.positionY! + height / 2 + offsetY * cos;
-      const outerWidth = bodyWidth + (round ? 24 : 0);
-      const outerHeight = bodyHeight + (round ? 24 : 16);
+      const outerWidth = bodyWidth + (round ? 36 : 0);
+      const outerHeight = bodyHeight + (round ? 36 : TABLE_CARD_SEAT_HEIGHT);
       const halfWidth = (outerWidth * Math.abs(cos) + outerHeight * Math.abs(sin)) / 2;
       const halfHeight = (outerWidth * Math.abs(sin) + outerHeight * Math.abs(cos)) / 2;
       return {
-        id: table.id,
         left: centerX - halfWidth,
         right: centerX + halfWidth,
         top: centerY - halfHeight,
         bottom: centerY + halfHeight,
       };
     });
-  }, [compactTableCards, live, placedTables]);
-  const crowdedTableIds = useMemo(() => {
-    const bounds = liveTableVisualBounds;
-    const crowded = new Set<string>();
-    // shortcut: les rectangles englobants peuvent masquer des chaises proches sans collision ; calculer les formes exactes si nécessaire.
-    for (let i = 0; i < bounds.length; i++) {
-      for (const other of bounds.slice(i + 1)) {
-        const current = bounds[i];
-        if (
-          current.left < other.right &&
-          current.right > other.left &&
-          current.top < other.bottom &&
-          current.bottom > other.top
-        ) {
-          crowded.add(current.id);
-          crowded.add(other.id);
-        }
-      }
-    }
-    return crowded;
-  }, [liveTableVisualBounds]);
+  }, [placedTables]);
   const tableFocusBounds = useMemo<ContentBounds | null>(() => {
-    if (liveTableVisualBounds.length === 0) return null;
-    const left = Math.min(...liveTableVisualBounds.map((item) => item.left)) - 16;
-    const top = Math.min(...liveTableVisualBounds.map((item) => item.top)) - 16;
-    const right = Math.max(...liveTableVisualBounds.map((item) => item.right)) + 16;
-    const bottom = Math.max(...liveTableVisualBounds.map((item) => item.bottom)) + 16;
+    if (tableVisualBounds.length === 0) return null;
+    const left = Math.min(...tableVisualBounds.map((item) => item.left)) - 16;
+    const top = Math.min(...tableVisualBounds.map((item) => item.top)) - 16;
+    const right = Math.max(...tableVisualBounds.map((item) => item.right)) + 16;
+    const bottom = Math.max(...tableVisualBounds.map((item) => item.bottom)) + 16;
     return { x: left, y: top, width: right - left, height: bottom - top };
-  }, [liveTableVisualBounds]);
+  }, [tableVisualBounds]);
   const tablesToPlace = useMemo(
     () => allTables.filter((table) => table.positionX === null || table.positionY === null),
     [allTables],
@@ -3755,21 +3827,15 @@ export function FloorPlanCanvas({
       })),
     [floorPlan?.zones],
   );
-  // En Live, seules les zones qui contiennent une table posée sont pertinentes
-  // pour l'exploitation. Une zone vide ne doit ni être affichée ni agrandir la
-  // surface défilable ; l'édition conserve toutes les zones du plan.
-  const liveZones = useMemo(
-    () =>
-      live
-        ? zones.filter((zone) => placedTables.some((table) => isTableInsideZone(table, zone)))
-        : zones,
-    [live, placedTables, zones],
-  );
   const contentBounds = useMemo(() => {
-    const bounds = live
-      ? computeLiveContentBounds(liveZones, placedTables, canvasWidth, canvasHeight)
-      : computeContentBounds(placedTables, canvasWidth, canvasHeight);
-    if (!live || !bounds || !tableFocusBounds) return bounds;
+    const bounds = computeLiveContentBounds(
+      zones,
+      placedTables,
+      canvasWidth,
+      canvasHeight,
+      floorPlan?.walls,
+    );
+    if (!bounds || !tableFocusBounds) return bounds;
     const x = Math.min(bounds.x, tableFocusBounds.x);
     const y = Math.min(bounds.y, tableFocusBounds.y);
     return {
@@ -3778,7 +3844,7 @@ export function FloorPlanCanvas({
       width: Math.max(bounds.x + bounds.width, tableFocusBounds.x + tableFocusBounds.width) - x,
       height: Math.max(bounds.y + bounds.height, tableFocusBounds.y + tableFocusBounds.height) - y,
     };
-  }, [canvasHeight, canvasWidth, live, liveZones, placedTables, tableFocusBounds]);
+  }, [canvasHeight, canvasWidth, floorPlan?.walls, placedTables, tableFocusBounds, zones]);
   // Mise à jour pendant le rendu (convention du fichier, cf. zoomRef) : la
   // lecture par ref dans le cadrage évite tout recadrage automatique quand le
   // restaurateur déplace ou redimensionne une table.
@@ -3798,18 +3864,6 @@ export function FloorPlanCanvas({
   const selectedZone = selectedZoneId
     ? (zones.find((zone) => zone.id === selectedZoneId) ?? null)
     : null;
-  const selectedCombination = useMemo(() => {
-    if (selectedTableIds.size < 2) return null;
-    return (
-      tableCombinations.find((combination) => {
-        const ids = new Set(combination.members.map((member) => member.tableId));
-        return (
-          ids.size === selectedTableIds.size && [...selectedTableIds].every((id) => ids.has(id))
-        );
-      }) ?? null
-    );
-  }, [selectedTableIds, tableCombinations]);
-
   const tableStatuses = useMemo(() => {
     const map = new Map<string, { status: TableStatus; reservation: PlanningReservation | null }>();
     if (!live) return map;
@@ -3824,7 +3878,7 @@ export function FloorPlanCanvas({
     const counts = new Map<string, number>();
     let unassigned = 0;
 
-    for (const table of allTables) {
+    for (const table of placedTables) {
       const server = table.assignedServer?.trim();
       if (!server) {
         unassigned += 1;
@@ -3838,15 +3892,15 @@ export function FloorPlanCanvas({
       servers: Array.from(counts.keys()).sort((a, b) => a.localeCompare(b, 'fr')),
       unassigned,
     };
-  }, [allTables]);
+  }, [placedTables]);
 
   const allServers = serverSummary.servers;
   const serverTableCounts = serverSummary.counts;
   const unassignedCount = serverSummary.unassigned;
-  const hasServerFilter = allTables.length > 0 && (allServers.length > 0 || unassignedCount > 0);
+  const hasServerFilter = allServers.length + Number(unassignedCount > 0) > 1;
 
   useEffect(() => {
-    if (selectedServerFilter === '_unassigned_' && unassignedCount === 0) {
+    if (!hasServerFilter || (selectedServerFilter === '_unassigned_' && unassignedCount === 0)) {
       setSelectedServerFilter(null);
       return;
     }
@@ -3857,7 +3911,7 @@ export function FloorPlanCanvas({
     ) {
       setSelectedServerFilter(null);
     }
-  }, [selectedServerFilter, serverTableCounts, unassignedCount]);
+  }, [hasServerFilter, selectedServerFilter, serverTableCounts, unassignedCount]);
 
   const selectedWall = useMemo(
     () => (floorPlan?.walls ?? []).find((wall) => wall.id === selectedWallId) ?? null,
@@ -3919,14 +3973,26 @@ export function FloorPlanCanvas({
   async function placeExistingTable(table: CanvasTable) {
     if (!orgId || live) return;
     const { width, height } = getTableSize(table);
-    const { x, y } = findNextPosition(width, height, placedTables, canvasWidth, canvasHeight);
+    const position = findNextPosition(
+      width,
+      height,
+      placedTables,
+      canvasWidth,
+      canvasHeight,
+      getTableSize(table).rotation,
+      table.shape ?? 'rect',
+    );
+    if (!position) {
+      setError('Aucune place libre pour placer cette table.');
+      return;
+    }
+    const { x, y } = position;
     const before = snapshotTableGeometry(table);
     const after = snapshotTableGeometry({ ...table, positionX: x, positionY: y });
     recordGeometry({
       before: { tables: [before], walls: [] },
       after: { tables: [after], walls: [] },
     });
-    setPlanSaved(false);
     setSelectedTableIds(new Set([table.id]));
     setLastSelectedTableId(table.id);
     setSelectedWallId(null);
@@ -3955,17 +4021,16 @@ export function FloorPlanCanvas({
     }
   }
 
-  async function createUnplacedTable() {
+  async function createTable(placement?: { x: number; y: number }) {
     if (!orgId || live) return;
     const name = getNextTableName(allTables);
     try {
       setError('');
-      setPlanSaved(false);
       const created = await post<FloorPlanTable>(`restaurants/${orgId}/floor-plan/tables`, {
         sectionId: null,
         minCapacity: 1,
-        positionX: null,
-        positionY: null,
+        positionX: placement?.x ?? null,
+        positionY: placement?.y ?? null,
         capacity: 4,
         shape: 'rect',
         name,
@@ -3975,10 +4040,46 @@ export function FloorPlanCanvas({
       setSelectedTableIds(new Set([created.id]));
       setLastSelectedTableId(created.id);
       setSelectedWallId(null);
+      setSelectedZoneId(null);
+      if (placement) return;
       window.setTimeout(() => document.getElementById(`palette-table-${created.id}`)?.focus(), 0);
     } catch (err) {
       setError(getErrorMessage(err, 'Impossible de créer la table'));
     }
+  }
+
+  function placeNewTableInZone(zone: FloorPlanZone, event?: React.MouseEvent<HTMLDivElement>) {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!canvas) return;
+    const { width, height } = getTableSize({ shape: 'rect' });
+    const mouse = event && event.detail > 0;
+    const x = Math.round(
+      (mouse ? (event.clientX - canvas.left) / zoom : zone.x + zone.width / 2) - width / 2,
+    );
+    const y = Math.round(
+      (mouse ? (event.clientY - canvas.top) / zoom : zone.y + zone.height / 2) - height / 2,
+    );
+    const table = {
+      positionX: x,
+      positionY: y,
+      width,
+      height,
+      rotation: 0,
+      shape: 'rect',
+    } as const;
+    if (
+      x < 0 ||
+      y < 0 ||
+      x + width > canvasWidth ||
+      y + height > canvasHeight ||
+      !tableFitsInZone(table, zone) ||
+      tablePlatesOverlapAtPosition({ x, y, width, height, tables: placedTables })
+    ) {
+      toast.error('Choisissez un emplacement libre à l’intérieur de la zone.');
+      return;
+    }
+    setTablePlacementZoneId(null);
+    void createTable({ x, y });
   }
 
   async function createTablesBatch(event: React.FormEvent) {
@@ -3997,14 +4098,13 @@ export function FloorPlanCanvas({
 
     setBulkCreateLoading(true);
     setError('');
-    setPlanSaved(false);
     const names = [...allTables];
     const created: FloorPlanTable[] = [];
     try {
       for (let index = 0; index < count; index += 1) {
         const name = getNextTableName(names);
         const table = await post<FloorPlanTable>(`restaurants/${orgId}/floor-plan/tables`, {
-          sectionId: bulkCreateForm.sectionId || null,
+          sectionId: null,
           minCapacity: 1,
           positionX: null,
           positionY: null,
@@ -4035,14 +4135,27 @@ export function FloorPlanCanvas({
     if (!orgId || live || autoLayoutLoading || tablesToPlace.length === 0 || !floorPlan) return;
     setAutoLayoutLoading(true);
     setError('');
-    setPlanSaved(false);
     const occupied = [...placedTables];
-    const placements = tablesToPlace.map((table) => {
+    const placements: Array<{ table: CanvasTable; x: number; y: number }> = [];
+    for (const table of tablesToPlace) {
       const { width, height } = getTableSize(table);
-      const position = findNextPosition(width, height, occupied, canvasWidth, canvasHeight);
+      const position = findNextPosition(
+        width,
+        height,
+        occupied,
+        canvasWidth,
+        canvasHeight,
+        getTableSize(table).rotation,
+        table.shape ?? 'rect',
+      );
+      if (!position) {
+        setError('Il ne reste pas assez de place pour toutes les tables.');
+        setAutoLayoutLoading(false);
+        return;
+      }
       occupied.push({ ...table, positionX: position.x, positionY: position.y });
-      return { table, ...position };
-    });
+      placements.push({ table, ...position });
+    }
 
     try {
       const updatedTables = await Promise.all(
@@ -4120,7 +4233,20 @@ export function FloorPlanCanvas({
           capacity: data.capacity,
           shape: data.shape,
         } as FloorPlanTable);
-        const { x, y } = findNextPosition(width, height, placedTables, canvasWidth, canvasHeight);
+        const position = findNextPosition(
+          width,
+          height,
+          placedTables,
+          canvasWidth,
+          canvasHeight,
+          0,
+          data.shape,
+        );
+        if (!position) {
+          setError('Aucune place libre pour ajouter cette table.');
+          return;
+        }
+        const { x, y } = position;
         const name = getNextTableName(allTables);
         try {
           setError('');
@@ -4210,13 +4336,13 @@ export function FloorPlanCanvas({
       capacity: String(table.capacity),
       minCapacity: String(table.minCapacity),
       shape: table.shape ?? 'rect',
-      sectionId: table.sectionId ?? '',
       isActive: table.isActive,
     });
     setDialogOpen(true);
   }
 
   function selectTable(table: CanvasTable, event?: React.MouseEvent) {
+    setTablePlacementZoneId(null);
     if (!event) {
       setSelectedTableIds(new Set([table.id]));
       setLastSelectedTableId(table.id);
@@ -4268,25 +4394,17 @@ export function FloorPlanCanvas({
       return;
     }
     if (live) {
-      const viewport = canvasViewportRef.current;
-      if (viewport) {
-        const view = viewport.getBoundingClientRect();
-        const overlaps =
-          view.width >= 288 &&
-          Array.from(viewport.querySelectorAll('[role="button"][aria-description]')).some(
-            (element) => {
-              const rect = element.getBoundingClientRect();
-              return (
-                rect.right > view.right - 288 &&
-                rect.left < view.right &&
-                rect.bottom > view.top &&
-                rect.top < view.bottom
-              );
-            },
-          );
-        setOverlayServiceInspector(!overlaps);
+      if (unassignedPlacement.reservationId) {
+        if (unassignedPlacement.suggestions.some((suggestion) => suggestion.tableId === table.id)) {
+          setUnassignedPlacement((current) => ({
+            ...current,
+            targetTableId: table.id,
+            message: null,
+          }));
+        }
+        return;
       }
-      setShowWalkInHelp(false);
+      if (unassignedPanelOpen) setUnassignedPanelOpen(false);
       setSelectedServiceTableId(table.id);
       return;
     }
@@ -4295,6 +4413,7 @@ export function FloorPlanCanvas({
 
   function selectZone(zone: FloorPlanZone) {
     if (live) return;
+    setTablePlacementZoneId(null);
     if (zoneJustDraggedRef.current) {
       zoneJustDraggedRef.current = false;
       return;
@@ -4315,7 +4434,7 @@ export function FloorPlanCanvas({
   }
 
   function startZoneResize(event: React.PointerEvent<HTMLDivElement>, zone: FloorPlanZone) {
-    if (live) return;
+    if (live || tablePlacementZoneId) return;
     event.stopPropagation();
     event.preventDefault();
     resizeZoneStartRef.current = {
@@ -4451,7 +4570,6 @@ export function FloorPlanCanvas({
     if (!orgId) return;
     const mutationVersion = (tableMutationVersionRef.current.get(tableId) ?? 0) + 1;
     tableMutationVersionRef.current.set(tableId, mutationVersion);
-    setPlanSaved(false);
     try {
       setError('');
       const updated = await patch<FloorPlanTable>(
@@ -4461,8 +4579,12 @@ export function FloorPlanCanvas({
       if (tableMutationVersionRef.current.get(tableId) !== mutationVersion) return;
       setFloorPlan((prev) => (prev ? replaceTable(prev, updated) : prev));
     } catch (err) {
-      if (tableMutationVersionRef.current.get(tableId) !== mutationVersion) return;
-      setError(getErrorMessage(err, 'Impossible de modifier la table'));
+      if (tableMutationVersionRef.current.get(tableId) === mutationVersion) {
+        const table = allTables.find((table) => table.id === tableId);
+        setError(
+          `Modification de ${table?.displayName ?? table?.name ?? 'la table'} non enregistrée. ${getErrorMessage(err, 'Réessayez.')}`,
+        );
+      }
     }
   }
 
@@ -4480,7 +4602,6 @@ export function FloorPlanCanvas({
 
   async function patchZone(zoneId: string, updates: Partial<FloorPlanZone>) {
     if (!orgId) return;
-    setPlanSaved(false);
     try {
       setError('');
       const updated = await patch<FloorPlanZone>(
@@ -4495,7 +4616,6 @@ export function FloorPlanCanvas({
 
   async function deleteZone(zoneId: string) {
     if (!orgId) return;
-    setPlanSaved(false);
     try {
       setError('');
       await del(
@@ -4505,86 +4625,6 @@ export function FloorPlanCanvas({
       setSelectedZoneId(null);
     } catch (err) {
       setError(getErrorMessage(err, 'Impossible de supprimer la zone'));
-    }
-  }
-
-  async function createTableCombination() {
-    if (!orgId || selectedTableIds.size < 2) return;
-    const tableIds = [...selectedTableIds];
-    try {
-      setError('');
-      setPlanSaved(false);
-      const created = await post<{
-        id: string;
-        floorPlanId: string;
-        name: string | null;
-        tableIds: string[];
-      }>(`restaurants/${orgId}/floor-plan/table-combinations`, {
-        tableIds,
-        ...(floorPlanId ? { floorPlanId } : {}),
-      });
-      const combination: FloorPlanTableCombination = {
-        id: created.id,
-        floorPlanId: created.floorPlanId,
-        name: created.name,
-        members: created.tableIds.map((tableId) => ({ tableId })),
-      };
-      setFloorPlan((prev) =>
-        prev
-          ? {
-              ...prev,
-              tableCombinations: [
-                ...(prev.tableCombinations ?? []).filter((item) => item.id !== combination.id),
-                combination,
-              ],
-            }
-          : prev,
-      );
-    } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de créer la combinaison'));
-    }
-  }
-
-  async function deleteTableCombination(combination: FloorPlanTableCombination) {
-    if (!orgId) return;
-    try {
-      setError('');
-      setPlanSaved(false);
-      await del(
-        `restaurants/${orgId}/floor-plan/table-combinations/${combination.id}${floorPlanId ? `?floorPlanId=${floorPlanId}` : ''}`,
-      );
-      setFloorPlan((prev) =>
-        prev
-          ? {
-              ...prev,
-              tableCombinations: (prev.tableCombinations ?? []).filter(
-                (item) => item.id !== combination.id,
-              ),
-            }
-          : prev,
-      );
-    } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de retirer la combinaison'));
-    }
-  }
-
-  async function unplaceTable(table: CanvasTable) {
-    if (!orgId) return;
-    setPlanSaved(false);
-    setSelectedTableIds(new Set());
-    try {
-      setError('');
-      const updated = await patch<FloorPlanTable>(
-        `restaurants/${orgId}/floor-plan/tables/${table.id}`,
-        {
-          positionX: null,
-          positionY: null,
-          ...(floorPlanId ? { floorPlanId } : {}),
-        },
-      );
-      setFloorPlan((prev) => (prev ? replaceTable(prev, updated) : prev));
-    } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de retirer la table du plan'));
     }
   }
 
@@ -4599,7 +4639,7 @@ export function FloorPlanCanvas({
         return `T${Math.max(0, ...numericTableNames) + 1}`;
       })();
     const created = await post<FloorPlanTable>(`restaurants/${orgId}/floor-plan/tables`, {
-      sectionId: table.sectionId ?? null,
+      sectionId: null,
       name: generatedName,
       minCapacity: table.minCapacity,
       capacity: table.capacity,
@@ -4617,8 +4657,7 @@ export function FloorPlanCanvas({
   async function duplicateSingleTable(table: FloorPlanTable) {
     if (!orgId || !floorPlan) return;
     try {
-      setPlanSaved(false);
-      const position = findDuplicatePosition(table, allTables, canvasWidth, canvasHeight);
+      const position = findNearbyFreeTablePosition(table, allTables, canvasWidth, canvasHeight);
       if (!position) {
         setError('Aucun emplacement libre pour dupliquer cette table dans le plan.');
         return;
@@ -4644,82 +4683,76 @@ export function FloorPlanCanvas({
     return `T${max + offset}`;
   }
 
-  async function duplicateSelectedAsRow() {
-    if (selectedTables.length === 0) return;
-    setPlanSaved(false);
-    setDuplicateDialogOpen(false);
-    const source = selectedTables[0];
-    const { width } = getTableSize(source);
-    const spacing = Math.max(0, duplicateForm.spacing);
-    const count = Math.max(2, duplicateForm.count);
-    try {
-      setError('');
-      const startX = source.positionX ?? 0;
-      const startY = source.positionY ?? 0;
-      const created: FloorPlanTable[] = [];
-      for (let i = 1; i < count; i++) {
-        const x = startX + i * (width + spacing);
-        const y = startY;
-        const name = nextTableName(i);
-        const table = await duplicateTable(source, x, y, name);
-        if (table) created.push(table);
-      }
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        let next = prev;
-        for (const table of created) next = replaceTable(next, table);
-        return next;
-      });
-      setSelectedTableIds(new Set(created.map((t) => t.id)));
-      setLastSelectedTableId(created[created.length - 1]?.id ?? source.id);
-    } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de dupliquer la table'));
-    }
+  const rowSource = duplicateDialogOpen ? selectedTables[0] : undefined;
+  const rowSize = rowSource ? getTableSize(rowSource) : null;
+  const rowCount = duplicateForm.count;
+  const rowSpacing = duplicateForm.spacing;
+  const rowPositions =
+    rowSource &&
+    rowSize &&
+    rowSource.positionX !== null &&
+    rowSource.positionY !== null &&
+    Number.isInteger(rowCount) &&
+    rowCount >= 2 &&
+    rowCount <= 50 &&
+    Number.isInteger(rowSpacing) &&
+    rowSpacing >= 0
+      ? Array.from({ length: rowCount - 1 }, (_, i) => ({
+          x: rowSource.positionX! + (i + 1) * (rowSize.width + rowSpacing),
+          y: rowSource.positionY!,
+        }))
+      : [];
+  const rowFits =
+    rowSource &&
+    rowSize &&
+    rowPositions.length > 0 &&
+    rowPositions.every(
+      ({ x, y }, index) =>
+        x + rowSize.width <= canvasWidth &&
+        y + rowSize.height <= canvasHeight &&
+        !tablePlatesOverlapAtPosition({
+          ...rowSize,
+          x,
+          y,
+          shape: rowSource.shape,
+          tables: [
+            ...placedTables,
+            ...rowPositions.slice(0, index).map((position) => ({
+              ...rowSource,
+              positionX: position.x,
+              positionY: position.y,
+            })),
+          ],
+        }),
+    );
+
+  function openRowDuplicate() {
+    setDuplicateDialogOpen(true);
   }
 
-  async function duplicateSelectedAsGrid() {
-    if (selectedTables.length === 0) return;
-    setPlanSaved(false);
+  async function duplicateSelectedAsRow() {
+    if (!rowSource || !rowFits) return;
     setDuplicateDialogOpen(false);
-    const source = selectedTables[0];
-    const { width, height } = getTableSize(source);
-    const spacingX = Math.max(0, duplicateForm.spacing);
-    const spacingY = Math.max(0, duplicateForm.spacingY);
-    const cols = Math.max(1, duplicateForm.cols);
-    const rows = Math.max(1, duplicateForm.rows);
+    const created: FloorPlanTable[] = [];
     try {
       setError('');
-      const startX = source.positionX ?? 0;
-      const startY = source.positionY ?? 0;
-      const created: FloorPlanTable[] = [];
-      let index = 1;
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          if (row === 0 && col === 0) continue;
-          const x = startX + col * (width + spacingX);
-          const y = startY + row * (height + spacingY);
-          const name = nextTableName(index);
-          const table = await duplicateTable(source, x, y, name);
-          if (table) created.push(table);
-          index += 1;
-        }
+      for (const [index, { x, y }] of rowPositions.entries()) {
+        const table = await duplicateTable(rowSource, x, y, nextTableName(index + 1));
+        if (!table) break;
+        created.push(table);
+        setFloorPlan((prev) => (prev ? replaceTable(prev, table) : prev));
       }
-      setFloorPlan((prev) => {
-        if (!prev) return prev;
-        let next = prev;
-        for (const table of created) next = replaceTable(next, table);
-        return next;
-      });
-      setSelectedTableIds(new Set(created.map((t) => t.id)));
-      setLastSelectedTableId(created[created.length - 1]?.id ?? source.id);
     } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de créer la grille'));
+      setError(getErrorMessage(err, 'Impossible de terminer la rangée'));
+    }
+    if (created.length > 0) {
+      setSelectedTableIds(new Set(created.map((table) => table.id)));
+      setLastSelectedTableId(created.at(-1)?.id ?? null);
     }
   }
 
   async function deleteSelectedTables() {
     if (selectedTables.length === 0) return;
-    setPlanSaved(false);
     // Invalide tout snapshot qui ciblerait l'une de ces tables supprimées.
     resetGeometryHistory();
     for (const table of selectedTables) {
@@ -4793,59 +4826,26 @@ export function FloorPlanCanvas({
       return;
     }
 
-    const before: GeometrySnapshot = {
-      tables: dimensions.map(({ table }) => snapshotTableGeometry(table)),
-      walls: [],
-    };
-    const after: GeometrySnapshot = { tables: nextTables.map(snapshotTableGeometry), walls: [] };
-    recordGeometry({ before, after });
-    applyGeometrySnapshot(after);
-  }
-
-  function distributeSelectedTables(axis: 'x' | 'y') {
-    if (selectedTables.length < 3) return;
-    const sorted = [...selectedTables]
-      .map((table) => ({
-        table,
-        x: table.positionX ?? 0,
-        y: table.positionY ?? 0,
-        size: getTableSize(table),
-      }))
-      .sort((a, b) => (axis === 'x' ? a.x - b.x : a.y - b.y));
-    const first = sorted[0];
-    const last = sorted[sorted.length - 1];
-    const start = axis === 'x' ? first.x : first.y;
-    const end = axis === 'x' ? last.x + last.size.width : last.y + last.size.height;
-    const totalSpace = end - start;
-    const totalSize = sorted.reduce(
-      (sum, item) => sum + (axis === 'x' ? item.size.width : item.size.height),
-      0,
-    );
-    const gap = Math.max(0, (totalSpace - totalSize) / (sorted.length - 1));
-    let cursor = start;
-    const nextTables = sorted.map(({ table, size }) => {
-      const dimension = axis === 'x' ? size.width : size.height;
-      const nextTable = {
-        ...table,
-        positionX: axis === 'x' ? Math.round(cursor) : table.positionX,
-        positionY: axis === 'y' ? Math.round(cursor) : table.positionY,
-      };
-      cursor += dimension + gap;
-      return nextTable;
-    });
-
-    if (
-      nextTables.every(
-        (table, index) =>
-          table.positionX === sorted[index].table.positionX &&
-          table.positionY === sorted[index].table.positionY,
-      )
-    ) {
-      return;
+    const occupied = placedTables.filter((table) => !selectedTableIds.has(table.id));
+    for (const table of nextTables) {
+      if (
+        tablePlatesOverlapAtPosition({
+          ...getTableSize(table),
+          x: table.positionX,
+          y: table.positionY,
+          shape: table.shape,
+          tables: occupied,
+        }) ||
+        findOverlappingTableChairs(table, occupied, { plateOnly: true })
+      ) {
+        toast.error('Cet alignement ferait se chevaucher des tables.');
+        return;
+      }
+      occupied.push(table);
     }
 
     const before: GeometrySnapshot = {
-      tables: sorted.map(({ table }) => snapshotTableGeometry(table)),
+      tables: dimensions.map(({ table }) => snapshotTableGeometry(table)),
       walls: [],
     };
     const after: GeometrySnapshot = { tables: nextTables.map(snapshotTableGeometry), walls: [] };
@@ -5022,13 +5022,11 @@ export function FloorPlanCanvas({
     }
 
     setError('');
-    setPlanSaved(false);
 
     try {
       const updated = await patch<FloorPlanTable>(
         `restaurants/${orgId}/floor-plan/tables/${editingTable.id}`,
         {
-          sectionId: form.sectionId || null,
           name: form.name.trim(),
           capacity,
           minCapacity,
@@ -5077,7 +5075,6 @@ export function FloorPlanCanvas({
     const mutationVersion = (wallMutationVersionRef.current.get(wall.id) ?? 0) + 1;
     wallMutationVersionRef.current.set(wall.id, mutationVersion);
     setError('');
-    setPlanSaved(false);
     try {
       const updated = await patch<FloorPlanWall>(
         `restaurants/${orgId}/floor-plan/walls/${wall.id}`,
@@ -5104,7 +5101,6 @@ export function FloorPlanCanvas({
     const mutationVersion = (wallMutationVersionRef.current.get(geometry.id) ?? 0) + 1;
     wallMutationVersionRef.current.set(geometry.id, mutationVersion);
     setError('');
-    setPlanSaved(false);
     try {
       const updated = await patch<FloorPlanWall>(
         `restaurants/${orgId}/floor-plan/walls/${geometry.id}`,
@@ -5136,7 +5132,7 @@ export function FloorPlanCanvas({
 
   /**
    * Réapplique un snapshot immédiatement dans le canvas, puis persiste sa
-   * géométrie. Une action de groupe (aligner/répartir) reste donc atomique du
+   * géométrie. Une action de groupe (aligner) reste donc atomique du
    * point de vue de la pile, tout en conservant les mutations API existantes.
    */
   function applyGeometrySnapshot(snapshot: GeometrySnapshot) {
@@ -5205,7 +5201,6 @@ export function FloorPlanCanvas({
   async function deleteWall(wallId: string) {
     if (!orgId) return;
     setError('');
-    setPlanSaved(false);
     // Invalide tout snapshot qui ciblerait ce mur supprimé.
     resetGeometryHistory();
     wallMutationVersionRef.current.delete(wallId);
@@ -5226,7 +5221,6 @@ export function FloorPlanCanvas({
 
   async function duplicateWall(wall: FloorPlanWall) {
     if (!orgId || live) return;
-    setPlanSaved(false);
     try {
       setError('');
       const offset = GRID_SIZE;
@@ -5301,7 +5295,6 @@ export function FloorPlanCanvas({
     }
     setError('');
     setSettingsError('');
-    setPlanSaved(false);
     try {
       const path = floorPlanId
         ? `restaurants/${orgId}/floor-plans/${floorPlanId}`
@@ -5312,7 +5305,6 @@ export function FloorPlanCanvas({
         height: Math.round(lengthMeters * CANVAS_PIXELS_PER_METER),
       });
       setFloorPlan(updated);
-      setPlanSaved(true);
       setSettingsDialogOpen(false);
     } catch (err) {
       setError(getErrorMessage(err, 'Impossible de modifier les paramètres du plan'));
@@ -5773,6 +5765,24 @@ export function FloorPlanCanvas({
             ),
           };
         });
+        const selectedIds = new Set(nextTables.map((table) => table.id));
+        const stationaryTables = allTables.filter((table) => !selectedIds.has(table.id));
+        if (
+          nextTables.some((table) => {
+            const { width, height, rotation } = getTableSize(table);
+            return tablePlatesOverlapAtPosition({
+              x: table.positionX ?? 0,
+              y: table.positionY ?? 0,
+              width,
+              height,
+              rotation,
+              shape: table.shape,
+              tables: stationaryTables,
+            });
+          })
+        ) {
+          return;
+        }
         const before: GeometrySnapshot = {
           tables: selectedTables.map((t) => snapshotTableGeometry(t)),
           walls: [],
@@ -5792,7 +5802,12 @@ export function FloorPlanCanvas({
   function resolveTableDragPosition(
     start: DragStartInfo,
     delta: { x: number; y: number },
-  ): { positionX: number; positionY: number; guides: TableAlignmentGuides } {
+  ): {
+    positionX: number;
+    positionY: number;
+    guides: TableAlignmentGuides;
+    blocker?: CanvasTable;
+  } {
     const rawX = start.originalX + delta.x / zoom;
     const rawY = start.originalY + delta.y / zoom;
     const boundedX = Math.max(0, Math.min(canvasWidth - start.width, rawX));
@@ -5813,19 +5828,75 @@ export function FloorPlanCanvas({
     const positionX = Math.max(0, Math.min(canvasWidth - start.width, snappedX));
     const positionY = Math.max(0, Math.min(canvasHeight - start.height, snappedY));
 
+    const neighbours = placedTables.filter((table) => table.id !== start.tableId);
+    const proposed = { ...start.table, positionX, positionY };
+    const plateBlocker = findOverlappingTablePlate({
+      x: positionX,
+      y: positionY,
+      width: start.width,
+      height: start.height,
+      rotation: start.table.rotation ?? 0,
+      shape: start.table.shape,
+      tables: neighbours,
+    });
+    const chairBlocker = plateBlocker
+      ? undefined
+      : findOverlappingTableChairs(proposed, neighbours, { plateOnly: true });
+    if (chairBlocker) {
+      const nearby = nudgeTableClearOfChairs(proposed, neighbours, canvasWidth, canvasHeight);
+      if (nearby) return { ...nearby, guides: emptyTableAlignmentGuides() };
+    }
+    const blocker = plateBlocker ?? chairBlocker;
+
     return {
       positionX,
       positionY,
-      guides: {
-        x: guides.x && positionX === guides.x.position ? guides.x : null,
-        y: guides.y && positionY === guides.y.position ? guides.y : null,
-      },
+      blocker,
+      guides: blocker
+        ? emptyTableAlignmentGuides()
+        : {
+            x: guides.x && positionX === guides.x.position ? guides.x : null,
+            y: guides.y && positionY === guides.y.position ? guides.y : null,
+          },
+    };
+  }
+
+  function resolvePaletteTableDropPosition(
+    table: Pick<FloorPlanTable, 'id' | 'capacity' | 'shape' | 'width' | 'height' | 'rotation'>,
+    pointerStart: { x: number; y: number },
+    delta: { x: number; y: number },
+  ) {
+    if (!canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const { width, height } = getTableSize(table);
+    const grid = snap ? GRID_SIZE : 1;
+    const cursorX = (pointerStart.x + delta.x - rect.left) / zoom;
+    const cursorY = (pointerStart.y + delta.y - rect.top) / zoom;
+    const dropX = Math.round(cursorX / grid) * grid;
+    const dropY = Math.round(cursorY / grid) * grid;
+    const x = Math.max(0, Math.min(canvasWidth - width, dropX - width / 2));
+    const y = Math.max(0, Math.min(canvasHeight - height, dropY - height / 2));
+    return {
+      x,
+      y,
+      width,
+      height,
+      overlapping: tablePlatesOverlapAtPosition({
+        x,
+        y,
+        width,
+        height,
+        rotation: table.rotation ?? 0,
+        shape: table.shape,
+        tables: placedTables.filter((placedTable) => placedTable.id !== table.id),
+      }),
     };
   }
 
   function handleDragStart(event: DragStartEvent) {
-    setPlanSaved(false);
     justDraggedRef.current = true;
+    setTableDragPreview(null);
+    setTableDropOverlapping(false);
     setTableAlignGuides(emptyTableAlignmentGuides());
     const pointer = event.activatorEvent as PointerEvent | undefined;
     if (pointer) {
@@ -5865,6 +5936,8 @@ export function FloorPlanCanvas({
   function handleDragCancel() {
     setActiveDragData(null);
     setDragStart(null);
+    setTableDragPreview(null);
+    setTableDropOverlapping(false);
     setWallAlignGuide(null);
     setTableAlignGuides(emptyTableAlignmentGuides());
     pointerStartRef.current = null;
@@ -5879,6 +5952,8 @@ export function FloorPlanCanvas({
     const pointerStart = pointerStartRef.current;
     setActiveDragData(null);
     setDragStart(null);
+    setTableDragPreview(null);
+    setTableDropOverlapping(false);
     setWallAlignGuide(null);
     setTableAlignGuides(emptyTableAlignmentGuides());
     pointerStartRef.current = null;
@@ -5903,31 +5978,34 @@ export function FloorPlanCanvas({
 
     if (data?.kind === 'existingTable') {
       if (!start) return;
-      const { positionX: clampedX, positionY: clampedY } = resolveTableDragPosition(
-        start,
-        event.delta,
-      );
-
-      if (clampedX !== start.originalX || clampedY !== start.originalY) {
-        recordGeometry({
-          before: {
-            tables: [
-              snapshotTableGeometry({
-                ...start.table,
-                positionX: start.originalX,
-                positionY: start.originalY,
-              }),
-            ],
-            walls: [],
-          },
-          after: {
-            tables: [
-              snapshotTableGeometry({ ...start.table, positionX: clampedX, positionY: clampedY }),
-            ],
-            walls: [],
-          },
-        });
+      const candidate = resolveTableDragPosition(start, event.delta);
+      if (candidate.blocker) {
+        toast.error(
+          `Trop près de ${candidate.blocker.displayName ?? candidate.blocker.name}. La table est revenue à sa place.`,
+        );
+        return;
       }
+      const { positionX: clampedX, positionY: clampedY } = candidate;
+      if (clampedX === start.originalX && clampedY === start.originalY) return;
+
+      recordGeometry({
+        before: {
+          tables: [
+            snapshotTableGeometry({
+              ...start.table,
+              positionX: start.originalX,
+              positionY: start.originalY,
+            }),
+          ],
+          walls: [],
+        },
+        after: {
+          tables: [
+            snapshotTableGeometry({ ...start.table, positionX: clampedX, positionY: clampedY }),
+          ],
+          walls: [],
+        },
+      });
 
       setFloorPlan((prev) =>
         prev ? replaceTablePosition(prev, start.tableId, clampedX, clampedY) : prev,
@@ -5966,9 +6044,70 @@ export function FloorPlanCanvas({
         ) {
           return;
         }
-        setError(getErrorMessage(err, 'Impossible de déplacer la table'));
+        setError(
+          `Déplacement de ${start.table.displayName ?? start.table.name} non enregistré. ${getErrorMessage(err, 'Réessayez.')}`,
+        );
         setFloorPlan((prev) =>
           prev ? replaceTablePosition(prev, start.tableId, start.originalX, start.originalY) : prev,
+        );
+      }
+      return;
+    }
+
+    if (data?.kind === 'placeTable' && pointerStart) {
+      const candidate = resolvePaletteTableDropPosition(data.table, pointerStart, event.delta);
+      if (!candidate) return;
+      const finalPosition = candidate.overlapping
+        ? findNearbyFreeTablePosition(
+            { ...data.table, positionX: candidate.x, positionY: candidate.y },
+            placedTables,
+            canvasWidth,
+            canvasHeight,
+          )
+        : { x: candidate.x, y: candidate.y };
+
+      if (!finalPosition) {
+        setError('Aucune place libre près de cet emplacement.');
+        return;
+      }
+
+      const before = snapshotTableGeometry(data.table);
+      const after = snapshotTableGeometry({
+        ...data.table,
+        positionX: finalPosition.x,
+        positionY: finalPosition.y,
+      });
+      recordGeometry({
+        before: { tables: [before], walls: [] },
+        after: { tables: [after], walls: [] },
+      });
+      setSelectedTableIds(new Set([data.table.id]));
+      setLastSelectedTableId(data.table.id);
+      setSelectedWallId(null);
+      setFloorPlan((prev) =>
+        prev ? replaceTablePosition(prev, data.table.id, finalPosition.x, finalPosition.y) : prev,
+      );
+      try {
+        setError('');
+        const updated = await patch<FloorPlanTable>(
+          `restaurants/${orgId}/floor-plan/tables/${data.table.id}`,
+          {
+            positionX: finalPosition.x,
+            positionY: finalPosition.y,
+            ...(floorPlanId ? { floorPlanId } : {}),
+          },
+        );
+        const positionX = updated.positionX ?? finalPosition.x;
+        const positionY = updated.positionY ?? finalPosition.y;
+        setFloorPlan((prev) =>
+          prev ? replaceTablePosition(prev, data.table.id, positionX, positionY) : prev,
+        );
+      } catch (err) {
+        setError(getErrorMessage(err, 'Impossible de placer la table'));
+        setFloorPlan((prev) =>
+          prev
+            ? replaceTablePosition(prev, data.table.id, data.table.positionX, data.table.positionY)
+            : prev,
         );
       }
       return;
@@ -5994,7 +6133,6 @@ export function FloorPlanCanvas({
         before: { tables: [before], walls: [] },
         after: { tables: [after], walls: [] },
       });
-      setPlanSaved(false);
       setSelectedTableIds(new Set([data.table.id]));
       setLastSelectedTableId(data.table.id);
       setSelectedWallId(null);
@@ -6085,12 +6223,33 @@ export function FloorPlanCanvas({
       let dropY = Math.round((finalClientY - rect.top) / zoom / grid) * grid;
 
       if (data.kind === 'table') {
-        const { width, height } = getTableSize({
+        const table = {
+          id: 'palette-new-table',
+          name: 'Table',
           capacity: data.capacity,
+          minCapacity: 1,
+          isActive: true,
+          positionX: null,
+          positionY: null,
+          width: null,
+          height: null,
+          rotation: 0,
           shape: data.shape,
-        } as FloorPlanTable);
-        const positionX = Math.max(0, Math.min(canvasWidth - width, dropX - width / 2));
-        const positionY = Math.max(0, Math.min(canvasHeight - height, dropY - height / 2));
+        } satisfies FloorPlanTable;
+        const candidate = resolvePaletteTableDropPosition(table, pointerStart, event.delta);
+        if (!candidate) return;
+        const finalPosition = candidate.overlapping
+          ? findNearbyFreeTablePosition(
+              { ...table, positionX: candidate.x, positionY: candidate.y },
+              placedTables,
+              canvasWidth,
+              canvasHeight,
+            )
+          : { x: candidate.x, y: candidate.y };
+        if (!finalPosition) {
+          setError('Aucune place libre près de cet emplacement.');
+          return;
+        }
         const numericTableNames = allTables
           .map((table) => Number(table.name.match(/^T(\d+)$/i)?.[1] ?? 0))
           .filter((value) => value > 0);
@@ -6101,8 +6260,8 @@ export function FloorPlanCanvas({
           const created = await post<FloorPlanTable>(`restaurants/${orgId}/floor-plan/tables`, {
             sectionId: null,
             minCapacity: 1,
-            positionX,
-            positionY,
+            positionX: finalPosition.x,
+            positionY: finalPosition.y,
             capacity: data.capacity,
             shape: data.shape,
             name,
@@ -6195,7 +6354,21 @@ export function FloorPlanCanvas({
     const pointerStart = pointerStartRef.current;
 
     if (data?.kind === 'existingTable' && dragStart) {
-      const nextGuides = resolveTableDragPosition(dragStart, event.delta).guides;
+      const nextPosition = resolveTableDragPosition(dragStart, event.delta);
+      const nextGuides = nextPosition.guides;
+      setTableDragPreview({
+        ...nextPosition,
+        chairConflict: nextPosition.blocker
+          ? undefined
+          : findOverlappingTableChairs(
+              {
+                ...dragStart.table,
+                positionX: nextPosition.positionX,
+                positionY: nextPosition.positionY,
+              },
+              placedTables,
+            ),
+      });
       setTableAlignGuides((current) => {
         const sameGuide = (a: TableAlignmentGuide | null, b: TableAlignmentGuide | null) =>
           a?.value === b?.value && a?.position === b?.position;
@@ -6207,6 +6380,27 @@ export function FloorPlanCanvas({
       return;
     }
 
+    if ((data?.kind === 'table' || data?.kind === 'placeTable') && pointerStart) {
+      const table =
+        data.kind === 'placeTable'
+          ? data.table
+          : {
+              id: 'palette-new-table',
+              capacity: data.capacity,
+              shape: data.shape,
+              width: null,
+              height: null,
+              rotation: 0,
+            };
+      setTableDropOverlapping(
+        resolvePaletteTableDropPosition(table, pointerStart, event.delta)?.overlapping ?? false,
+      );
+      setTableAlignGuides(emptyTableAlignmentGuides());
+      if (wallAlignGuide) setWallAlignGuide(null);
+      return;
+    }
+
+    setTableDropOverlapping(false);
     setTableAlignGuides((current) =>
       current.x || current.y ? emptyTableAlignmentGuides() : current,
     );
@@ -6317,27 +6511,6 @@ export function FloorPlanCanvas({
                 <SelectContent>
                   <SelectItem value="rect">Rectangle</SelectItem>
                   <SelectItem value="round">Rond</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="table-section">Section</Label>
-              <Select
-                value={form.sectionId || '_none_'}
-                onValueChange={(value) =>
-                  setForm((f) => ({ ...f, sectionId: value === '_none_' ? '' : value }))
-                }
-              >
-                <SelectTrigger id="table-section" className="bg-card border-border">
-                  <SelectValue placeholder="Section" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none_">Aucune section</SelectItem>
-                  {(floorPlan?.sections ?? []).map((section) => (
-                    <SelectItem key={section.id} value={section.id}>
-                      {section.name}
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -6590,30 +6763,6 @@ export function FloorPlanCanvas({
               />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bulk-table-section">Section (optionnel)</Label>
-            <Select
-              value={bulkCreateForm.sectionId || '_none_'}
-              onValueChange={(value) =>
-                setBulkCreateForm((form) => ({
-                  ...form,
-                  sectionId: value === '_none_' ? '' : value,
-                }))
-              }
-            >
-              <SelectTrigger id="bulk-table-section" className="bg-background">
-                <SelectValue placeholder="Aucune section" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none_">Aucune section</SelectItem>
-                {(floorPlan?.sections ?? []).map((section) => (
-                  <SelectItem key={section.id} value={section.id}>
-                    {section.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </form>
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -6632,123 +6781,80 @@ export function FloorPlanCanvas({
     <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {duplicateForm.mode === 'row' ? 'Dupliquer en rangée' : 'Dupliquer en grille'}
-          </DialogTitle>
+          <DialogTitle>Dupliquer en rangée</DialogTitle>
           <DialogDescription>
-            {duplicateForm.mode === 'row'
-              ? 'Créez plusieurs copies alignées avec le même espacement.'
-              : 'Créez une grille à partir de la table sélectionnée.'}
+            Créez plusieurs copies alignées avec le même espacement.
           </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4">
-          {duplicateForm.mode === 'row' ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="duplicate-count">Nombre total de tables</Label>
-                <Input
-                  id="duplicate-count"
-                  type="number"
-                  min={2}
-                  max={50}
-                  value={duplicateForm.count}
-                  onChange={(e) =>
-                    setDuplicateForm((f) => ({ ...f, count: Number(e.target.value) || 1 }))
-                  }
-                  className="bg-card border-border"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duplicate-spacing">Espacement (px)</Label>
-                <Input
-                  id="duplicate-spacing"
-                  type="number"
-                  min={0}
-                  value={duplicateForm.spacing}
-                  onChange={(e) =>
-                    setDuplicateForm((f) => ({ ...f, spacing: Number(e.target.value) || 0 }))
-                  }
-                  className="bg-card border-border"
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="duplicate-cols">Colonnes</Label>
-                  <Input
-                    id="duplicate-cols"
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={duplicateForm.cols}
-                    onChange={(e) =>
-                      setDuplicateForm((f) => ({ ...f, cols: Number(e.target.value) || 1 }))
-                    }
-                    className="bg-card border-border"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duplicate-rows">Rangées</Label>
-                  <Input
-                    id="duplicate-rows"
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={duplicateForm.rows}
-                    onChange={(e) =>
-                      setDuplicateForm((f) => ({ ...f, rows: Number(e.target.value) || 1 }))
-                    }
-                    className="bg-card border-border"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="duplicate-spacing-x">Espacement X (px)</Label>
-                  <Input
-                    id="duplicate-spacing-x"
-                    type="number"
-                    min={0}
-                    value={duplicateForm.spacing}
-                    onChange={(e) =>
-                      setDuplicateForm((f) => ({ ...f, spacing: Number(e.target.value) || 0 }))
-                    }
-                    className="bg-card border-border"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duplicate-spacing-y">Espacement Y (px)</Label>
-                  <Input
-                    id="duplicate-spacing-y"
-                    type="number"
-                    min={0}
-                    value={duplicateForm.spacingY}
-                    onChange={(e) =>
-                      setDuplicateForm((f) => ({ ...f, spacingY: Number(e.target.value) || 0 }))
-                    }
-                    className="bg-card border-border"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+          <div className="space-y-2">
+            <Label htmlFor="duplicate-count">Nombre total de tables</Label>
+            <Input
+              id="duplicate-count"
+              type="number"
+              min={2}
+              max={50}
+              value={duplicateForm.count}
+              onChange={(e) =>
+                setDuplicateForm((f) => ({ ...f, count: Number(e.target.value) || 1 }))
+              }
+              className="bg-card border-border"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="duplicate-spacing">Espacement (cm)</Label>
+            <Input
+              id="duplicate-spacing"
+              type="number"
+              min={0}
+              value={duplicateForm.spacing}
+              onChange={(e) =>
+                setDuplicateForm((f) => ({ ...f, spacing: Number(e.target.value) || 0 }))
+              }
+              className="bg-card border-border"
+            />
+          </div>
+          {rowSource && rowSize ? (
+            <figure className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+              <figcaption className="text-sm font-medium">Aperçu de la rangée</figcaption>
+              {rowPositions.length > 0 ? (
+                <svg
+                  role="img"
+                  aria-label={`${rowCount} tables, dont ${rowSource.name}`}
+                  className="h-16 w-full text-primary"
+                  viewBox={`0 0 ${rowCount * rowSize.width + (rowCount - 1) * rowSpacing} ${rowSize.height}`}
+                >
+                  {[rowSource.positionX!, ...rowPositions.map(({ x }) => x)].map((x, index) => (
+                    <rect
+                      key={x}
+                      x={x - rowSource.positionX!}
+                      y={0}
+                      width={rowSize.width}
+                      height={rowSize.height}
+                      rx={rowSource.shape === 'round' ? rowSize.height / 2 : 8}
+                      fill="currentColor"
+                      opacity={index === 0 ? 1 : 0.35}
+                    />
+                  ))}
+                </svg>
+              ) : null}
+              {!rowFits ? (
+                <p role="status" className="text-sm text-destructive">
+                  {rowPositions.length === 0
+                    ? 'Indiquez un nombre de 2 à 50 tables et un espacement entier.'
+                    : 'La rangée ne tient pas à droite de cette table. Réduisez le nombre de tables ou l’espacement.'}
+                </p>
+              ) : null}
+            </figure>
+          ) : null}
         </form>
 
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" type="button" onClick={() => setDuplicateDialogOpen(false)}>
             Annuler
           </Button>
-          <Button
-            type="button"
-            onClick={() =>
-              void (duplicateForm.mode === 'row'
-                ? duplicateSelectedAsRow()
-                : duplicateSelectedAsGrid())
-            }
-          >
+          <Button type="button" disabled={!rowFits} onClick={() => void duplicateSelectedAsRow()}>
             Dupliquer
           </Button>
         </DialogFooter>
@@ -6770,6 +6876,423 @@ export function FloorPlanCanvas({
     ? tableStatuses.get(selectedServiceTable.id)
     : undefined;
   const selectedServiceReservation = selectedServiceStatus?.reservation ?? null;
+  const unassignedReservations = useMemo(
+    () =>
+      (loadedLiveDate === liveDate ? reservations : [])
+        .filter(
+          (reservation) =>
+            !reservation.tableId && ['PENDING', 'CONFIRMED'].includes(reservation.state),
+        )
+        .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)),
+    [liveDate, loadedLiveDate, reservations],
+  );
+  const selectedUnassignedReservation = unassignedPlacement.reservationId
+    ? (unassignedReservations.find(
+        (reservation) => reservation.id === unassignedPlacement.reservationId,
+      ) ?? null)
+    : null;
+  const unassignedAssignmentTable = unassignedPlacement.targetTableId
+    ? (allTables.find((table) => table.id === unassignedPlacement.targetTableId) ?? null)
+    : null;
+  const compatibleUnassignedReservations =
+    serviceIsToday &&
+    selectedServiceTable &&
+    selectedServiceStatus?.status === 'free' &&
+    !selectedServiceReservation
+      ? unassignedReservations.filter(
+          (reservation) => reservation.partySize <= selectedServiceTable.capacity,
+        )
+      : [];
+
+  async function loadUnassignedSuggestions(reservation: PlanningReservation) {
+    setUnassignedPlacement((current) => ({ ...current, loading: true, message: null }));
+    try {
+      const query = floorPlanId ? `?floorPlanId=${floorPlanId}` : '';
+      const result = await getRef.current<{
+        suggestions?: TableSuggestion[];
+        reason?: string;
+      }>(`restaurants/${orgId}/floor-plan/reservations/${reservation.id}/suggest-table${query}`);
+      const suggestions = (result.suggestions ?? []).filter((suggestion) =>
+        placedTables.some((table) => table.id === suggestion.tableId),
+      );
+      setUnassignedPlacement((current) =>
+        current.reservationId === reservation.id
+          ? {
+              ...current,
+              suggestions,
+              loading: false,
+              message: suggestions.length ? null : result.reason || 'Aucune table disponible',
+            }
+          : current,
+      );
+    } catch (err) {
+      setUnassignedPlacement((current) =>
+        current.reservationId === reservation.id
+          ? {
+              ...current,
+              loading: false,
+              message: getErrorMessage(err, 'Impossible de suggérer une table'),
+            }
+          : current,
+      );
+    }
+  }
+
+  function startUnassignedPlacement(
+    reservation: PlanningReservation,
+    targetTableId: string | null = null,
+  ) {
+    setUnassignedPanelOpen(true);
+    setUnassignedPlacement({
+      reservationId: reservation.id,
+      suggestions: [],
+      targetTableId,
+      message: null,
+      loading: false,
+    });
+    if (reservation.state !== 'PENDING' && !targetTableId) {
+      void loadUnassignedSuggestions(reservation);
+    }
+  }
+
+  async function confirmUnassignedReservation() {
+    if (!orgId || !selectedUnassignedReservation) return;
+    const reservation = selectedUnassignedReservation;
+    setUnassignedPlacement((current) => ({ ...current, loading: true, message: null }));
+    try {
+      await patchRef.current<void>(`reservations/${reservation.id}`, { status: 'CONFIRMED' });
+      setReservations((current) =>
+        current.map((item) =>
+          item.id === reservation.id ? { ...item, state: 'CONFIRMED' } : item,
+        ),
+      );
+      setUnassignedPlacement((current) => ({ ...current, loading: false, message: null }));
+      if (!unassignedPlacement.targetTableId) {
+        await loadUnassignedSuggestions({ ...reservation, state: 'CONFIRMED' });
+      }
+      await loadReservations({ force: true });
+    } catch (err) {
+      setUnassignedPlacement((current) => ({
+        ...current,
+        loading: false,
+        message: getErrorMessage(err, 'Impossible de confirmer cette réservation'),
+      }));
+    }
+  }
+
+  async function confirmUnassignedAssignment() {
+    if (!selectedUnassignedReservation || !unassignedAssignmentTable) return;
+    const assigned = await assignTable(
+      selectedUnassignedReservation.id,
+      unassignedAssignmentTable.id,
+    );
+    if (!assigned) return;
+    setUnassignedPlacement({
+      reservationId: null,
+      suggestions: [],
+      targetTableId: null,
+      message: null,
+      loading: false,
+    });
+    setUnassignedPanelOpen(false);
+    setSelectedServiceTableId(unassignedAssignmentTable.id);
+  }
+
+  function clearUnassignedPlacement() {
+    setUnassignedPlacement({
+      reservationId: null,
+      suggestions: [],
+      targetTableId: null,
+      message: null,
+      loading: false,
+    });
+  }
+
+  const unassignedReservationsContent = (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold">À placer</p>
+            <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5 text-[10px]">
+              {unassignedReservations.length}
+            </Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {unassignedReservations[0]
+              ? `Prochaine arrivée · ${format(parseISO(unassignedReservations[0].startsAt), 'HH:mm')}`
+              : 'Réservations sans table'}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="size-8 shrink-0 rounded-full p-0 transition-all duration-200"
+          aria-label="Fermer les réservations à placer"
+          onClick={() => {
+            setUnassignedPanelOpen(false);
+            setSelectedServiceTableId(null);
+            clearUnassignedPlacement();
+          }}
+        >
+          <X size={16} />
+        </Button>
+      </div>
+      {unassignedReservations.length ? (
+        <ul className="-mx-1 divide-y divide-border/70 pr-1">
+          {unassignedReservations.map((reservation) => {
+            const customerName = reservation.customerName || 'Sans nom';
+            const startsAt = format(parseISO(reservation.startsAt), 'HH:mm');
+
+            return (
+              <li key={reservation.id}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Choisir une table pour ${customerName}, ${startsAt}, ${reservation.partySize} couverts`}
+                  className="group h-auto min-h-12 w-full justify-between gap-2 whitespace-normal rounded-lg px-1.5 py-2 text-left font-normal text-foreground transition-all duration-200 hover:bg-muted/50 hover:text-foreground"
+                  onClick={() => startUnassignedPlacement(reservation)}
+                >
+                  <span className="flex min-w-0 flex-1 items-center gap-3">
+                    <time
+                      dateTime={reservation.startsAt}
+                      className="w-11 shrink-0 text-xs font-semibold tabular-nums text-foreground"
+                    >
+                      {startsAt}
+                    </time>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">{customerName}</span>
+                        {reservation.state === 'PENDING' ? (
+                          <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
+                            À confirmer
+                          </Badge>
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users size={12} aria-hidden="true" />
+                        {reservation.partySize} couverts
+                        {reservation.state === 'PENDING' ? (
+                          <span className="ml-1 text-warning">· À confirmer</span>
+                        ) : null}
+                      </span>
+                    </span>
+                  </span>
+                  <ChevronRight
+                    size={15}
+                    aria-hidden="true"
+                    className="shrink-0 text-muted-foreground/60 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground"
+                  />
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p
+          role="status"
+          className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground"
+        >
+          Toutes les réservations sans table ont été traitées.
+        </p>
+      )}
+    </div>
+  );
+
+  const unassignedPlacementContent = selectedUnassignedReservation ? (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 gap-1 px-2 text-xs transition-all duration-200"
+          aria-label="Retour à la liste des réservations"
+          onClick={() => {
+            setSelectedServiceTableId(null);
+            clearUnassignedPlacement();
+            setUnassignedPanelOpen(true);
+          }}
+        >
+          <ChevronLeft size={14} />À placer
+        </Button>
+        <p className="min-w-0 flex-1 truncate text-right text-sm font-semibold">
+          Choisir une table
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="size-8 shrink-0 rounded-full p-0 transition-all duration-200"
+          aria-label="Fermer le placement de réservation"
+          onClick={() => {
+            setUnassignedPanelOpen(false);
+            clearUnassignedPlacement();
+          }}
+        >
+          <X size={16} />
+        </Button>
+      </div>
+
+      <div className="rounded-lg border border-border bg-background p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">
+              {selectedUnassignedReservation.customerName || 'Sans nom'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {format(parseISO(selectedUnassignedReservation.startsAt), 'HH:mm')} ·{' '}
+              {selectedUnassignedReservation.partySize} couverts
+            </p>
+          </div>
+          <Badge variant="outline" className="shrink-0">
+            {selectedUnassignedReservation.state === 'PENDING' ? 'À confirmer' : 'Confirmée'}
+          </Badge>
+        </div>
+      </div>
+
+      {selectedUnassignedReservation.state === 'PENDING' ? (
+        <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+          <p className="text-xs text-foreground">
+            Cette réservation n’est pas encore confirmée. Confirmez-la avant de lui attribuer une
+            table.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full transition-all duration-200"
+            disabled={unassignedPlacement.loading}
+            onClick={() => void confirmUnassignedReservation()}
+          >
+            {unassignedPlacement.loading ? 'Confirmation…' : 'Confirmer la réservation'}
+          </Button>
+        </div>
+      ) : null}
+
+      {selectedUnassignedReservation.state === 'CONFIRMED' && !unassignedPlacement.targetTableId ? (
+        <div className="space-y-2">
+          <p role="status" className="text-xs text-muted-foreground">
+            {unassignedPlacement.loading
+              ? 'Recherche des tables compatibles…'
+              : unassignedPlacement.suggestions.length
+                ? 'Choisissez sur le plan ou parmi ces tables.'
+                : (unassignedPlacement.message ?? 'Aucune table compatible disponible.')}
+          </p>
+          {unassignedPlacement.suggestions.map((suggestion, index) => (
+            <Button
+              key={suggestion.tableId}
+              type="button"
+              variant="outline"
+              className={cn(
+                'h-auto w-full justify-between gap-2 rounded-lg py-2.5 text-left transition-all duration-200',
+                index === 0 &&
+                  'border-success/30 bg-success/5 hover:border-success/50 hover:bg-success/10',
+              )}
+              onClick={() =>
+                setUnassignedPlacement((current) => ({
+                  ...current,
+                  targetTableId: suggestion.tableId,
+                  message: null,
+                }))
+              }
+            >
+              <span>
+                {suggestion.name} · {suggestion.capacity} places
+              </span>
+              <span
+                className={cn(
+                  'shrink-0 text-xs font-medium',
+                  index === 0 ? 'text-success' : 'text-muted-foreground',
+                )}
+              >
+                {index === 0 ? 'Recommandée' : 'Compatible'}
+              </span>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
+      {unassignedPlacement.targetTableId ? (
+        <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+          <p className="text-xs text-muted-foreground">Table choisie</p>
+          <p className="text-sm font-semibold">
+            {unassignedAssignmentTable?.displayName ??
+              unassignedAssignmentTable?.name ??
+              'Table indisponible'}
+            {unassignedAssignmentTable ? ` · ${unassignedAssignmentTable.capacity} places` : ''}
+          </p>
+          {selectedUnassignedReservation.state === 'CONFIRMED' ? (
+            <Button
+              type="button"
+              className="w-full transition-all duration-200"
+              disabled={!unassignedAssignmentTable}
+              onClick={() => void confirmUnassignedAssignment()}
+            >
+              Confirmer l’attribution
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full transition-all duration-200"
+            onClick={() => {
+              setUnassignedPlacement((current) => ({ ...current, targetTableId: null }));
+              if (!unassignedPlacement.suggestions.length) {
+                void loadUnassignedSuggestions(selectedUnassignedReservation);
+              }
+            }}
+          >
+            Choisir une autre table
+          </Button>
+        </div>
+      ) : null}
+
+      {unassignedPlacement.message && selectedUnassignedReservation.state === 'PENDING' ? (
+        <p role="alert" className="text-xs text-destructive">
+          {unassignedPlacement.message}
+        </p>
+      ) : null}
+    </div>
+  ) : null;
+
+  const compatibleUnassignedReservationsContent = compatibleUnassignedReservations.length ? (
+    <div className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs font-semibold">Réservations adaptées à la capacité</p>
+      <ul className="max-h-40 space-y-2 overflow-y-auto pr-1">
+        {compatibleUnassignedReservations.map((reservation) => (
+          <li
+            key={reservation.id}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium">
+                {reservation.customerName || 'Sans nom'}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {format(parseISO(reservation.startsAt), 'HH:mm')} · {reservation.partySize} pers.
+                {reservation.state === 'PENDING' ? ' · À confirmer' : ''}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="shrink-0 transition-all duration-200"
+              onClick={() => {
+                if (selectedServiceTable) {
+                  startUnassignedPlacement(reservation, selectedServiceTable.id);
+                }
+              }}
+            >
+              Choisir
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
 
   useEffect(() => {
     setMobileServiceDetailsOpen(false);
@@ -6784,13 +7307,15 @@ export function FloorPlanCanvas({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 gap-1 px-2 text-xs"
+          className="h-8 w-8 p-0 transition-all duration-200"
           aria-label="Légende des statuts"
+          title="Aide du plan"
         >
-          Légende <ChevronDown size={14} aria-hidden="true" />
+          <CircleHelp size={15} aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72 space-y-3 p-3">
+      <DropdownMenuContent align="end" className="w-72 space-y-3 p-3">
+        <p className="text-sm font-semibold">Légende</p>
         <div className="grid grid-cols-2 gap-3">
           {(['free', 'reserved', 'upcoming', 'late', 'occupied'] as TableStatus[]).map((status) => (
             <div key={status} className="flex items-center gap-2 text-xs text-foreground">
@@ -6807,153 +7332,171 @@ export function FloorPlanCanvas({
           imminente dans les 30 minutes. Les réservations sans table affectée ne sont pas comptées
           ici.
         </p>
-        <p className="flex items-center gap-2 text-xs text-foreground/80">
-          <Link2 size={14} aria-hidden="true" /> Peut être combinée avec d’autres tables
-        </p>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 
   const mobileServiceInspector =
-    live && serviceTab === 'plan' && selectedServiceTable ? (
+    live && serviceTab === 'plan' && (selectedServiceTable || unassignedPanelOpen) ? (
       <aside
         role="dialog"
-        aria-label={`Actions pour ${selectedServiceTable.displayName ?? selectedServiceTable.name}`}
+        aria-label={
+          selectedUnassignedReservation
+            ? `Placement de ${selectedUnassignedReservation.customerName || 'la réservation'}`
+            : selectedServiceTable
+              ? `Actions pour ${selectedServiceTable.displayName ?? selectedServiceTable.name}`
+              : 'Réservations à placer'
+        }
         className="floor-plan-mobile-service-sheet pointer-events-auto max-h-[18rem] overflow-y-auto rounded-2xl border border-border bg-card/95 p-3 shadow-2xl backdrop-blur-md lg:hidden"
       >
         <div
           className="mx-auto mb-2 h-1 w-10 rounded-full bg-muted-foreground/25"
           aria-hidden="true"
         />
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {selectedServiceTable.displayName ?? selectedServiceTable.name}
-              <span className="font-normal text-muted-foreground">
-                {' · '}
-                {selectedServiceTable.capacity} places
-              </span>
-            </p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <span
-                aria-hidden="true"
-                className={cn('size-1.5 shrink-0 rounded-full', selectedServiceStatusDotClass)}
-              />
-              {selectedServiceStatus
-                ? statusMeta[selectedServiceStatus.status].label
-                : 'Disponible'}
-            </p>
-            {combinableTableIds.has(selectedServiceTable.id) ? (
-              <p className="mt-1 text-xs text-foreground">
-                Peut être combinée avec d’autres tables
-              </p>
-            ) : null}
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="size-8 shrink-0 rounded-full p-0 text-muted-foreground transition-all duration-200 hover:text-foreground"
-            aria-label="Fermer les actions de la table"
-            onClick={() => setSelectedServiceTableId(null)}
-          >
-            <X size={16} />
-          </Button>
-        </div>
-
-        {selectedServiceReservation ? (
-          <div className="mt-2 space-y-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex min-w-0 items-center gap-1.5">
-                <UserRound size={13} aria-hidden="true" />
-                <span className="truncate">
-                  {selectedServiceReservation.customerName || 'Sans nom'} ·{' '}
-                  {selectedServiceReservation.partySize} pers.
-                </span>
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Clock3 size={13} aria-hidden="true" />
-                {format(parseISO(selectedServiceReservation.startsAt), 'HH:mm')}
-              </span>
-            </div>
-            <ServiceCardBadges reservationId={selectedServiceReservation.id} state={serviceCards} />
-            {selectedServiceReservation.state === 'SEATED' &&
-              selectedServiceReservation.seatedAt && (
-                <p className="flex items-center gap-1 text-[11px] font-medium text-foreground">
-                  <Clock3 size={11} aria-hidden="true" />
-                  <span>
-                    À table depuis{' '}
-                    {formatDistanceToNow(parseISO(selectedServiceReservation.seatedAt), {
-                      locale: fr,
-                      addSuffix: true,
-                    })}
+        {selectedUnassignedReservation ? (
+          unassignedPlacementContent
+        ) : unassignedPanelOpen && !selectedServiceTable ? (
+          unassignedReservationsContent
+        ) : selectedServiceTable ? (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {selectedServiceTable.displayName ?? selectedServiceTable.name}
+                  <span className="font-normal text-muted-foreground">
+                    {' · '}
+                    {selectedServiceTable.capacity} places
                   </span>
                 </p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <span
+                    aria-hidden="true"
+                    className={cn('size-1.5 shrink-0 rounded-full', selectedServiceStatusDotClass)}
+                  />
+                  {selectedServiceStatus
+                    ? statusMeta[selectedServiceStatus.status].label
+                    : 'Disponible'}
+                </p>
+                {combinableTableIds.has(selectedServiceTable.id) ? (
+                  <p className="mt-1 text-xs text-foreground">
+                    Peut être combinée avec d’autres tables
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-8 shrink-0 rounded-full p-0 text-muted-foreground transition-all duration-200 hover:text-foreground"
+                aria-label="Fermer les actions de la table"
+                onClick={() => setSelectedServiceTableId(null)}
+              >
+                <X size={16} />
+              </Button>
+            </div>
+
+            {selectedServiceReservation ? (
+              <div className="mt-2 space-y-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <UserRound size={13} aria-hidden="true" />
+                    <span className="truncate">
+                      {selectedServiceReservation.customerName || 'Sans nom'} ·{' '}
+                      {selectedServiceReservation.partySize} pers.
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock3 size={13} aria-hidden="true" />
+                    {format(parseISO(selectedServiceReservation.startsAt), 'HH:mm')}
+                  </span>
+                </div>
+                <ServiceCardBadges
+                  reservationId={selectedServiceReservation.id}
+                  state={serviceCards}
+                />
+                {selectedServiceReservation.state === 'SEATED' &&
+                  selectedServiceReservation.seatedAt && (
+                    <p className="flex items-center gap-1 text-[11px] font-medium text-foreground">
+                      <Clock3 size={11} aria-hidden="true" />
+                      <span>
+                        À table depuis{' '}
+                        {formatDistanceToNow(parseISO(selectedServiceReservation.seatedAt), {
+                          locale: fr,
+                          addSuffix: true,
+                        })}
+                      </span>
+                    </p>
+                  )}
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex gap-2">
+              {selectedServiceReservation ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 min-w-0 flex-1 transition-all duration-200"
+                  disabled={updatingReservationStateId === selectedServiceReservation.id}
+                  onClick={() =>
+                    void updateReservationState(
+                      selectedServiceReservation.id,
+                      selectedServiceReservation.state === 'SEATED' ? 'HONORED' : 'SEATED',
+                    )
+                  }
+                >
+                  {selectedServiceReservation.state === 'SEATED' ? 'Libérer la table' : 'Installer'}
+                </Button>
+              ) : (
+                <WalkInPlacement
+                  key={selectedServiceTable.id}
+                  table={{
+                    id: selectedServiceTable.id,
+                    name: selectedServiceTable.displayName ?? selectedServiceTable.name,
+                    capacity: selectedServiceTable.capacity,
+                  }}
+                  onPlace={(partySize, name) =>
+                    createWalkIn(selectedServiceTable.id, partySize, name)
+                  }
+                />
               )}
-          </div>
-        ) : null}
-
-        <div className="mt-3 flex gap-2">
-          {selectedServiceReservation ? (
-            <Button
-              type="button"
-              size="sm"
-              className="h-10 min-w-0 flex-1 transition-all duration-200"
-              disabled={updatingReservationStateId === selectedServiceReservation.id}
-              onClick={() =>
-                void updateReservationState(
-                  selectedServiceReservation.id,
-                  selectedServiceReservation.state === 'SEATED' ? 'HONORED' : 'SEATED',
-                )
-              }
-            >
-              {selectedServiceReservation.state === 'SEATED' ? 'Libérer la table' : 'Installer'}
-            </Button>
-          ) : (
-            <WalkInPlacement
-              key={selectedServiceTable.id}
-              table={{
-                id: selectedServiceTable.id,
-                name: selectedServiceTable.displayName ?? selectedServiceTable.name,
-                capacity: selectedServiceTable.capacity,
-              }}
-              onPlace={(partySize, name) => createWalkIn(selectedServiceTable.id, partySize, name)}
-            />
-          )}
-          {selectedServiceReservation ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-10 min-w-0 flex-1 transition-all duration-200"
-              disabled={!selectedServiceReservation}
-              aria-expanded={Boolean(selectedServiceReservation && mobileServiceDetailsOpen)}
-              onClick={() => setMobileServiceDetailsOpen((open) => !open)}
-            >
-              Voir la réservation
-            </Button>
-          ) : null}
-        </div>
-
-        {selectedServiceReservation && mobileServiceDetailsOpen ? (
-          <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-background/70 p-3 text-xs">
-            <div>
-              <p className="text-muted-foreground">Arrivée</p>
-              <p className="mt-0.5 font-medium text-foreground">
-                {format(parseISO(selectedServiceReservation.startsAt), 'HH:mm')}
-              </p>
+              {selectedServiceReservation ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-10 min-w-0 flex-1 transition-all duration-200"
+                  disabled={!selectedServiceReservation}
+                  aria-expanded={Boolean(selectedServiceReservation && mobileServiceDetailsOpen)}
+                  onClick={() => setMobileServiceDetailsOpen((open) => !open)}
+                >
+                  Voir la réservation
+                </Button>
+              ) : null}
             </div>
-            <div>
-              <p className="text-muted-foreground">Suivi</p>
-              <p className="mt-0.5 font-medium text-foreground">
-                {formatServiceTiming(
-                  selectedServiceReservation,
-                  selectedServiceStatus?.status ?? 'upcoming',
-                  new Date(),
-                )}
-              </p>
-            </div>
-          </div>
+
+            {!selectedServiceReservation ? compatibleUnassignedReservationsContent : null}
+
+            {selectedServiceReservation && mobileServiceDetailsOpen ? (
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-background/70 p-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Arrivée</p>
+                  <p className="mt-0.5 font-medium text-foreground">
+                    {format(parseISO(selectedServiceReservation.startsAt), 'HH:mm')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Suivi</p>
+                  <p className="mt-0.5 font-medium text-foreground">
+                    {formatServiceTiming(
+                      selectedServiceReservation,
+                      selectedServiceStatus?.status ?? 'upcoming',
+                      new Date(),
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </aside>
     ) : null;
@@ -6981,7 +7524,6 @@ export function FloorPlanCanvas({
                   <span className="font-normal text-muted-foreground">
                     {' · '}
                     {selectedTable.capacity} places
-                    {selectedTable.sectionName ? ` · ${selectedTable.sectionName}` : ''}
                   </span>
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -7062,6 +7604,18 @@ export function FloorPlanCanvas({
                 <Copy size={14} />
                 Dupliquer
               </Button>
+              {selectedTable.positionX !== null ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={openRowDuplicate}
+                  className="col-span-full"
+                >
+                  Dupliquer en rangée
+                </Button>
+              ) : null}
+
               <Button
                 type="button"
                 variant="outline"
@@ -7100,41 +7654,6 @@ export function FloorPlanCanvas({
                 )}
               </Button>
             </div>
-
-            <div className="flex gap-2">
-              <div className="min-w-0 flex-1">
-                <Select
-                  value={selectedTable.sectionId || '_none_'}
-                  onValueChange={(value) =>
-                    void patchTable(selectedTable.id, {
-                      sectionId: value === '_none_' ? null : value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-9 bg-background text-xs">
-                    <SelectValue placeholder="Section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none_">Aucune section</SelectItem>
-                    {(floorPlan?.sections ?? []).map((section) => (
-                      <SelectItem key={section.id} value={section.id}>
-                        {section.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 shrink-0 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
-                onClick={() => void unplaceTable(selectedTable)}
-              >
-                <Trash2 size={14} className="mr-1" />
-                Retirer
-              </Button>
-            </div>
           </div>
         ) : selectedTables.length > 1 ? (
           <div className="space-y-3">
@@ -7157,31 +7676,6 @@ export function FloorPlanCanvas({
               >
                 <X size={16} />
               </Button>
-            </div>
-
-            <div className="flex gap-2">
-              {selectedCombination ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 flex-1 gap-1.5 text-xs font-medium transition-all duration-200"
-                  onClick={() => void deleteTableCombination(selectedCombination)}
-                >
-                  <Link2 size={14} />
-                  Délier combinaison
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-9 flex-1 gap-1.5 text-xs font-medium transition-all duration-200"
-                  onClick={() => void createTableCombination()}
-                >
-                  <Link2 size={14} />
-                  Combiner les tables
-                </Button>
-              )}
             </div>
 
             <div className="flex gap-2">
@@ -7214,13 +7708,16 @@ export function FloorPlanCanvas({
   const inspector = live ? (
     <aside
       className={cn(
-        'order-3 h-auto max-h-72 w-full min-w-0 flex-col overflow-hidden border-t border-border bg-card lg:h-full lg:max-h-none lg:w-72 lg:min-w-72 lg:border-l lg:border-t-0',
-        overlayServiceInspector && 'lg:absolute lg:inset-y-0 lg:right-0 lg:z-40 lg:shadow-xl',
-        selectedServiceTable ? 'hidden lg:flex' : 'hidden',
+        'order-3 hidden h-full shrink-0 flex-col overflow-hidden bg-card motion-safe:transition-[width] motion-safe:duration-200 lg:flex',
+        selectedServiceTable || unassignedPanelOpen ? 'w-72 border-l border-border' : 'w-0',
       )}
     >
-      {selectedServiceTable ? (
-        <div className="flex-1 space-y-5 overflow-y-auto p-4">
+      {selectedUnassignedReservation ? (
+        <div className="w-72 flex-1 overflow-y-auto p-4">{unassignedPlacementContent}</div>
+      ) : unassignedPanelOpen && !selectedServiceTable ? (
+        <div className="w-72 flex-1 overflow-y-auto p-4">{unassignedReservationsContent}</div>
+      ) : selectedServiceTable ? (
+        <div className="w-72 flex-1 space-y-5 overflow-y-auto p-4">
           <div>
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -7506,6 +8003,7 @@ export function FloorPlanCanvas({
                   />
                 </div>
               ) : null}
+              {compatibleUnassignedReservationsContent}
             </div>
           )}
         </div>
@@ -7515,7 +8013,7 @@ export function FloorPlanCanvas({
     <aside
       className={cn(
         'order-3 h-auto max-h-72 w-full min-w-0 flex-col overflow-hidden border-t border-border bg-card lg:h-full lg:max-h-none lg:w-72 lg:min-w-72 lg:border-l lg:border-t-0',
-        selectedTables.length > 0 ? 'hidden lg:flex' : 'flex',
+        selectedTables.length > 0 || tablePlacementZoneId ? 'hidden lg:flex' : 'flex',
       )}
     >
       <div className="border-b border-border px-4 py-3">
@@ -7682,6 +8180,20 @@ export function FloorPlanCanvas({
         </div>
       ) : selectedZone ? (
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <Button
+            type="button"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              setTablePlacementZoneId(selectedZone.id);
+              document
+                .getElementById(`floor-plan-zone-${selectedZone.id}`)
+                ?.focus({ preventScroll: true });
+            }}
+          >
+            <Plus size={16} className="mr-1.5" />
+            Ajouter une table ici
+          </Button>
           <div className="space-y-2">
             <Label htmlFor="zone-inspector-name">Nom de la zone</Label>
             <Input
@@ -7696,32 +8208,10 @@ export function FloorPlanCanvas({
               }
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="zone-inspector-section">Section liée</Label>
-            <Select
-              value={selectedZone.sectionId ?? '_none_'}
-              onValueChange={(value) =>
-                void patchZone(selectedZone.id, {
-                  sectionId: value === '_none_' ? null : value,
-                })
-              }
-            >
-              <SelectTrigger id="zone-inspector-section" className="bg-background">
-                <SelectValue placeholder="Aucune section" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none_">Aucune section</SelectItem>
-                {(floorPlan?.sections ?? []).map((section) => (
-                  <SelectItem key={section.id} value={section.id}>
-                    {section.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
           <p className="text-xs text-muted-foreground">
-            Une zone matérialise une section de la salle. Déplacez les tables à l&apos;intérieur et
-            utilisez la poignée du coin pour l&apos;adapter au plan.
+            Une zone délimite un espace sur le plan. Utilisez la poignée du coin pour la
+            redimensionner.
           </p>
           <Button
             type="button"
@@ -7748,9 +8238,6 @@ export function FloorPlanCanvas({
                     className="bg-background"
                     onBlur={(event) => saveTableName(selectedTable, event.currentTarget.value)}
                   />
-                  {selectedTable.sectionName ? (
-                    <p className="text-xs text-muted-foreground">{selectedTable.sectionName}</p>
-                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Couverts</Label>
@@ -7820,29 +8307,7 @@ export function FloorPlanCanvas({
                   </Button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="selected-table-section">Section</Label>
-                <Select
-                  value={selectedTable.sectionId || '_none_'}
-                  onValueChange={(value) =>
-                    void patchTable(selectedTable.id, {
-                      sectionId: value === '_none_' ? null : value,
-                    })
-                  }
-                >
-                  <SelectTrigger id="selected-table-section" className="bg-background">
-                    <SelectValue placeholder="Section" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none_">Aucune section</SelectItem>
-                    {(floorPlan?.sections ?? []).map((section) => (
-                      <SelectItem key={section.id} value={section.id}>
-                        {section.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
@@ -7854,6 +8319,7 @@ export function FloorPlanCanvas({
                   <Copy size={14} className="mr-1.5" />
                   Dupliquer
                 </Button>
+
                 <Button
                   type="button"
                   variant="outline"
@@ -7869,50 +8335,18 @@ export function FloorPlanCanvas({
                   <RotateCw size={14} className="mr-1.5" />
                   Pivoter 90°
                 </Button>
+                {selectedTable.positionX !== null ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={openRowDuplicate}
+                    className="col-span-full"
+                  >
+                    Dupliquer en rangée
+                  </Button>
+                ) : null}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full justify-center transition-all duration-200"
-                onClick={() => void unplaceTable(selectedTable)}
-              >
-                Retirer du plan
-              </Button>
-            </div>
-          ) : null}
-
-          {selectedTables.length > 1 ? (
-            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <div className="flex items-start gap-2">
-                <Link2 size={15} className="mt-0.5 shrink-0 text-primary" />
-                <div>
-                  <p className="text-xs font-semibold">Tables combinables</p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Signalez que cette sélection peut accueillir un même groupe.
-                  </p>
-                </div>
-              </div>
-              {selectedCombination ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full transition-all duration-200"
-                  onClick={() => void deleteTableCombination(selectedCombination)}
-                >
-                  Retirer la combinaison
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full transition-all duration-200"
-                  onClick={() => void createTableCombination()}
-                >
-                  Marquer comme combinables
-                </Button>
-              )}
             </div>
           ) : null}
 
@@ -7958,60 +8392,19 @@ export function FloorPlanCanvas({
             </div>
           ) : null}
 
-          {selectedTables.length >= 3 ? (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Répartir
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" onClick={() => distributeSelectedTables('x')}>
-                  <AlignHorizontalJustifyCenter size={14} className="mr-1" />
-                  Horizontal
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => distributeSelectedTables('y')}>
-                  <AlignVerticalJustifyCenter size={14} className="mr-1" />
-                  Vertical
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
           {selectedTables.length > 1 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Multiplier
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setDuplicateForm((f) => ({ ...f, mode: 'row' }));
-                    setDuplicateDialogOpen(true);
-                  }}
-                >
-                  <Copy size={14} className="mr-1" />
-                  Rangée
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setDuplicateForm((f) => ({ ...f, mode: 'grid' }));
-                    setDuplicateDialogOpen(true);
-                  }}
-                >
-                  <Grid3x3 size={14} className="mr-1" />
-                  Grille
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={openRowDuplicate}>
+                <Copy size={14} className="mr-1" />
+                Rangée
+              </Button>
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-2 border-t border-border pt-4">
-            <Button variant="outline" size="sm" onClick={() => setSelectedTableIds(new Set())}>
-              Désélectionner
-            </Button>
+          <div className="border-t border-border pt-4">
             <Button variant="destructive" size="sm" onClick={() => setMultiDeleteConfirmOpen(true)}>
               <Trash2 size={14} className="mr-1" />
               Supprimer
@@ -8025,18 +8418,16 @@ export function FloorPlanCanvas({
   if (loading) {
     return (
       <>
-        <Card className="sokar-card">
+        <Card className={cn('sokar-card', live && 'flex flex-1 flex-col')}>
           <CardHeader className="p-4">
             <Skeleton className="h-6 w-32 rounded-md" />
           </CardHeader>
           <CardContent
             className={cn(
               'overflow-hidden p-0',
-              // Le squelette reprend la hauteur de la vue cible : sinon la page
-              // saute d'un cran quand le plan arrive sur téléphone.
               live
-                ? 'h-[calc(100dvh-26rem)] min-h-[18rem] md:h-[600px] md:min-h-0'
-                : 'h-[calc(100dvh-13.5rem)] min-h-[20rem] md:h-[600px] md:min-h-0',
+                ? 'min-h-56 flex-1'
+                : 'h-[calc(100dvh-17rem)] min-h-[20rem] xl:h-[calc(100dvh-13rem)] xl:min-h-0',
             )}
           >
             <Skeleton className="h-full w-full" />
@@ -8073,7 +8464,6 @@ export function FloorPlanCanvas({
   }
 
   const activeDragTable = activeDragData?.kind === 'existingTable' ? activeDragData.table : null;
-  const livePlanIsEmpty = live && serviceTab === 'plan' && placedTables.length === 0;
   const liveViewportBounds = live && serviceTab === 'plan' ? contentBounds : null;
   // En Live, le viewport est lui-même dimensionné sur la zone utile. Le canvas
   // complet est ensuite translaté sous ce cadre : les coordonnées métier restent
@@ -8087,11 +8477,18 @@ export function FloorPlanCanvas({
   // --- Cockpit de service : état, volumétrie, navigation ---------------------
   // Une seule source de vérité par information : le bandeau d'état porte le
   // statut et les actions à mener, la bande KPI ne porte que la volumétrie.
-  const serviceToday = format(new Date(), 'yyyy-MM-dd');
   // Dérivé de la date affichée uniquement : `servicePulse.isLiveDate` décrit la
   // date du dernier pulse chargé et peut donc être périmé pendant le changement
   // de jour, ce qui ferait diverger le badge du champ date.
-  const serviceIsToday = liveDate === serviceToday;
+  const serviceHeader =
+    serviceIsToday &&
+    loadedLiveDate === liveDate &&
+    !loading &&
+    !planLoadError &&
+    !reservationsError
+      ? getServiceHeader(placedTables, reservations, new Date())
+      : null;
+  const headerTarget = serviceHeader?.target;
   const serviceDateLabel = format(parseISO(liveDate), 'd MMM yyyy', { locale: fr });
   // Service vide : sans réservation ni action en attente, le cockpit complet
   // affichait deux bandes de zéros (statut + volumétrie) et un message d'état
@@ -8113,49 +8510,6 @@ export function FloorPlanCanvas({
     setLiveDate(format(addDays(parseISO(liveDate), days), 'yyyy-MM-dd'));
   }
 
-  // Navigation clavier du groupe d'onglets (flèches, Début, Fin) : sans elle,
-  // l'onglet inactif devient inatteignable au clavier à cause du tabIndex mobile.
-  function handleServiceTabKeyDown(event: React.KeyboardEvent, index: number) {
-    let nextIndex: number | null = null;
-    if (event.key === 'ArrowRight') nextIndex = (index + 1) % SERVICE_TABS.length;
-    else if (event.key === 'ArrowLeft')
-      nextIndex = (index - 1 + SERVICE_TABS.length) % SERVICE_TABS.length;
-    else if (event.key === 'Home') nextIndex = 0;
-    else if (event.key === 'End') nextIndex = SERVICE_TABS.length - 1;
-    if (nextIndex === null) return;
-    event.preventDefault();
-    const nextTab = SERVICE_TABS[nextIndex];
-    setServiceTab(nextTab.id);
-    document.getElementById(`service-tab-${nextTab.id}`)?.focus();
-  }
-
-  const serviceTablist = (
-    <div
-      role="tablist"
-      aria-label="Vue du service"
-      className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {SERVICE_TABS.map((tab, index) => (
-        <Button
-          key={tab.id}
-          type="button"
-          role="tab"
-          id={`service-tab-${tab.id}`}
-          aria-selected={serviceTab === tab.id}
-          aria-controls="service-tabpanel"
-          tabIndex={serviceTab === tab.id ? 0 : -1}
-          variant={serviceTab === tab.id ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-9 min-w-0 flex-1 rounded-lg px-2.5 text-xs transition-all duration-200 sm:flex-none sm:px-3 sm:text-sm"
-          onClick={() => setServiceTab(tab.id)}
-          onKeyDown={(event) => handleServiceTabKeyDown(event, index)}
-        >
-          {tab.label}
-        </Button>
-      ))}
-    </div>
-  );
-
   return (
     <>
       <Card
@@ -8165,6 +8519,7 @@ export function FloorPlanCanvas({
           // fond carte). Le plein écran repasse en angles droits pour ne pas laisser
           // apparaître la page dans les coins de l'écran.
           'sokar-card',
+          live && 'flex flex-1 flex-col',
           live && isFullscreen && 'rounded-none',
         )}
       >
@@ -8176,9 +8531,7 @@ export function FloorPlanCanvas({
             live ? 'gap-0 space-y-0 p-0' : 'flex flex-col gap-2 p-2.5',
           )}
         >
-          {live ? (
-            <div className="px-3 py-2 sm:px-4">{serviceTablist}</div>
-          ) : (
+          {!live ? (
             <div className="flex min-w-0 items-center justify-between gap-2 overflow-hidden sm:justify-start sm:overflow-x-auto">
               <Button
                 type="button"
@@ -8341,41 +8694,56 @@ export function FloorPlanCanvas({
                   <Redo2 size={16} />
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant={planSaved ? 'outline' : 'default'}
-                size="sm"
-                className="ml-0 h-11 min-w-[6.5rem] shrink-0 justify-center gap-1 rounded-xl px-2 text-xs shadow-sm transition-all duration-200 sm:ml-auto sm:h-9 sm:gap-2 sm:px-3 sm:text-sm"
-                disabled={savingPlan}
-                onClick={() => void savePlan()}
-                aria-label="Enregistrer le plan"
-              >
-                {planSaved ? <Check size={16} /> : <Save size={16} />}
-                {savingPlan ? (
-                  'Enregistrement…'
-                ) : planSaved ? (
-                  <>
-                    <span className="sm:hidden">Enregistré</span>
-                    <span className="hidden sm:inline">Plan enregistré</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="sm:hidden">Enregistrer</span>
-                    <span className="hidden sm:inline">Enregistrer</span>
-                  </>
-                )}
-              </Button>
+              {planWriteStatus ? (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className="ml-0 flex min-h-9 shrink-0 items-center sm:ml-auto"
+                >
+                  {planWriteStatus === 'error' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 gap-1.5 px-2 text-xs text-destructive transition-all duration-200"
+                      disabled={retryingPlanWrites}
+                      aria-busy={retryingPlanWrites}
+                      onClick={() => void retryPlanWrites()}
+                    >
+                      {retryingPlanWrites ? (
+                        <RotateCw size={14} className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <AlertCircle size={14} aria-hidden="true" />
+                      )}
+                      {retryingPlanWrites ? 'Nouvel essai…' : 'Échec · Réessayer'}
+                    </Button>
+                  ) : (
+                    <span
+                      className={cn(
+                        'inline-flex items-center gap-1.5 px-2 text-xs',
+                        planWriteStatus === 'saved' ? 'text-success' : 'text-muted-foreground',
+                      )}
+                    >
+                      {planWriteStatus === 'saved' ? (
+                        <CircleCheck size={14} aria-hidden="true" />
+                      ) : (
+                        <RotateCw size={14} className="animate-spin" aria-hidden="true" />
+                      )}
+                      {planWriteStatus === 'invalid'
+                        ? 'Modification refusée'
+                        : planWriteStatus === 'saving'
+                          ? 'Enregistrement…'
+                          : 'Enregistré'}
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </div>
-          )}
+          ) : null}
           {live ? (
             <>
-              {/* Navigation du service : jour et filtre serveur. Les onglets sont
-                  placés en tête du cockpit pour remplacer l'ancien bandeau de pouls. */}
-              <div
-                role="region"
-                aria-label="État du service"
-                className="space-y-2 border-t border-border px-3 py-2 sm:px-4"
-              >
+              <div role="region" aria-label="État du service" className="px-3 py-2 sm:px-4">
                 <div className="flex w-full flex-wrap items-center gap-2">
                   {serviceIsToday ? (
                     <span className="text-sm font-semibold">Aujourd’hui</span>
@@ -8395,13 +8763,13 @@ export function FloorPlanCanvas({
                     >
                       <ChevronLeft size={16} />
                     </Button>
-                    <div className="relative h-8 w-32 min-w-0">
+                    <div className="relative h-8 w-28 min-w-0">
                       <Input
                         type="date"
                         value={liveDate}
                         aria-label="Date du service"
                         onChange={(e) => setLiveDate(e.target.value)}
-                        className="floor-plan-service-date-input peer relative z-10 h-8 w-32 border-0 bg-transparent px-1 text-center text-sm text-transparent focus:text-foreground sm:text-foreground"
+                        className="floor-plan-service-date-input peer relative z-10 h-8 w-full border-0 bg-transparent px-1 text-center text-sm text-transparent focus:text-foreground sm:text-foreground"
                       />
                       <span
                         aria-hidden="true"
@@ -8422,24 +8790,44 @@ export function FloorPlanCanvas({
                       <ChevronRight size={16} />
                     </Button>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'h-7 gap-1.5 whitespace-nowrap px-2 text-xs sm:h-8 sm:px-2.5',
-                      serviceIsToday
-                        ? 'border-brand/40 text-brand'
-                        : 'border-border text-muted-foreground',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        serviceIsToday ? 'bg-brand' : 'bg-muted-foreground',
-                      )}
-                      aria-hidden="true"
-                    />
-                    {serviceIsToday ? 'En direct' : 'Archive'}
-                  </Badge>
+                  {serviceIsToday ? (
+                    <div className="flex min-w-0 items-center gap-2 text-xs">
+                      <span
+                        role="status"
+                        className={cn(
+                          serviceHeader?.blocked
+                            ? 'font-semibold text-foreground'
+                            : 'text-muted-foreground',
+                        )}
+                      >
+                        {serviceHeader?.blocked ? (
+                          <span
+                            className="mr-1.5 inline-block h-2 w-2 rounded-full bg-warning"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        {serviceHeader?.text ??
+                          (reservationsError || planLoadError
+                            ? 'État de la salle indisponible'
+                            : 'Chargement de la salle…')}
+                      </span>
+                      {headerTarget?.tableId && serviceHeader?.blocked ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs transition-all duration-200"
+                          onClick={() => void openHeaderAssignment(headerTarget)}
+                        >
+                          Voir les alternatives
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <Badge variant="outline" className="h-7 text-xs text-muted-foreground">
+                      Archive
+                    </Badge>
+                  )}
                   {!serviceIsToday ? (
                     <Button
                       type="button"
@@ -8451,117 +8839,128 @@ export function FloorPlanCanvas({
                       Aujourd’hui
                     </Button>
                   ) : null}
-                  {serviceTab === 'plan' && placedTables.length > 0 ? (
-                    <div role="group" aria-label="Zoom du plan" className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        aria-label="Réduire le plan"
-                        onClick={() => changeZoom(-ZOOM_STEP)}
-                      >
-                        <ZoomOut size={14} />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 transition-all duration-200"
-                        onClick={resetView}
-                      >
-                        <LocateFixed size={14} aria-hidden="true" /> Ajuster le plan
-                      </Button>
-                      <output
-                        aria-label="Niveau de zoom"
-                        className="min-w-10 text-center text-xs tabular-nums text-foreground/80"
-                      >
-                        {Math.round(zoom * 100)} %
-                      </output>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        aria-label="Agrandir le plan"
-                        onClick={() => changeZoom(ZOOM_STEP)}
-                      >
-                        <ZoomIn size={14} />
-                      </Button>
-                    </div>
-                  ) : null}
-                  {serviceIsToday && serviceTab === 'plan' && placedTables.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
+                    {copilotAllowed && serviceTab === 'plan' ? (
+                      <ServiceCopilotSimulator orgId={orgId} selectedFloorPlanId={floorPlanId} />
+                    ) : null}
+                    {serviceTab === 'plan' &&
+                    serviceIsToday &&
+                    unassignedReservations.length > 0 ? (
                       <Button
                         type="button"
                         size="sm"
-                        className="h-8 gap-1.5 transition-all duration-200"
-                        aria-expanded={showWalkInHelp}
-                        aria-controls={showWalkInHelp ? 'walk-in-help' : undefined}
-                        onClick={() => setShowWalkInHelp((open) => !open)}
+                        variant={unassignedPanelOpen ? 'secondary' : 'outline'}
+                        aria-label={`${unassignedReservations.length} réservations à placer`}
+                        aria-pressed={unassignedPanelOpen}
+                        aria-expanded={unassignedPanelOpen}
+                        className="h-8 gap-1.5 whitespace-nowrap px-2 transition-all duration-200"
+                        onClick={() => {
+                          const open = !unassignedPanelOpen;
+                          setUnassignedPanelOpen(open);
+                          setSelectedServiceTableId(null);
+                          if (!open) {
+                            setUnassignedPlacement({
+                              reservationId: null,
+                              suggestions: [],
+                              targetTableId: null,
+                              message: null,
+                              loading: false,
+                            });
+                          }
+                        }}
                       >
-                        <Users size={14} aria-hidden="true" />
-                        Choisir une table pour un client
+                        <UserRound size={14} aria-hidden="true" />À placer ·{' '}
+                        {unassignedReservations.length}
                       </Button>
-                      {showWalkInHelp ? (
-                        <div id="walk-in-help" role="status" className="text-sm text-foreground">
-                          Sélectionnez une table disponible.
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {serviceOverview}
-                  {hasServerFilter ? (
-                    <Select
-                      value={selectedServerFilter ?? '_all_'}
-                      onValueChange={(val) => setSelectedServerFilter(val === '_all_' ? null : val)}
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={serviceTab === 'waiting-list' ? 'secondary' : 'outline'}
+                      aria-label={
+                        waitingListCount > 0
+                          ? `${serviceTab === 'waiting-list' ? 'Retour au plan' : "Liste d'attente"}, ${waitingListCount} client${waitingListCount > 1 ? 's' : ''} en attente`
+                          : serviceTab === 'waiting-list'
+                            ? 'Retour au plan'
+                            : "Liste d'attente"
+                      }
+                      aria-pressed={serviceTab === 'waiting-list'}
+                      aria-controls="service-content"
+                      title={
+                        waitingListCount > 0
+                          ? `${waitingListCount} client${waitingListCount > 1 ? 's' : ''} en attente`
+                          : serviceTab === 'waiting-list'
+                            ? 'Retour au plan'
+                            : 'Liste d’attente'
+                      }
+                      className="relative h-8 w-8 shrink-0 p-0 transition-all duration-200"
+                      onClick={() => setServiceTab(serviceTab === 'plan' ? 'waiting-list' : 'plan')}
                     >
-                      <SelectTrigger
-                        aria-label="Filtrer par serveur"
-                        title="Filtrer par serveur"
-                        className="h-8 w-9 justify-center gap-1 border-border bg-background px-0 text-xs font-medium xl:w-auto xl:justify-start xl:px-2.5"
-                      >
-                        {selectedServerFilter === '_unassigned_' ? (
-                          <UserX size={13} className="shrink-0 text-muted-foreground" />
-                        ) : (
-                          <UserRound size={13} className="shrink-0 text-primary" />
-                        )}
-                        {/* Sur téléphone le filtre reste une icône : la ligne du jour
-                          doit tenir sans repousser les onglets sur une 3e ligne. */}
-                        <span className="!hidden min-w-0 truncate xl:!inline-flex">
-                          <SelectValue placeholder="Tous les serveurs" />
+                      <ListOrdered size={15} aria-hidden="true" />
+                      {waitingListCount > 0 ? (
+                        <span
+                          aria-hidden="true"
+                          className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-background bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground"
+                        >
+                          {waitingListCount}
                         </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="_all_">
-                          Toutes les tables ({allTables.length})
-                        </SelectItem>
-                        {unassignedCount > 0 ? (
-                          <SelectItem value="_unassigned_">
-                            <span className="flex items-center gap-1.5">
-                              <UserX size={13} className="shrink-0 text-muted-foreground" />
-                              Sans serveur affecté ({unassignedCount})
-                            </span>
+                      ) : null}
+                    </Button>
+                    {serviceTab === 'plan' ? serviceOverview : null}
+                    {serviceTab === 'plan' && hasServerFilter ? (
+                      <Select
+                        value={selectedServerFilter ?? '_all_'}
+                        onValueChange={(val) =>
+                          setSelectedServerFilter(val === '_all_' ? null : val)
+                        }
+                      >
+                        <SelectTrigger
+                          aria-label="Filtrer par serveur"
+                          title="Filtrer par serveur"
+                          className="h-8 w-9 justify-center gap-0.5 border-border bg-background px-0 text-xs font-medium"
+                        >
+                          {selectedServerFilter === '_unassigned_' ? (
+                            <UserX size={13} className="shrink-0 text-muted-foreground" />
+                          ) : (
+                            <UserRound size={13} className="shrink-0 text-primary" />
+                          )}
+                          {/* Sur téléphone le filtre reste une icône : la ligne du jour
+                          doit tenir sans repousser les onglets sur une 3e ligne. */}
+                          <span className="sr-only">
+                            <SelectValue placeholder="Tous les serveurs" />
+                          </span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_all_">
+                            Toutes les tables ({placedTables.length})
                           </SelectItem>
-                        ) : null}
-                        {allServers.map((server) => {
-                          const count = serverTableCounts.get(server) ?? 0;
-                          return (
-                            <SelectItem key={server} value={server}>
-                              {server} ({count} {count > 1 ? 'tables' : 'table'})
+                          {unassignedCount > 0 ? (
+                            <SelectItem value="_unassigned_">
+                              <span className="flex items-center gap-1.5">
+                                <UserX size={13} className="shrink-0 text-muted-foreground" />
+                                Sans serveur affecté ({unassignedCount})
+                              </span>
                             </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  ) : null}
+                          ) : null}
+                          {allServers.map((server) => {
+                            const count = serverTableCounts.get(server) ?? 0;
+                            return (
+                              <SelectItem key={server} value={server}>
+                                {server} ({count} {count > 1 ? 'tables' : 'table'})
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </>
           ) : null}
         </CardHeader>
 
-        {error || reservationsError ? (
+        {live && (error || reservationsError) ? (
           <div className="sokar-error m-4 text-sm">
             <AlertCircle size={16} />
             {error || reservationsError}
@@ -8575,8 +8974,8 @@ export function FloorPlanCanvas({
           >
             <CircleCheck size={15} className="shrink-0 text-primary" aria-hidden="true" />
             <p className="min-w-0 flex-1">
-              Disposition initiale appliquée. Ajustez les tables, puis enregistrez le plan. Vous
-              pouvez annuler avec ⌘Z.
+              Disposition initiale appliquée. Les modifications sont enregistrées automatiquement ;
+              vous pouvez annuler avec ⌘Z.
             </p>
             <Button
               type="button"
@@ -8671,10 +9070,9 @@ export function FloorPlanCanvas({
           </section>
         ) : null}
 
-        {/* État vide : quand le cockpit est déjà réduit à une ligne, le message
-            d'absence de réservation est porté par cette ligne. Ici on ne garde
-            la bande que pour les services qui ont des tables ou des actions. */}
+        {/* Le résumé du jour est déjà dans la barre du service. */}
         {live &&
+        !serviceIsToday &&
         !compactServiceCockpit &&
         serviceTab === 'plan' &&
         allTables.length > 0 &&
@@ -8686,54 +9084,68 @@ export function FloorPlanCanvas({
           >
             <span className="flex items-center gap-1.5">
               <CalendarDays size={14} aria-hidden="true" />
-              {serviceIsToday
-                ? 'Aucune réservation pour aujourd’hui.'
-                : `Aucune réservation pour le ${serviceDateLabel}.`}
+              {`Aucune réservation pour le ${serviceDateLabel}.`}
             </span>
-            {!serviceIsToday ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs transition-all duration-200"
-                onClick={() => setLiveDate(serviceToday)}
-              >
-                Revenir à aujourd’hui
-              </Button>
-            ) : null}
           </div>
         ) : null}
 
+        <Dialog
+          open={headerAssignment !== null}
+          onOpenChange={(open) => !open && setHeaderAssignment(null)}
+        >
+          {headerAssignment ? (
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Attribuer une table</DialogTitle>
+                <DialogDescription>
+                  {headerAssignment.reservation.customerName ?? 'Réservation'} ·{' '}
+                  {headerAssignment.reservation.partySize} couverts
+                </DialogDescription>
+              </DialogHeader>
+              {headerAssignment.message ? <p role="status">{headerAssignment.message}</p> : null}
+              {!headerAssignment.suggestions && !headerAssignment.message ? (
+                <p role="status">Recherche des tables disponibles…</p>
+              ) : null}
+              {headerAssignment.suggestions?.map((table) => (
+                <Button
+                  key={table.tableId}
+                  type="button"
+                  variant="outline"
+                  disabled={headerAssignment.saving}
+                  onClick={async () => {
+                    const pending = { ...headerAssignment, saving: true, message: undefined };
+                    setHeaderAssignment(pending);
+                    const assigned = await assignTable(pending.reservation.id, table.tableId);
+                    setHeaderAssignment((current) =>
+                      current === pending
+                        ? assigned
+                          ? null
+                          : {
+                              ...pending,
+                              saving: false,
+                              message: 'Impossible d’attribuer cette table.',
+                            }
+                        : current,
+                    );
+                  }}
+                >
+                  {table.name} · {table.capacity} places
+                </Button>
+              ))}
+            </DialogContent>
+          ) : null}
+        </Dialog>
+
         <CardContent
-          role={live ? 'tabpanel' : undefined}
-          id={live ? 'service-tabpanel' : undefined}
-          aria-labelledby={live ? `service-tab-${serviceTab}` : undefined}
+          id={live ? 'service-content' : undefined}
           className={cn(
             'overflow-hidden p-0',
             live
-              ? liveViewportBounds
-                ? 'h-[calc(100dvh-15rem)] min-h-[18rem] md:h-[min(600px,calc(100dvh-15rem))] md:min-h-[22rem]'
-                : cn(
-                    // Sur téléphone, la surface du plan prend la hauteur restante de
-                    // l'écran : un cockpit compact laisse plus de place qu'un
-                    // cockpit complet. La réserve couvre le chrome au-dessus du plan
-                    // et la navigation tactile fixe ; elle est calibrée sur un
-                    // iPhone 13 et se règle ici si le chrome change.
-                    compactServiceCockpit ? 'h-[calc(100dvh-21.5rem)]' : 'h-[calc(100dvh-28.5rem)]',
-                    'min-h-[18rem] md:min-h-0',
-                    livePlanIsEmpty ? 'md:h-[24rem]' : 'md:h-[600px]',
-                  )
-              : 'h-[calc(100dvh-13.5rem)] min-h-[20rem] md:h-[600px] md:min-h-0',
+              ? 'flex min-h-56 flex-1 flex-col'
+              : 'h-[calc(100dvh-17rem)] min-h-[20rem] xl:h-[calc(100dvh-13rem)] xl:min-h-0',
           )}
         >
-          {live && serviceTab === 'stats' ? (
-            <StatsPanel
-              reservations={reservations}
-              allTables={allTables}
-              tableStatuses={tableStatuses}
-              liveDate={liveDate}
-            />
-          ) : live && serviceTab === 'waiting-list' ? (
+          {live && serviceTab === 'waiting-list' ? (
             <WaitingListPanel
               entries={waitingList}
               isLoading={waitingListLoading}
@@ -8749,14 +9161,19 @@ export function FloorPlanCanvas({
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
-              <div className="relative flex h-full min-h-0 flex-col lg:flex-row">
+              <div
+                className={cn(
+                  'relative flex min-h-0 flex-col lg:flex-row',
+                  live ? 'flex-1' : 'h-full',
+                )}
+              >
                 <div className="order-2 lg:order-1 lg:contents">
                   {!live ? (
                     <FloorPlanPalette
                       tablesToPlace={tablesToPlace}
                       totalTables={allTables.length}
                       onPlaceTable={(table) => void placeExistingTable(table)}
-                      onCreateTable={() => void createUnplacedTable()}
+                      onCreateTable={() => void createTable()}
                       onAutoLayout={() => void autoLayoutTables()}
                       autoLayoutLoading={autoLayoutLoading}
                       onQuickAdd={quickAddFromPalette}
@@ -8764,6 +9181,43 @@ export function FloorPlanCanvas({
                   ) : null}
                 </div>
                 <div className="relative order-1 flex min-h-0 min-w-0 flex-1 flex-col lg:order-2">
+                  <div role="status" className="pointer-events-none absolute left-3 top-3 z-40">
+                    {tableDragPreview?.blocker ? (
+                      <p className="rounded-md border border-destructive/40 bg-background px-2 py-1 text-sm text-destructive shadow-sm">
+                        Trop près de{' '}
+                        {tableDragPreview.blocker.displayName ?? tableDragPreview.blocker.name}
+                      </p>
+                    ) : tableDragPreview?.chairConflict ? (
+                      <p className="rounded-md border border-warning/40 bg-background px-2 py-1 text-sm text-foreground shadow-sm">
+                        Les chaises sont trop proches de{' '}
+                        {tableDragPreview.chairConflict.displayName ??
+                          tableDragPreview.chairConflict.name}
+                      </p>
+                    ) : null}
+                  </div>
+                  {tablePlacementZoneId ? (
+                    <div className="absolute left-3 right-3 top-3 z-50 flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-lg border border-primary/30 bg-card p-2 shadow-md">
+                      <p role="status" className="pl-2 text-sm">
+                        Choisissez l’emplacement dans la zone.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setTablePlacementZoneId(null)}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  ) : null}
+                  {!live && (error || reservationsError) ? (
+                    <div
+                      role="alert"
+                      className="sokar-error pointer-events-none absolute left-3 right-3 top-3 z-40 m-0 text-sm"
+                    >
+                      <AlertCircle size={16} />
+                      {error || reservationsError}
+                    </div>
+                  ) : null}
                   {/* Le pincement à deux doigts pilote le zoom du plan ; le
                       glissement d'un doigt le défile (défilement natif). */}
                   <div
@@ -8771,7 +9225,7 @@ export function FloorPlanCanvas({
                     style={{ touchAction: 'pan-x pan-y' }}
                     className={cn(
                       'relative min-h-0 w-full flex-1 overflow-auto bg-muted/70',
-                      livePlanIsEmpty ? 'min-h-0' : 'min-h-[14rem] md:min-h-[22rem]',
+                      !live && 'min-h-[14rem] md:min-h-[22rem]',
                       activeDragData?.kind === 'table' ||
                         activeDragData?.kind === 'wall' ||
                         activeDragData?.kind === 'zone'
@@ -9023,6 +9477,7 @@ export function FloorPlanCanvas({
                             : undefined,
                         )}
                         onClick={() => {
+                          setTablePlacementZoneId(null);
                           setSelectedTableIds(new Set());
                           setSelectedServiceTableId(null);
                           setSelectedWallId(null);
@@ -9042,15 +9497,21 @@ export function FloorPlanCanvas({
                           }px, ${GRID_SIZE}px ${GRID_SIZE}px, ${GRID_SIZE}px ${GRID_SIZE}px`,
                         }}
                       >
-                        {(live ? liveZones : zones).map((zone) => (
+                        {zones.map((zone) => (
                           <ZoneCard
                             key={zone.id}
                             zone={zone}
                             editable={!live}
-                            showLabel={!liveViewportBounds}
                             isSelected={!live && selectedZoneId === zone.id}
-                            onClick={() => selectZone(zone)}
-                            onPointerDown={(event) => handleZonePointerDown(event, zone)}
+                            placingTable={tablePlacementZoneId === zone.id}
+                            onClick={(event) =>
+                              tablePlacementZoneId === zone.id
+                                ? placeNewTableInZone(zone, event)
+                                : selectZone(zone)
+                            }
+                            onPointerDown={(event) => {
+                              if (!tablePlacementZoneId) handleZonePointerDown(event, zone);
+                            }}
                             onResizeStart={(event) => startZoneResize(event, zone)}
                           />
                         ))}
@@ -9062,34 +9523,33 @@ export function FloorPlanCanvas({
                             setSelectedZoneId(null);
                           }}
                         >
-                          <g className="pointer-events-auto">
-                            {!live
-                              ? floorPlan?.walls?.map((w) => (
-                                  <WallSegment
-                                    key={w.id}
-                                    wall={w}
-                                    isSelected={!live && selectedWallId === w.id}
-                                    editable={!live}
-                                    locked={lockedWallIds.has(w.id)}
-                                    onClick={() => {
-                                      if (live) return;
-                                      if (wallJustDraggedRef.current) {
-                                        wallJustDraggedRef.current = false;
-                                        return;
+                          <g className={live ? 'pointer-events-none' : 'pointer-events-auto'}>
+                            {floorPlan?.walls?.map((w) => (
+                              <WallSegment
+                                key={w.id}
+                                wall={w}
+                                isSelected={!live && selectedWallId === w.id}
+                                editable={!live}
+                                locked={lockedWallIds.has(w.id)}
+                                onClick={
+                                  live
+                                    ? undefined
+                                    : () => {
+                                        if (wallJustDraggedRef.current) {
+                                          wallJustDraggedRef.current = false;
+                                          return;
+                                        }
+                                        setSelectedTableIds(new Set());
+                                        setSelectedWallId(w.id);
                                       }
-                                      setSelectedTableIds(new Set());
-                                      setSelectedWallId(w.id);
-                                    }}
-                                    onPointerDownMove={(e) => handleWallPointerDown(e, w, 'move')}
-                                    onPointerDownStart={(e) =>
-                                      handleWallPointerDown(e, w, 'resize-start')
-                                    }
-                                    onPointerDownEnd={(e) =>
-                                      handleWallPointerDown(e, w, 'resize-end')
-                                    }
-                                  />
-                                ))
-                              : null}
+                                }
+                                onPointerDownMove={(e) => handleWallPointerDown(e, w, 'move')}
+                                onPointerDownStart={(e) =>
+                                  handleWallPointerDown(e, w, 'resize-start')
+                                }
+                                onPointerDownEnd={(e) => handleWallPointerDown(e, w, 'resize-end')}
+                              />
+                            ))}
                             {wallLengthGuide ? (
                               <g className="pointer-events-none">
                                 <line
@@ -9287,6 +9747,7 @@ export function FloorPlanCanvas({
                             <DraggableTable
                               key={table.id}
                               table={table}
+                              invalidPlacement={tableDragPreview?.blocker?.id === table.id}
                               status={status}
                               isSelected={
                                 live
@@ -9302,12 +9763,22 @@ export function FloorPlanCanvas({
                               editable={!live}
                               zoom={zoom}
                               compact={compactTableCards}
+                              assignmentCandidate={unassignedPlacement.suggestions.some(
+                                (suggestion) => suggestion.tableId === table.id,
+                              )}
                               onClick={(e) => handleTableClick(table, e)}
                               onDoubleClick={() => handleTableDoubleClick(table)}
-                              onResizeStart={(e) => startTableResize(e, table)}
-                              onRotateStart={(e) => startTableRotate(e, table)}
-                              isCombinable={combinableTableIds.has(table.id)}
-                              hideChairs={live && crowdedTableIds.has(table.id)}
+                              onResizeStart={
+                                selectedTableIds.size > 1
+                                  ? undefined
+                                  : (e) => startTableResize(e, table)
+                              }
+                              onRotateStart={
+                                selectedTableIds.size > 1
+                                  ? undefined
+                                  : (e) => startTableRotate(e, table)
+                              }
+                              isCombinable={live && combinableTableIds.has(table.id)}
                               style={{
                                 left: table.positionX ?? 0,
                                 top: table.positionY ?? 0,
@@ -9315,47 +9786,64 @@ export function FloorPlanCanvas({
                                 height,
                                 position: 'absolute',
                                 zIndex: selectedTableIds.has(table.id) ? 3 : 2,
-                                opacity: isFilteredOut ? 0.25 : 1,
-                                filter: isFilteredOut ? 'grayscale(80%)' : undefined,
-                                transition: 'all 0.2s ease',
+                                opacity:
+                                  activeDragTable?.id === table.id
+                                    ? 0
+                                    : isFilteredOut &&
+                                        !unassignedPlacement.suggestions.some(
+                                          (suggestion) => suggestion.tableId === table.id,
+                                        )
+                                      ? 0.25
+                                      : 1,
+                                filter:
+                                  isFilteredOut &&
+                                  !unassignedPlacement.suggestions.some(
+                                    (suggestion) => suggestion.tableId === table.id,
+                                  )
+                                    ? 'grayscale(80%)'
+                                    : undefined,
+                                transition:
+                                  activeDragTable?.id === table.id ? 'none' : 'all 0.2s ease',
                               }}
                             />
                           );
                         })}
-                      </div>
-                      {liveViewportBounds && liveZones.length > 0 ? (
-                        <div
-                          className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-1rem)] flex-wrap gap-1.5"
-                          aria-hidden="true"
-                        >
-                          {liveZones.map((zone) => (
-                            <span
-                              key={`live-zone-label-${zone.id}`}
-                              className="rounded-md border border-primary/20 bg-background/85 px-1.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground shadow-sm backdrop-blur-sm"
-                            >
-                              {zone.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                    {!live ? (
-                      <div className="pointer-events-none absolute bottom-3 left-3 z-30 flex items-center gap-1.5">
-                        <div className="flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[10px] tabular-nums text-muted-foreground shadow-sm backdrop-blur">
-                          <span>
-                            {formatRoomMeters(canvasWidth)} × {formatRoomMeters(canvasHeight)} m
-                          </span>
-                          <span aria-hidden="true">·</span>
-                          <span>1 carreau = {formatRoomCentimeters(GRID_SIZE)} cm</span>
-                        </div>
-                        {!selectedWall && selectedTables.length === 0 ? (
-                          <p className="flex items-center rounded-full border border-border bg-background/90 px-2.5 py-1 text-[10px] text-muted-foreground shadow-sm backdrop-blur">
-                            Sélectionnez un élément pour modifier ses propriétés.
-                          </p>
+                        {activeDragTable && dragStart ? (
+                          <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 z-20"
+                          >
+                            <div
+                              className={cn(
+                                'absolute border border-dashed border-muted-foreground/50',
+                                activeDragTable.shape === 'round' ? 'rounded-full' : 'rounded-lg',
+                              )}
+                              style={{
+                                left: dragStart.originalX,
+                                top: dragStart.originalY,
+                                width: dragStart.width,
+                                height: dragStart.height,
+                                transform: `rotate(${activeDragTable.rotation ?? 0}deg)`,
+                              }}
+                            />
+                            <TableCard
+                              table={activeDragTable}
+                              invalidPlacement={Boolean(tableDragPreview?.blocker)}
+                              isOverlay
+                              compact={compactTableCards}
+                              zoom={zoom}
+                              style={{
+                                position: 'absolute',
+                                left: tableDragPreview?.positionX ?? dragStart.originalX,
+                                top: tableDragPreview?.positionY ?? dragStart.originalY,
+                              }}
+                            />
+                          </div>
                         ) : null}
                       </div>
-                    ) : null}
+                    </div>
                     {placedTables.length === 0 &&
+                    !selectedZone &&
                     ((floorPlan?.walls ?? []).length === 0 || !live) ? (
                       <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
                         <div className="flex max-w-xs flex-col items-center text-center">
@@ -9434,33 +9922,60 @@ export function FloorPlanCanvas({
                       </div>
                     ) : null}
                   </div>
+                  {live && placedTables.length > 0 ? (
+                    <div
+                      role="group"
+                      aria-label="Zoom du plan"
+                      className="absolute bottom-3 left-3 z-30 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-sm"
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 transition-all duration-200"
+                        aria-label="Réduire le plan"
+                        title="Réduire le plan"
+                        onClick={() => changeZoom(-ZOOM_STEP)}
+                      >
+                        <ZoomOut size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 transition-all duration-200"
+                        aria-label="Ajuster le plan"
+                        title="Ajuster le plan"
+                        onClick={resetView}
+                      >
+                        <LocateFixed size={14} aria-hidden="true" />
+                      </Button>
+                      <output aria-label="Niveau de zoom" className="sr-only">
+                        {Math.round(zoom * 100)} %
+                      </output>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 transition-all duration-200"
+                        aria-label="Agrandir le plan"
+                        title="Agrandir le plan"
+                        onClick={() => changeZoom(ZOOM_STEP)}
+                      >
+                        <ZoomIn size={14} />
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
                 {!live || allTables.length > 0 ? inspector : null}
               </div>
               {typeof document !== 'undefined'
                 ? createPortal(
                     <DragOverlay dropAnimation={null}>
-                      {activeDragTable
-                        ? (() => {
-                            const { width: tw, height: th } = getTableSize(activeDragTable);
-                            return (
-                              <TableCard
-                                table={activeDragTable}
-                                status={live ? tableStatuses.get(activeDragTable.id) : undefined}
-                                isOverlay
-                                zoom={zoom}
-                                compact={compactTableCards}
-                                style={{
-                                  transform: `scale(${zoom})`,
-                                  transformOrigin: 'top left',
-                                }}
-                              />
-                            );
-                          })()
-                        : null}
                       {activeDragData?.kind === 'placeTable' ? (
                         <TableCard
                           table={activeDragData.table}
+                          invalidPlacement={tableDropOverlapping}
                           isOverlay
                           zoom={zoom}
                           compact={compactTableCards}
@@ -9475,6 +9990,7 @@ export function FloorPlanCanvas({
                           shape={activeDragData.shape}
                           capacity={activeDragData.capacity}
                           zoom={zoom}
+                          invalidPlacement={tableDropOverlapping}
                         />
                       ) : null}
                       {activeDragData?.kind === 'zone' ? (

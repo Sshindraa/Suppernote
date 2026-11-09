@@ -58,6 +58,7 @@ const OptionalInt = z.preprocess(
 );
 
 const CreateTableSchema = z.object({
+  id: z.string().uuid().optional(),
   sectionId: z.string().optional().nullable(),
   name: z.string().min(1).max(100),
   capacity: z.coerce.number().int().min(1),
@@ -106,6 +107,7 @@ const UpdateFloorPlanSchema = z.object({
 });
 
 const CreateWallSchema = z.object({
+  id: z.string().uuid().optional(),
   x1: z.coerce.number().int(),
   y1: z.coerce.number().int(),
   x2: z.coerce.number().int(),
@@ -126,6 +128,7 @@ const UpdateWallSchema = z.object({
 });
 
 const CreateZoneSchema = z.object({
+  id: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(120),
   sectionId: z.string().optional().nullable(),
   x: z.coerce.number().int(),
@@ -136,7 +139,7 @@ const CreateZoneSchema = z.object({
   floorPlanId: z.string().optional(),
 });
 
-const UpdateZoneSchema = CreateZoneSchema.partial();
+const UpdateZoneSchema = CreateZoneSchema.omit({ id: true }).partial();
 
 const CreateTableCombinationSchema = z.object({
   tableIds: z.array(z.string().min(1)).min(2).max(20),

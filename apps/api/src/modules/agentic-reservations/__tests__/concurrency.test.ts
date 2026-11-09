@@ -1125,6 +1125,68 @@ describeIntegration('audit log — append-only enforcement', () => {
   });
 });
 
+describeIntegration('reservation pagination', () => {
+  it('returns every reservation once across pages when times are identical', async () => {
+    const date = '2098-02-03';
+    const ids = Array.from({ length: 115 }, () => randomUUID());
+    await prisma.reservation.createMany({
+      data: ids.map((id) => ({
+        id,
+        restaurantId: testRestaurantId,
+        reservedAt: new Date(`${date}T12:00:00Z`),
+        partySize: 2,
+        customerName: 'Pagination test',
+      })),
+    });
+    const pages = await Promise.all(
+      [0, 50, 100].map((offset) =>
+        LegacyReservationService.findByRestaurant(testRestaurantId, date, { limit: 50, offset }),
+      ),
+    );
+    expect(pages.map((page) => page.length)).toEqual([50, 50, 15]);
+    expect(pages.flat().map((reservation) => reservation.id)).toEqual([...ids].sort());
+  });
+
+  it('keeps a consistent day when a reservation moves between pages', async () => {
+    const date = '2098-02-04';
+    const ids = Array.from({ length: 60 }, () => randomUUID()).sort();
+    await prisma.reservation.createMany({
+      data: ids.map((id) => ({
+        id,
+        restaurantId: testRestaurantId,
+        reservedAt: new Date(`${date}T12:00:00Z`),
+        partySize: 2,
+        customerName: 'Pagination test',
+      })),
+    });
+    const findPage = LegacyReservationService.findByRestaurant.bind(LegacyReservationService);
+    const spy = vi
+      .spyOn(LegacyReservationService, 'findByRestaurant')
+      .mockImplementation(async (...args) => {
+        const page = await findPage(...args);
+        if (args[2]?.offset === 0) {
+          await prisma.reservation.update({
+            where: { id: ids[59] },
+            data: { reservedAt: new Date(`${date}T10:00:00Z`) },
+          });
+        }
+        return page;
+      });
+    try {
+      const rows = await LegacyReservationService.findDaySnapshot(testRestaurantId, date);
+      expect(rows.map((row) => row.id)).toEqual(ids);
+      expect(rows.find((row) => row.id === ids[59])?.reservedAt).toEqual(
+        new Date(`${date}T12:00:00Z`),
+      );
+      expect(
+        (await prisma.reservation.findUniqueOrThrow({ where: { id: ids[59] } })).reservedAt,
+      ).toEqual(new Date(`${date}T10:00:00Z`));
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describeIntegration('legacy reservation delete — terminal state with audit', () => {
   it('clôture une réservation auditée sans suppression physique', async () => {
     const slot = nextCapacitySlot();

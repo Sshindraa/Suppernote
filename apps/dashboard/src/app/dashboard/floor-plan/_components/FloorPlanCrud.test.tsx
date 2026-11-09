@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FloorPlanCrud } from './FloorPlanCrud';
 
@@ -106,102 +106,27 @@ describe('FloorPlanCrud', () => {
     expect(screen.queryByRole('heading', { name: 'Plan de salle' })).not.toBeInTheDocument();
   });
 
-  it('affiche le message vide quand aucune section', async () => {
+  it('affiche le message vide quand le plan est vide', async () => {
     apiMocks.get.mockResolvedValue({ id: 'fp', name: 'Plan', sections: [] });
 
     render(<FloorPlanCrud />);
 
     await waitFor(() => {
-      expect(screen.getByText('Aucune section dans votre plan de salle')).toBeInTheDocument();
+      expect(screen.getByText('Aucune table dans ce plan.')).toBeInTheDocument();
     });
   });
 
-  it('affiche les sections et leurs tables', async () => {
+  it('affiche les tables historiques dans la liste du plan', async () => {
     render(<FloorPlanCrud />);
 
     await screen.findByRole('heading', { name: 'Plan de salle' });
 
-    expect(screen.getByText('Terrasse')).toBeInTheDocument();
-    expect(screen.getByText('Salle principale')).toBeInTheDocument();
+    expect(screen.queryByText('Terrasse')).not.toBeInTheDocument();
+    expect(screen.queryByText('Salle principale')).not.toBeInTheDocument();
     expect(screen.getByText('T1')).toBeInTheDocument();
     expect(screen.getByText('T3')).toBeInTheDocument();
     expect(screen.getByText('4 couverts (min. 2)')).toBeInTheDocument();
     expect(screen.getByText('6 couverts (min. 4)')).toBeInTheDocument();
-  });
-
-  it('crée une section', async () => {
-    apiMocks.post.mockResolvedValue({
-      id: 's3',
-      name: 'Terrasse couverte',
-      position: 3,
-      tables: [],
-    });
-
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    const input = screen.getByLabelText('Nouvelle section');
-    fireEvent.change(input, { target: { value: 'Terrasse couverte' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
-
-    await waitFor(() => {
-      expect(apiMocks.post).toHaveBeenCalledWith('restaurants/org_test/floor-plan/sections', {
-        name: 'Terrasse couverte',
-      });
-    });
-
-    expect(await screen.findByText('Terrasse couverte')).toBeInTheDocument();
-  });
-
-  it('renomme une section', async () => {
-    apiMocks.put.mockResolvedValue({
-      id: 's1',
-      name: 'Terrasse extérieure',
-      position: 1,
-      tables: floorPlanFixture.sections[0].tables,
-    });
-
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Renommer la section' })[0]);
-
-    const input = screen.getByLabelText('Nom de la section');
-    fireEvent.change(input, { target: { value: 'Terrasse extérieure' } });
-    fireEvent.submit(input.closest('form') as HTMLFormElement);
-
-    await waitFor(() => {
-      expect(apiMocks.put).toHaveBeenCalledWith('restaurants/org_test/floor-plan/sections/s1', {
-        name: 'Terrasse extérieure',
-      });
-    });
-
-    expect(await screen.findByText('Terrasse extérieure')).toBeInTheDocument();
-    expect(screen.queryByText('Terrasse')).not.toBeInTheDocument();
-  });
-
-  it('supprime une section avec confirmation', async () => {
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Supprimer la section' })[0]);
-
-    const dialog = await screen.findByTestId('confirm-dialog');
-    expect(dialog).toHaveAttribute('data-title', 'Supprimer la section');
-    expect(screen.getByTestId('confirm-description')).toHaveTextContent(
-      'Les tables associées ne seront pas supprimées, mais ne seront plus rattachées à une section.',
-    );
-
-    fireEvent.click(screen.getByTestId('confirm-yes'));
-
-    await waitFor(() => {
-      expect(apiMocks.del).toHaveBeenCalledWith('restaurants/org_test/floor-plan/sections/s1');
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByText('Terrasse')).not.toBeInTheDocument();
-    });
-    expect(screen.getByText('Salle principale')).toBeInTheDocument();
   });
 
   it('active et désactive une table', async () => {
@@ -234,7 +159,7 @@ describe('FloorPlanCrud', () => {
     });
   });
 
-  it('crée une table dans une section', async () => {
+  it('crée une table dans le plan', async () => {
     apiMocks.post.mockResolvedValue({
       id: 't4',
       name: 'T4',
@@ -249,9 +174,8 @@ describe('FloorPlanCrud', () => {
     render(<FloorPlanCrud />);
     await screen.findByRole('heading', { name: 'Plan de salle' });
 
-    const sectionCard = screen.getAllByTestId('section-card')[1];
-    const tableInput = within(sectionCard).getByLabelText('Table');
-    const capacityInput = within(sectionCard).getByLabelText('Couv.');
+    const tableInput = screen.getByLabelText('Nom de la table');
+    const capacityInput = screen.getByLabelText('Couverts');
 
     fireEvent.change(tableInput, { target: { value: 'T4' } });
     fireEvent.change(capacityInput, { target: { value: '8' } });
@@ -259,7 +183,6 @@ describe('FloorPlanCrud', () => {
 
     await waitFor(() => {
       expect(apiMocks.post).toHaveBeenCalledWith('restaurants/org_test/floor-plan/tables', {
-        sectionId: 's2',
         name: 'T4',
         capacity: 8,
       });
@@ -273,8 +196,7 @@ describe('FloorPlanCrud', () => {
     render(<FloorPlanCrud />);
     await screen.findByRole('heading', { name: 'Plan de salle' });
 
-    const sectionCard = screen.getAllByTestId('section-card')[1];
-    fireEvent.click(within(sectionCard).getByRole('button', { name: 'Supprimer la table' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la table T3' }));
 
     await screen.findByTestId('confirm-dialog');
     fireEvent.click(screen.getByTestId('confirm-yes'));
@@ -294,7 +216,7 @@ describe('FloorPlanCrud', () => {
     render(<FloorPlanCrud />);
 
     expect(await screen.findByText('network error')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Nouvelle section')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Nom de la table')).not.toBeInTheDocument();
 
     apiMocks.get.mockResolvedValueOnce({
       id: 'plan-1',
@@ -303,59 +225,8 @@ describe('FloorPlanCrud', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
 
-    expect(await screen.findByText('Salle')).toBeInTheDocument();
-    expect(screen.getByLabelText('Nouvelle section')).toBeInTheDocument();
-  });
-
-  it('affiche une erreur si la création de section échoue', async () => {
-    apiMocks.post.mockRejectedValue(new Error('create failed'));
-
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    fireEvent.change(screen.getByLabelText('Nouvelle section'), {
-      target: { value: 'Nouveau' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
-
-    expect(await screen.findByText('create failed')).toBeInTheDocument();
-  });
-
-  it('affiche une erreur si la suppression de section échoue', async () => {
-    apiMocks.del.mockRejectedValue(new Error('delete section failed'));
-
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Supprimer la section' })[0]);
-
-    await screen.findByTestId('confirm-dialog');
-    fireEvent.click(screen.getByTestId('confirm-yes'));
-
-    expect(await screen.findByText('delete section failed')).toBeInTheDocument();
-    expect(screen.getByText('Terrasse')).toBeInTheDocument();
-    expect(apiMocks.del).toHaveBeenCalledWith('restaurants/org_test/floor-plan/sections/s1');
-  });
-
-  it('affiche une erreur si le renommage de section échoue', async () => {
-    apiMocks.put.mockRejectedValue(new Error('rename section failed'));
-
-    render(<FloorPlanCrud />);
-    await screen.findByRole('heading', { name: 'Plan de salle' });
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Renommer la section' })[0]);
-
-    const sectionCard = screen.getAllByTestId('section-card')[0];
-    const input = within(sectionCard).getByLabelText('Nom de la section');
-    fireEvent.change(input, { target: { value: 'Terrasse extérieure' } });
-    fireEvent.submit(input.closest('form') as HTMLFormElement);
-
-    expect(await screen.findByText('rename section failed')).toBeInTheDocument();
-    expect(within(sectionCard).getByDisplayValue('Terrasse')).toBeInTheDocument();
-    expect(screen.queryByDisplayValue('Terrasse extérieure')).not.toBeInTheDocument();
-    expect(apiMocks.put).toHaveBeenCalledWith('restaurants/org_test/floor-plan/sections/s1', {
-      name: 'Terrasse extérieure',
-    });
+    expect(await screen.findByText('Tables du plan')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nom de la table')).toBeInTheDocument();
   });
 
   it('affiche une erreur si la création de table échoue', async () => {
@@ -364,9 +235,8 @@ describe('FloorPlanCrud', () => {
     render(<FloorPlanCrud />);
     await screen.findByRole('heading', { name: 'Plan de salle' });
 
-    const sectionCard = screen.getAllByTestId('section-card')[1];
-    const tableInput = within(sectionCard).getByLabelText('Table');
-    const capacityInput = within(sectionCard).getByLabelText('Couv.');
+    const tableInput = screen.getByLabelText('Nom de la table');
+    const capacityInput = screen.getByLabelText('Couverts');
 
     fireEvent.change(tableInput, { target: { value: 'T4' } });
     fireEvent.change(capacityInput, { target: { value: '8' } });
@@ -375,7 +245,6 @@ describe('FloorPlanCrud', () => {
     expect(await screen.findByText('create table failed')).toBeInTheDocument();
     expect(screen.queryByText('T4')).not.toBeInTheDocument();
     expect(apiMocks.post).toHaveBeenCalledWith('restaurants/org_test/floor-plan/tables', {
-      sectionId: 's2',
       name: 'T4',
       capacity: 8,
     });
@@ -387,8 +256,7 @@ describe('FloorPlanCrud', () => {
     render(<FloorPlanCrud />);
     await screen.findByRole('heading', { name: 'Plan de salle' });
 
-    const sectionCard = screen.getAllByTestId('section-card')[1];
-    fireEvent.click(within(sectionCard).getByRole('button', { name: 'Supprimer la table' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la table T3' }));
 
     await screen.findByTestId('confirm-dialog');
     fireEvent.click(screen.getByTestId('confirm-yes'));
@@ -445,36 +313,23 @@ describe('FloorPlanCrud', () => {
 
       render(<FloorPlanCrud />);
 
-      const card = await screen.findByTestId('unassigned-card');
-      expect(within(card).getByText('Sans section')).toBeInTheDocument();
-      expect(within(card).getByText('Bar 1')).toBeInTheDocument();
-      expect(screen.queryByText('Aucune section dans votre plan de salle')).not.toBeInTheDocument();
+      await screen.findByRole('heading', { name: 'Tables du plan' });
+      expect(screen.getByText('Bar 1')).toBeInTheDocument();
+      expect(screen.queryByText('Aucune table dans ce plan.')).not.toBeInTheDocument();
     });
 
     it('permet de désactiver une table sans section', async () => {
       apiMocks.get.mockResolvedValue({ id: 'fp', name: 'Plan', sections: [], tables: [loose] });
       render(<FloorPlanCrud />);
 
-      const card = await screen.findByTestId('unassigned-card');
-      const toggle = within(card).getByRole('switch');
+      await screen.findByRole('heading', { name: 'Tables du plan' });
+      const toggle = screen.getByRole('switch');
       fireEvent.click(toggle);
 
       await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
       expect(apiMocks.patch).toHaveBeenCalledWith('restaurants/org_test/floor-plan/tables/t9', {
         isActive: false,
       });
-    });
-
-    it('garde visibles les tables d’une section supprimée', async () => {
-      render(<FloorPlanCrud />);
-      await screen.findByRole('heading', { name: 'Plan de salle' });
-
-      fireEvent.click(screen.getAllByLabelText('Supprimer la section')[0]);
-      fireEvent.click(screen.getByTestId('confirm-yes'));
-
-      const card = await screen.findByTestId('unassigned-card');
-      expect(within(card).getByText('T1')).toBeInTheDocument();
-      expect(within(card).getByText('T2')).toBeInTheDocument();
     });
   });
 });

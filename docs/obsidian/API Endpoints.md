@@ -67,7 +67,15 @@ Module : `apps/api/src/modules/reservations/reservation.routes.ts`
 
 ### GET /reservations
 
-Liste les réservations d'un restaurant, filtrées par date.
+Liste les réservations du restaurant, avec date facultative. Route historique : la pagination est ignorée.
+
+### GET /v2/reservations
+
+Liste les réservations du restaurant authentifié ; `date` facultative (`AAAA-MM-JJ`), `limit` de 1 à 100 (50 par défaut), `offset` à partir de 0. Réponse : tableau, trié par date puis identifiant. Une page de moins de `limit` éléments indique la fin. Les modifications pendant la lecture peuvent déplacer des éléments entre pages.
+
+### GET /v2/reservations/day
+
+Lecture cohérente du service : `date` obligatoire (`AAAA-MM-JJ`), même garde et même périmètre que la route historique. Les pages sont lues dans une transaction PostgreSQL en `REPEATABLE READ` et renvoyées ensemble : la liste reflète le début de la lecture, pas les modifications ultérieures.
 
 ### POST /reservations
 
@@ -80,11 +88,6 @@ service ; les réservations publiques utilisent les routes Connect
 ### PATCH /reservations/:id / DELETE /reservations/:id
 
 Mise à jour / suppression.
-
-> **⚠️ Smell documenté** : le `GET /reservations` exige `restaurantId`
-> en query param alors que `req.restaurantId` est injecté par `requireOrg`.
-> Voir `apps/api/src/modules/reservations/__tests__/reservation.routes.test.ts`
-> (TODO cleanup-call-and-reservation-routes).
 
 ### Protection bancaire (fondation locale)
 

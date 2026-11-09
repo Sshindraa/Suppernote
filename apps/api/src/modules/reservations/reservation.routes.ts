@@ -113,6 +113,20 @@ export async function reservationRoutes(app: FastifyInstance) {
     return reply.send(reservations);
   });
 
+  app.get('/v2/reservations', { preHandler: requireOrg() }, async (req, reply) => {
+    const query = ReservationQuerySchema.parse(req.query);
+    const reservations = await ReservationService.findByRestaurant(req.restaurantId!, query.date, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+    return reply.send(reservations);
+  });
+
+  app.get('/v2/reservations/day', { preHandler: requireOrg() }, async (req, reply) => {
+    const { date } = z.object({ date: z.string().date() }).parse(req.query);
+    return reply.send(await ReservationService.findDaySnapshot(req.restaurantId!, date));
+  });
+
   app.get('/reservations/staff-availability', { preHandler: requireOrg() }, async (req, reply) => {
     const query = AvailabilityQuerySchema.extend({
       partySize: z.coerce.number().int().min(1).max(20),

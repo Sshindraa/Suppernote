@@ -8,21 +8,46 @@ vi.mock('@/lib/api', () => ({
   useApi: () => ({ post: mocks.post }),
 }));
 
-const headers = ['Nom', 'Téléphone', 'Email'];
-const analysis = {
-  dryRun: true,
-  columns: { headers, mapping: { lastName: 'Nom', phone: 'Téléphone', email: 'Email' } },
-  counts: { created: 1, completed: 0, skipped: 1 },
-  reasons: [{ line: 3, reason: 'Téléphone absent ou invalide' }],
-  preview: [
-    { name: 'Alice Martin', phone: '+33612345678', email: null, birthMonth: null, birthDay: null },
-  ],
+type Body = {
+  csv: string;
+  dryRun: boolean;
+  hasHeader?: boolean;
+  lineOffset?: number;
+  mapping?: Record<string, string | null>;
 };
 
+/** Stands in for the API: counts the rows of the piece it receives, as the real reader would. */
+function fakeApi(body: Body) {
+  const lines = body.csv.split('\n').filter((line) => line.trim() !== '');
+  const rows = body.hasHeader === false ? lines : lines.slice(1);
+  return {
+    data: {
+      dryRun: body.dryRun,
+      columns: {
+        headers: ['Nom', 'Téléphone'],
+        headerLine: body.hasHeader === false ? null : 1,
+        mapping: { lastName: 'Nom', phone: 'Téléphone' },
+        byContent: [],
+      },
+      counts: { created: rows.length, completed: 0, skipped: 0 },
+      reasons: [],
+      preview: [
+        {
+          name: 'Alice Martin',
+          phone: '+33612345678',
+          email: null,
+          birthMonth: null,
+          birthDay: null,
+        },
+      ],
+    },
+  };
+}
+
 function chooseFile(
-  content: string | Uint8Array<ArrayBuffer> = 'Nom;Téléphone;Email\nAlice Martin;0612345678;\n',
+  content: string | Uint8Array<ArrayBuffer> = 'Nom;Téléphone\nAlice Martin;0612345678\n',
 ) {
-  const input = screen.getByLabelText('Fichier CSV à importer');
+  const input = screen.getByLabelText('Fichier à importer');
   const file = new File([content], 'clients.csv', { type: 'text/csv' });
   fireEvent.change(input, { target: { files: [file] } });
 }
@@ -30,57 +55,110 @@ function chooseFile(
 describe('CustomerImportDialog', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    window.localStorage.clear();
+    mocks.post.mockImplementation(async (_path: string, body: Body) => fakeApi(body));
   });
 
-  it('analyse le fichier en dryRun, affiche les colonnes et un aperçu', async () => {
-    mocks.post.mockResolvedValueOnce({ data: analysis });
+  it('fait l’essai tout seul dès le dépôt et affiche le résumé, sans écran de colonnes', async () => {
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
 
     chooseFile();
 
     expect(await screen.findByText('Aperçu des 5 premières lignes')).toBeInTheDocument();
     expect(screen.getByText('Alice Martin')).toBeInTheDocument();
-    expect(screen.getByText('1 à créer · 0 à compléter · 1 ignorée(s)')).toBeInTheDocument();
-    expect(screen.getByText('Ligne 3 : Téléphone absent ou invalide')).toBeInTheDocument();
-    expect(mocks.post).toHaveBeenCalledWith('customers/import', {
-      csv: expect.stringContaining('Alice Martin'),
-      dryRun: true,
-    });
+    expect(screen.getByText('1 à créer · 0 à compléter · 0 ignorée(s)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Modifier les colonnes' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Téléphone')).not.toBeInTheDocument();
+    expect(mocks.post).toHaveBeenCalledWith(
+      'customers/import',
+      expect.objectContaining({ dryRun: true }),
+    );
   });
 
-  it('relance la vérification quand une colonne est corrigée', async () => {
-    mocks.post.mockResolvedValueOnce({ data: analysis }).mockResolvedValueOnce({
+  it('ouvre les colonnes seulement quand le téléphone n’est pas reconnu, et bloque l’import', async () => {
+    mocks.post.mockImplementation(async (_path: string, body: Body) => ({
       data: {
-        ...analysis,
-        columns: { ...analysis.columns, mapping: { ...analysis.columns.mapping, email: null } },
+        ...fakeApi(body).data,
+        columns: {
+          headers: ['Nom', 'Col2'],
+          headerLine: 1,
+          mapping: { lastName: 'Nom' },
+          byContent: [],
+        },
       },
-    });
+    }));
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
-    chooseFile();
-    await screen.findByText('Aperçu des 5 premières lignes');
 
-    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: '' } });
+    chooseFile('Nom;Col2\nAlice;xx\n');
+
+    expect(await screen.findByText(/Choisissez une colonne pour Téléphone/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Téléphone')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Importer/ })).toBeDisabled();
+  });
+
+  it('signale une colonne reconnue seulement par son contenu', async () => {
+    mocks.post.mockImplementation(async (_path: string, body: Body) => ({
+      data: {
+        ...fakeApi(body).data,
+        columns: {
+          headers: ['Ref', 'Contact'],
+          headerLine: 1,
+          mapping: { phone: 'Contact' },
+          byContent: ['phone'],
+        },
+      },
+    }));
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    chooseFile('Ref;Contact\nA1;0612345678\n');
+
+    expect(await screen.findByText(/à partir du contenu des colonnes/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Téléphone')).toHaveValue('Contact');
+  });
+
+  it('relance l’essai quand une colonne est corrigée à l’écran', async () => {
+    mocks.post.mockImplementation(async (_path: string, body: Body) => ({
+      data: {
+        ...fakeApi(body).data,
+        columns: {
+          headers: ['Nom', 'Col2'],
+          headerLine: 1,
+          mapping: { lastName: 'Nom' },
+          byContent: [],
+        },
+      },
+    }));
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+    chooseFile('Nom;Col2\nAlice;0612345678\n');
+    await screen.findByText(/Choisissez une colonne pour Téléphone/);
+
+    fireEvent.change(screen.getByLabelText('Téléphone'), { target: { value: 'Col2' } });
 
     await waitFor(() =>
-      expect(mocks.post).toHaveBeenLastCalledWith('customers/import', {
-        csv: expect.any(String),
-        dryRun: true,
-        mapping: expect.objectContaining({ email: null, phone: 'Téléphone' }),
-      }),
+      expect(mocks.post).toHaveBeenLastCalledWith(
+        'customers/import',
+        expect.objectContaining({
+          dryRun: true,
+          mapping: expect.objectContaining({ phone: 'Col2', email: null }),
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText(/Choisissez une colonne/)).not.toBeInTheDocument(),
     );
   });
 
   it('affiche un état vide quand le fichier ne contient aucune ligne', async () => {
-    mocks.post.mockResolvedValueOnce({
+    mocks.post.mockResolvedValue({
       data: {
-        ...analysis,
+        ...fakeApi({ csv: '', dryRun: true }).data,
         counts: { created: 0, completed: 0, skipped: 0 },
-        reasons: [],
         preview: [],
       },
     });
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
     chooseFile('Nom;Téléphone\n');
+
     expect(
       await screen.findByText('Le fichier ne contient aucune ligne de client.'),
     ).toBeInTheDocument();
@@ -92,50 +170,55 @@ describe('CustomerImportDialog', () => {
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
     chooseFile();
     expect(await screen.findByRole('alert')).toHaveTextContent('Le fichier dépasse 10000 clients');
-    expect(screen.getByLabelText('Fichier CSV à importer')).toBeInTheDocument();
-  });
-
-  it('bloque l’import tant que la colonne du téléphone n’est pas choisie', async () => {
-    mocks.post.mockResolvedValueOnce({
-      data: { ...analysis, columns: { headers, mapping: { lastName: 'Nom' } } },
-    });
-    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
-    chooseFile();
-    await screen.findByText('Aperçu des 5 premières lignes');
-    expect(screen.getByText(/Choisissez la colonne du téléphone/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Importer/ })).toBeDisabled();
+    expect(screen.getByLabelText('Fichier à importer')).toBeInTheDocument();
   });
 
   it('importe pour de vrai puis affiche le compte rendu', async () => {
     const onImported = vi.fn();
-    mocks.post.mockResolvedValueOnce({ data: analysis }).mockResolvedValueOnce({
-      data: { ...analysis, dryRun: false, counts: { created: 1, completed: 0, skipped: 1 } },
-    });
     render(<CustomerImportDialog open onOpenChange={vi.fn()} onImported={onImported} />);
     chooseFile();
     await screen.findByText('Aperçu des 5 premières lignes');
 
     fireEvent.click(screen.getByRole('button', { name: 'Importer 1 client(s)' }));
 
-    expect(await screen.findByText('1 créé(s) · 0 complété(s) · 1 ignoré(s)')).toBeInTheDocument();
-    expect(mocks.post).toHaveBeenLastCalledWith('customers/import', {
-      csv: expect.any(String),
-      dryRun: false,
-      mapping: {
-        firstName: null,
-        lastName: 'Nom',
-        name: null,
-        phone: 'Téléphone',
-        email: 'Email',
-        birthday: null,
-        notes: null,
-      },
-    });
+    expect(await screen.findByText('1 créé(s) · 0 complété(s) · 0 ignoré(s)')).toBeInTheDocument();
+    expect(mocks.post).toHaveBeenLastCalledWith(
+      'customers/import',
+      expect.objectContaining({
+        dryRun: false,
+        mapping: expect.objectContaining({ phone: 'Téléphone', lastName: 'Nom', email: null }),
+      }),
+    );
     expect(onImported).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/mémorisées dans ce navigateur/)).toBeInTheDocument();
+  });
+
+  it('reprend les colonnes mémorisées au dépôt suivant', async () => {
+    window.localStorage.setItem(
+      'suppernote:import-columns:customers:default',
+      JSON.stringify({ phone: 'Contact' }),
+    );
+    mocks.post.mockImplementation(async (_path: string, body: Body) => ({
+      data: {
+        ...fakeApi(body).data,
+        columns: {
+          headers: ['Nom', 'Contact'],
+          headerLine: 1,
+          mapping: { lastName: 'Nom' },
+          byContent: [],
+        },
+      },
+    }));
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+    chooseFile('Nom;Contact\nAlice;0612345678\n');
+
+    expect(
+      await screen.findByText(/Colonnes reprises de votre dernier import/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Modifier les colonnes' })).toBeInTheDocument();
   });
 
   it('décode un export Excel en Windows-1252 (« Renée » avec un é non UTF-8)', async () => {
-    mocks.post.mockResolvedValueOnce({ data: analysis });
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
 
     chooseFile(
@@ -146,37 +229,61 @@ describe('CustomerImportDialog', () => {
     );
 
     await screen.findByText('Aperçu des 5 premières lignes');
-    expect(mocks.post).toHaveBeenCalledWith('customers/import', {
-      csv: 'Nom;Tel\nRenée;0612345678',
-      dryRun: true,
+    expect(mocks.post).toHaveBeenCalledWith(
+      'customers/import',
+      expect.objectContaining({ csv: 'Nom;Tel\nRenée;0612345678' }),
+    );
+  });
+
+  it('découpe un gros fichier en morceaux, sans message de refus, et garde les numéros de ligne', async () => {
+    const rows = Array.from(
+      { length: 30_000 },
+      (_, i) => `Client ${i};06${String(i).padStart(8, '0')}`,
+    );
+    const big = ['Nom;Téléphone', ...rows].join('\n');
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    chooseFile(big);
+
+    expect(
+      await screen.findByText('30000 à créer · 0 à compléter · 0 ignorée(s)'),
+    ).toBeInTheDocument();
+    const pieces = mocks.post.mock.calls.filter(([, body]) => (body as Body).dryRun);
+    expect(pieces.length).toBeGreaterThan(2);
+    const second = pieces[2]?.[1] as Body;
+    expect(second.csv.startsWith('Nom;Téléphone\n')).toBe(true);
+    expect(second.lineOffset).toBeGreaterThan(0);
+    expect(screen.queryByText(/découpez/i)).not.toBeInTheDocument();
+  });
+
+  it('un morceau en échec n’annule pas les précédents et permet de reprendre', async () => {
+    const rows = Array.from(
+      { length: 30_000 },
+      (_, i) => `Client ${i};06${String(i).padStart(8, '0')}`,
+    );
+    const big = ['Nom;Téléphone', ...rows].join('\n');
+    let failOnce = true;
+    mocks.post.mockImplementation(async (_path: string, body: Body) => {
+      // Second piece of the real import fails once.
+      if (!body.dryRun && body.lineOffset && body.lineOffset > 0 && failOnce) {
+        failOnce = false;
+        throw new Error('Délai dépassé');
+      }
+      return fakeApi(body);
     });
-  });
-
-  it('refuse un fichier trop volumineux avant tout envoi', async () => {
     render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+    chooseFile(big);
+    await screen.findByText('30000 à créer · 0 à compléter · 0 ignorée(s)');
 
-    chooseFile(`Nom;Téléphone\n${'Alice;0612345678\n'.repeat(60_000)}`);
+    fireEvent.click(screen.getByRole('button', { name: /Importer 30000 client/ }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('trop volumineux');
-    expect(mocks.post).not.toHaveBeenCalled();
-  });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Le morceau 2 sur \d+ n’a pas pu être importé/,
+    );
+    expect(screen.getByText(/Les morceaux précédents sont bien enregistrés/)).toBeInTheDocument();
 
-  it('refuse avant envoi un CSV sous 700 000 caractères dont le corps JSON dépasse 1 Mo', async () => {
-    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Reprendre à partir du morceau 2' }));
 
-    // 650 000 guillemets : chaque « " » devient « \" » dans le JSON envoyé, soit plus de 1 Mo.
-    chooseFile(`Nom;Téléphone\n${'"'.repeat(650_000)}`);
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Découpez-le en plusieurs fichiers');
-    expect(mocks.post).not.toHaveBeenCalled();
-  });
-
-  it('refuse avant envoi un CSV de plus de 700 000 caractères', async () => {
-    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
-
-    chooseFile(`Nom;Téléphone\n${'a'.repeat(700_001)}`);
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('700 000 caractères');
-    expect(mocks.post).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Fichier importé en \d+ morceaux\./)).toBeInTheDocument();
   });
 });

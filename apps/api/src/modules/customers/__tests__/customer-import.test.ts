@@ -4,7 +4,6 @@ import { db } from '../../../shared/db/client';
 import {
   IMPORT_CSV_MAX_CHARS,
   applyCustomerImport,
-  detectMapping,
   parseBirthday,
   readCustomerImport,
 } from '../customer-import';
@@ -26,20 +25,44 @@ describe('customer-import: lecture CSV', () => {
   });
 
   it('détecte les colonnes par synonymes, accents et casse', () => {
-    const mapping = detectMapping([
-      'Prénom',
-      'NOM',
-      'Téléphone mobile',
-      'E-mail',
-      'Date de naissance',
-    ]);
-    expect(mapping).toEqual({
+    const reading = readCustomerImport(
+      'Prénom;NOM;Téléphone mobile;E-mail;Date de naissance\nJean;Dupont;0612345678;a@b.fr;14/02\n',
+    );
+    expect(reading.mapping).toEqual({
       firstName: 'Prénom',
       lastName: 'NOM',
       phone: 'Téléphone mobile',
       email: 'E-mail',
       birthday: 'Date de naissance',
     });
+    expect(reading.byContent).toEqual([]);
+  });
+
+  it('reconnaît le téléphone et l’e-mail par leur contenu quand l’en-tête est inconnu', () => {
+    const reading = readCustomerImport(
+      'Ref;Qui;Contact;Adresse\nA1;Jean;06 12 34 56 78;jean@example.com\nA2;Léa;0611223344;lea@example.com\n',
+    );
+    expect(reading.mapping).toMatchObject({ phone: 'Contact', email: 'Adresse' });
+    expect(reading.byContent).toEqual(['phone', 'email']);
+    expect(reading.lines[0]).toMatchObject({ phone: '+33612345678', email: 'jean@example.com' });
+  });
+
+  it('lit un fichier sans en-tête et saute les lignes de titre', () => {
+    const headerless = readCustomerImport('Jean;0612345678\nLéa;0611223344\n');
+    expect(headerless.headerLine).toBeNull();
+    expect(headerless.lines.map((line) => line.phone)).toEqual(['+33612345678', '+33611223344']);
+
+    const titled = readCustomerImport('Export du 10/11\n\nNom;Téléphone\nJean;0612345678\n');
+    expect(titled.headerLine).toBe(3);
+    expect(titled.lines[0]?.line).toBe(4);
+  });
+
+  it('garde les numéros de ligne du fichier d’origine quand le fichier est découpé', () => {
+    const reading = readCustomerImport('Nom;Téléphone\nJean;0612345678\n', undefined, {
+      hasHeader: true,
+      lineOffset: 999,
+    });
+    expect(reading.lines[0]?.line).toBe(1001);
   });
 
   it('normalise le téléphone, compose le nom et ignore les valeurs invalides', () => {

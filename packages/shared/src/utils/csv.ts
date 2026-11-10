@@ -103,3 +103,89 @@ export function decodeCsvBytes(bytes: ArrayBuffer): string {
     return new TextDecoder('windows-1252').decode(bytes);
   }
 }
+
+/** Tells whether one cell value looks like a given kind of data. */
+export type ContentTester = (value: string) => boolean;
+
+/** French or international phone number: 9 to 15 digits, spaces, dots, dashes and brackets allowed. */
+export const looksLikePhone: ContentTester = (value) => {
+  const text = value.trim();
+  if (!/^\+?[\d\s.()-]+$/.test(text)) return false;
+  const digits = text.replace(/\D/g, '').length;
+  return digits >= 9 && digits <= 15;
+};
+
+export const looksLikeEmail: ContentTester = (value) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
+
+/** `JJ/MM/AAAA`, `JJ/MM` or `AAAA-MM-JJ`, with an optional time. */
+export const looksLikeDate: ContentTester = (value) => {
+  const text = value.trim();
+  return (
+    /^\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$/.test(text) ||
+    /^\d{4}-\d{1,2}-\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$/.test(text)
+  );
+};
+
+/** `12`, `12,50`, `12.50`, optionally with the euro sign. Ticket amounts only. */
+export const looksLikeAmount: ContentTester = (value) =>
+  /^-?\d{1,6}(?:[.,]\d{1,2})?\s*€?$/.test(value.trim());
+
+/**
+ * Row of the header, by synonym: the first of the first ten records that names at least one known
+ * column (ties go to the earliest). -1 when none does: the file has no header row.
+ */
+export function locateHeader(
+  records: CsvRecord[],
+  isKnown: (normalizedName: string) => boolean,
+): number {
+  let best = -1;
+  let bestHits = 0;
+  records.slice(0, 10).forEach((record, index) => {
+    const hits = record.cells.filter((cell) => isKnown(normalizeHeader(cell))).length;
+    if (hits > bestHits) {
+      best = index;
+      bestHits = hits;
+    }
+  });
+  return best;
+}
+
+/** Share of non-empty values that pass a test, needed before a column is taken by content. */
+const CONTENT_THRESHOLD = 0.8;
+
+/**
+ * Columns found from their values, for the fields still unmapped. A field takes a column only when
+ * exactly one unused column passes its test on most of its values: an ambiguous file is left for
+ * the owner to choose on screen, never guessed.
+ */
+export function detectColumnsByContent<F extends string>(
+  headers: string[],
+  rows: string[][],
+  testers: Partial<Record<F, ContentTester>>,
+  fields: readonly F[],
+  taken: Partial<Record<F, string>>,
+): Partial<Record<F, string>> {
+  const found: Partial<Record<F, string>> = {};
+  const used = new Set<number>(
+    headers.flatMap((header, index) =>
+      Object.values<string | undefined>(taken).includes(header) ? [index] : [],
+    ),
+  );
+  for (const field of fields) {
+    const test = testers[field];
+    if (!test || taken[field] !== undefined || found[field] !== undefined) continue;
+    const candidates = headers.flatMap((_, index) => {
+      if (used.has(index)) return [];
+      const values = rows.map((row) => (row[index] ?? '').trim()).filter((value) => value !== '');
+      if (values.length === 0) return [];
+      const passing = values.filter(test).length;
+      return passing / values.length >= CONTENT_THRESHOLD ? [index] : [];
+    });
+    if (candidates.length !== 1) continue;
+    const index = candidates[0]!;
+    used.add(index);
+    found[field] = headers[index]!;
+  }
+  return found;
+}

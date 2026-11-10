@@ -147,6 +147,53 @@ describe('readWithAiColumns', () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
+  it('does not call the model when a header holds an e-mail', async () => {
+    const complete = modelAnswers({});
+    const headersWithEmail = ['Nom', 'contact@example.test', 'Tel2'];
+    const { result } = await run({
+      reading: reading({ headers: headersWithEmail }),
+      csv: 'Nom;contact@example.test;Tel2\nAlice;0612345678;0699999999',
+      complete,
+    });
+    expect(complete).not.toHaveBeenCalled();
+    expect(result.fromAi).toEqual([]);
+    expect(log.info).toHaveBeenLastCalledWith(
+      { columns: 3, outcome: 'skipped', reason: 'value_in_header' },
+      'column_ai',
+    );
+  });
+
+  it('does not call the model when a header holds a phone number', async () => {
+    const complete = modelAnswers({});
+    const { result } = await run({
+      reading: reading({ headers: ['Nom', '0612345678', 'Tel2'] }),
+      csv: 'Nom;0612345678;Tel2\nAlice;0612345678;0699999999',
+      complete,
+    });
+    expect(complete).not.toHaveBeenCalled();
+    expect(result.fromAi).toEqual([]);
+  });
+
+  it('still calls the model for ordinary headers with a digit', async () => {
+    const complete = modelAnswers({});
+    await run({
+      reading: reading({ headers: ['Nom', 'Mobile', 'Tel 2'] }),
+      csv: 'Nom;Mobile;Tel 2\nAlice;0612345678;0699999999',
+      complete,
+    });
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps headers with five digits or fewer as allowed', async () => {
+    const complete = modelAnswers({});
+    await run({
+      reading: reading({ headers: ['Nom', 'Ref 12345', 'Tel2'] }),
+      csv: 'Nom;Ref 12345;Tel2\nAlice;0612345678;0699999999',
+      complete,
+    });
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
   it('logs counts and outcome only, never a value or a header', async () => {
     await run({ complete: modelAnswers({ phone: { column: 'Mobile', confidence: 'high' } }) });
     const logged = JSON.stringify(

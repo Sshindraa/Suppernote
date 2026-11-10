@@ -79,6 +79,11 @@ function responseFormat(names: string[]) {
   };
 }
 
+/** A header holding an e-mail or at least six digits is a value, not a column name. */
+export function looksLikeValue(header: string): boolean {
+  return header.includes('@') || (header.match(/\p{Nd}/gu) ?? []).length >= 6;
+}
+
 /** Message sent to the model: field names and labels, column headers, masked shapes. Nothing else. */
 export function buildColumnUserPrompt<F extends string>(
   spec: ColumnAiSpec<F>,
@@ -119,7 +124,12 @@ export async function readWithAiColumns<F extends string, R extends ColumnAiRead
 
   const columns = reading.headers.length;
   if (columns > MAX_COLUMNS || reading.headers.some((h) => h.length > MAX_HEADER_LENGTH)) {
-    log.info({ columns, outcome: 'skipped' }, 'column_ai');
+    log.info({ columns, outcome: 'skipped', reason: 'too_wide' }, 'column_ai');
+    return none;
+  }
+  // A first row read as a header (no real header, unusual phone format) would send customer data.
+  if (reading.headers.some(looksLikeValue)) {
+    log.info({ columns, outcome: 'skipped', reason: 'value_in_header' }, 'column_ai');
     return none;
   }
 

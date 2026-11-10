@@ -65,7 +65,7 @@ describe('CaissePage', () => {
     render(<CaissePage />);
 
     expect(await screen.findByText('Import de tickets pas encore ouvert')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Importer un fichier CSV/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Importer un fichier' })).toBeNull();
     expect(mocks.get.mock.calls.map(([path]) => path)).not.toContain('pos/checks?limit=50');
   });
 
@@ -88,7 +88,28 @@ describe('CaissePage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /réessayer/i }));
 
-    expect(await screen.findByRole('button', { name: /Importer un fichier CSV/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Importer un fichier' })).toBeTruthy();
+  });
+
+  it('affiche la ligne d’aide tant qu’aucun ticket n’est importé', async () => {
+    answer({ data: [] });
+    render(<CaissePage />);
+
+    expect(
+      await screen.findByText(
+        'Exportez vos tickets depuis votre caisse (Excel ou CSV), puis déposez le fichier ici.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('masque la ligne d’aide dès qu’un import a eu lieu', async () => {
+    answer({
+      data: [{ provider: 'csv-file', status: 'ACTIVE', lastSuccessAt: '2026-11-09T19:30:00.000Z' }],
+    });
+    render(<CaissePage />);
+
+    expect(await screen.findByText(/Dernier import/)).toBeTruthy();
+    expect(screen.queryByText(/Exportez vos tickets/)).toBeNull();
   });
 
   it('affiche la date du dernier import et ouvre la boîte d’import', async () => {
@@ -99,7 +120,7 @@ describe('CaissePage', () => {
 
     expect(await screen.findByText(/Dernier import/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /Importer un fichier CSV/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importer un fichier' }));
     await waitFor(() => expect(screen.getByLabelText('Fichier à importer')).toBeTruthy());
   });
 

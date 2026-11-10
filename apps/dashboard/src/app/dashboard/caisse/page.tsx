@@ -125,6 +125,11 @@ export default function CaissePage() {
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">Importer les tickets</h2>
+          {!state.lastImportAt && (
+            <p className="text-sm text-muted-foreground">
+              Exportez vos tickets depuis votre caisse (Excel ou CSV), puis déposez le fichier ici.
+            </p>
+          )}
           <p className="text-sm text-muted-foreground">
             {state.lastImportAt
               ? `Dernier import : ${formatDateTime(state.lastImportAt)}`
@@ -137,7 +142,7 @@ export default function CaissePage() {
           onClick={() => setImportOpen(true)}
         >
           <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
-          Importer un fichier CSV
+          Importer un fichier
         </Button>
       </section>
 

@@ -29,6 +29,8 @@ export type TableOptions<F extends string> = {
   fields: readonly F[];
   required: readonly F[];
   testers?: Partial<Record<F, ContentTester>>;
+  /** Column names (normalised) that can never hold this field, whatever their values. */
+  rejects?: Partial<Record<F, RegExp>>;
   /** Column chosen by the owner (or remembered): nothing is detected when this is given. */
   requested?: Partial<Record<F, string | null>>;
   /** `false`: the file has no header row. Unset: found by its names, or treated as absent. */
@@ -88,6 +90,7 @@ export function readTable<F extends string>(
       options.testers ?? {},
       options.fields,
       mapping,
+      options.rejects ?? {},
     );
     for (const field of options.fields) {
       if (found[field] !== undefined) {

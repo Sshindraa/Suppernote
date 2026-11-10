@@ -165,6 +165,7 @@ export function detectColumnsByContent<F extends string>(
   testers: Partial<Record<F, ContentTester>>,
   fields: readonly F[],
   taken: Partial<Record<F, string>>,
+  rejects: Partial<Record<F, RegExp>> = {},
 ): Partial<Record<F, string>> {
   const found: Partial<Record<F, string>> = {};
   const used = new Set<number>(
@@ -175,8 +176,11 @@ export function detectColumnsByContent<F extends string>(
   for (const field of fields) {
     const test = testers[field];
     if (!test || taken[field] !== undefined || found[field] !== undefined) continue;
-    const candidates = headers.flatMap((_, index) => {
+    const reject = rejects[field];
+    const candidates = headers.flatMap((header, index) => {
       if (used.has(index)) return [];
+      // A column whose name says it holds something else (an amount, say) is never this field.
+      if (reject?.test(normalizeHeader(header))) return [];
       const values = rows.map((row) => (row[index] ?? '').trim()).filter((value) => value !== '');
       if (values.length === 0) return [];
       const passing = values.filter(test).length;

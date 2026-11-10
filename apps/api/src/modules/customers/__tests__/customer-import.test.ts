@@ -57,6 +57,27 @@ describe('customer-import: lecture CSV', () => {
     expect(titled.lines[0]?.line).toBe(4);
   });
 
+  it('rend le 0 ou le + qu’Excel retire aux téléphones saisis comme des nombres', () => {
+    const reading = readCustomerImport(
+      'Nom;Téléphone\nAlice;612345678\nBob;33612345678\nCléo;06 12 34 56 78\n',
+    );
+    expect(reading.lines.map((line) => line.phone)).toEqual([
+      '+33612345678',
+      '+33612345678',
+      '+33612345678',
+    ]);
+  });
+
+  it('reconnaît un téléphone à neuf chiffres par son contenu, mais pas un montant ou un total', () => {
+    const byValues = readCustomerImport('Ref;Contact\nA1;612345678\nA2;611223344\n');
+    expect(byValues.mapping.phone).toBe('Contact');
+    expect(byValues.byContent).toEqual(['phone']);
+
+    const amounts = readCustomerImport('Ref;Montant Total\nA1;612345678\nA2;611223344\n');
+    expect(amounts.mapping.phone).toBeUndefined();
+    expect(amounts.byContent).toEqual([]);
+  });
+
   it('garde les numéros de ligne du fichier d’origine quand le fichier est découpé', () => {
     const reading = readCustomerImport('Nom;Téléphone\nJean;0612345678\n', undefined, {
       hasHeader: true,

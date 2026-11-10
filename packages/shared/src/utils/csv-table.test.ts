@@ -82,6 +82,18 @@ describe('readTable', () => {
     expect(reading.byContent).toEqual(['phone']);
   });
 
+  it('exclut les colonnes dont le nom dit autre chose (rejects)', () => {
+    const csv = 'Montant;Autre\n612345678;611223344\n';
+    const reading = readTable(csv, {
+      synonyms: SYNONYMS,
+      fields: FIELDS,
+      required: ['phone'],
+      testers: TESTERS,
+      rejects: { phone: /montant/ },
+    });
+    expect(reading.mapping.phone).toBe('Autre');
+  });
+
   it('ne devine pas quand deux colonnes ressemblent à un téléphone', () => {
     const csv = 'Ref;Tel1;Tel2\nA1;0612345678;0611223344\nA2;0622334455;0633445566\n';
     const reading = readTable(csv, {

@@ -67,6 +67,14 @@ export default function CaissePage() {
     setReloadKey((key) => key + 1);
   }
 
+  /**
+   * After an import the page refreshes in place: a loading state would unmount the dialog and lose
+   * its report.
+   */
+  function refreshAfterImport() {
+    setReloadKey((key) => key + 1);
+  }
+
   if (capabilities === null) return <PageSkeleton />;
 
   if (capabilities['pos.connect'] !== true) {
@@ -138,7 +146,11 @@ export default function CaissePage() {
         <PosTicketList key={reloadKey} />
       </section>
 
-      <PosCheckImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={reload} />
+      <PosCheckImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={refreshAfterImport}
+      />
     </PageShell>
   );
 }

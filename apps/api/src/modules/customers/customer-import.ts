@@ -66,6 +66,17 @@ export type ImportReading = {
   lines: ImportLine[];
 };
 
+/**
+ * Excel keeps a number as a number: « 0612345678 » comes back as « 612345678 », and « +33… » as
+ * « 33… ». Restores the missing 0 or + for this import only; any other value is left as it is.
+ */
+export function restoreImportedPhone(value: string): string {
+  const compact = value.replace(/[\s.]/g, '');
+  if (/^[1-9]\d{8}$/.test(compact)) return `0${compact}`;
+  if (/^33\d{9}$/.test(compact)) return `+${compact}`;
+  return value;
+}
+
 /** Accepts `JJ/MM`, `JJ/MM/AAAA` and `AAAA-MM-JJ`; anything else (or an impossible date) is ignored. */
 export function parseBirthday(value: string): { month: number; day: number } | null {
   const french = /^(\d{1,2})[/.-](\d{1,2})(?:[/.-]\d{2,4})?$/.exec(value);
@@ -96,6 +107,8 @@ export function readCustomerImport(
     fields: IMPORT_FIELDS,
     required: ['phone'],
     testers: { phone: looksLikePhone, email: looksLikeEmail, birthday: looksLikeDate },
+    // An amount or a total is never a phone, even when its values have nine digits.
+    rejects: { phone: /montant|total|prix|somme|tva|ttc|euro|remise|solde|pourboire|couvert/ },
     requested,
     hasHeader: options.hasHeader,
     lineOffset: options.lineOffset,
@@ -120,7 +133,7 @@ export function readCustomerImport(
     const parsedBirthday = birthday ? parseBirthday(birthday) : null;
     return {
       line,
-      phone: phoneRaw ? normalizeCustomerPhone(phoneRaw) : null,
+      phone: phoneRaw ? normalizeCustomerPhone(restoreImportedPhone(phoneRaw)) : null,
       name: name ? name.slice(0, 100) : null,
       email: emailRaw ? normalizeCustomerEmail(emailRaw) : null,
       notes: valueOf(cells, 'notes')?.slice(0, 500) ?? null,

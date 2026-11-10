@@ -1,4 +1,5 @@
-import { looksLikeAmount, looksLikeDate, readTable } from '@suppernote/shared';
+import { looksLikeAmount, looksLikeDate, looksLikeReference, readTable } from '@suppernote/shared';
+import type { ColumnAiSpec } from '../imports/column-ai';
 import type { PosCheckInput } from './pos-connector';
 import { normalizePosCheckInput, PosCheckInputError } from './pos-sync.service';
 
@@ -83,6 +84,21 @@ const SYNONYMS: Record<PosCheckField, string[]> = {
 };
 
 /** Tickets per import request: keeps the whole request under the 30 s proxy timeout. */
+/** Column recognition by the model, when the detection is not enough (see imports/column-ai.ts). */
+export const POS_CHECK_COLUMN_AI: ColumnAiSpec<PosCheckField> = {
+  fields: POS_CHECK_FIELDS,
+  labels: POS_CHECK_FIELD_LABELS,
+  required: REQUIRED_FIELDS,
+  tests: {
+    externalId: looksLikeReference,
+    openedAt: looksLikeDate,
+    closedAt: looksLikeDate,
+    subtotal: looksLikeAmount,
+    tax: looksLikeAmount,
+    total: looksLikeAmount,
+  },
+};
+
 export const POS_CSV_ROW_LIMIT = 2_000;
 
 export type PosCsvSkip = { line: number; reason: string };

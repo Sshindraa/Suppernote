@@ -38,6 +38,7 @@ describe('POST /pos/checks/csv-import', () => {
       id: 'connection-file',
       status: 'PENDING',
     } as never);
+    vi.mocked(db.reservation.findMany).mockResolvedValue([] as never);
   });
 
   afterAll(async () => {
@@ -98,14 +99,8 @@ describe('POST /pos/checks/csv-import', () => {
       tableReference: '12',
       total: '13.50',
     });
-    expect(db.posConnection.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          provider: 'csv-file',
-          credentialReference: 'file:csv-import',
-        }),
-      }),
-    );
+    // A dry run writes nothing: no connection is created for it.
+    expect(db.posConnection.create).not.toHaveBeenCalled();
     expect(db.reservationCheckMatch.upsert).not.toHaveBeenCalled();
   });
 
@@ -131,8 +126,8 @@ describe('POST /pos/checks/csv-import', () => {
     });
     expect(imported.statusCode).toBe(400);
     expect(imported.json()).toMatchObject({ error: 'INVALID_POS_CHECK_MAPPING' });
-    // Only the preview created the file connection; the refused import wrote no ticket.
-    expect(db.posConnection.create).toHaveBeenCalledTimes(1);
+    // Neither the preview nor the refused import wrote a connection.
+    expect(db.posConnection.create).not.toHaveBeenCalled();
     expect(db.reservationCheckMatch.upsert).not.toHaveBeenCalled();
   });
 
@@ -152,6 +147,32 @@ describe('POST /pos/checks/csv-import', () => {
 
     expect(response.statusCode).toBe(422);
     expect(response.json().error).toBe('POS_CHECK_IMPORT_TOO_LARGE');
+    expect(db.posConnection.create).not.toHaveBeenCalled();
+  });
+
+  it('compte les rapprochements probables en essai, sans rien écrire', async () => {
+    vi.mocked(db.reservation.findMany).mockResolvedValue([
+      {
+        id: 'res-1',
+        restaurantId: 'test-rest-1',
+        reservedAt: new Date('2026-12-31T19:15:00.000Z'),
+        startsAt: null,
+        partySize: 2,
+        table: { name: '12' },
+      },
+    ] as never);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/csv-import',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: csvPayload(`${HEADER}\n${ROW}`),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.counts).toMatchObject({ imported: 1, matched: 1, toReview: 0 });
+    expect(db.reservationCheckMatch.upsert).not.toHaveBeenCalled();
     expect(db.posConnection.create).not.toHaveBeenCalled();
   });
 

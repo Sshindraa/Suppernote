@@ -39,7 +39,13 @@ type ImportResult = {
   dryRun: boolean;
   columns: { headers: string[]; mapping: Mapping };
   missing: Field[];
-  counts: { imported: number; skipped: number; withReservation: number; matched: number };
+  counts: {
+    imported: number;
+    skipped: number;
+    withReservation: number;
+    matched: number;
+    toReview: number;
+  };
   reasons: Reason[];
   preview: { externalId: string; openedAt: string; tableReference: string | null; total: string }[];
 };
@@ -249,6 +255,10 @@ export function PosCheckImportDialog({
                 ? ` · ${verified.counts.withReservation} avec une réservation`
                 : ''}
             </p>
+            <p className="text-sm text-muted-foreground tabular-nums">
+              Rapprochements probables : {verified.counts.matched} · à vérifier :{' '}
+              {verified.counts.toReview} (calculés à l’import)
+            </p>
             <Reasons reasons={verified.reasons} />
           </div>
         ) : null}
@@ -257,7 +267,7 @@ export function PosCheckImportDialog({
           <div className="space-y-3">
             <p className="text-sm tabular-nums">
               {report.counts.imported} importé(s) · {report.counts.skipped} ignoré(s) ·{' '}
-              {report.counts.matched} rapproché(s) d’une réservation
+              {report.counts.matched} rapproché(s) · {report.counts.toReview} à vérifier
             </p>
             <Reasons reasons={report.reasons} />
           </div>

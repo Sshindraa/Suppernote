@@ -17,6 +17,35 @@ vi.mock('@/lib/use-capabilities', () => ({
   useCapabilities: () => mocks.capabilities,
 }));
 
+const CHECK = {
+  id: 'c1',
+  externalId: 'T-1',
+  openedAt: '2026-12-31T19:15:00.000Z',
+  tableReference: '12',
+  total: '13.50',
+  currency: 'EUR',
+  match: {
+    status: 'MATCHED',
+    confidence: 0.85,
+    reservation: { id: 'r1', at: '2026-12-31T19:15:00.000Z', partySize: 2, table: '12' },
+  },
+};
+
+/** Answers each endpoint the page reads, by path. */
+function answer(connections: unknown, checks: unknown = { data: { items: [], nextCursor: null } }) {
+  mocks.get.mockImplementation((path: string) => {
+    if (path.startsWith('pos/connections')) {
+      return connections instanceof Error
+        ? Promise.reject(connections)
+        : Promise.resolve(connections);
+    }
+    if (path.startsWith('pos/checks')) {
+      return checks instanceof Error ? Promise.reject(checks) : Promise.resolve(checks);
+    }
+    return Promise.reject(new Error(`unexpected ${path}`));
+  });
+}
+
 describe('CaissePage', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -32,15 +61,16 @@ describe('CaissePage', () => {
   });
 
   it('affiche un état vide explicite quand la fonction est coupée côté serveur', async () => {
-    mocks.get.mockRejectedValue(toApiError(503, { error: 'POS_CONNECTORS_DISABLED' }));
+    answer(toApiError(503, { error: 'POS_CONNECTORS_DISABLED' }));
     render(<CaissePage />);
 
     expect(await screen.findByText('Import de tickets pas encore ouvert')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Importer un fichier CSV/ })).toBeNull();
+    expect(mocks.get.mock.calls.map(([path]) => path)).not.toContain('pos/checks?limit=50');
   });
 
   it('explique que seuls les responsables peuvent importer', async () => {
-    mocks.get.mockRejectedValue(toApiError(403, { error: 'POS_ROLE_REQUIRED' }));
+    answer(toApiError(403, { error: 'POS_ROLE_REQUIRED' }));
     render(<CaissePage />);
 
     expect(await screen.findByText('Réservé aux responsables')).toBeTruthy();
@@ -49,32 +79,63 @@ describe('CaissePage', () => {
   it('propose de réessayer après une erreur API', async () => {
     mocks.get
       .mockRejectedValueOnce(new Error('Impossible de joindre le serveur API'))
-      .mockResolvedValueOnce({ data: [] });
+      .mockImplementation((path: string) =>
+        Promise.resolve(
+          path.startsWith('pos/checks') ? { data: { items: [], nextCursor: null } } : { data: [] },
+        ),
+      );
     render(<CaissePage />);
 
-    const retry = await screen.findByRole('button', { name: /réessayer/i });
-    fireEvent.click(retry);
+    fireEvent.click(await screen.findByRole('button', { name: /réessayer/i }));
 
     expect(await screen.findByRole('button', { name: /Importer un fichier CSV/ })).toBeTruthy();
-    expect(mocks.get).toHaveBeenCalledTimes(2);
   });
 
   it('affiche la date du dernier import et ouvre la boîte d’import', async () => {
-    mocks.get.mockResolvedValue({
-      data: [
-        {
-          provider: 'csv-file',
-          status: 'ACTIVE',
-          lastSuccessAt: '2026-11-09T19:30:00.000Z',
-        },
-      ],
+    answer({
+      data: [{ provider: 'csv-file', status: 'ACTIVE', lastSuccessAt: '2026-11-09T19:30:00.000Z' }],
     });
     render(<CaissePage />);
 
     expect(await screen.findByText(/Dernier import/)).toBeTruthy();
-    expect(screen.getByText(/prochaine version/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Importer un fichier CSV/ }));
     await waitFor(() => expect(screen.getByLabelText('Fichier CSV des tickets')).toBeTruthy());
+  });
+
+  it('liste les tickets avec leur rapprochement', async () => {
+    answer(
+      { data: [] },
+      {
+        data: {
+          items: [
+            CHECK,
+            { ...CHECK, id: 'c2', externalId: 'T-2', match: null },
+            { ...CHECK, id: 'c3', externalId: 'T-3', match: { ...CHECK.match, status: 'REVIEW' } },
+          ],
+          nextCursor: null,
+        },
+      },
+    );
+    render(<CaissePage />);
+
+    expect(await screen.findByText('Ticket T-1 · table 12')).toBeTruthy();
+    expect(screen.getByText(/Rapproché · /)).toBeTruthy();
+    expect(screen.getByText('Non rapproché')).toBeTruthy();
+    expect(screen.getByText(/À vérifier · /)).toBeTruthy();
+  });
+
+  it('affiche l’état vide de la liste quand aucun ticket n’est importé', async () => {
+    answer({ data: [] });
+    render(<CaissePage />);
+
+    expect(await screen.findByText('Aucun ticket importé pour l’instant.')).toBeTruthy();
+  });
+
+  it('affiche une erreur de liste avec un nouvel essai', async () => {
+    answer({ data: [] }, new Error('Réseau indisponible'));
+    render(<CaissePage />);
+
+    expect(await screen.findByText('Réseau indisponible')).toBeTruthy();
   });
 });

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataFetchError } from '@/components/DataFetchError';
 import { PosCheckImportDialog } from './pos-check-import-dialog';
+import { PosTicketList } from './pos-ticket-list';
 
 type PosConnection = {
   provider: string;
@@ -119,7 +120,7 @@ export default function CaissePage() {
           <p className="text-sm text-muted-foreground">
             {state.lastImportAt
               ? `Dernier import : ${formatDateTime(state.lastImportAt)}`
-              : 'Aucun ticket importé pour l’instant.'}
+              : 'Aucun import pour l’instant.'}
           </p>
         </div>
         <Button
@@ -132,12 +133,9 @@ export default function CaissePage() {
         </Button>
       </section>
 
-      <section className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground">Tickets importés</p>
-        <p className="mt-1">
-          Le détail des tickets et leur rapprochement avec les réservations seront affichés ici dans
-          une prochaine version.
-        </p>
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold">Tickets importés</h2>
+        <PosTicketList key={reloadKey} />
       </section>
 
       <PosCheckImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={reload} />

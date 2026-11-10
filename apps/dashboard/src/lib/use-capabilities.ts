@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useApi } from '@/lib/api';
+import { readEntitlements } from '@/lib/entitlements';
 
 /**
  * Effective rights of this restaurant (`GET entitlements`). `null` until the server answers for the
@@ -15,19 +16,17 @@ export function useCapabilities(): Record<string, boolean> | null {
 
   useEffect(() => {
     if (!orgId) return;
-    const controller = new AbortController();
-    get<{ capabilities?: Record<string, boolean> }>('entitlements', {
-      signal: controller.signal,
-    })
+    let cancelled = false;
+    readEntitlements(orgId, get)
       .then((result) => {
-        if (!controller.signal.aborted) {
-          setState({ scope: orgId, capabilities: result.capabilities ?? {} });
-        }
+        if (!cancelled) setState({ scope: orgId, capabilities: result.capabilities ?? {} });
       })
       .catch(() => {
         // Fail closed: a failed probe reveals nothing gated.
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [get, orgId]);
 
   return state.scope === orgId ? state.capabilities : null;

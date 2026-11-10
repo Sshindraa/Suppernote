@@ -28,6 +28,8 @@ import {
   upsertReservationCheckMatch,
   type PosImportResult,
 } from './pos-sync.service';
+import { matchTicketsToReservations } from './pos-check-auto-match';
+import { listPosChecks } from './pos-check-list';
 
 const ConnectionIdParamsSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -92,6 +94,11 @@ const CsvImportBodySchema = z.object({
     )
     .optional(),
   dryRun: z.boolean().default(true),
+});
+
+const ListChecksQuerySchema = z.object({
+  cursor: z.string().trim().min(1).max(128).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 /** Same ceiling as the JSON import, so one page of tickets stays under the proxy timeout. */
@@ -182,8 +189,8 @@ async function matchImportedChecks(
         reservedAt: true,
         startsAt: true,
         partySize: true,
-        tableId: true,
         customerPhone: true,
+        table: { select: { name: true } },
       },
     });
     if (!reservation) continue;
@@ -192,7 +199,15 @@ async function matchImportedChecks(
         restaurantId,
         reservationId: reservation.id,
         posCheckId: persisted.id,
-        reservation: reservation,
+        reservation: {
+          id: reservation.id,
+          reservedAt: reservation.reservedAt,
+          startsAt: reservation.startsAt,
+          partySize: reservation.partySize,
+          customerPhone: reservation.customerPhone,
+          // The table name: the ticket carries a table label, never a table id.
+          tableReference: reservation.table?.name ?? null,
+        },
         check: {
           id: persisted.id,
           openedAt: persisted.openedAt,
@@ -307,20 +322,59 @@ export async function posRoutes(app: FastifyInstance) {
           message: `Colonne obligatoire non reconnue : ${reading.missing.map((field) => POS_CHECK_FIELD_LABELS[field]).join(', ')}.`,
         });
       }
-      const connection = await createOrUpdatePosConnection(request.restaurantId, FILE_CONNECTION);
-      let matched = 0;
+
+      const restaurantId = request.restaurantId;
+      // A dry run writes no connection. With none yet, importPosChecks has nothing to check against,
+      // and the reader has already validated every row with the same rules.
+      const existing = await db.posConnection.findUnique({
+        where: { restaurantId_provider: { restaurantId, provider: FILE_CONNECTION.provider } },
+        select: { id: true },
+      });
+      let connectionId: string | null = existing?.id ?? null;
+      if (!dryRun) {
+        connectionId = (await createOrUpdatePosConnection(restaurantId, FILE_CONNECTION)).id;
+      }
+
+      const counts = { matched: 0, toReview: 0 };
       try {
         for (let start = 0; start < reading.checks.length; start += IMPORT_CHUNK_SIZE) {
           const chunk = reading.checks.slice(start, start + IMPORT_CHUNK_SIZE);
-          const result = await importPosChecks({
-            restaurantId: request.restaurantId,
-            connectionId: connection.id,
-            checks: chunk,
-            dryRun,
+          const result =
+            connectionId === null
+              ? null
+              : await importPosChecks({ restaurantId, connectionId, checks: chunk, dryRun });
+
+          // Ticket ids for matching: stored ids on import, local keys in a dry run (nothing written).
+          const storedIds = new Map<string, string>();
+          for (const check of result?.checks ?? []) {
+            if ('id' in check && check.id) storedIds.set(check.externalId, check.id);
+          }
+          const autoTickets = chunk.flatMap((check, index) => {
+            if (check.reservationId) return [];
+            const id = dryRun ? `dry-${start + index}` : storedIds.get(check.externalId);
+            if (!id) return [];
+            return [
+              {
+                id,
+                openedAt: new Date(check.openedAt),
+                tableReference: check.tableReference ?? null,
+                partySize: check.matchingHints?.partySize ?? null,
+              },
+            ];
           });
-          if (!dryRun) {
-            const matches = await matchImportedChecks(request.restaurantId, chunk, result);
-            matched += matches.filter((match) => match.status === 'MATCHED').length;
+          const auto = await matchTicketsToReservations({
+            restaurantId,
+            tickets: autoTickets,
+            persist: !dryRun,
+          });
+          counts.matched += auto.matched;
+          counts.toReview += auto.review;
+
+          // Rows that name a reservation are linked explicitly, as in the JSON import.
+          if (!dryRun && result) {
+            const explicit = await matchImportedChecks(restaurantId, chunk, result);
+            counts.matched += explicit.filter((match) => match.status === 'MATCHED').length;
+            counts.toReview += explicit.filter((match) => match.status === 'REVIEW').length;
           }
         }
       } catch (error) {
@@ -331,13 +385,14 @@ export async function posRoutes(app: FastifyInstance) {
         data: {
           dryRun,
           columns: { headers: reading.headers, mapping: reading.mapping },
+          missing: reading.missing,
           counts: {
             imported: reading.checks.length,
             skipped: reading.skipped.length,
             withReservation: reading.withReservation,
-            matched,
+            matched: counts.matched,
+            toReview: counts.toReview,
           },
-          missing: reading.missing,
           reasons: reading.skipped,
           preview: reading.checks.slice(0, 5).map((check) => ({
             externalId: check.externalId,
@@ -349,6 +404,13 @@ export async function posRoutes(app: FastifyInstance) {
       });
     },
   );
+
+  /** Imported tickets with their reservation link, most recent first. Same read rights as the other routes. */
+  app.get('/pos/checks', { preHandler: requirePosRead }, async (request, reply) => {
+    const parsed = ListChecksQuerySchema.safeParse(request.query);
+    if (!parsed.success) return reply.status(400).send({ error: 'INVALID_POS_CHECK_QUERY' });
+    return reply.send({ data: await listPosChecks(request.restaurantId, parsed.data) });
+  });
 }
 
 export { posConnectorsEnabled };

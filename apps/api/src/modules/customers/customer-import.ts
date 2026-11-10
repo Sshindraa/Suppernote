@@ -1,9 +1,11 @@
+import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '../../shared/db/client';
 import {
+  customerPhoneLookupValues,
   normalizeCustomerEmail,
   normalizeCustomerPhone,
-  upsertCustomerIdentity,
 } from './customer-crm.service';
 
 /** Fields the importer understands; the owner can remap any of them on screen. */
@@ -203,8 +205,13 @@ export function readCustomerImport(input: string, requested?: ImportMapping): Im
   return { headers, mapping, lines };
 }
 
+/** Largest CSV text accepted; the JSON body around it must still fit `IMPORT_BODY_LIMIT_BYTES`. */
+export const IMPORT_CSV_MAX_CHARS = 1_000_000;
+/** nginx's default `client_max_body_size` is 1 MiB: the whole request body has to fit under it. */
+export const IMPORT_BODY_LIMIT_BYTES = 1_048_576;
+
 export const ImportCustomersSchema = z.object({
-  csv: z.string().min(1).max(5_000_000),
+  csv: z.string().min(1).max(IMPORT_CSV_MAX_CHARS),
   mapping: z
     .object(
       Object.fromEntries(
@@ -214,6 +221,11 @@ export const ImportCustomersSchema = z.object({
     .optional(),
   dryRun: z.boolean(),
 });
+
+/** New customers per transaction: keeps each write well under the 30 s proxy timeout. */
+const BATCH_SIZE = 1_000;
+/** Lines per lookup query: bounds the number of bind parameters. */
+const LOOKUP_CHUNK = 500;
 
 export type ImportOutcome = {
   counts: { created: number; completed: number; skipped: number };
@@ -234,44 +246,130 @@ type ExistingCustomer = {
   mergedIntoId: string | null;
 };
 
+type Fills = {
+  name?: string;
+  emailNormalized?: string;
+  birthMonth?: number;
+  birthDay?: number;
+  notes?: string;
+};
+
+type PendingCreate = { id: string; phone: string; line: ImportLine };
+
 /** Only empty fields of an existing customer are filled; nothing is overwritten. */
-function fillsFor(match: ExistingCustomer, line: ImportLine) {
-  return {
-    ...(!match.name && line.name ? { name: line.name } : {}),
-    ...(!match.emailNormalized && line.email ? { emailNormalized: line.email } : {}),
-    ...(match.birthMonth === null && line.birthMonth
-      ? { birthMonth: line.birthMonth, birthDay: line.birthDay }
-      : {}),
-    ...(!match.notes && line.notes ? { notes: line.notes } : {}),
-  };
+function fillsFor(match: ExistingCustomer, line: ImportLine): Fills {
+  const fills: Fills = {};
+  if (!match.name && line.name) fills.name = line.name;
+  if (!match.emailNormalized && line.email) fills.emailNormalized = line.email;
+  if (match.birthMonth === null && line.birthMonth && line.birthDay) {
+    fills.birthMonth = line.birthMonth;
+    fills.birthDay = line.birthDay;
+  }
+  if (!match.notes && line.notes) fills.notes = line.notes;
+  return fills;
+}
+
+function identityRow(
+  restaurantId: string,
+  customerId: string,
+  type: 'PHONE' | 'EMAIL',
+  value: string,
+): Prisma.CustomerIdentityCreateManyInput {
+  return { restaurantId, customerId, type, value, normalizedValue: value, source: 'IMPORT' };
 }
 
 /**
- * Creates or completes customers from a reading. Matches on (restaurantId, phone), never
- * touches consent or marketing permissions, and writes nothing when `dryRun` is set.
+ * Existing customers of the file, keyed by E.164. A legacy « 06… » row of the same number is found
+ * and counts as that customer; the E.164 row wins if both exist.
+ */
+async function loadExistingByPhone(
+  restaurantId: string,
+  lines: ImportLine[],
+): Promise<Map<string, ExistingCustomer>> {
+  const phones = [...new Set(lines.flatMap((line) => (line.phone ? [line.phone] : [])))];
+  const byPhone = new Map<string, ExistingCustomer>();
+  for (let start = 0; start < phones.length; start += LOOKUP_CHUNK) {
+    const values = [
+      ...new Set(
+        phones
+          .slice(start, start + LOOKUP_CHUNK)
+          .flatMap((phone) => customerPhoneLookupValues(phone)),
+      ),
+    ];
+    const rows = await db.customer.findMany({
+      where: { restaurantId, phone: { in: values } },
+      select: {
+        id: true,
+        phone: true,
+        name: true,
+        emailNormalized: true,
+        birthMonth: true,
+        notes: true,
+        archivedAt: true,
+        mergedIntoId: true,
+      },
+    });
+    for (const row of rows) {
+      const key = normalizeCustomerPhone(row.phone) ?? row.phone;
+      if (!byPhone.has(key) || row.phone === key) byPhone.set(key, row);
+    }
+  }
+  return byPhone;
+}
+
+/**
+ * One transaction per batch. Only the rows this batch really inserted get identities: a number
+ * created in the meantime by someone else is left alone (skipDuplicates) and reported by the caller.
+ */
+async function insertBatch(restaurantId: string, batch: PendingCreate[]): Promise<Set<string>> {
+  return db.$transaction(
+    async (tx) => {
+      await tx.customer.createMany({
+        data: batch.map(({ id, phone, line }) => ({
+          id,
+          restaurantId,
+          phone,
+          name: line.name,
+          emailNormalized: line.email,
+          notes: line.notes,
+          birthMonth: line.birthMonth,
+          birthDay: line.birthDay,
+        })),
+        skipDuplicates: true,
+      });
+      const inserted = await tx.customer.findMany({
+        where: { restaurantId, id: { in: batch.map(({ id }) => id) } },
+        select: { id: true, phone: true, emailNormalized: true },
+      });
+      const identities = inserted.flatMap((row) => [
+        identityRow(restaurantId, row.id, 'PHONE', row.phone),
+        ...(row.emailNormalized
+          ? [identityRow(restaurantId, row.id, 'EMAIL', row.emailNormalized)]
+          : []),
+      ]);
+      if (identities.length > 0) {
+        // The tenant is forced on every row, whatever the rows were built from.
+        await tx.customerIdentity.createMany({
+          data: identities.map((row) => ({ ...row, restaurantId })),
+          skipDuplicates: true,
+        });
+      }
+      return new Set(inserted.map((row) => row.id));
+    },
+    { timeout: 30_000 },
+  );
+}
+
+/**
+ * Creates or completes customers from a reading. Matches on the E.164 phone (legacy forms included),
+ * never touches consent or marketing permissions, and writes nothing when `dryRun` is set.
  */
 export async function applyCustomerImport(
   restaurantId: string,
   reading: ImportReading,
   dryRun: boolean,
 ): Promise<ImportOutcome> {
-  const phones = [...new Set(reading.lines.flatMap((line) => (line.phone ? [line.phone] : [])))];
-  const existing: ExistingCustomer[] = phones.length
-    ? await db.customer.findMany({
-        where: { restaurantId, phone: { in: phones } },
-        select: {
-          id: true,
-          phone: true,
-          name: true,
-          emailNormalized: true,
-          birthMonth: true,
-          notes: true,
-          archivedAt: true,
-          mergedIntoId: true,
-        },
-      })
-    : [];
-  const byPhone = new Map(existing.map((customer) => [customer.phone, customer]));
+  const existing = await loadExistingByPhone(restaurantId, reading.lines);
   const seen = new Set<string>();
   const outcome: ImportOutcome = {
     counts: { created: 0, completed: 0, skipped: 0 },
@@ -289,6 +387,23 @@ export async function applyCustomerImport(
     outcome.reasons.push({ line, reason });
   };
 
+  let pending: PendingCreate[] = [];
+  const flush = async () => {
+    const batch = pending;
+    pending = [];
+    if (batch.length === 0) return;
+    try {
+      const inserted = await insertBatch(restaurantId, batch);
+      for (const item of batch) {
+        if (inserted.has(item.id)) outcome.counts.created += 1;
+        else skip(item.line.line, 'Client créé en même temps par une autre saisie');
+      }
+    } catch {
+      // The batch transaction rolled back: nothing from it is reported as created.
+      for (const item of batch) skip(item.line.line, 'Enregistrement impossible');
+    }
+  };
+
   for (const line of reading.lines) {
     if (!line.phone) {
       skip(line.line, 'Téléphone absent ou invalide');
@@ -300,59 +415,49 @@ export async function applyCustomerImport(
     }
     seen.add(line.phone);
 
-    const match = byPhone.get(line.phone);
-    if (match && (match.archivedAt || match.mergedIntoId)) {
+    const match = existing.get(line.phone);
+    if (!match) {
+      if (dryRun) {
+        outcome.counts.created += 1;
+      } else {
+        pending.push({ id: randomUUID(), phone: line.phone, line });
+        if (pending.length >= BATCH_SIZE) await flush();
+      }
+      continue;
+    }
+    if (match.archivedAt || match.mergedIntoId) {
       skip(line.line, 'Client archivé ou fusionné');
       continue;
     }
-    const fills = match ? fillsFor(match, line) : null;
-    if (match && fills && Object.keys(fills).length === 0) {
+    const fills = fillsFor(match, line);
+    if (Object.keys(fills).length === 0) {
       skip(line.line, 'Client existant, rien à compléter');
       continue;
     }
-
-    if (!dryRun) {
-      try {
-        await db.$transaction(async (tx) => {
-          const customerId = match
-            ? (
-                await tx.customer.update({
-                  where: { id: match.id, restaurantId },
-                  data: fills!,
-                })
-              ).id
-            : (
-                await tx.customer.create({
-                  data: {
-                    restaurantId,
-                    phone: line.phone!,
-                    name: line.name,
-                    emailNormalized: line.email,
-                    notes: line.notes,
-                    birthMonth: line.birthMonth,
-                    birthDay: line.birthDay,
-                  },
-                })
-              ).id;
-          await upsertCustomerIdentity(
-            { restaurantId, customerId, type: 'PHONE', value: line.phone!, source: 'IMPORT' },
-            tx,
-          );
-          if (line.email) {
-            await upsertCustomerIdentity(
-              { restaurantId, customerId, type: 'EMAIL', value: line.email, source: 'IMPORT' },
-              tx,
-            );
-          }
-        });
-      } catch {
-        // A concurrent insert of the same number lands here: reported, never leaked.
-        skip(line.line, 'Enregistrement impossible');
-        continue;
-      }
+    if (dryRun) {
+      outcome.counts.completed += 1;
+      continue;
     }
-    if (match) outcome.counts.completed += 1;
-    else outcome.counts.created += 1;
+    try {
+      await db.$transaction(async (tx) => {
+        await tx.customer.update({
+          where: { id: match.id, restaurantId },
+          data: fills,
+          select: { id: true },
+        });
+        // The e-mail identity follows the e-mail actually stored, never the one only sent.
+        if (fills.emailNormalized) {
+          await tx.customerIdentity.createMany({
+            data: [identityRow(restaurantId, match.id, 'EMAIL', fills.emailNormalized)],
+            skipDuplicates: true,
+          });
+        }
+      });
+      outcome.counts.completed += 1;
+    } catch {
+      skip(line.line, 'Enregistrement impossible');
+    }
   }
+  await flush();
   return outcome;
 }

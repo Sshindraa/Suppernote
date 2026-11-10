@@ -24,6 +24,7 @@ import {
 import { findCustomerForPhone } from './customer.service';
 import { buildCustomersCsv } from './customer-export';
 import {
+  IMPORT_BODY_LIMIT_BYTES,
   IMPORT_ROW_LIMIT,
   ImportCustomersSchema,
   ImportReading,
@@ -362,7 +363,8 @@ export async function customerRoutes(app: FastifyInstance) {
         },
       ],
       config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
-      bodyLimit: 6 * 1024 * 1024,
+      // Same ceiling as nginx's default client_max_body_size (1 MiB): a bigger body never arrives.
+      bodyLimit: IMPORT_BODY_LIMIT_BYTES,
     },
     async (req, reply) => {
       const parsed = ImportCustomersSchema.safeParse(req.body);

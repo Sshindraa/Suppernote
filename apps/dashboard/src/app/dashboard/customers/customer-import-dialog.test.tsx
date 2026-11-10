@@ -19,7 +19,9 @@ const analysis = {
   ],
 };
 
-function chooseFile(content = 'Nom;Téléphone;Email\nAlice Martin;0612345678;\n') {
+function chooseFile(
+  content: string | Uint8Array<ArrayBuffer> = 'Nom;Téléphone;Email\nAlice Martin;0612345678;\n',
+) {
   const input = screen.getByLabelText('Fichier CSV à importer');
   const file = new File([content], 'clients.csv', { type: 'text/csv' });
   fireEvent.change(input, { target: { files: [file] } });
@@ -130,5 +132,32 @@ describe('CustomerImportDialog', () => {
       },
     });
     expect(onImported).toHaveBeenCalledTimes(1);
+  });
+
+  it('décode un export Excel en Windows-1252 (« Renée » avec un é non UTF-8)', async () => {
+    mocks.post.mockResolvedValueOnce({ data: analysis });
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    chooseFile(
+      new Uint8Array([
+        0x4e, 0x6f, 0x6d, 0x3b, 0x54, 0x65, 0x6c, 0x0a, 0x52, 0x65, 0x6e, 0xe9, 0x65, 0x3b, 0x30,
+        0x36, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+      ]),
+    );
+
+    await screen.findByText('Aperçu des 5 premières lignes');
+    expect(mocks.post).toHaveBeenCalledWith('customers/import', {
+      csv: 'Nom;Tel\nRenée;0612345678',
+      dryRun: true,
+    });
+  });
+
+  it('refuse un fichier trop volumineux avant tout envoi', async () => {
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    chooseFile(`Nom;Téléphone\n${'Alice;0612345678\n'.repeat(60_000)}`);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('trop volumineux');
+    expect(mocks.post).not.toHaveBeenCalled();
   });
 });

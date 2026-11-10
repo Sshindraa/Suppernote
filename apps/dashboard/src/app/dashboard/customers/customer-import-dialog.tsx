@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { decodeCsvBytes } from './csv-file';
 
 const FIELDS = [
   { key: 'lastName', label: 'Nom' },
@@ -43,8 +44,11 @@ type ImportResult = {
   preview: PreviewLine[];
 };
 
-/** Same limit as the API: a larger file is refused there, so refuse it before uploading. */
-const MAX_FILE_CHARS = 5_000_000;
+/** Mirrors the API: nginx lets 1 MiB of request body through, and the CSV text is capped too. */
+const MAX_BODY_BYTES = 1_048_576;
+const MAX_CSV_CHARS = 1_000_000;
+const TOO_LARGE_MESSAGE =
+  'Ce fichier est trop volumineux : 1 Mo maximum à l’envoi, soit environ 10 000 clients. Découpez-le en plusieurs fichiers.';
 
 type Step = 'file' | 'verify' | 'report';
 
@@ -81,12 +85,24 @@ export function CustomerImportDialog({
     onOpenChange(next);
   }
 
+  /** Refuses an oversized import before sending it, with the reason, instead of a bare 413. */
+  async function callImport(body: {
+    csv: string;
+    dryRun: boolean;
+    mapping?: Record<Field, string | null>;
+  }) {
+    const bytes = new TextEncoder().encode(JSON.stringify(body)).byteLength;
+    if (body.csv.length > MAX_CSV_CHARS || bytes > MAX_BODY_BYTES)
+      throw new Error(TOO_LARGE_MESSAGE);
+    return post<{ data: ImportResult }>('customers/import', body);
+  }
+
   /** Dry run: detects or applies the column mapping and counts what would happen. Writes nothing. */
   async function analyse(text: string, nextMapping?: Mapping) {
     setLoading(true);
     setError('');
     try {
-      const res = await post<{ data: ImportResult }>('customers/import', {
+      const res = await callImport({
         csv: text,
         dryRun: true,
         ...(nextMapping ? { mapping: fullMapping(nextMapping) } : {}),
@@ -103,11 +119,7 @@ export function CustomerImportDialog({
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > MAX_FILE_CHARS) {
-      setError('Ce fichier est trop volumineux pour être importé.');
-      return;
-    }
-    const text = await file.text();
+    const text = decodeCsvBytes(await file.arrayBuffer());
     setCsv(text);
     await analyse(text);
   }
@@ -116,11 +128,7 @@ export function CustomerImportDialog({
     setLoading(true);
     setError('');
     try {
-      const res = await post<{ data: ImportResult }>('customers/import', {
-        csv,
-        dryRun: false,
-        mapping: fullMapping(mapping),
-      });
+      const res = await callImport({ csv, dryRun: false, mapping: fullMapping(mapping) });
       setReport(res.data);
       setStep('report');
       onImported?.();
@@ -160,13 +168,19 @@ export function CustomerImportDialog({
               <Skeleton className="h-10 w-full rounded-xl" />
             </div>
           ) : (
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              aria-label="Fichier CSV à importer"
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-foreground"
-              onChange={(event) => void handleFile(event.target.files?.[0])}
-            />
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                aria-label="Fichier CSV à importer"
+                className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-foreground"
+                onChange={(event) => void handleFile(event.target.files?.[0])}
+              />
+              <p className="text-sm text-muted-foreground">
+                Un export Excel doit d’abord être enregistré en CSV (Fichier › Enregistrer sous ›
+                CSV). Un fichier .xlsx n’est pas accepté.
+              </p>
+            </div>
           )
         ) : null}
 

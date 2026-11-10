@@ -379,8 +379,14 @@ export async function upsertReservationCheckMatch(args: {
   reservation: ReservationMatchCandidate;
   check: PosCheckMatchCandidate;
   reviewedByHash?: string | null;
+  /** Ties between candidates: a MATCHED score is kept for a human to confirm, as REVIEW. */
+  reviewOnly?: boolean;
 }): Promise<ReservationCheckMatchResult & { reservationId: string; posCheckId: string }> {
-  const result = scoreReservationCheckMatch({ reservation: args.reservation, check: args.check });
+  const scored = scoreReservationCheckMatch({ reservation: args.reservation, check: args.check });
+  const result =
+    args.reviewOnly && scored.status === 'MATCHED'
+      ? { ...scored, status: 'REVIEW' as const }
+      : scored;
   await db.reservationCheckMatch.upsert({
     where: {
       reservationId_posCheckId: { reservationId: args.reservationId, posCheckId: args.posCheckId },

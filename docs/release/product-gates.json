@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-22",
+  "updatedAt": "2026-11-10",
   "productionFreeze": true,
   "productionRelease": {
     "mode": "SCOPED",
@@ -23,7 +23,6 @@
       "CRM_ADVANCED_ENABLED",
       "MARKETING_SENDS_ENABLED",
       "MARKETING_WHATSAPP_ENABLED",
-      "POS_CONNECTORS_ENABLED",
       "RESERVATION_PAYMENTS_ENABLED",
       "CUSTOMER_GROUPS_ENABLED",
       "EXPERIENCES_ENABLED",
@@ -120,16 +119,17 @@
     },
     {
       "id": "P6_POS",
-      "label": "Caisse, rapprochement et dépense réelle",
+      "label": "Caisse : import de tickets par fichier actif ; connecteurs fournisseurs à faire",
       "status": "LOCAL_ONLY",
       "evidence": [
         "docs/roadmap-produit-crm-marketing-199-299.md",
-        "docs/release/evidence/local-validation-matrix-2026-09-14.md"
+        "docs/release/evidence/local-validation-matrix-2026-09-14.md",
+        "docs/release/evidence/pos-file-import-2026-11-10.md"
       ],
       "blockers": [
         "choisir un fournisseur POS et son contrat de données",
-        "implémenter secret manager, adaptateur, sandbox et webhooks",
-        "rapprocher trente jours de tickets avec revue des exceptions"
+        "implémenter secret manager, adaptateur, sandbox et webhooks du connecteur fournisseur",
+        "rapprocher trente jours de tickets fournisseur avec revue des exceptions"
       ]
     },
     {

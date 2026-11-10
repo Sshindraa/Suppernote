@@ -43,6 +43,7 @@ import {
   leadTimeRefusal,
   loadMinLeadTimeMinutes,
 } from '../../shared/reservations/lead-time';
+import { getReservationAddition } from '../pos/pos-check-spend';
 
 // --- auth/public split ---
 // Les routes GET/PATCH/DELETE nécessitent une organisation (dashboard manager).
@@ -279,6 +280,13 @@ export async function reservationRoutes(app: FastifyInstance) {
       }
       throw err;
     }
+  });
+
+  // Lecture seule : addition rapprochée (MATCHED) de la réservation, `null` si aucune.
+  app.get('/reservations/:id/addition', { preHandler: requireOrg() }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const addition = await getReservationAddition(req.restaurantId!, id);
+    return reply.send({ data: addition });
   });
 
   app.post('/reservations/:id/allocate-table', { preHandler: requireOrg() }, async (req, reply) => {

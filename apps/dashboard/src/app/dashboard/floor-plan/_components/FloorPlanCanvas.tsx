@@ -9446,7 +9446,10 @@ export function FloorPlanCanvas({
                     <div
                       className={cn(
                         'relative',
-                        liveViewportBounds ? 'mx-auto overflow-hidden' : undefined,
+                        // overflow-clip, pas hidden : une scène hidden reste défilable, et
+                        // le focus d'une table pendant le rétrécissement du panneau la
+                        // décale sans que le cadrage la remette à zéro.
+                        liveViewportBounds ? 'mx-auto overflow-clip' : undefined,
                       )}
                       data-testid={liveViewportBounds ? 'floor-plan-live-stage' : undefined}
                       style={{ width: stageWidth, height: stageHeight }}

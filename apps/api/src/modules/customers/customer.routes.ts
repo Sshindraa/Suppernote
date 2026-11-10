@@ -24,6 +24,16 @@ import {
 import { findCustomerForPhone } from './customer.service';
 import { buildCustomersCsv } from './customer-export';
 import {
+  IMPORT_BODY_LIMIT_BYTES,
+  IMPORT_ROW_LIMIT,
+  ImportCustomersSchema,
+  ImportReading,
+  applyCustomerImport,
+  readCustomerImport,
+  CUSTOMER_COLUMN_AI,
+} from './customer-import';
+import { readWithAiColumns } from '../imports/column-ai';
+import {
   countCustomersByLifecycle,
   filterCustomerIdsByVisits,
   withCustomerLifecycles,
@@ -332,6 +342,76 @@ export async function customerRoutes(app: FastifyInstance) {
       const withVisits = await withCustomerLifecycles(restaurantId, customers);
       return reply.send({
         data: { csv: buildCustomersCsv(withVisits), count: withVisits.length },
+      });
+    },
+  );
+
+  /**
+   * Imports a customer CSV (owner only, like the export). `dryRun` checks the columns and counts
+   * without writing. Existing customers are completed, never overwritten; no consent is written.
+   */
+  app.post(
+    '/customers/import',
+    {
+      preHandler: [
+        requireOrg(),
+        requireCapability('customers.basic'),
+        async (req, reply) => {
+          if (req.siteRole === 'OWNER') return;
+          return reply.status(403).send({
+            error: 'CUSTOMER_IMPORT_OWNER_REQUIRED',
+            message: 'Seul le propriétaire du site peut importer le fichier clients.',
+          });
+        },
+      ],
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+      // Same ceiling as nginx's default client_max_body_size (1 MiB): a bigger body never arrives.
+      bodyLimit: IMPORT_BODY_LIMIT_BYTES,
+    },
+    async (req, reply) => {
+      const parsed = ImportCustomersSchema.safeParse(req.body);
+      if (!parsed.success) return reply.status(400).send({ error: 'INVALID_CUSTOMER_IMPORT' });
+      const readOptions = { hasHeader: parsed.data.hasHeader, lineOffset: parsed.data.lineOffset };
+      let reading: ImportReading & { fromAi?: string[] };
+      try {
+        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping, readOptions);
+      } catch (err: unknown) {
+        return reply.status(400).send({
+          error: 'INVALID_CUSTOMER_IMPORT_MAPPING',
+          message: err instanceof Error ? err.message : 'Colonne introuvable.',
+        });
+      }
+      // The model only on the first probe (no mapping sent): later calls carry the mapping it gave.
+      if (!parsed.data.mapping) {
+        reading = await readWithAiColumns({
+          csv: parsed.data.csv,
+          reading,
+          lineOffset: parsed.data.lineOffset,
+          spec: CUSTOMER_COLUMN_AI,
+          reread: (mapping) => readCustomerImport(parsed.data.csv, mapping, readOptions),
+          log: req.log,
+        });
+      }
+      // Un import partiel laisserait des clients manquants sans le dire : on refuse plutôt que de tronquer.
+      if (reading.lines.length > IMPORT_ROW_LIMIT) {
+        return reply.status(422).send({
+          error: 'CUSTOMER_IMPORT_TOO_LARGE',
+          message: `Le fichier dépasse ${IMPORT_ROW_LIMIT} clients : découpez-le en plusieurs fichiers.`,
+        });
+      }
+      const outcome = await applyCustomerImport(req.restaurantId!, reading, parsed.data.dryRun);
+      return reply.send({
+        data: {
+          dryRun: parsed.data.dryRun,
+          columns: {
+            headers: reading.headers,
+            headerLine: reading.headerLine,
+            mapping: reading.mapping,
+            byContent: reading.byContent,
+            fromAi: reading.fromAi ?? [],
+          },
+          ...outcome,
+        },
       });
     },
   );

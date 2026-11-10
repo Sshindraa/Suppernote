@@ -882,4 +882,26 @@ describe('reservation.routes', () => {
       expect(res.statusCode).toBe(500);
     });
   });
+
+  describe('addition rapprochée', () => {
+    it('GET /reservations/:id/addition renvoie data: null sans ticket MATCHED', async () => {
+      vi.mocked(db.restaurant.findUnique).mockResolvedValue({ plan: 'PRO' } as never);
+      vi.mocked(db.reservationCheckMatch.findMany).mockResolvedValue([] as never);
+      const app = await getApp();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/reservations/res-1/addition',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ data: null });
+      expect(db.reservationCheckMatch.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ reservationId: 'res-1', status: 'MATCHED' }),
+        }),
+      );
+    });
+  });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '@/lib/api';
+import { readEntitlements } from '@/lib/entitlements';
 
 /** Read effective server rights, including legacy grants. Never infer access from the plan label. */
 export function useServiceCopilotAccess(enabled = true, restaurantId?: string) {
@@ -16,14 +17,11 @@ export function useServiceCopilotAccess(enabled = true, restaurantId?: string) {
   });
   useEffect(() => {
     if (!enabled || !scope) return;
-    const controller = new AbortController();
+    let cancelled = false;
     setState({ allowed: false, error: false });
-    getRef
-      .current<{ restaurantId: string; capabilities: Record<string, boolean> }>('entitlements', {
-        signal: controller.signal,
-      })
+    readEntitlements(scope, getRef.current)
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (cancelled) return;
         if (result.restaurantId !== scope) throw new Error('Unexpected restaurant scope');
         setState({
           scope,
@@ -32,9 +30,11 @@ export function useServiceCopilotAccess(enabled = true, restaurantId?: string) {
         });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setState({ scope, allowed: false, error: true });
+        if (!cancelled) setState({ scope, allowed: false, error: true });
       });
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, [enabled, scope, revision]);
   const current = enabled && Boolean(scope) && state.scope === scope;
   return {

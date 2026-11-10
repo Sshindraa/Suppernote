@@ -1,4 +1,4 @@
-import { detectColumns, parseCsv } from '@suppernote/shared';
+import { looksLikeAmount, looksLikeDate, readTable } from '@suppernote/shared';
 import type { PosCheckInput } from './pos-connector';
 import { normalizePosCheckInput, PosCheckInputError } from './pos-sync.service';
 
@@ -89,7 +89,11 @@ export type PosCsvSkip = { line: number; reason: string };
 
 export interface PosCsvReading {
   headers: string[];
+  /** Line of the header row in the file, or null when the file has none. */
+  headerLine: number | null;
   mapping: PosCheckMapping;
+  /** Fields found from the values, not from a header name: the owner should check them. */
+  byContent: PosCheckField[];
   checks: PosCheckInput[];
   skipped: PosCsvSkip[];
   /** Rows that name a reservation: only these can be linked to one. */
@@ -157,23 +161,32 @@ export function parseFrenchAmount(value: string): string | null {
  * JSON import; a bad row is skipped with its line number and reason, never the whole file. Throws a
  * readable Error only when a mapped column is absent from the file. Ticket values stay in memory.
  */
-export function readPosCheckCsv(input: string, requested?: PosCheckMapping): PosCsvReading {
-  const records = parseCsv(input);
-  const [header, ...body] = records;
-  const headers = header ? header.cells.map((cell) => cell.trim()) : [];
-  const mapping: PosCheckMapping = requested ?? detectColumns(headers, SYNONYMS, POS_CHECK_FIELDS);
-  for (const field of POS_CHECK_FIELDS) {
-    const column = mapping[field];
-    if (column && !headers.includes(column)) {
-      throw new Error(`Colonne introuvable dans le fichier : ${column}`);
-    }
-  }
-  const missing = REQUIRED_FIELDS.filter((field) => !mapping[field]);
+export function readPosCheckCsv(
+  input: string,
+  requested?: PosCheckMapping,
+  options: { hasHeader?: boolean; lineOffset?: number } = {},
+): PosCsvReading {
+  const table = readTable(input, {
+    synonyms: SYNONYMS,
+    fields: POS_CHECK_FIELDS,
+    required: REQUIRED_FIELDS,
+    testers: {
+      openedAt: looksLikeDate,
+      closedAt: looksLikeDate,
+      subtotal: looksLikeAmount,
+      tax: looksLikeAmount,
+      total: looksLikeAmount,
+    },
+    requested,
+    hasHeader: options.hasHeader,
+    lineOffset: options.lineOffset,
+  });
+  const { headers, mapping, missing } = table;
 
   const checks: PosCheckInput[] = [];
   const skipped: PosCsvSkip[] = [];
   const seen = new Set<string>();
-  for (const { line, cells } of body) {
+  for (const { line, cells } of table.rows) {
     const result = readRow(cells, headers, mapping);
     if (typeof result === 'string') {
       skipped.push({ line, reason: result });
@@ -189,7 +202,9 @@ export function readPosCheckCsv(input: string, requested?: PosCheckMapping): Pos
 
   return {
     headers,
+    headerLine: table.headerLine,
     mapping,
+    byContent: table.byContent,
     checks,
     skipped,
     withReservation: checks.filter((check) => check.reservationId).length,

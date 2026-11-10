@@ -36,11 +36,38 @@ export function PosTicketList() {
 }
 
 function TicketListBody({ onRetry }: { onRetry: () => void }) {
-  const { get } = useApi();
+  const { get, post } = useApi();
   const [items, setItems] = useState<PosCheckListItem[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<string | null>(null);
+  const [decisionError, setDecisionError] = useState('');
+
+  /** One click confirms or rejects the link of a ticket to verify. The list is updated in place. */
+  async function decide(ticket: PosCheckListItem, decision: 'confirm' | 'reject') {
+    setDeciding(ticket.id);
+    setDecisionError('');
+    try {
+      const response = await post<{ data: { status: string } }>(
+        `pos/checks/${encodeURIComponent(ticket.id)}/review`,
+        { decision },
+      );
+      const status = response.data.status;
+      setItems(
+        (current) =>
+          current?.map((item) =>
+            item.id === ticket.id && item.match
+              ? { ...item, match: { ...item.match, status } }
+              : item,
+          ) ?? current,
+      );
+    } catch (err: unknown) {
+      setDecisionError(getErrorMessage(err, 'Impossible d’enregistrer votre choix. Réessayez.'));
+    } finally {
+      setDeciding(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -110,10 +137,42 @@ function TicketListBody({ onRetry }: { onRetry: () => void }) {
                 {formatDateTime(ticket.openedAt)} · {formatEuro(ticket.total)}
               </p>
             </div>
-            <MatchBadge match={ticket.match} />
+            <div className="flex flex-wrap items-center gap-2">
+              <MatchBadge match={ticket.match} />
+              {ticket.match?.status === 'REVIEW' ? (
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-label={`Confirmer le rapprochement du ticket ${ticket.externalId}`}
+                    disabled={deciding === ticket.id}
+                    className="transition-all duration-200"
+                    onClick={() => void decide(ticket, 'confirm')}
+                  >
+                    Confirmer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Rejeter le rapprochement du ticket ${ticket.externalId}`}
+                    disabled={deciding === ticket.id}
+                    className="transition-all duration-200"
+                    onClick={() => void decide(ticket, 'reject')}
+                  >
+                    Rejeter
+                  </Button>
+                </>
+              ) : null}
+            </div>
           </li>
         ))}
       </ul>
+      {decisionError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {decisionError}
+        </p>
+      ) : null}
       {nextCursor ? (
         <div className="flex justify-center">
           <Button
@@ -132,7 +191,7 @@ function TicketListBody({ onRetry }: { onRetry: () => void }) {
 }
 
 function MatchBadge({ match }: { match: PosCheckListItem['match'] }) {
-  if (!match) {
+  if (!match || match.status === 'UNMATCHED') {
     return <Badge variant="outline">Non rapproché</Badge>;
   }
   const at = formatTime(match.reservation.at);

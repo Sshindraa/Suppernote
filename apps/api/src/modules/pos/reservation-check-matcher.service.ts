@@ -63,9 +63,23 @@ function phoneValue(value: string | null | undefined): string | null {
   return digits.length >= 6 ? digits : null;
 }
 
+/**
+ * Table label as compared between a ticket and a reservation: « Table 12 », « T12 », « 12 » and
+ * « n°12 » are the same table. Letters and digits only, accents and case ignored.
+ */
+export function normalizeTableLabel(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const base = value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const withoutWord = base.replace(/^table\b\s*/, '');
+  const normalized = withoutWord
+    .replace(/^(?:t|n|no|num|numero|n°|nº)\s*[°º.:-]?\s*(?=\d)/, '')
+    .replace(/[^a-z0-9]/g, '');
+  return normalized.length > 0 ? normalized : null;
+}
+
 function sameTable(reservation: ReservationMatchCandidate, check: PosCheckMatchCandidate): boolean {
-  const reservationTable = tokenValue(reservation.tableReference ?? reservation.tableId);
-  const checkTable = tokenValue(check.tableReference);
+  const reservationTable = normalizeTableLabel(reservation.tableReference ?? reservation.tableId);
+  const checkTable = normalizeTableLabel(check.tableReference);
   return Boolean(reservationTable && checkTable && reservationTable === checkTable);
 }
 

@@ -190,3 +190,109 @@ describe('POST /pos/checks/csv-import', () => {
     expect(db.posConnection.create).not.toHaveBeenCalled();
   });
 });
+
+describe('POST /pos/checks/:id/review', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv('POS_CONNECTORS_ENABLED', 'true');
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ plan: 'PRO' } as never);
+  });
+
+  it('confirme un rapprochement à vérifier : il devient MATCHED', async () => {
+    vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
+      reservationId: 'resa-1',
+    } as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 1 } as never);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-1/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'confirm' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { status: 'MATCHED' } });
+    expect(db.reservationCheckMatch.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'REVIEW', posCheckId: 'check-1' }),
+      }),
+    );
+    expect(db.reservationCheckMatch.updateMany).toHaveBeenCalledWith({
+      where: {
+        restaurantId: expect.any(String),
+        reservationId: 'resa-1',
+        posCheckId: 'check-1',
+        status: 'REVIEW',
+      },
+      data: { status: 'MATCHED' },
+    });
+  });
+
+  it('rejette un rapprochement : il devient UNMATCHED', async () => {
+    vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
+      reservationId: 'resa-1',
+    } as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 1 } as never);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-1/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'reject' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ data: { status: 'UNMATCHED' } });
+  });
+
+  it('répond 404 quand le ticket n’a rien à vérifier dans ce restaurant', async () => {
+    vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue(null);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-9/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'confirm' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error).toBe('REVIEW_MATCH_NOT_FOUND');
+    expect(db.reservationCheckMatch.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('répond 409 quand le rapprochement a été vérifié entre-temps', async () => {
+    vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
+      reservationId: 'resa-1',
+    } as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 0 } as never);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-1/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'confirm' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error).toBe('REVIEW_MATCH_ALREADY_DECIDED');
+  });
+
+  it('refuse une décision inconnue', async () => {
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-1/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'peut-être' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe('INVALID_POS_CHECK_REVIEW');
+  });
+});

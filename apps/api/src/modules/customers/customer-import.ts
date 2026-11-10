@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { detectColumns, parseCsv } from '@suppernote/shared';
+import { looksLikeDate, looksLikeEmail, looksLikePhone, readTable } from '@suppernote/shared';
 import { db } from '../../shared/db/client';
 import {
   customerPhoneLookupValues,
@@ -58,13 +58,23 @@ export type ImportLine = {
 
 export type ImportReading = {
   headers: string[];
+  /** Line of the header row in the file, or null when the file has none. */
+  headerLine: number | null;
   mapping: ImportMapping;
+  /** Fields found from the values, not from a header name: the owner should check them. */
+  byContent: ImportField[];
   lines: ImportLine[];
 };
 
-/** Header name for each field, by synonym. Each header is used for at most one field. */
-export function detectMapping(headers: string[]): ImportMapping {
-  return detectColumns(headers, SYNONYMS, IMPORT_FIELDS);
+/**
+ * Excel keeps a number as a number: « 0612345678 » comes back as « 612345678 », and « +33… » as
+ * « 33… ». Restores the missing 0 or + for this import only; any other value is left as it is.
+ */
+export function restoreImportedPhone(value: string): string {
+  const compact = value.replace(/[\s.]/g, '');
+  if (/^[1-9]\d{8}$/.test(compact)) return `0${compact}`;
+  if (/^33\d{9}$/.test(compact)) return `+${compact}`;
+  return value;
 }
 
 /** Accepts `JJ/MM`, `JJ/MM/AAAA` and `AAAA-MM-JJ`; anything else (or an impossible date) is ignored. */
@@ -83,20 +93,27 @@ export function parseBirthday(value: string): { month: number; day: number } | n
 }
 
 /**
- * Reads a customer CSV into normalised lines. Throws a readable Error when the mapping names a
- * header the file does not have. Personal values stay in memory: callers must not log them.
+ * Reads a customer CSV into normalised lines. Finds the header row (or none), maps columns by name
+ * and then by content. Throws a readable Error when the mapping names a header the file does not
+ * have. Personal values stay in memory: callers must not log them.
  */
-export function readCustomerImport(input: string, requested?: ImportMapping): ImportReading {
-  const records = parseCsv(input);
-  const [header, ...body] = records;
-  const headers = header ? header.cells.map((cell) => cell.trim()) : [];
-  const mapping: ImportMapping = requested ?? detectMapping(headers);
-  for (const field of IMPORT_FIELDS) {
-    const column = mapping[field];
-    if (column && !headers.includes(column)) {
-      throw new Error(`Colonne introuvable dans le fichier : ${column}`);
-    }
-  }
+export function readCustomerImport(
+  input: string,
+  requested?: ImportMapping,
+  options: { hasHeader?: boolean; lineOffset?: number } = {},
+): ImportReading {
+  const table = readTable(input, {
+    synonyms: SYNONYMS,
+    fields: IMPORT_FIELDS,
+    required: ['phone'],
+    testers: { phone: looksLikePhone, email: looksLikeEmail, birthday: looksLikeDate },
+    // An amount or a total is never a phone, even when its values have nine digits.
+    rejects: { phone: /montant|total|prix|somme|tva|ttc|euro|remise|solde|pourboire|couvert/ },
+    requested,
+    hasHeader: options.hasHeader,
+    lineOffset: options.lineOffset,
+  });
+  const { mapping, headers } = table;
 
   const valueOf = (cells: string[], field: ImportField): string | null => {
     const column = mapping[field];
@@ -106,7 +123,7 @@ export function readCustomerImport(input: string, requested?: ImportMapping): Im
     return value === '' ? null : value;
   };
 
-  const lines = body.map(({ line, cells }): ImportLine => {
+  const lines = table.rows.map(({ line, cells }): ImportLine => {
     const first = valueOf(cells, 'firstName');
     const last = valueOf(cells, 'lastName');
     const name = [first, last].filter(Boolean).join(' ') || valueOf(cells, 'name');
@@ -116,7 +133,7 @@ export function readCustomerImport(input: string, requested?: ImportMapping): Im
     const parsedBirthday = birthday ? parseBirthday(birthday) : null;
     return {
       line,
-      phone: phoneRaw ? normalizeCustomerPhone(phoneRaw) : null,
+      phone: phoneRaw ? normalizeCustomerPhone(restoreImportedPhone(phoneRaw)) : null,
       name: name ? name.slice(0, 100) : null,
       email: emailRaw ? normalizeCustomerEmail(emailRaw) : null,
       notes: valueOf(cells, 'notes')?.slice(0, 500) ?? null,
@@ -125,7 +142,7 @@ export function readCustomerImport(input: string, requested?: ImportMapping): Im
     };
   });
 
-  return { headers, mapping, lines };
+  return { headers, headerLine: table.headerLine, mapping, byContent: table.byContent, lines };
 }
 
 /**
@@ -146,6 +163,10 @@ export const ImportCustomersSchema = z.object({
     )
     .optional(),
   dryRun: z.boolean(),
+  /** Set by the dashboard after the first piece: the file's header row, or none. */
+  hasHeader: z.boolean().optional(),
+  /** Line of the piece's first row in the original file minus one: keeps the report's line numbers. */
+  lineOffset: z.number().int().min(0).max(10_000_000).default(0),
 });
 
 /** New customers per transaction: keeps each write well under the 30 s proxy timeout. */

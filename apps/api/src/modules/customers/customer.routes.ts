@@ -371,7 +371,10 @@ export async function customerRoutes(app: FastifyInstance) {
       if (!parsed.success) return reply.status(400).send({ error: 'INVALID_CUSTOMER_IMPORT' });
       let reading: ImportReading;
       try {
-        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping);
+        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping, {
+          hasHeader: parsed.data.hasHeader,
+          lineOffset: parsed.data.lineOffset,
+        });
       } catch (err: unknown) {
         return reply.status(400).send({
           error: 'INVALID_CUSTOMER_IMPORT_MAPPING',
@@ -389,7 +392,12 @@ export async function customerRoutes(app: FastifyInstance) {
       return reply.send({
         data: {
           dryRun: parsed.data.dryRun,
-          columns: { headers: reading.headers, mapping: reading.mapping },
+          columns: {
+            headers: reading.headers,
+            headerLine: reading.headerLine,
+            mapping: reading.mapping,
+            byContent: reading.byContent,
+          },
           ...outcome,
         },
       });

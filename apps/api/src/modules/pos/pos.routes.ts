@@ -94,7 +94,13 @@ const CsvImportBodySchema = z.object({
     )
     .optional(),
   dryRun: z.boolean().default(true),
+  /** Set by the dashboard after the first piece: the file's header row, or none. */
+  hasHeader: z.boolean().optional(),
+  /** Line of the piece's first row in the original file minus one: keeps the report's line numbers. */
+  lineOffset: z.number().int().min(0).max(10_000_000).default(0),
 });
+
+const ReviewCheckBodySchema = z.object({ decision: z.enum(['confirm', 'reject']) });
 
 const ListChecksQuerySchema = z.object({
   cursor: z.string().trim().min(1).max(128).optional(),
@@ -300,7 +306,10 @@ export async function posRoutes(app: FastifyInstance) {
       if (!parsed.success) return reply.status(400).send({ error: 'INVALID_POS_CHECK_IMPORT' });
       let reading: PosCsvReading;
       try {
-        reading = readPosCheckCsv(parsed.data.csv, parsed.data.mapping as PosCheckMapping);
+        reading = readPosCheckCsv(parsed.data.csv, parsed.data.mapping as PosCheckMapping, {
+          hasHeader: parsed.data.hasHeader,
+          lineOffset: parsed.data.lineOffset,
+        });
       } catch (err: unknown) {
         return reply.status(400).send({
           error: 'INVALID_POS_CHECK_MAPPING',
@@ -384,7 +393,12 @@ export async function posRoutes(app: FastifyInstance) {
       return reply.send({
         data: {
           dryRun,
-          columns: { headers: reading.headers, mapping: reading.mapping },
+          columns: {
+            headers: reading.headers,
+            headerLine: reading.headerLine,
+            mapping: reading.mapping,
+            byContent: reading.byContent,
+          },
           missing: reading.missing,
           counts: {
             imported: reading.checks.length,
@@ -404,6 +418,48 @@ export async function posRoutes(app: FastifyInstance) {
       });
     },
   );
+
+  /**
+   * Confirms or rejects the reservation link a ticket still waits for (status REVIEW). Same guards as
+   * the import. Confirming keeps the link (MATCHED); rejecting clears it (UNMATCHED).
+   */
+  app.post('/pos/checks/:id/review', { preHandler: requirePosWrite }, async (request, reply) => {
+    const params = z.object({ id: z.string().trim().min(1).max(128) }).safeParse(request.params);
+    const body = ReviewCheckBodySchema.safeParse(request.body);
+    if (!params.success || !body.success) {
+      return reply.status(400).send({ error: 'INVALID_POS_CHECK_REVIEW' });
+    }
+    const restaurantId = request.restaurantId;
+    const match = await db.reservationCheckMatch.findFirst({
+      where: { restaurantId, posCheckId: params.data.id, status: 'REVIEW' },
+      orderBy: { confidence: 'desc' },
+      select: { reservationId: true },
+    });
+    if (!match) {
+      return reply.status(404).send({
+        error: 'REVIEW_MATCH_NOT_FOUND',
+        message: 'Aucun rapprochement à vérifier pour ce ticket.',
+      });
+    }
+    // Scoped to the tenant and to the review state: a link decided meanwhile is left alone.
+    const status = body.data.decision === 'confirm' ? 'MATCHED' : 'UNMATCHED';
+    const updated = await db.reservationCheckMatch.updateMany({
+      where: {
+        restaurantId,
+        reservationId: match.reservationId,
+        posCheckId: params.data.id,
+        status: 'REVIEW',
+      },
+      data: { status },
+    });
+    if (updated.count === 0) {
+      return reply.status(409).send({
+        error: 'REVIEW_MATCH_ALREADY_DECIDED',
+        message: 'Ce rapprochement a déjà été vérifié. Actualisez la liste.',
+      });
+    }
+    return reply.send({ data: { status } });
+  });
 
   /** Imported tickets with their reservation link, most recent first. Same read rights as the other routes. */
   app.get('/pos/checks', { preHandler: requirePosRead }, async (request, reply) => {

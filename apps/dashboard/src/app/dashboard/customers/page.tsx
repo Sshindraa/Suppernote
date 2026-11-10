@@ -33,7 +33,9 @@ import {
   X,
   Download,
   ArrowDown,
+  Upload,
 } from 'lucide-react';
+import { CustomerImportDialog } from './customer-import-dialog';
 import { DataFetchError } from '@/components/DataFetchError';
 import { CustomerLifecycleBadge } from '@/components/CustomerLifecycleBadge';
 
@@ -377,6 +379,7 @@ export default function CustomersPage() {
   }
 
   const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   async function exportCsv() {
     setExporting(true);
     setError('');
@@ -444,6 +447,18 @@ export default function CustomersPage() {
               {exporting ? 'Export…' : 'Exporter'}
             </Button>
           ) : null}
+          {canExport ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="px-2.5 transition-all duration-200 sm:px-3"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload size={14} />
+              Importer
+            </Button>
+          ) : null}
           {crmState === 'open' ? (
             <Button asChild variant="outline" size="sm" className="px-2.5 sm:px-3">
               <Link href="/dashboard/customers/crm/duplicates">
@@ -454,6 +469,14 @@ export default function CustomersPage() {
           ) : null}
         </div>
       </div>
+
+      {canExport ? (
+        <CustomerImportDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => void fetchCustomers()}
+        />
+      ) : null}
 
       {/* Segments : un clic recharge la liste, la recherche en cours reste en place */}
       <Tabs

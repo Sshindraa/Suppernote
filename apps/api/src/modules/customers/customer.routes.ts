@@ -24,6 +24,13 @@ import {
 import { findCustomerForPhone } from './customer.service';
 import { buildCustomersCsv } from './customer-export';
 import {
+  IMPORT_ROW_LIMIT,
+  ImportCustomersSchema,
+  ImportReading,
+  applyCustomerImport,
+  readCustomerImport,
+} from './customer-import';
+import {
   countCustomersByLifecycle,
   filterCustomerIdsByVisits,
   withCustomerLifecycles,
@@ -332,6 +339,57 @@ export async function customerRoutes(app: FastifyInstance) {
       const withVisits = await withCustomerLifecycles(restaurantId, customers);
       return reply.send({
         data: { csv: buildCustomersCsv(withVisits), count: withVisits.length },
+      });
+    },
+  );
+
+  /**
+   * Imports a customer CSV (owner only, like the export). `dryRun` checks the columns and counts
+   * without writing. Existing customers are completed, never overwritten; no consent is written.
+   */
+  app.post(
+    '/customers/import',
+    {
+      preHandler: [
+        requireOrg(),
+        requireCapability('customers.basic'),
+        async (req, reply) => {
+          if (req.siteRole === 'OWNER') return;
+          return reply.status(403).send({
+            error: 'CUSTOMER_IMPORT_OWNER_REQUIRED',
+            message: 'Seul le propriétaire du site peut importer le fichier clients.',
+          });
+        },
+      ],
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+      bodyLimit: 6 * 1024 * 1024,
+    },
+    async (req, reply) => {
+      const parsed = ImportCustomersSchema.safeParse(req.body);
+      if (!parsed.success) return reply.status(400).send({ error: 'INVALID_CUSTOMER_IMPORT' });
+      let reading: ImportReading;
+      try {
+        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping);
+      } catch (err: unknown) {
+        return reply.status(400).send({
+          error: 'INVALID_CUSTOMER_IMPORT_MAPPING',
+          message: err instanceof Error ? err.message : 'Colonne introuvable.',
+        });
+      }
+      // Un import partiel laisserait des clients manquants sans le dire : on refuse plutôt que de tronquer.
+      if (reading.lines.length > IMPORT_ROW_LIMIT) {
+        return reply.status(422).send({
+          error: 'CUSTOMER_IMPORT_TOO_LARGE',
+          message: `Le fichier dépasse ${IMPORT_ROW_LIMIT} clients : découpez-le en plusieurs fichiers.`,
+        });
+      }
+      const outcome = await applyCustomerImport(req.restaurantId!, reading, parsed.data.dryRun);
+      return reply.send({
+        data: {
+          dryRun: parsed.data.dryRun,
+          columns: { headers: reading.headers, mapping: reading.mapping },
+          ...outcome,
+        },
       });
     },
   );

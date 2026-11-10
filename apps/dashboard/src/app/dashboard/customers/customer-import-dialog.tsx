@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { decodeCsvBytes } from './csv-file';
+import { decodeCsvBytes } from '@suppernote/shared';
 
 const FIELDS = [
   { key: 'lastName', label: 'Nom' },

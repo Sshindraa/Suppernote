@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decodeCsvBytes } from './csv-file';
+import { decodeCsvBytes } from '@suppernote/shared';
 
 const encode = (text: string) => new TextEncoder().encode(text).buffer as ArrayBuffer;
 

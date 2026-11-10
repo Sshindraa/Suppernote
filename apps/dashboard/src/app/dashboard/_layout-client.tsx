@@ -40,7 +40,13 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CreateOfferDialog } from '@/features/offers/create-offer-dialog';
 import { SectionTabs } from '@/components/SectionTabs';
-import { navSections, isNavEntryActive, type NavSectionId } from '@/features/navigation/sections';
+import {
+  navSections,
+  isNavEntryActive,
+  visibleNavSections,
+  type NavSectionId,
+} from '@/features/navigation/sections';
+import { useCapabilities } from '@/lib/use-capabilities';
 
 function SidebarNavItem({
   href,
@@ -397,6 +403,7 @@ export function DashboardSidebar({
   onExpandedChange?: (expanded: boolean) => void;
 }) {
   const tNav = useTranslations('nav');
+  const capabilities = useCapabilities();
   const tOfferChooser = useTranslations('offerChooser');
   const salleMode = pathname.startsWith('/dashboard/floor-plan');
   const { activeSite } = useSiteSelection();
@@ -521,7 +528,7 @@ export function DashboardSidebar({
             />
           </>
         ) : (
-          navSections.map((section) => {
+          visibleNavSections(navSections, capabilities ?? {}).map((section) => {
             if (section.entries.length === 1) {
               const [entry] = section.entries;
               return (

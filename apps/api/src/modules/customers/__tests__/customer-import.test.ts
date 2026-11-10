@@ -6,9 +6,9 @@ import {
   applyCustomerImport,
   detectMapping,
   parseBirthday,
-  parseCsv,
   readCustomerImport,
 } from '../customer-import';
+import { parseCsv } from '@suppernote/shared';
 
 describe('customer-import: lecture CSV', () => {
   it('lit les guillemets, les points-virgules, les retours à la ligne et le BOM', () => {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
+import { detectColumns, parseCsv } from '@suppernote/shared';
 import { db } from '../../shared/db/client';
 import {
   customerPhoneLookupValues,
@@ -45,8 +46,6 @@ const SYNONYMS: Record<ImportField, string[]> = {
   birthday: ['anniversaire', 'datedanniversaire', 'datedenaissance', 'naissance', 'birthday'],
 };
 
-export type CsvRecord = { line: number; cells: string[] };
-
 export type ImportLine = {
   line: number;
   phone: string | null;
@@ -63,85 +62,9 @@ export type ImportReading = {
   lines: ImportLine[];
 };
 
-export function normalizeHeader(value: string): string {
-  return value
-    .replace(/^﻿/, '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
-/** `;` or `,`, whichever the header line uses more (French Excel exports use `;`). */
-function detectDelimiter(text: string): ';' | ',' {
-  const head = text.split(/\r?\n/, 1)[0] ?? '';
-  const commas = head.split(',').length - 1;
-  const semicolons = head.split(';').length - 1;
-  return commas > semicolons ? ',' : ';';
-}
-
-/** RFC 4180 reader: quoted cells, `""` escapes, newlines inside quotes, CRLF or LF. */
-export function parseCsv(input: string): CsvRecord[] {
-  const text = input.replace(/^﻿/, '');
-  const delimiter = detectDelimiter(text);
-  const records: CsvRecord[] = [];
-  let cells: string[] = [];
-  let cell = '';
-  let inQuotes = false;
-  let line = 1;
-  let recordLine = 1;
-
-  const endRecord = () => {
-    cells.push(cell);
-    if (cells.some((value) => value.trim() !== '')) records.push({ line: recordLine, cells });
-    cells = [];
-    cell = '';
-  };
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"' && text[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        if (ch === '\n') line++;
-        cell += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === delimiter) {
-      cells.push(cell);
-      cell = '';
-    } else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-      endRecord();
-      line++;
-      recordLine = line;
-    } else {
-      cell += ch;
-    }
-  }
-  if (cell !== '' || cells.length > 0) endRecord();
-  return records;
-}
-
 /** Header name for each field, by synonym. Each header is used for at most one field. */
 export function detectMapping(headers: string[]): ImportMapping {
-  const mapping: ImportMapping = {};
-  const used = new Set<string>();
-  for (const field of IMPORT_FIELDS) {
-    const header = headers.find(
-      (candidate) => !used.has(candidate) && SYNONYMS[field].includes(normalizeHeader(candidate)),
-    );
-    if (header !== undefined) {
-      mapping[field] = header;
-      used.add(header);
-    }
-  }
-  return mapping;
+  return detectColumns(headers, SYNONYMS, IMPORT_FIELDS);
 }
 
 /** Accepts `JJ/MM`, `JJ/MM/AAAA` and `AAAA-MM-JJ`; anything else (or an impossible date) is ignored. */

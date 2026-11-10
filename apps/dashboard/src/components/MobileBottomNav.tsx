@@ -29,7 +29,8 @@ import { cn, triggerHaptic } from '@/lib/utils';
 import { CreateOfferDialog } from '@/features/offers/create-offer-dialog';
 import { useSiteSelection } from '@/features/sites/site-context';
 import { isServiceStaff } from '@/features/team/roles';
-import { isNavEntryActive, navSections } from '@/features/navigation/sections';
+import { isNavEntryActive, navSections, visibleNavSections } from '@/features/navigation/sections';
+import { useCapabilities } from '@/lib/use-capabilities';
 
 const copilotNavItems = [
   { href: '/dashboard', key: 'overview' as const, icon: BarChart3 },
@@ -101,6 +102,8 @@ export default function MobileBottomNav() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tNav = useTranslations('nav');
+  const capabilities = useCapabilities();
+  const moreNavSectionsForUser = visibleNavSections(moreNavSections, capabilities ?? {});
   const tDashboard = useTranslations('dashboard');
   const tOfferChooser = useTranslations('offerChooser');
   const { theme, toggleTheme } = useDashboardTheme();
@@ -132,7 +135,7 @@ export default function MobileBottomNav() {
     hasMoreMenu &&
     (moreOpen ||
       pathname.startsWith('/dashboard/settings') ||
-      moreNavSections.some((section) =>
+      moreNavSectionsForUser.some((section) =>
         section.entries.some((entry) => isNavEntryActive(pathname, entry)),
       ));
   const committedIndex = moreActive
@@ -487,7 +490,7 @@ export default function MobileBottomNav() {
               </div>
             </div>
             <div className="space-y-3">
-              {moreNavSections.map((section) => (
+              {moreNavSectionsForUser.map((section) => (
                 <div key={section.id}>
                   <h3 className="mb-1.5 px-1 text-sm font-medium text-muted-foreground">
                     {tNav(section.labelKey)}

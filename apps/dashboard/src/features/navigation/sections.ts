@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Code,
   Gift,
+  Receipt,
   HeartHandshake,
   Megaphone,
   PhoneCall,
@@ -33,6 +34,7 @@ export type NavKey =
   | 'floorPlan'
   | 'loyalty'
   | 'reactivation'
+  | 'caisse'
   | 'marketing'
   | 'reputation'
   | 'experiences'
@@ -43,7 +45,14 @@ export type NavKey =
   | 'distribution'
   | 'agentic';
 
-export type NavSectionId = 'overview' | 'service' | 'clients' | 'marketing' | 'offers' | 'channels';
+export type NavSectionId =
+  | 'overview'
+  | 'service'
+  | 'caisse'
+  | 'clients'
+  | 'marketing'
+  | 'offers'
+  | 'channels';
 
 export type NavEntry = {
   href: string;
@@ -51,6 +60,8 @@ export type NavEntry = {
   icon: LucideIcon;
   // Sélecteur Copilot / Salle : la barre latérale seule l'affiche, ni onglets ni menu Plus.
   spaceSwitch?: boolean;
+  /** Shown only when the server grants this capability (fail closed while unknown). */
+  capability?: 'pos.connect';
 };
 
 export type NavSection = {
@@ -59,6 +70,21 @@ export type NavSection = {
   icon: LucideIcon;
   entries: NavEntry[];
 };
+
+/** Sections without the entries this restaurant has no capability for; empty sections disappear. */
+export function visibleNavSections(
+  sections: NavSection[],
+  capabilities: Record<string, boolean>,
+): NavSection[] {
+  return sections
+    .map((section) => ({
+      ...section,
+      entries: section.entries.filter(
+        (entry) => !entry.capability || capabilities[entry.capability] === true,
+      ),
+    }))
+    .filter((section) => section.entries.length > 0);
+}
 
 export const navSections: NavSection[] = [
   {
@@ -81,6 +107,15 @@ export const navSections: NavSection[] = [
         icon: Radio,
         spaceSwitch: true,
       },
+    ],
+  },
+  {
+    id: 'caisse',
+    labelKey: 'caisse',
+    icon: Receipt,
+    // Own section: the tab bar of Service must not show a tab the restaurant cannot open.
+    entries: [
+      { href: '/dashboard/caisse', key: 'caisse', icon: Receipt, capability: 'pos.connect' },
     ],
   },
   {

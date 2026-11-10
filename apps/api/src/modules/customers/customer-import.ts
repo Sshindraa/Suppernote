@@ -205,8 +205,11 @@ export function readCustomerImport(input: string, requested?: ImportMapping): Im
   return { headers, mapping, lines };
 }
 
-/** Largest CSV text accepted; the JSON body around it must still fit `IMPORT_BODY_LIMIT_BYTES`. */
-export const IMPORT_CSV_MAX_CHARS = 1_000_000;
+/**
+ * Largest CSV text accepted, in characters. Bytes decide what nginx lets through (accents take two
+ * bytes, JSON escapes add more), so the dashboard also checks the exact body size before sending.
+ */
+export const IMPORT_CSV_MAX_CHARS = 700_000;
 /** nginx's default `client_max_body_size` is 1 MiB: the whole request body has to fit under it. */
 export const IMPORT_BODY_LIMIT_BYTES = 1_048_576;
 

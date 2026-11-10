@@ -44,11 +44,11 @@ type ImportResult = {
   preview: PreviewLine[];
 };
 
-/** Mirrors the API: nginx lets 1 MiB of request body through, and the CSV text is capped too. */
+/** Mirrors the API: nginx lets 1 MiB of request body through, and the CSV text is capped at 700 000 characters (`IMPORT_CSV_MAX_CHARS`). */
 const MAX_BODY_BYTES = 1_048_576;
-const MAX_CSV_CHARS = 1_000_000;
+const MAX_CSV_CHARS = 700_000;
 const TOO_LARGE_MESSAGE =
-  'Ce fichier est trop volumineux : 1 Mo maximum à l’envoi, soit environ 10 000 clients. Découpez-le en plusieurs fichiers.';
+  'Ce fichier est trop volumineux pour être importé d’un coup (1 Mo ou 700 000 caractères au maximum). Découpez-le en plusieurs fichiers.';
 
 type Step = 'file' | 'verify' | 'report';
 
@@ -85,15 +85,19 @@ export function CustomerImportDialog({
     onOpenChange(next);
   }
 
-  /** Refuses an oversized import before sending it, with the reason, instead of a bare 413. */
+  /**
+   * Checks the exact body size (the JSON that nginx counts, in bytes) before sending, so an
+   * oversized file gets this message instead of a bare 413.
+   */
   async function callImport(body: {
     csv: string;
     dryRun: boolean;
     mapping?: Record<Field, string | null>;
   }) {
     const bytes = new TextEncoder().encode(JSON.stringify(body)).byteLength;
-    if (body.csv.length > MAX_CSV_CHARS || bytes > MAX_BODY_BYTES)
+    if (body.csv.length > MAX_CSV_CHARS || bytes > MAX_BODY_BYTES) {
       throw new Error(TOO_LARGE_MESSAGE);
+    }
     return post<{ data: ImportResult }>('customers/import', body);
   }
 

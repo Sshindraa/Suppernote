@@ -160,4 +160,23 @@ describe('CustomerImportDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('trop volumineux');
     expect(mocks.post).not.toHaveBeenCalled();
   });
+
+  it('refuse avant envoi un CSV sous 700 000 caractères dont le corps JSON dépasse 1 Mo', async () => {
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    // 650 000 guillemets : chaque « " » devient « \" » dans le JSON envoyé, soit plus de 1 Mo.
+    chooseFile(`Nom;Téléphone\n${'"'.repeat(650_000)}`);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Découpez-le en plusieurs fichiers');
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it('refuse avant envoi un CSV de plus de 700 000 caractères', async () => {
+    render(<CustomerImportDialog open onOpenChange={vi.fn()} />);
+
+    chooseFile(`Nom;Téléphone\n${'a'.repeat(700_001)}`);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('700 000 caractères');
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
 });

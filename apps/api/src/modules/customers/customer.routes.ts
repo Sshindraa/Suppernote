@@ -30,7 +30,9 @@ import {
   ImportReading,
   applyCustomerImport,
   readCustomerImport,
+  CUSTOMER_COLUMN_AI,
 } from './customer-import';
+import { readWithAiColumns } from '../imports/column-ai';
 import {
   countCustomersByLifecycle,
   filterCustomerIdsByVisits,
@@ -369,16 +371,25 @@ export async function customerRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const parsed = ImportCustomersSchema.safeParse(req.body);
       if (!parsed.success) return reply.status(400).send({ error: 'INVALID_CUSTOMER_IMPORT' });
-      let reading: ImportReading;
+      const readOptions = { hasHeader: parsed.data.hasHeader, lineOffset: parsed.data.lineOffset };
+      let reading: ImportReading & { fromAi?: string[] };
       try {
-        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping, {
-          hasHeader: parsed.data.hasHeader,
-          lineOffset: parsed.data.lineOffset,
-        });
+        reading = readCustomerImport(parsed.data.csv, parsed.data.mapping, readOptions);
       } catch (err: unknown) {
         return reply.status(400).send({
           error: 'INVALID_CUSTOMER_IMPORT_MAPPING',
           message: err instanceof Error ? err.message : 'Colonne introuvable.',
+        });
+      }
+      // The model only on the first probe (no mapping sent): later calls carry the mapping it gave.
+      if (!parsed.data.mapping) {
+        reading = await readWithAiColumns({
+          csv: parsed.data.csv,
+          reading,
+          lineOffset: parsed.data.lineOffset,
+          spec: CUSTOMER_COLUMN_AI,
+          reread: (mapping) => readCustomerImport(parsed.data.csv, mapping, readOptions),
+          log: req.log,
         });
       }
       // Un import partiel laisserait des clients manquants sans le dire : on refuse plutôt que de tronquer.
@@ -397,6 +408,7 @@ export async function customerRoutes(app: FastifyInstance) {
             headerLine: reading.headerLine,
             mapping: reading.mapping,
             byContent: reading.byContent,
+            fromAi: reading.fromAi ?? [],
           },
           ...outcome,
         },

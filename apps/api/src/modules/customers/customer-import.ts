@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { looksLikeDate, looksLikeEmail, looksLikePhone, readTable } from '@suppernote/shared';
+import type { ColumnAiSpec } from '../imports/column-ai';
 import { db } from '../../shared/db/client';
 import {
   customerPhoneLookupValues,
@@ -20,6 +21,26 @@ export const IMPORT_FIELDS = [
   'birthday',
 ] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
+
+/** An amount or a total is never a phone, even when its values have nine digits. */
+const PHONE_REJECTS = /montant|total|prix|somme|tva|ttc|euro|remise|solde|pourboire|couvert/;
+
+/** Column recognition by the model, when the detection is not enough (see imports/column-ai.ts). */
+export const CUSTOMER_COLUMN_AI: ColumnAiSpec<ImportField> = {
+  fields: IMPORT_FIELDS,
+  labels: {
+    firstName: 'Prénom',
+    lastName: 'Nom de famille',
+    name: 'Nom complet',
+    phone: 'Téléphone',
+    email: 'E-mail',
+    notes: 'Note',
+    birthday: 'Date de naissance',
+  },
+  required: ['phone'],
+  tests: { phone: looksLikePhone, email: looksLikeEmail, birthday: looksLikeDate },
+  rejects: { phone: PHONE_REJECTS },
+};
 /** Field → header name in the file. `null` means the field is not imported. */
 export type ImportMapping = Partial<Record<ImportField, string | null>>;
 
@@ -108,7 +129,7 @@ export function readCustomerImport(
     required: ['phone'],
     testers: { phone: looksLikePhone, email: looksLikeEmail, birthday: looksLikeDate },
     // An amount or a total is never a phone, even when its values have nine digits.
-    rejects: { phone: /montant|total|prix|somme|tva|ttc|euro|remise|solde|pourboire|couvert/ },
+    rejects: { phone: PHONE_REJECTS },
     requested,
     hasHeader: options.hasHeader,
     lineOffset: options.lineOffset,

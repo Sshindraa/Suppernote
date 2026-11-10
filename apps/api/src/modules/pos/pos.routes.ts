@@ -14,7 +14,9 @@ import {
   PosConnectionStateError,
 } from './pos-connection.service';
 import type { PosCheckInput } from './pos-connector';
+import { readWithAiColumns } from '../imports/column-ai';
 import {
+  POS_CHECK_COLUMN_AI,
   POS_CHECK_FIELDS,
   POS_CHECK_FIELD_LABELS,
   POS_CSV_ROW_LIMIT,
@@ -304,16 +306,30 @@ export async function posRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const parsed = CsvImportBodySchema.safeParse(request.body);
       if (!parsed.success) return reply.status(400).send({ error: 'INVALID_POS_CHECK_IMPORT' });
-      let reading: PosCsvReading;
+      const readOptions = { hasHeader: parsed.data.hasHeader, lineOffset: parsed.data.lineOffset };
+      let reading: PosCsvReading & { fromAi?: string[] };
       try {
-        reading = readPosCheckCsv(parsed.data.csv, parsed.data.mapping as PosCheckMapping, {
-          hasHeader: parsed.data.hasHeader,
-          lineOffset: parsed.data.lineOffset,
-        });
+        reading = readPosCheckCsv(
+          parsed.data.csv,
+          parsed.data.mapping as PosCheckMapping,
+          readOptions,
+        );
       } catch (err: unknown) {
         return reply.status(400).send({
           error: 'INVALID_POS_CHECK_MAPPING',
           message: err instanceof Error ? err.message : 'Colonne introuvable.',
+        });
+      }
+      // The model only on the first probe (no mapping sent): later calls carry the mapping it gave.
+      if (!parsed.data.mapping) {
+        reading = await readWithAiColumns({
+          csv: parsed.data.csv,
+          reading,
+          lineOffset: parsed.data.lineOffset,
+          spec: POS_CHECK_COLUMN_AI,
+          reread: (mapping) =>
+            readPosCheckCsv(parsed.data.csv, mapping as PosCheckMapping, readOptions),
+          log: request.log,
         });
       }
       const rows = reading.checks.length + reading.skipped.length;
@@ -398,6 +414,7 @@ export async function posRoutes(app: FastifyInstance) {
             headerLine: reading.headerLine,
             mapping: reading.mapping,
             byContent: reading.byContent,
+            fromAi: reading.fromAi ?? [],
           },
           missing: reading.missing,
           counts: {

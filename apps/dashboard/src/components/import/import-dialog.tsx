@@ -39,6 +39,8 @@ export type ImportPieceResult<F extends string> = {
     headerLine: number | null;
     mapping: ImportMapping<F>;
     byContent?: F[];
+    /** Fields the AI column pick filled (first probe only). */
+    fromAi?: F[];
   };
   counts: ImportCounts;
   reasons: ImportReasonItem[];
@@ -73,6 +75,8 @@ type Analysis<F extends string> = {
   mapping: ImportMapping<F>;
   /** Fields found from their values: shown for the owner to check. */
   uncertain: F[];
+  /** Fields the AI column pick filled: shown in one sentence, columns stay editable. */
+  fromAi?: F[];
   counts: ImportCounts;
   reasons: ImportReasonItem[];
   preview: unknown[];
@@ -179,6 +183,9 @@ export function ImportDialog<F extends string>(props: ImportDialogProps<F>) {
       const uncertain = override
         ? []
         : (probe.columns.byContent ?? []).filter((field) => kept[field] === undefined);
+      const fromAi = override
+        ? []
+        : (probe.columns.fromAi ?? []).filter((field) => kept[field] === undefined);
       setRemembered(!override && Object.keys(kept).length > 0);
 
       const allPieces = splitCsvText(source, { headerLine, maxChars: MAX_PIECE_CHARS, maxRows });
@@ -204,6 +211,7 @@ export function ImportDialog<F extends string>(props: ImportDialogProps<F>) {
         headerLine,
         mapping,
         uncertain,
+        fromAi,
         counts,
         reasons,
         preview,
@@ -372,6 +380,12 @@ export function ImportDialog<F extends string>(props: ImportDialogProps<F>) {
               <p className="text-sm text-muted-foreground">
                 Nous avons reconnu {analysis.uncertain.map(labelOf(fields)).join(', ')} à partir du
                 contenu des colonnes. Vérifiez que c’est bien cela.
+              </p>
+            ) : null}
+            {(analysis.fromAi ?? []).length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nous avons retrouvé {(analysis.fromAi ?? []).map(labelOf(fields)).join(', ')} avec
+                l’aide de l’IA. Modifiez les colonnes si besoin.
               </p>
             ) : null}
 

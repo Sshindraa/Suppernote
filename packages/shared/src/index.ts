@@ -21,6 +21,7 @@ export * from './jsonld';
 export * from './phone';
 export * from './utils/csv';
 export * from './utils/csv-table';
+export * from './utils/csv-column-ai';
 export * from './utils/fetch-with-timeout';
 export * from './utils/format';
 export * from './utils/opening-hours';

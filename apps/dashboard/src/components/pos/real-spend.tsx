@@ -1,5 +1,8 @@
 /** Dépense réelle issue des tickets de caisse rapprochés (API : lecture à la demande). */
 
+import { useEffect, useState } from 'react';
+import { useApi } from '@/lib/api';
+
 export interface CustomerRealSpend {
   total: string;
   checkCount: number;
@@ -68,14 +71,52 @@ export function CustomerRealSpendCard({ spend }: { spend?: CustomerRealSpend | n
   );
 }
 
+/** Libellé de table tel que saisi en caisse : « Table 12 » ou « Terrasse » restent tels quels, « 12 » devient « Table 12 ». */
+export function tableLabel(name: string): string {
+  return /^\p{L}/u.test(name) ? name : `Table ${name}`;
+}
+
 /** Une ligne « Addition » du détail de réservation, à placer dans sa grille `dl`. */
 export function ReservationAdditionLine({ addition }: { addition?: ReservationAddition | null }) {
   if (!addition) return null;
-  const table = addition.table ? ` · Table ${addition.table}` : '';
+  const table = addition.table ? ` · ${tableLabel(addition.table)}` : '';
   return (
     <div className="col-span-2">
       <dt className="text-muted-foreground">Addition</dt>
       <dd>{`${formatEuro(addition.total)} · ${formatTime(addition.at)}${table}`}</dd>
     </div>
   );
+}
+
+/**
+ * Addition de la réservation, lue seulement si `enabled` (droit pos.connect). Une réponse pour une
+ * autre réservation n'est jamais renvoyée (évite d'afficher l'addition précédente).
+ */
+export function useReservationAddition(
+  reservationId: string,
+  enabled: boolean,
+): ReservationAddition | null {
+  const { get } = useApi();
+  const [loaded, setLoaded] = useState<{ id: string; value: ReservationAddition | null } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    get<{ data: ReservationAddition | null }>(`reservations/${reservationId}/addition`)
+      .then((response) => {
+        if (active) setLoaded({ id: reservationId, value: response.data });
+      })
+      .catch(() => {
+        if (active) setLoaded({ id: reservationId, value: null });
+      });
+    return () => {
+      active = false;
+    };
+    // `get` changes identity on each render; only the reservation or the right refetches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservationId, enabled]);
+
+  return enabled && loaded?.id === reservationId ? loaded.value : null;
 }

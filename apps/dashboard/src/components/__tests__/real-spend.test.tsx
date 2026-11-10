@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook, render, screen, waitFor } from '@testing-library/react';
 import {
   CustomerRealSpendCard,
   ReservationAdditionLine,
   formatEuro,
+  tableLabel,
+  useReservationAddition,
 } from '@/components/pos/real-spend';
+
+const mocks = vi.hoisted(() => ({ get: vi.fn() }));
+vi.mock('@/lib/api', () => ({ useApi: () => ({ get: mocks.get, orgId: 'org_test' }) }));
 
 const spend = {
   total: '90.50',
@@ -59,6 +64,19 @@ describe('ReservationAdditionLine', () => {
     expect(screen.getByText(/^70,00\s€ · .+ · Table 4$/)).toBeInTheDocument();
   });
 
+  it('n’écrit pas « Table Table » quand le libellé de caisse porte déjà le mot', () => {
+    render(
+      <dl>
+        <ReservationAdditionLine
+          addition={{ total: '70.00', at: '2026-11-08T20:15:00.000Z', table: 'Table 12' }}
+        />
+      </dl>,
+    );
+
+    expect(screen.getByText(/· Table 12$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Table Table/)).not.toBeInTheDocument();
+  });
+
   it('omet la table quand le ticket n’en porte pas', () => {
     render(
       <dl>
@@ -68,6 +86,37 @@ describe('ReservationAdditionLine', () => {
       </dl>,
     );
     expect(screen.getByText(/^12,00\s€ · [^·]+$/)).toBeInTheDocument();
+  });
+});
+
+describe('tableLabel', () => {
+  it('préfixe « Table » aux numéros seuls et garde les libellés déjà nommés', () => {
+    expect(tableLabel('12')).toBe('Table 12');
+    expect(tableLabel('Table 12')).toBe('Table 12');
+    expect(tableLabel('Terrasse')).toBe('Terrasse');
+  });
+});
+
+describe('useReservationAddition', () => {
+  beforeEach(() => {
+    mocks.get.mockReset();
+    mocks.get.mockResolvedValue({
+      data: { total: '70.00', at: '2026-11-08T20:15:00.000Z', table: '4' },
+    });
+  });
+
+  it('n’appelle pas l’API sans droit pos.connect', () => {
+    const { result } = renderHook(() => useReservationAddition('res-1', false));
+
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(result.current).toBeNull();
+  });
+
+  it('lit l’addition de la réservation quand le droit est présent', async () => {
+    const { result } = renderHook(() => useReservationAddition('res-1', true));
+
+    await waitFor(() => expect(result.current).toMatchObject({ total: '70.00', table: '4' }));
+    expect(mocks.get).toHaveBeenCalledWith('reservations/res-1/addition');
   });
 });
 

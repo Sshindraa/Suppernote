@@ -22,7 +22,8 @@ import { ApiError } from '@/lib/api-error';
 import { useIsMobile } from '@/lib/useMediaQuery';
 import { cn, formatPhone } from '@/lib/utils';
 import MobileDataCard from '@/components/MobileDataCard';
-import { ReservationAdditionLine, type ReservationAddition } from '@/components/pos/real-spend';
+import { ReservationAdditionLine, useReservationAddition } from '@/components/pos/real-spend';
+import { useCapabilities } from '@/lib/use-capabilities';
 import {
   Table,
   TableHeader,
@@ -1503,24 +1504,9 @@ function ReservationDetails({
   const [notes, setNotes] = useState(reservation.specialRequests ?? '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Addition rapprochée : chargée à l'ouverture, absente si aucun ticket MATCHED.
-  const [addition, setAddition] = useState<ReservationAddition | null>(null);
-  const { get } = useApi();
-  useEffect(() => {
-    let active = true;
-    get<{ data: ReservationAddition | null }>(`reservations/${reservation.id}/addition`)
-      .then((response) => {
-        if (active) setAddition(response.data);
-      })
-      .catch(() => {
-        if (active) setAddition(null);
-      });
-    return () => {
-      active = false;
-    };
-    // `get` is recreated on each render; only the reservation id should refetch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservation.id]);
+  // Addition rapprochée : lue seulement avec le droit pos.connect, absente sans ticket MATCHED.
+  const canSeeAddition = useCapabilities()?.['pos.connect'] === true;
+  const addition = useReservationAddition(reservation.id, canSeeAddition);
   const validPartySize = Number.isInteger(partySize) && partySize >= 1 && partySize <= 20;
   const dateChanged =
     date !== format(originalDate, 'yyyy-MM-dd') || time !== format(originalDate, 'HH:mm');

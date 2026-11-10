@@ -4006,3 +4006,5 @@ Non fait ou non vérifié : connexion réelle (Google compris) ; appel de test (
 2026-11-08 — [démo, suivi opérateur] À la demande de Hamza, liste unique de toutes les demandes et phases visibles et modifiables sur chaque fiche ; les tests restent visibles avec leur marqueur. Les listes successives chargent les demandes au-delà de 200 sans modifier les données, les statuts ni la conservation.
 
 2026-11-09 — [release, Pro/Multi] Le parcours Pro/Multi est isolé sur la PR #688 et déployé uniquement en staging (Stripe test) ; CI, smoke tests, rollback et E2E staging verts. Aucun Checkout live n’a été soumis. La production garde Essential seul jusqu’aux pilotes qualifiés et à une preuve de release dédiée.
+
+2026-11-10 — [voix, prompt] Appel de Hamza analysé (Chez Suppernote, 11 tours, réservation créée) : la voix a dit « Je vérifie si j’ai une table » sans action lancée (action none, disponibilité du jour préchargée). Ajout d’un principe au prompt structuré : ne jamais annoncer une vérification quand aucune action n’est lancée. Non mesuré sur le banc (un seul cas).

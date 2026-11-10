@@ -100,7 +100,7 @@ describe('CaissePage', () => {
     expect(await screen.findByText(/Dernier import/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Importer un fichier CSV/ }));
-    await waitFor(() => expect(screen.getByLabelText('Fichier CSV des tickets')).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText('Fichier à importer')).toBeTruthy());
   });
 
   it('liste les tickets avec leur rapprochement', async () => {
@@ -123,6 +123,29 @@ describe('CaissePage', () => {
     expect(screen.getByText(/Rapproché · /)).toBeTruthy();
     expect(screen.getByText('Non rapproché')).toBeTruthy();
     expect(screen.getByText(/À vérifier · /)).toBeTruthy();
+  });
+
+  it('confirme un ticket à vérifier en un clic, puis le marque rapproché', async () => {
+    answer(
+      { data: [] },
+      {
+        data: {
+          items: [
+            { ...CHECK, id: 'c3', externalId: 'T-3', match: { ...CHECK.match, status: 'REVIEW' } },
+          ],
+          nextCursor: null,
+        },
+      },
+    );
+    mocks.post.mockResolvedValueOnce({ data: { status: 'MATCHED' } });
+    render(<CaissePage />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Confirmer le rapprochement du ticket T-3' }),
+    );
+
+    expect(mocks.post).toHaveBeenCalledWith('pos/checks/c3/review', { decision: 'confirm' });
+    expect(await screen.findByText(/Rapproché · /)).toBeTruthy();
   });
 
   it('affiche l’état vide de la liste quand aucun ticket n’est importé', async () => {

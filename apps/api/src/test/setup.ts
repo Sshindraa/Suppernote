@@ -38,6 +38,8 @@ vi.mock('@prisma/client', async (importOriginal) => {
     };
     reservationCheckMatch = {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      updateMany: vi.fn(),
       findMany: vi.fn(),
       upsert: vi.fn(),
       create: vi.fn(),

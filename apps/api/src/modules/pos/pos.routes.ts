@@ -441,17 +441,23 @@ export async function posRoutes(app: FastifyInstance) {
         message: 'Aucun rapprochement à vérifier pour ce ticket.',
       });
     }
-    // The tenant was checked by the lookup above: the key alone is enough for the update.
+    // Scoped to the tenant and to the review state: a link decided meanwhile is left alone.
     const status = body.data.decision === 'confirm' ? 'MATCHED' : 'UNMATCHED';
-    await db.reservationCheckMatch.update({
+    const updated = await db.reservationCheckMatch.updateMany({
       where: {
-        reservationId_posCheckId: {
-          reservationId: match.reservationId,
-          posCheckId: params.data.id,
-        },
+        restaurantId,
+        reservationId: match.reservationId,
+        posCheckId: params.data.id,
+        status: 'REVIEW',
       },
       data: { status },
     });
+    if (updated.count === 0) {
+      return reply.status(409).send({
+        error: 'REVIEW_MATCH_ALREADY_DECIDED',
+        message: 'Ce rapprochement a déjà été vérifié. Actualisez la liste.',
+      });
+    }
     return reply.send({ data: { status } });
   });
 

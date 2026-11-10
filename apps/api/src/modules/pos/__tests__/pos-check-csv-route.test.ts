@@ -202,7 +202,7 @@ describe('POST /pos/checks/:id/review', () => {
     vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
       reservationId: 'resa-1',
     } as never);
-    vi.mocked(db.reservationCheckMatch.update).mockResolvedValue({} as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 1 } as never);
     const app = await getApp();
     const response = await app.inject({
       method: 'POST',
@@ -219,19 +219,22 @@ describe('POST /pos/checks/:id/review', () => {
         where: expect.objectContaining({ status: 'REVIEW', posCheckId: 'check-1' }),
       }),
     );
-    expect(db.reservationCheckMatch.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { reservationId_posCheckId: { reservationId: 'resa-1', posCheckId: 'check-1' } },
-        data: { status: 'MATCHED' },
-      }),
-    );
+    expect(db.reservationCheckMatch.updateMany).toHaveBeenCalledWith({
+      where: {
+        restaurantId: expect.any(String),
+        reservationId: 'resa-1',
+        posCheckId: 'check-1',
+        status: 'REVIEW',
+      },
+      data: { status: 'MATCHED' },
+    });
   });
 
   it('rejette un rapprochement : il devient UNMATCHED', async () => {
     vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
       reservationId: 'resa-1',
     } as never);
-    vi.mocked(db.reservationCheckMatch.update).mockResolvedValue({} as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 1 } as never);
     const app = await getApp();
     const response = await app.inject({
       method: 'POST',
@@ -258,7 +261,25 @@ describe('POST /pos/checks/:id/review', () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json().error).toBe('REVIEW_MATCH_NOT_FOUND');
-    expect(db.reservationCheckMatch.update).not.toHaveBeenCalled();
+    expect(db.reservationCheckMatch.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('répond 409 quand le rapprochement a été vérifié entre-temps', async () => {
+    vi.mocked(db.reservationCheckMatch.findFirst).mockResolvedValue({
+      reservationId: 'resa-1',
+    } as never);
+    vi.mocked(db.reservationCheckMatch.updateMany).mockResolvedValue({ count: 0 } as never);
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/pos/checks/check-1/review',
+      headers: AUTH,
+      remoteAddress: nextClientAddress(),
+      payload: { decision: 'confirm' },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().error).toBe('REVIEW_MATCH_ALREADY_DECIDED');
   });
 
   it('refuse une décision inconnue', async () => {

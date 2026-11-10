@@ -39,6 +39,7 @@ import {
   withCustomerLifecycles,
 } from './customer-lifecycle';
 import { buildCustomerSearchFilter } from './customer.routes';
+import { getCustomerRealSpend } from '../pos/pos-check-spend';
 
 /**
  * Most profiles read to filter by status or visits, both computed from the reservations.
@@ -547,6 +548,8 @@ export async function customerCrmRoutes(app: FastifyInstance) {
       canViewNotes ? event : { ...event, metadata: {} },
     );
     const { allowed: isPro } = await evaluateCapability(request.restaurantId, 'customers.advanced');
+    // Additif : absent sans droit pos.connect ou sans ticket rapproché.
+    const realSpend = await getCustomerRealSpend(request.restaurantId!, customer.id);
     if (!isPro) {
       // Fiche simple : historique, préférences et notes ; valeur, statut et tags restent CRM Pro.
       const {
@@ -562,6 +565,7 @@ export async function customerCrmRoutes(app: FastifyInstance) {
           visitSummary,
           preferences: customer.preferences,
           timeline,
+          ...(realSpend ? { realSpend } : {}),
         },
       });
     }
@@ -571,6 +575,7 @@ export async function customerCrmRoutes(app: FastifyInstance) {
         crmAccess: 'pro',
         lifecycle,
         visitSummary,
+        ...(realSpend ? { realSpend } : {}),
         metrics: customer.metricSnapshot,
         preferences: customer.preferences,
         tags: customer.tagAssignments.map((assignment) => assignment.tag),

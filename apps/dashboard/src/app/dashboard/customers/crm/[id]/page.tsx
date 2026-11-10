@@ -48,6 +48,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MarketingConsentCard } from '@/components/crm/marketing-consent-card';
+import { CustomerRealSpendCard, type CustomerRealSpend } from '@/components/pos/real-spend';
 import { useApi } from '@/lib/api';
 import { ApiError, featureLockFromError, type FeatureLock } from '@/lib/api-error';
 import { getErrorMessage, type CustomerVisitSummary } from '@/types/api';
@@ -109,6 +110,8 @@ type CrmCustomerDetail = {
   isVip: boolean;
   notes: string | null;
   visitSummary?: CustomerVisitSummary | null;
+  // Absent sans ticket de caisse rapproché ou sans droit pos.connect.
+  realSpend?: CustomerRealSpend | null;
   identities: CustomerIdentity[];
   // « basic » (Essential) : ni valeur ni tags ; l'API omet ces champs.
   crmAccess?: 'basic' | 'pro';
@@ -839,6 +842,8 @@ export default function CrmCustomerPage() {
           value={formatDay(customer.visitSummary?.lastVisitAt ?? metrics?.lastHonoredAt)}
         />
       </dl>
+
+      <CustomerRealSpendCard spend={customer.realSpend} />
 
       {isPro ? null : (
         <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

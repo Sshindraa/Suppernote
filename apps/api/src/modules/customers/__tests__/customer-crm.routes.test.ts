@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getApp, closeApp } from '../../../test/helpers';
 import { db } from '../../../shared/db/client';
@@ -6,6 +7,8 @@ describe('customer CRM routes', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({ plan: 'PRO' } as never);
+    // Dépense réelle de la fiche : aucun ticket rapproché par défaut.
+    vi.mocked(db.reservationCheckMatch.findMany).mockResolvedValue([] as never);
   });
 
   afterAll(async () => {
@@ -790,5 +793,73 @@ describe('customer CRM routes', () => {
     });
     expect(denied.statusCode).toBe(403);
     expect(denied.json()).toMatchObject({ error: 'CRM_PROJECTION_REPAIR_OWNER_REQUIRED' });
+  });
+
+  describe('dépense réelle sur la fiche', () => {
+    const fiche = {
+      id: 'customer-1',
+      restaurantId: 'test-rest-1',
+      phone: '+33612345678',
+      identities: [],
+      metricSnapshot: null,
+      preferences: [],
+      tagAssignments: [],
+      timelineEvents: [],
+    };
+    const matched = {
+      reservationId: 'res-1',
+      reservation: { partySize: 2 },
+      posCheck: {
+        id: 'check-1',
+        total: new Prisma.Decimal('60.00'),
+        refundedAmount: new Prisma.Decimal('0'),
+        openedAt: new Date('2026-11-01T19:00:00.000Z'),
+        closedAt: new Date('2026-11-01T21:00:00.000Z'),
+      },
+    };
+
+    it('ajoute realSpend à la fiche Pro quand un ticket est rapproché', async () => {
+      const app = await getApp();
+      vi.mocked(db.customer.findFirst).mockResolvedValue(fiche as never);
+      vi.mocked(db.reservationCheckMatch.findMany).mockResolvedValue([matched] as never);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/crm/customers/customer-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data.realSpend).toMatchObject({ total: '60.00', checkCount: 1 });
+    });
+
+    it('omet realSpend sans ticket rapproché', async () => {
+      const app = await getApp();
+      vi.mocked(db.customer.findFirst).mockResolvedValue(fiche as never);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/crm/customers/customer-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.json().data).not.toHaveProperty('realSpend');
+    });
+
+    it('omet realSpend sans droit pos.connect, même avec des tickets', async () => {
+      const app = await getApp();
+      vi.mocked(db.restaurant.findUnique).mockResolvedValue({ plan: 'ESSENTIAL' } as never);
+      vi.mocked(db.customer.findFirst).mockResolvedValue(fiche as never);
+      vi.mocked(db.reservationCheckMatch.findMany).mockResolvedValue([matched] as never);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/crm/customers/customer-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).not.toHaveProperty('realSpend');
+    });
   });
 });

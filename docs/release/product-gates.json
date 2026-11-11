@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-11-10",
+  "updatedAt": "2026-11-11",
   "productionFreeze": true,
   "productionRelease": {
     "mode": "SCOPED",
     "id": "core-operator-foundations",
-    "label": "Fondations opérateur et surface restaurant",
+    "label": "Fondations opérateur et checkout public Pro/Multi",
     "requiredGateIds": ["P0_USAGE"],
     "deferredGateIds": [
       "P1_ESSENTIAL",
@@ -31,7 +31,8 @@
     ],
     "evidence": [
       "docs/release/evidence/scoped-production-release-2026-09-15.md",
-      "docs/release/evidence/essential-checkout-opening-2026-09-22.md"
+      "docs/release/evidence/essential-checkout-opening-2026-09-22.md",
+      "docs/release/evidence/pro-multi-checkout-opening-2026-11-11.md"
     ]
   },
   "gates": [

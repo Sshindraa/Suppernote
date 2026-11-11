@@ -55,4 +55,4 @@
 
 ## Décisions récentes
 
-- 2026-11-09 — [Tarifs] Le checkout Pro/Multi reste sur staging (Stripe test) ; ouverture live après pilotes qualifiés et preuve de release dédiée.
+- 2026-11-11 — [Tarifs] Hamza autorise l’ouverture publique Pro/Multi après qualification staging ; décision du 09/11 remplacée. Aucun pilote externe n’est attesté ; PILOTS reste OPEN et différé.

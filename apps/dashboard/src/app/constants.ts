@@ -74,21 +74,17 @@ export const PLANS: PricingPlan[] = [
     price: String(PLAN_PRICES_EUR.PRO),
     promise: 'L’exigence évolue, votre restaurant garde le cap',
     description: 'Le copilote de service propose, votre équipe décide.',
-    demoFirst: true,
     inherits: 'Tout Essential, plus :',
     features: toFeatureLines('Pro'),
-    note: 'Démonstration du copilote avant de choisir.',
   },
   {
     label: 'Multi-restaurant',
     price: String(PLAN_PRICES_EUR.PREMIUM),
     sitePrice: String(PRICING_CATALOG['multi-site-addon'].monthlyCents / 100),
-    demoFirst: true,
     promise: 'Une offre groupée, un même regard',
     description: 'Plusieurs adresses, un seul espace.',
     inherits: 'Tout Pro, pour chaque établissement, plus :',
     features: toFeatureLines('Multi-restaurant'),
-    note: 'Présentation avant de choisir.',
   },
 ];
 

@@ -122,7 +122,7 @@ test.describe('Widget réservation public', () => {
       { waitUntil: 'domcontentloaded' },
     );
 
-    await expect(page.getByText('Chez Sokar').first()).toBeVisible();
+    await expect(page.getByText('Chez Suppernote').first()).toBeVisible();
     await expect(page.getByRole('button', { name: '4 personnes' })).toHaveAttribute(
       'aria-pressed',
       'true',

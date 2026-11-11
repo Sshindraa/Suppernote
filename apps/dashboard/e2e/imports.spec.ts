@@ -346,7 +346,7 @@ test.describe('Import tickets de caisse', () => {
     const api = await installApi(page, { pos: true });
     await page.goto('/dashboard/caisse');
 
-    await page.getByRole('button', { name: 'Importer un fichier CSV' }).click();
+    await page.getByRole('button', { name: 'Importer un fichier' }).click();
     await page
       .getByLabel('Fichier à importer')
       .setInputFiles(

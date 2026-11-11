@@ -14,6 +14,11 @@ on:
         required: false
         type: boolean
         default: false
+      run_demo_slug_migration:
+        description: 'Après tous les smoke tests, canoniser le slug du restaurant de démonstration en staging'
+        required: false
+        type: boolean
+        default: false
 
 # Évite les déploiements concurrents sur staging.
 concurrency:
@@ -398,3 +403,39 @@ jobs:
         run: |
           echo "Intentional staging failure requested: production promotion must remain skipped."
           exit 1
+
+      - name: Migrate staging demo slug
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_demo_slug_migration == true }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: deploy
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd /opt/sokar-staging
+            DATABASE_URL=$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2- | sed "s/^[\"'[:space:]]*//;s/[\"'[:space:]]*$//")
+            case "$DATABASE_URL" in
+              *sokar_staging*) ;;
+              *) echo "Refusing demo slug migration: target is not sokar_staging."; exit 1 ;;
+            esac
+            DATABASE_URL="$DATABASE_URL" pnpm exec prisma db execute \
+              --schema=packages/database/prisma/schema.prisma \
+              --file=packages/database/prisma/scripts/migrate-demo-slug.sql
+            echo "Staging database contains the canonical demo slug only."
+
+      - name: Verify both demo slugs after migration
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_demo_slug_migration == true }}
+        run: |
+          set -euo pipefail
+          for DEMO_SLUG in chez-suppernote-demo chez-sokar-demo; do
+            for URL in \
+              "https://staging.suppernote.com/restaurant/$DEMO_SLUG" \
+              "https://api-staging.suppernote.com/public/widget/$DEMO_SLUG" \
+              "https://staging.suppernote.com/public/gift-cards/packs/$DEMO_SLUG"; do
+              STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || echo FAIL)
+              echo "$URL → $STATUS"
+              test "$STATUS" = 200
+            done
+          done

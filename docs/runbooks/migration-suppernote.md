@@ -19,14 +19,9 @@ Les paquets privés utilisent `@suppernote/*` dans le workspace, le lockfile, la
 
 Le changement de slug est une mise à jour de données distincte, pas une migration Prisma automatique : l'ordre de qualification exige de la faire après les smoke tests de staging. Le seed refuse de créer un doublon tant que la fiche garde l'ancien slug.
 
-Après le déploiement compatible, qualifier en staging les pages Connect, les widgets et les cartes cadeaux sur les deux slugs. Vérifier aussi que `/public/widget/chez-suppernote-demo` et `/public/widget/chez-sokar-demo` répondent tous deux 200. Ensuite seulement, sur la base staging explicitement choisie :
+Après le déploiement compatible, lancer manuellement **Deploy Staging** depuis la branche qualifiée avec `run_demo_slug_migration=true` et `force_smoke_failure=false`. Le workflow qualifie d'abord les pages Connect, les widgets et les cartes cadeaux sur les deux slugs, puis exécute les parcours E2E staging. Il vérifie ensuite que `apps/api/.env` cible `sokar_staging` avant le SQL, que le slug canonique est seul stocké, puis que les pages, widgets et cartes cadeaux répondent 200 pour les deux slugs.
 
-```zsh
-psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 \
-  --file packages/database/prisma/scripts/migrate-demo-slug.sql
-```
-
-Le SQL ne modifie que le champ `slug` du restaurant existant, refuse les collisions et accepte une seconde exécution après réussite. Refaire les smoke tests des deux slugs après la mise à jour. Ne l'exécuter en production qu'après cette qualification staging et la release compatible.
+Le SQL ne modifie que le champ `slug` du restaurant existant, refuse les collisions et accepte une seconde exécution après réussite. Cette option ne s'exécute que lors d'un `workflow_dispatch`; un push sur `main` ne la déclenche jamais. Ne pas appliquer la migration en production sans qualification staging et release compatible.
 
 ## Bascules techniques à qualifier séparément
 

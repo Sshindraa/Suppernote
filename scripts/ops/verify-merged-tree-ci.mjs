@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Preuve que le commit de `main` à déployer a déjà passé toute la CI.
+// Preuve que le commit de `main` à déployer a déjà passé les checks CI requis.
 //
-// Sur `main`, la fusion se fait par PR, branche à jour obligatoire (protection
-// `strict`) : l'arbre du commit squash est donc celui de la tête de la PR, déjà
-// testé. Ce script ne le suppose pas, il le vérifie à chaque déploiement :
+// La fusion se fait par PR et la protection de `main` exige les checks listés ci-dessous.
+// L'arbre du commit squash doit être celui de la tête de la PR, déjà testée.
+// Ce script le vérifie à chaque déploiement :
 //   1. une PR fusionnée vers `main` correspond à ce commit ;
 //   2. l'arbre Git du commit est identique à celui de la tête de cette PR ;
-//   3. toutes les vérifications de la tête de la PR sont terminées et vertes.
+//   3. les checks requis de la tête de la PR sont terminés et verts.
 // Sans preuve, le script échoue : le déploiement ne démarre pas et il faut
 // lancer la CI complète sur `main` (workflow_dispatch) avant de relancer.
 //
@@ -17,6 +17,15 @@
 import { fileURLToPath } from 'node:url';
 
 const GREEN_CONCLUSIONS = new Set(['success', 'skipped', 'neutral']);
+// Keep in sync with the required status checks on the `main` branch.
+const REQUIRED_CHECKS = [
+  'Secret Scanning',
+  'API',
+  'Dashboard',
+  'Sokar Connect',
+  'Packages (shared / config / database)',
+  'Semgrep',
+];
 
 /** Retrouve la PR fusionnée vers `main` qui a produit ce commit. */
 export function findMergedPull(pulls, sha) {
@@ -28,12 +37,13 @@ export function findMergedPull(pulls, sha) {
 }
 
 /**
- * Résume les vérifications d'un commit : une seule valeur par nom (la plus récente),
- * car la CI s'exécute à la fois sur l'événement `push` et sur `pull_request`.
+ * Résume les checks protégés : les analyses facultatives (par exemple CodeQL) ne bloquent
+ * pas le déploiement, et une relance garde sa valeur la plus récente.
  */
 export function evaluateChecks(checkRuns, { ignoreRunId } = {}) {
   const latestByName = new Map();
   for (const run of checkRuns) {
+    if (!REQUIRED_CHECKS.includes(run.name)) continue;
     if (ignoreRunId && String(run.details_url ?? '').includes(`/actions/runs/${ignoreRunId}/`)) {
       continue;
     }
@@ -44,9 +54,14 @@ export function evaluateChecks(checkRuns, { ignoreRunId } = {}) {
       : -1;
     if (!previous || startedAt >= previousStartedAt) latestByName.set(run.name, run);
   }
-  const runs = [...latestByName.values()];
-  if (runs.length === 0)
-    return { state: 'failed', reason: 'aucune vérification sur la tête de la PR' };
+  const missing = REQUIRED_CHECKS.filter((name) => !latestByName.has(name));
+  if (missing.length > 0) {
+    return {
+      state: 'failed',
+      reason: `checks requis absents : ${missing.join(', ')}`,
+    };
+  }
+  const runs = REQUIRED_CHECKS.map((name) => latestByName.get(name));
 
   const failed = runs.filter(
     (run) => run.status === 'completed' && !GREEN_CONCLUSIONS.has(run.conclusion),
@@ -66,7 +81,7 @@ export function evaluateChecks(checkRuns, { ignoreRunId } = {}) {
   }
   return {
     state: 'ok',
-    reason: `${runs.length} vérifications vertes`,
+    reason: `${runs.length} checks requis verts`,
     names: runs.map((run) => run.name),
   };
 }

@@ -2,7 +2,7 @@ name: Deploy Staging
 
 # Déclenché directement par la fusion sur `main` : la CI complète n'est plus relancée sur `main`
 # (≈ 6 min). Le job `verify-ci` remplace cette relance par une preuve : le commit doit venir d'une
-# PR fusionnée dont l'arbre est identique à sa tête et dont toutes les vérifications sont vertes.
+# PR fusionnée dont l'arbre est identique à sa tête et dont les six checks requis sont verts.
 # Sans preuve, rien n'est déployé. Prod suit toujours le succès de ce workflow (deploy-prod.yml).
 on:
   push:

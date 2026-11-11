@@ -1,12 +1,11 @@
 name: CI
 
-# Sur `main`, la CI complète ne tourne plus à chaque fusion : la PR a déjà testé le même arbre
-# (branche à jour exigée avant fusion) et Deploy Staging le vérifie avant de déployer
-# (scripts/ops/verify-merged-tree-ci.mjs). Sur `main`, la CI complète reste disponible à la
-# demande (workflow_dispatch) et chaque nuit, pour détecter les dérives (fournisseur, image
-# Docker, dépendance non figée). Seul le contrôle des secrets se rejoue à chaque poussée.
+# Les pushes sur les branches de PR sont couverts par `pull_request`, pour ne lancer la suite
+# complète qu'une fois. Sur `main`, seul le contrôle des secrets se rejoue après fusion ; la CI
+# complète reste disponible à la demande (`workflow_dispatch`) et chaque nuit.
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:

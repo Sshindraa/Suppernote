@@ -6,6 +6,7 @@ import { db } from '../../shared/db/client';
 import { logger } from '../../shared/logger/pino';
 import { queues } from '../../shared/queue/queues';
 import { buildBillingNotificationJobId } from '../../shared/queue/job-options';
+import { resolveAccountOwnerEmail } from '../restaurants/account-email.service';
 import type { BillingNotificationJobData } from './billing-notification.worker';
 import type { ActivityRecap } from './billing-notification-emails';
 import { loadActivityRecap } from './billing-activity';
@@ -422,12 +423,21 @@ async function ensureStripeCustomer(input: {
   accountId?: string | null;
   billingAnchor: { id: string; name: string; managerEmail: string | null };
   existingCustomerId: string | null;
-}): Promise<string> {
-  if (input.existingCustomerId) return input.existingCustomerId;
+}): Promise<{ customerId: string; emailChanged: boolean }> {
+  const ownerEmail = await resolveAccountOwnerEmail(input.accountId);
+  const email = normalizeEmail(ownerEmail) ?? normalizeEmail(input.billingAnchor.managerEmail);
+  if (input.existingCustomerId) {
+    if (!email) return { customerId: input.existingCustomerId, emailChanged: false };
+    const stripe = getStripe();
+    const customer = await stripe.customers.retrieve(input.existingCustomerId);
+    const emailChanged = !('deleted' in customer) && customer.email !== email;
+    if (emailChanged) await stripe.customers.update(input.existingCustomerId, { email });
+    return { customerId: input.existingCustomerId, emailChanged };
+  }
   const customer = await getStripe().customers.create(
     {
       name: input.billingAnchor.name,
-      email: normalizeEmail(input.billingAnchor.managerEmail),
+      email,
       // VAT franchise: every invoice of this customer carries the legal mention.
       invoice_settings: { footer: VAT_MENTION },
       metadata: {
@@ -447,7 +457,7 @@ async function ensureStripeCustomer(input: {
     create: { restaurantId: input.billingAnchor.id, stripeCustomerId: customer.id },
     update: { stripeCustomerId: customer.id },
   });
-  return customer.id;
+  return { customerId: customer.id, emailChanged: false };
 }
 
 export class BillingTrialAlreadyUsedError extends Error {
@@ -589,7 +599,7 @@ async function startTrialLocked(
     throw new BillingTrialAlreadyUsedError();
   }
 
-  const customerId = await ensureStripeCustomer({
+  const { customerId } = await ensureStripeCustomer({
     restaurantId: restaurant.id,
     accountId,
     billingAnchor,
@@ -785,7 +795,7 @@ async function createCheckoutSessionLocked(
     throw new BillingAlreadySubscribedError();
   }
   const stripe = getStripe();
-  const customerId = await ensureStripeCustomer({
+  const { customerId, emailChanged } = await ensureStripeCustomer({
     restaurantId: restaurant.id,
     accountId,
     billingAnchor,
@@ -803,8 +813,8 @@ async function createCheckoutSessionLocked(
     throw new BillingAlreadySubscribedError();
   const reusable = await closeOpenBillingSessions(
     customerId,
-    sameAttempt ? (billing?.checkoutSessionId ?? undefined) : undefined,
-    sameAttempt && !billing?.checkoutSessionId
+    !emailChanged && sameAttempt ? (billing?.checkoutSessionId ?? undefined) : undefined,
+    !emailChanged && sameAttempt && !billing?.checkoutSessionId
       ? (session) =>
           session.metadata?.plan === input.plan &&
           session.metadata?.billing === input.billing &&

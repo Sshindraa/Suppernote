@@ -22,13 +22,13 @@ describe('PricingSection', () => {
       'href',
       '/register?plan=essential&billing=annual',
     );
-    expect(screen.getByRole('link', { name: 'Découvrir Pro' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Choisir Pro' })).toHaveAttribute(
       'href',
-      '/demo?plan=pro&billing=annual',
+      '/register?plan=pro&billing=annual',
     );
-    expect(screen.getByRole('link', { name: 'Découvrir Multi-restaurant' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Choisir Multi-restaurant' })).toHaveAttribute(
       'href',
-      '/demo?plan=multi-site&billing=annual&sites=2',
+      '/register?plan=multi-site&billing=annual&sites=2',
     );
   });
 
@@ -37,9 +37,13 @@ describe('PricingSection', () => {
 
     fireEvent.click(screen.getByRole('switch'));
 
-    expect(screen.getByRole('link', { name: 'Découvrir Pro' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Choisir Pro' })).toHaveAttribute(
       'href',
-      '/demo?plan=pro&billing=monthly',
+      '/register?plan=pro&billing=monthly',
+    );
+    expect(screen.getByRole('link', { name: 'Choisir Multi-restaurant' })).toHaveAttribute(
+      'href',
+      '/register?plan=multi-site&billing=monthly&sites=2',
     );
   });
 
@@ -69,9 +73,9 @@ describe('PricingSection', () => {
     fireEvent.click(screen.getByRole('switch'));
     fireEvent.change(screen.getByLabelText('Nombre d’établissements'), { target: { value: '3' } });
     expect(screen.getByText(/Total pour 3 établissements : 497/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Découvrir Multi-restaurant' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Choisir Multi-restaurant' })).toHaveAttribute(
       'href',
-      '/demo?plan=multi-site&billing=monthly&sites=3',
+      '/register?plan=multi-site&billing=monthly&sites=3',
     );
     fireEvent.click(screen.getByRole('switch'));
     expect(screen.getByText(/Total pour 3 établissements : 447/)).toBeInTheDocument();

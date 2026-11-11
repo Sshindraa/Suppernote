@@ -322,7 +322,7 @@ if (releaseProfile) {
   );
   if (freezeActive) {
     process.stdout.write(
-      'ℹ️ Le gel complet 199/299 reste actif ; seules les fondations du profil sont promues.\n',
+      `ℹ️ Le gel complet reste actif ; périmètre promu : ${productionRelease.label ?? productionRelease.id}. Les portes différées restent ouvertes.\n`,
     );
   }
 } else {

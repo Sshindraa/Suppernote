@@ -4,8 +4,12 @@ import { db } from '../../../shared/db/client';
 import { buildCheckoutIdempotencyKey } from '../billing.service';
 
 const clerkOrganization = vi.hoisted(() => vi.fn());
+const clerkUser = vi.hoisted(() => vi.fn());
 vi.mock('@clerk/fastify', () => ({
-  clerkClient: { organizations: { getOrganization: clerkOrganization } },
+  clerkClient: {
+    organizations: { getOrganization: clerkOrganization },
+    users: { getUser: clerkUser },
+  },
 }));
 
 const originalEnv = {
@@ -22,6 +26,8 @@ describe('billing.routes - checkout, portail et statut', () => {
     vi.mocked(db.restaurant.findFirst).mockReset();
     vi.mocked(db.restaurantAccountBilling.findUnique).mockReset();
     vi.mocked(db.restaurantBilling.findUnique).mockReset();
+    vi.mocked(db.restaurantAccountMembership.findFirst).mockReset();
+    clerkUser.mockReset();
     process.env.STRIPE_SECRET_KEY = 'sk_test_unit';
     delete process.env.STRIPE_PRICE_PRO_MONTHLY;
     delete process.env.STRIPE_PRICE_PRO_ANNUAL;
@@ -275,9 +281,71 @@ describe('billing.routes - checkout, portail et statut', () => {
     ).__sokarStripeCustomerCreate;
     expect(customerCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
+        email: 'manager@example.com',
         invoice_settings: { footer: 'TVA non applicable, art. 293 B du CGI' },
       }),
     );
+  });
+
+  it('met à jour l’e-mail Stripe du propriétaire et invalide son ancien Checkout', async () => {
+    const stripe = globalThis as unknown as {
+      __sokarStripeCheckoutSessionExpire: ReturnType<typeof vi.fn>;
+      __sokarStripeCheckoutSessionList: ReturnType<typeof vi.fn>;
+      __sokarStripeCustomerUpdate: ReturnType<typeof vi.fn>;
+      __sokarStripeRead: { customer: ReturnType<typeof vi.fn> };
+    };
+    stripe.__sokarStripeRead.customer.mockResolvedValueOnce({
+      id: 'cus_test',
+      email: 'demo@sokar.com',
+    });
+    stripe.__sokarStripeCustomerUpdate.mockResolvedValueOnce({
+      id: 'cus_test',
+      email: 'owner@example.com',
+    });
+    stripe.__sokarStripeCheckoutSessionList.mockResolvedValueOnce({
+      data: [{ id: 'cs_old', mode: 'subscription', url: 'https://checkout.stripe.test/cs_old' }],
+      has_more: false,
+    });
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({
+      id: 'test-rest-1',
+      accountId: 'test-account-1',
+      name: 'Bistrot du Coin',
+      managerEmail: 'manager@example.com',
+    } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
+    vi.mocked(db.restaurantBilling.findUnique).mockResolvedValue({
+      restaurantId: 'test-rest-1',
+      stripeCustomerId: 'cus_test',
+      checkoutIdempotencyKey: 'previous-attempt',
+      checkoutSessionId: 'cs_old',
+    } as unknown as Awaited<ReturnType<typeof db.restaurantBilling.findUnique>>);
+    vi.mocked(db.restaurantAccountMembership.findFirst).mockResolvedValue({
+      clerkUserId: 'owner-user',
+    } as never);
+    clerkUser.mockResolvedValue({
+      primaryEmailAddressId: 'owner-email',
+      emailAddresses: [
+        {
+          id: 'owner-email',
+          emailAddress: 'owner@example.com',
+          verification: { status: 'verified' },
+        },
+      ],
+    });
+    process.env.STRIPE_PRICE_PRO_MONTHLY = 'price_pro_monthly_test';
+
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/billing/checkout-session',
+      headers: { authorization: 'Bearer test' },
+      payload: { plan: 'pro', billing: 'monthly' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(stripe.__sokarStripeCustomerUpdate).toHaveBeenCalledWith('cus_test', {
+      email: 'owner@example.com',
+    });
+    expect(stripe.__sokarStripeCheckoutSessionExpire).toHaveBeenCalledWith('cs_old');
   });
 
   describe('retour vers l’inscription (returnTo)', () => {

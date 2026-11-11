@@ -11,7 +11,7 @@
 1. Le visiteur choisit une formule dans `/pricing`.
 2. Clerk crée le compte et l'organisation restaurant.
 3. Le dashboard appelle `POST /billing/checkout-session` avec `plan` (`essential`, `pro`, `multi-site`) et `billing` (`monthly`, `annual`). Pour un compte multi-site, seul `OWNER` peut lancer le Checkout.
-4. L'API crée (ou réutilise) le client Stripe au niveau du compte et renvoie l'URL Checkout hébergée. Une clé `Idempotency-Key` client est acceptée ; à défaut, Sokar en génère une au niveau du compte/formule/cadence sur une fenêtre de 24 heures. Les tentatives sont conservées sur le site principal.
+4. L'API crée (ou réutilise) le client Stripe au niveau du compte et renvoie l'URL Checkout hébergée. L'adresse vérifiée du propriétaire Clerk sert d'adresse de facturation ; `managerEmail` reste le repli pour les comptes historiques sans adresse propriétaire vérifiée. Si elle change, le client Stripe est synchronisé et toute session Checkout ouverte avec l'ancienne adresse est expirée. Une clé `Idempotency-Key` client est acceptée ; à défaut, Sokar en génère une au niveau du compte/formule/cadence sur une fenêtre de 24 heures. Les tentatives sont conservées sur le site principal.
 5. `checkout.session.completed` puis `customer.subscription.*` mettent à jour le plan, `RestaurantBilling` et la projection `RestaurantAccountBilling` (`siteCount`).
 6. Le propriétaire peut appeler `POST /billing/portal-session` pour ouvrir le portail Stripe hébergé et gérer la formule, les factures ou la résiliation.
 7. Le dashboard appelle `GET /billing/status` pour afficher l'état de l'abonnement, la cadence, la prochaine échéance et une éventuelle période de grâce ou résiliation programmée. La réponse ne contient aucun identifiant Stripe.

@@ -649,7 +649,8 @@ vi.mock('../../shared/telnyx/client', () => ({
 
 // ── Mock Stripe (SDK non nécessaire en tests unitaires) ──
 const stripeMocks = vi.hoisted(() => ({
-  customerRetrieve: vi.fn(),
+  customerRetrieve: vi.fn().mockResolvedValue({ id: 'cus_test', email: 'manager@example.com' }),
+  customerUpdate: vi.fn().mockResolvedValue({ id: 'cus_test' }),
   invoiceList: vi.fn(),
   customerCreate: vi.fn().mockResolvedValue({ id: 'cus_test' }),
   subscriptionCreate: vi.fn().mockResolvedValue({
@@ -679,6 +680,7 @@ const stripeMocks = vi.hoisted(() => ({
 (globalThis as Record<string, unknown>).__sokarStripeBillingPortalSessionCreate =
   stripeMocks.billingPortalSessionCreate;
 (globalThis as Record<string, unknown>).__sokarStripeCustomerCreate = stripeMocks.customerCreate;
+(globalThis as Record<string, unknown>).__sokarStripeCustomerUpdate = stripeMocks.customerUpdate;
 (globalThis as Record<string, unknown>).__sokarStripeSubscriptionCreate =
   stripeMocks.subscriptionCreate;
 (globalThis as Record<string, unknown>).__sokarStripeSubscriptionRetrieve =
@@ -701,6 +703,7 @@ vi.mock('stripe', () => {
     customers = {
       create: stripeMocks.customerCreate,
       retrieve: stripeMocks.customerRetrieve,
+      update: stripeMocks.customerUpdate,
     };
     subscriptions = {
       create: stripeMocks.subscriptionCreate,

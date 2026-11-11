@@ -4046,3 +4046,7 @@ Le workflow manuel Deploy Staging reçoit `run_demo_slug_migration` (désactivé
 ## 2026-11-12 — Premier essai de migration du slug staging
 
 La release compatible a été déployée sur staging et les smoke tests (pages, widgets, cartes cadeaux) ainsi que les E2E Dashboard/Connect ont réussi. L'étape SQL a échoué sur `%TYPE` dans le bloc PL/pgSQL, avant toute instruction UPDATE ; les deux endpoints widget répondent toujours 200. `Restaurant.id` étant un `String` Prisma sans type natif UUID, le script déclare désormais les variables en `TEXT`. Nouvelle CI puis nouvelle qualification nécessaires ; aucune production touchée.
+
+## 2026-11-12 — Nom physique de la table du slug
+
+Le second essai staging a échoué avant le script : `Restaurant` est mappé sur la table PostgreSQL `restaurants`, pas sur une table physique `"Restaurant"` (P1014). Le script cible maintenant `restaurants`, et `prisma db execute` reçoit l'URL directement pour exécuter ce SQL brut sans introspection préalable. Aucun changement de données n'a été appliqué ; CI et nouvelle qualification staging nécessaires.

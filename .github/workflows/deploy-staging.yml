@@ -420,8 +420,7 @@ jobs:
               *sokar_staging*) ;;
               *) echo "Refusing demo slug migration: target is not sokar_staging."; exit 1 ;;
             esac
-            DATABASE_URL="$DATABASE_URL" pnpm exec prisma db execute \
-              --schema=packages/database/prisma/schema.prisma \
+            pnpm exec prisma db execute --url="$DATABASE_URL" \
               --file=packages/database/prisma/scripts/migrate-demo-slug.sql
             echo "Staging database contains the canonical demo slug only."
 

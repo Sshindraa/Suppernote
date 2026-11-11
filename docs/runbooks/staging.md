@@ -10,7 +10,8 @@
 
 - Dashboard: `https://staging.suppernote.com`
 - API directe: `https://api-staging.suppernote.com`
-- Sokar Connect: `https://staging.suppernote.com/restaurant/chez-sokar-demo`
+- Suppernote Connect (canonique): `https://staging.suppernote.com/restaurant/chez-suppernote-demo`
+- Suppernote Connect (legacy): `https://staging.suppernote.com/restaurant/chez-sokar-demo`
 
 ## Infrastructure (VPS `sokar`, isolated from prod)
 

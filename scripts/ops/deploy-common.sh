@@ -113,13 +113,14 @@ wait_for_services() {
         API_LIVEZ=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_API}/livez" 2>/dev/null || echo "000")
         DASH_READY=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_DASH}" 2>/dev/null || echo "000")
         CONNECT_READY=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_CONNECT}/restaurant/chez-sokar-demo" 2>/dev/null || echo "000")
-        if [ "$API_HEALTH" = "200" ] && [ "$API_LIVEZ" = "200" ] && [ "$DASH_READY" = "200" ] && [ "$CONNECT_READY" = "200" ]; then
+        CONNECT_CANONICAL_READY=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_CONNECT}/restaurant/chez-suppernote-demo" 2>/dev/null || echo "000")
+        if [ "$API_HEALTH" = "200" ] && [ "$API_LIVEZ" = "200" ] && [ "$DASH_READY" = "200" ] && [ "$CONNECT_READY" = "200" ] && [ "$CONNECT_CANONICAL_READY" = "200" ]; then
             log info "   API (health + livez) + Dashboard + Connect ready"
             break
         fi
         WAIT_NOW=$(date +%s)
         if [ $((WAIT_NOW - WAIT_START)) -ge "$timeout" ]; then
-            log_warn "Timeout (health=$API_HEALTH livez=$API_LIVEZ dash=$DASH_READY connect=$CONNECT_READY)"
+            log_warn "Timeout (health=$API_HEALTH livez=$API_LIVEZ dash=$DASH_READY connect=$CONNECT_READY/$CONNECT_CANONICAL_READY)"
             break
         fi
         sleep 2
@@ -985,30 +986,38 @@ health_checks() {
 
     log info ""
     log_section "Checking ${DEPLOY_ENV} HTTP endpoints"
-    local API_STATUS DASH_STATUS CONNECT_STATUS
+    local API_STATUS DASH_STATUS CONNECT_STATUS CONNECT_CANONICAL_STATUS
     API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_API}/health" 2>/dev/null || echo "FAIL")
     DASH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_DASH}" 2>/dev/null || echo "FAIL")
     CONNECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_CONNECT}/restaurant/chez-sokar-demo" 2>/dev/null || echo "FAIL")
+    CONNECT_CANONICAL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${PORT_CONNECT}/restaurant/chez-suppernote-demo" 2>/dev/null || echo "FAIL")
     log info "   api (127.0.0.1:${PORT_API}/health) → $API_STATUS"
     log info "   dashboard (127.0.0.1:${PORT_DASH})  → $DASH_STATUS"
     log info "   connect (127.0.0.1:${PORT_CONNECT}/restaurant/chez-sokar-demo) → $CONNECT_STATUS"
+    log info "   connect (127.0.0.1:${PORT_CONNECT}/restaurant/chez-suppernote-demo) → $CONNECT_CANONICAL_STATUS"
 
     if [ "$EXTENDED_HEALTH_CHECKS" = true ]; then
         # Checks étendus prod
-        local API_VHOST_STATUS WIDGET_API_STATUS PUBLIC_PAGE_STATUS
+        local API_VHOST_STATUS WIDGET_API_STATUS WIDGET_API_CANONICAL_STATUS PUBLIC_PAGE_STATUS PUBLIC_PAGE_CANONICAL_STATUS
         API_VHOST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: api.suppernote.com" \
             http://127.0.0.1/health 2>/dev/null || echo "FAIL")
         WIDGET_API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: suppernote.com" \
             http://127.0.0.1/api/proxy/public/widget/chez-sokar-demo 2>/dev/null || echo "FAIL")
+        WIDGET_API_CANONICAL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: suppernote.com" \
+            http://127.0.0.1/api/proxy/public/widget/chez-suppernote-demo 2>/dev/null || echo "FAIL")
         PUBLIC_PAGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: suppernote.com" \
             http://127.0.0.1/restaurant/chez-sokar-demo 2>/dev/null || echo "FAIL")
+        PUBLIC_PAGE_CANONICAL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: suppernote.com" \
+            http://127.0.0.1/restaurant/chez-suppernote-demo 2>/dev/null || echo "FAIL")
         log info "   api.suppernote.com/health via Nginx → $API_VHOST_STATUS"
         log info "   widget slug API via Next proxy → $WIDGET_API_STATUS"
-        log info "   public Sokar Connect page via Nginx → $PUBLIC_PAGE_STATUS"
+        log info "   canonical widget slug API via Next proxy → $WIDGET_API_CANONICAL_STATUS"
+        log info "   public Suppernote Connect page via Nginx → $PUBLIC_PAGE_STATUS"
+        log info "   canonical Suppernote Connect page via Nginx → $PUBLIC_PAGE_CANONICAL_STATUS"
 
         local WIDGET_HEADERS WIDGET_IFRAME_STATUS
         WIDGET_HEADERS=$(curl -sSI -H "Host: suppernote.com" \
-            http://127.0.0.1/widget/chez-sokar-demo 2>/dev/null || true)
+            http://127.0.0.1/widget/chez-suppernote-demo 2>/dev/null || true)
         if printf '%s' "$WIDGET_HEADERS" | grep -Eqi '^X-Frame-Options:'; then
             WIDGET_IFRAME_STATUS="FAIL"
         else
@@ -1022,16 +1031,19 @@ health_checks() {
         # Vérification de la page achat carte cadeau (P1.4) — route /widget/[slug]/gift-card.
         local GIFT_CARD_WIDGET_STATUS
         GIFT_CARD_WIDGET_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Host: suppernote.com" \
-            http://127.0.0.1/widget/chez-sokar-demo/gift-card 2>/dev/null || echo "FAIL")
+            http://127.0.0.1/widget/chez-suppernote-demo/gift-card 2>/dev/null || echo "FAIL")
         log info "   gift-card widget page → $GIFT_CARD_WIDGET_STATUS"
 
         # Subdomain routing check — verify *.suppernote.com middleware routes to Connect
         # (not the dashboard). Bug historique : default_server manquant sur 443 →
         # les sous-domaines tombaient sur le dashboard au lieu de Connect.
-        local SUBDOMAIN_STATUS
+        local SUBDOMAIN_STATUS SUPPERNOTE_SUBDOMAIN_STATUS
         SUBDOMAIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Host: chez-sokar-demo.suppernote.com" "http://127.0.0.1/" 2>/dev/null || echo "FAIL")
         log info "   subdomain (Host: chez-sokar-demo.suppernote.com) → $SUBDOMAIN_STATUS"
+        SUPPERNOTE_SUBDOMAIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Host: chez-suppernote-demo.suppernote.com" "http://127.0.0.1/" 2>/dev/null || echo "FAIL")
+        log info "   subdomain (Host: chez-suppernote-demo.suppernote.com) → $SUPPERNOTE_SUBDOMAIN_STATUS"
 
         # Vérification post-déploiement : un asset CSS/JS réel doit répondre 200.
         # Bug historique : `curl -I /` répond 200 même si .next/static n'a pas été

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 
-const DEMO_SLUG = 'chez-sokar-demo';
+const DEMO_SLUG = 'chez-suppernote-demo';
+const LEGACY_DEMO_SLUG = 'chez-sokar-demo';
 const SANDBOX_PHONE = '+33612345600';
 const RUN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{2,63}$/;
 const MAX_RUN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -115,22 +116,22 @@ function assertSandboxDatabase(): void {
 }
 
 async function loadDemoRestaurant(prisma: PrismaClient) {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug: DEMO_SLUG },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      agenticOptIn: true,
-      exposureSettings: {
-        select: {
-          mcpEnabled: true,
-          maxPartySize: true,
-          minLeadTimeMinutes: true,
-        },
+  const select = {
+    id: true,
+    name: true,
+    slug: true,
+    agenticOptIn: true,
+    exposureSettings: {
+      select: {
+        mcpEnabled: true,
+        maxPartySize: true,
+        minLeadTimeMinutes: true,
       },
     },
-  });
+  } as const;
+  const restaurant =
+    (await prisma.restaurant.findUnique({ where: { slug: DEMO_SLUG }, select })) ??
+    (await prisma.restaurant.findUnique({ where: { slug: LEGACY_DEMO_SLUG }, select }));
   if (!restaurant) {
     fail(`Demo restaurant ${DEMO_SLUG} is missing. Run the database seed first.`);
   }

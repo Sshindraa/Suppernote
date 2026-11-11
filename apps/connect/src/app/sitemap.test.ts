@@ -46,6 +46,7 @@ describe('sitemap', () => {
     api.fetchSitemapSources.mockResolvedValue({
       restaurants: [
         publishedRestaurant,
+        { ...publishedRestaurant, slug: 'chez-suppernote-demo' },
         { ...publishedRestaurant, slug: 'chez-sokar-demo' },
         { ...publishedRestaurant, slug: 'chez-sokar-bistrot-paris' },
       ],
@@ -53,6 +54,7 @@ describe('sitemap', () => {
     });
     const urls = (await sitemap()).map((entry) => entry.url);
     expect(urls).toContain(`${SITE}/restaurant/chez-sokar`);
+    expect(urls).not.toContain(`${SITE}/restaurant/chez-suppernote-demo`);
     expect(urls).not.toContain(`${SITE}/restaurant/chez-sokar-demo`);
     expect(urls).not.toContain(`${SITE}/restaurant/chez-sokar-bistrot-paris`);
     expect(urls).not.toContain(`${SITE}/solutions/assistant-telephonique-restaurant`);

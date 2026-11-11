@@ -126,14 +126,16 @@ test.describe('choix de la date de réservation du widget', () => {
     }));
     expect(pickScenario(days, now)).toBeNull();
     expect(pickFirstOpenDay(days, now)).toBeNull();
-    const message = noScenarioError('chez-sokar-demo', days, now).message;
-    expect(message).toContain('Aucun scénario de réservation possible pour chez-sokar-demo');
+    const message = noScenarioError('chez-suppernote-demo', days, now).message;
+    expect(message).toContain('Aucun scénario de réservation possible pour chez-suppernote-demo');
     expect(message).toContain('7 prochains jours');
     expect(message).toContain('Heure du restaurant : 2026-10-13 10:00');
     expect(message).toContain(
       'mardi 13 octobre (2026-10-13) → 2 pers. : 0, 4 pers. : 0, 5 pers. : 0',
     );
-    expect(noOpenDayError('chez-sokar-demo', days, now).message).toContain('Aucun jour ouvert');
+    expect(noOpenDayError('chez-suppernote-demo', days, now).message).toContain(
+      'Aucun jour ouvert',
+    );
   });
 
   test('chargement du widget : premier jour ouvert pour 2 personnes, à l’heure de Paris', () => {

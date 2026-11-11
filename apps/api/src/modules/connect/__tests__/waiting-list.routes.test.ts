@@ -22,13 +22,13 @@ import {
 } from '../../agentic-reservations/core/waiting-list.errors';
 import { HoldService, HoldConflictError } from '../../agentic-reservations/core/hold.service';
 
-const SLUG = 'chez-sokar-demo';
+const SLUG = 'chez-suppernote-demo';
 const RESTAURANT_ID = 'ba5be41b-eb72-4e05-bb9c-b576e39e33ba';
 
 const mockRestaurantRaw = {
   id: RESTAURANT_ID,
   slug: SLUG,
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   description: 'Bistrot français à Lyon',
   formattedAddress: '12 Rue de la République, 69001 Lyon',
   city: 'Lyon',

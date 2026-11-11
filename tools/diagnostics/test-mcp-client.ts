@@ -130,7 +130,7 @@ async function main() {
         | { restaurants?: Array<{ slug: string; id: string }> }
         | undefined;
       const found =
-        data?.restaurants?.find((r) => r.slug === 'chez-sokar-demo') ?? data?.restaurants?.[0];
+        data?.restaurants?.find((r) => r.slug === 'chez-suppernote-demo') ?? data?.restaurants?.[0];
       restaurantId = found?.id ?? null;
       selectedSlot = restaurantId ? candidate : null;
     }

@@ -12,6 +12,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
+import { canonicalDemoSlug } from '@suppernote/shared';
 import { logger } from '../../../../shared/logger/pino';
 import { type ReservationChannel } from '../../core/state-machine';
 import { AuditLogService } from '../../core/audit-log.service';
@@ -445,7 +446,11 @@ export class McpToolRegistry {
       });
       if (!r) return toolError('Restaurant not found', 'NOT_FOUND');
 
-      return ok({ ...r, maxOnlinePartySize: exposure.settings.maxPartySize });
+      return ok({
+        ...r,
+        slug: r.slug ? canonicalDemoSlug(r.slug) : null,
+        maxOnlinePartySize: exposure.settings.maxPartySize,
+      });
     } catch (err: unknown) {
       logger.error({ err, clientId: ctx.clientId }, 'get_restaurant_details failed');
       return toolError('Internal error', 'INTERNAL');

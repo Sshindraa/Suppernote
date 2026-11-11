@@ -979,9 +979,9 @@ ses données contacte `dpo@suppernote.com`.
 
 **Acceptance** :
 
-- [ ] `GET /public/r/chez-sokar-demo` retourne 200 + DTO
+- [ ] `GET /public/r/chez-suppernote-demo` retourne 200 + DTO
 - [ ] `GET /public/r/inexistant` retourne 404
-- [ ] `GET /public/r/chez-sokar-demo/availability?date=...&partySize=2`
+- [ ] `GET /public/r/chez-suppernote-demo/availability?date=...&partySize=2`
       retourne slots valides
 - [ ] `POST /hold` puis `POST /confirm` avec `Idempotency-Key` crée
       une reservation avec `channel=WEB`
@@ -1045,7 +1045,7 @@ ses données contacte `dpo@suppernote.com`.
       `apps/connect/.next/standalone/`
 - [ ] `pnpm --filter @suppernote/connect typecheck` passe
 - [ ] `pnpm turbo build` global passe
-- [ ] `curl -I https://suppernote.com/r/chez-sokar-demo` (après deploy)
+- [ ] `curl -I https://suppernote.com/r/chez-suppernote-demo` (après deploy)
       répond 200 avec HSTS
 
 ### Ticket 5 — Page `/r/[slug]` (P0)
@@ -1065,7 +1065,7 @@ ses données contacte `dpo@suppernote.com`.
 
 **Acceptance** :
 
-- [ ] `curl -s localhost:4002/r/chez-sokar-demo` → HTML avec H1
+- [ ] `curl -s localhost:4002/r/chez-suppernote-demo` → HTML avec H1
 - [ ] JSON-LD `<script type="application/ld+json">` présent
 - [ ] `<link rel="canonical">` présent, sans query params
 - [ ] `<meta name="robots" content="index, follow">` si publié
@@ -1089,7 +1089,7 @@ ses données contacte `dpo@suppernote.com`.
 **Acceptance** :
 
 - [ ] Deep-link
-      `/r/chez-sokar-demo/book?partySize=4&date=2026-06-24&time=20:00&source=chatgpt`
+      `/r/chez-suppernote-demo/book?partySize=4&date=2026-06-24&time=20:00&source=chatgpt`
       pré-remplit le formulaire
 - [ ] Slot demandé en premier dans la grille
 - [ ] Hold expiré (5 min) → retour step 1 avec message clair
@@ -1194,7 +1194,7 @@ ses données contacte `dpo@suppernote.com`.
 
 **Acceptance** :
 
-- [ ] `curl -I` sur `/r/chez-sokar-demo` montre les headers
+- [ ] `curl -I` sur `/r/chez-suppernote-demo` montre les headers
 - [ ] POST `/hold` rate-limited à 11e req/min = 429
 - [ ] Phone `+000000` refusé en validation
 - [ ] Pas de `holdToken` dans les logs

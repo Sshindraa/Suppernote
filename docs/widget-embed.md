@@ -16,7 +16,7 @@ HTML de votre site, à l'endroit où vous souhaitez afficher le formulaire :
 ```html
 <script
   src="https://suppernote.com/embed.js"
-  data-slug="chez-sokar-demo"
+  data-slug="chez-suppernote-demo"
   data-primary="#0f172a"
   data-accent="#f97316"
 ></script>
@@ -34,7 +34,7 @@ local ou sur un autre environnement, ajoutez `data-host` :
 ```html
 <script
   src="http://localhost:3000/embed.js"
-  data-slug="chez-sokar-demo"
+  data-slug="chez-suppernote-demo"
   data-host="http://localhost:3000"
   data-primary="#0f172a"
   data-accent="#f97316"

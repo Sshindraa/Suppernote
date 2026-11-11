@@ -719,10 +719,10 @@ describe('gift-card routes', () => {
     });
 
     it('retourne 404 sur /packs/:slug quand giftCardEnabled est false', async () => {
-      vi.mocked(db.restaurant.findFirst).mockResolvedValue({
+      vi.mocked(db.restaurant.findUnique).mockResolvedValue({
         id: RESTAURANT_ID,
         giftCardEnabled: false,
-      } as unknown as Awaited<ReturnType<typeof db.restaurant.findFirst>>);
+      } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
 
       const app = await getApp();
       const res = await app.inject({
@@ -732,6 +732,30 @@ describe('gift-card routes', () => {
 
       expect(res.statusCode).toBe(404);
       expect(res.json().error).toBe('Cartes cadeaux non disponibles');
+    });
+
+    it('résout le nouveau slug avant la migration de la fiche stockée', async () => {
+      const findUnique = vi.mocked(db.restaurant.findUnique);
+      findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: RESTAURANT_ID, giftCardEnabled: true } as never);
+      vi.mocked(db.giftCardPack.findMany).mockResolvedValue([] as never);
+
+      const app = await getApp();
+      const res = await app.inject({
+        method: 'GET',
+        url: '/public/gift-cards/packs/chez-suppernote-demo',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(findUnique).toHaveBeenNthCalledWith(1, {
+        where: { slug: 'chez-suppernote-demo' },
+        select: { id: true, giftCardEnabled: true },
+      });
+      expect(findUnique).toHaveBeenNthCalledWith(2, {
+        where: { slug: 'chez-sokar-demo' },
+        select: { id: true, giftCardEnabled: true },
+      });
     });
 
     it('retourne 403 sur /payment-intent quand giftCardEnabled est false', async () => {

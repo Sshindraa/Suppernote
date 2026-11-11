@@ -17,7 +17,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const API_URL = process.env.API_URL || 'http://localhost:4000';
-const RESTAURANT_SLUG = 'chez-sokar-demo';
+const RESTAURANT_SLUG = 'chez-suppernote-demo';
 
 test.describe.configure({ mode: 'serial' });
 

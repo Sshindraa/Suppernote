@@ -199,6 +199,8 @@ Dans le dashboard Cloudflare → suppernote.com → SSL/TLS → Origin Server �
 ```zsh
 curl -s -o /dev/null -w '%{http_code}' -H 'Host: chez-sokar-demo.suppernote.com' http://127.0.0.1/
 # Doit retourner 200
+curl -s -o /dev/null -w '%{http_code}' -H 'Host: chez-suppernote-demo.suppernote.com' http://127.0.0.1/
+# Doit retourner 200
 ```
 
 ### Widget de réservation sur un sous-domaine ou un domaine personnalisé
@@ -220,6 +222,9 @@ vers la fiche. Sur ces routes publiques, le middleware du dashboard n'appelle pa
 Vérification après déploiement :
 
 ```zsh
+curl -s -o /dev/null -w '%{http_code}\n' https://chez-suppernote-demo.suppernote.com/book/chez-suppernote-demo
+curl -s https://chez-suppernote-demo.suppernote.com/api/proxy/public/widget/chez-suppernote-demo | head -c 80
+# Les mêmes vérifications restent valides sur le sous-domaine legacy :
 curl -s -o /dev/null -w '%{http_code}\n' https://chez-sokar-demo.suppernote.com/book/chez-sokar-demo
 curl -s https://chez-sokar-demo.suppernote.com/api/proxy/public/widget/chez-sokar-demo | head -c 80
 # 200, puis un JSON qui commence par {"id":

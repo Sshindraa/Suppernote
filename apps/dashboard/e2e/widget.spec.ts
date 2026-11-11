@@ -14,13 +14,13 @@ import {
   type BookingScenario,
 } from './support/widget-scenario';
 
-const RESTAURANT_SLUG = 'chez-sokar-demo';
+const RESTAURANT_SLUG = 'chez-suppernote-demo';
 // Staging : vraie API, restaurant fermé dimanche et lundi, créneaux passés retirés.
 const AGAINST_REAL_API = Boolean(process.env.PLAYWRIGHT_BASE_URL);
 
 const DEMO_RESTAURANT = {
   id: 'e2e-demo-restaurant',
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   openingHours: {
     sun: { open: '12:00', close: '22:00' },
     mon: { open: '12:00', close: '22:00' },

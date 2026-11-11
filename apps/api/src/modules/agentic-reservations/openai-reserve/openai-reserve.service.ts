@@ -8,6 +8,7 @@
 
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
+import { canonicalDemoSlug } from '@suppernote/shared';
 import {
   type Business,
   type BusinessAddress,
@@ -213,7 +214,7 @@ export class OpenaiReserveService {
       location: { latitude, longitude },
       phone_number: r.phoneE164 || '',
       website_url: r.websiteUrl,
-      platform_url: `${env.SITE_URL}/restaurant/${r.slug ?? r.id}`,
+      platform_url: `${env.SITE_URL}/restaurant/${canonicalDemoSlug(r.slug ?? r.id)}`,
       cuisine_type: r.cuisineType,
       price_range: r.priceRange,
       opening_hours: r.openingHours as Record<string, string[]> | null,

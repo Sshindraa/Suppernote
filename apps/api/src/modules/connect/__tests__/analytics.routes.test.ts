@@ -34,7 +34,7 @@ describe('Suppernote Connect — Analytics T8', () => {
       payload: {
         event: 'restaurant_page_view',
         restaurantId: 'rest-1',
-        restaurantSlug: 'chez-sokar-demo',
+        restaurantSlug: 'chez-suppernote-demo',
         source: 'google',
       },
     });

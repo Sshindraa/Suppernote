@@ -45,7 +45,7 @@ export default async function HomePage() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span>Suppernote Connect</span>
           <span aria-hidden>·</span>
-          <Link className="text-blue underline" href="/restaurant/chez-sokar-demo">
+          <Link className="text-blue underline" href="/restaurant/chez-suppernote-demo">
             Restaurant démo
           </Link>
           <span aria-hidden>·</span>

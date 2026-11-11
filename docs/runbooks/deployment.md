@@ -93,7 +93,8 @@ En dry-run, le script ne fait ni `git pull` ni `checkout` (il construit le check
 
 - `curl /health` and `/livez` on `api-staging.suppernote.com` (staging) / `api.suppernote.com` (prod) → 200.
 - `curl /dashboard` → 200 or 302 (Clerk redirect).
-- `curl /` and `/restaurant/chez-sokar-demo` → 200.
+- `curl /` and both `/restaurant/chez-suppernote-demo` and
+  `/restaurant/chez-sokar-demo` → 200.
 - Playwright E2E functional tests on staging are blocking: Dashboard smoke plus
   the public reservation widget (including availability) and the Connect
   restaurant page. The Connect confirmation flow and gift-card purchase are

@@ -19,6 +19,17 @@ const check = (name, status, conclusion, startedAt = '2026-10-22T20:00:00Z', det
   details_url: details,
 });
 
+const REQUIRED_CHECKS = [
+  'Secret Scanning',
+  'API',
+  'Dashboard',
+  'Sokar Connect',
+  'Packages (shared / config / database)',
+  'Semgrep',
+];
+const requiredRuns = (overrides = {}) =>
+  REQUIRED_CHECKS.map((name) => overrides[name] ?? check(name, 'completed', 'success'));
+
 const pull = {
   number: 560,
   base: { ref: 'main' },
@@ -41,38 +52,44 @@ test('evaluateTree exige des arbres identiques', () => {
 });
 
 test('evaluateChecks accepte success, skipped et neutral', () => {
-  const result = evaluateChecks([
-    check('API', 'completed', 'success'),
-    check('Visual', 'completed', 'skipped'),
-    check('Lint', 'completed', 'neutral'),
-  ]);
+  const result = evaluateChecks(
+    requiredRuns({
+      Dashboard: check('Dashboard', 'completed', 'skipped'),
+      'Sokar Connect': check('Sokar Connect', 'completed', 'neutral'),
+    }),
+  );
   assert.equal(result.state, 'ok');
 });
 
 test('evaluateChecks refuse un échec, une annulation et l’absence de vérification', () => {
-  assert.equal(evaluateChecks([check('API', 'completed', 'failure')]).state, 'failed');
-  assert.equal(evaluateChecks([check('API', 'completed', 'cancelled')]).state, 'failed');
+  assert.equal(
+    evaluateChecks(requiredRuns({ API: check('API', 'completed', 'failure') })).state,
+    'failed',
+  );
+  assert.equal(
+    evaluateChecks(requiredRuns({ API: check('API', 'completed', 'cancelled') })).state,
+    'failed',
+  );
   assert.equal(evaluateChecks([]).state, 'failed');
 });
 
 test('evaluateChecks signale une vérification en cours sans la juger', () => {
-  const result = evaluateChecks([
-    check('API', 'completed', 'success'),
-    check('API integration (Postgres)', 'in_progress', null),
-  ]);
+  const result = evaluateChecks(
+    requiredRuns({ Dashboard: check('Dashboard', 'in_progress', null) }),
+  );
   assert.equal(result.state, 'pending');
-  assert.match(result.reason, /API integration/);
+  assert.match(result.reason, /Dashboard/);
 });
 
 test('evaluateChecks retient la dernière exécution d’un même nom (push et pull_request)', () => {
   const rerun = [
-    check('API', 'completed', 'failure', '2026-10-22T20:00:00Z'),
+    ...requiredRuns({ API: check('API', 'completed', 'failure', '2026-10-22T20:00:00Z') }),
     check('API', 'completed', 'success', '2026-10-22T20:10:00Z'),
   ];
   assert.equal(evaluateChecks(rerun).state, 'ok');
   assert.equal(evaluateChecks([...rerun].reverse()).state, 'ok');
   const regression = [
-    check('API', 'completed', 'success', '2026-10-22T20:00:00Z'),
+    ...requiredRuns(),
     check('API', 'completed', 'failure', '2026-10-22T20:10:00Z'),
   ];
   assert.equal(evaluateChecks(regression).state, 'failed');
@@ -81,9 +98,9 @@ test('evaluateChecks retient la dernière exécution d’un même nom (push et p
 test('evaluateChecks ignore les vérifications du run en cours', () => {
   const result = evaluateChecks(
     [
-      check('API', 'completed', 'success'),
+      ...requiredRuns(),
       check(
-        'Deploy',
+        'Analyze (swift)',
         'in_progress',
         null,
         undefined,
@@ -125,7 +142,7 @@ const run = (github, extra = {}) =>
   });
 
 test('verifyMergedTreeCi réussit : PR fusionnée, arbre identique, vérifications vertes', async () => {
-  const github = fakeGithub({ checkRuns: [check('API', 'completed', 'success')] });
+  const github = fakeGithub({ checkRuns: requiredRuns() });
   assert.equal((await run(github)).ok, true);
 });
 
@@ -139,37 +156,35 @@ test('verifyMergedTreeCi échoue sans PR fusionnée (poussée directe)', async (
 test('verifyMergedTreeCi échoue si l’arbre diffère (fusion sans mise à jour)', async () => {
   const github = fakeGithub({
     headTree: 'd'.repeat(40),
-    checkRuns: [check('API', 'completed', 'success')],
+    checkRuns: requiredRuns(),
   });
   const result = await run(github);
   assert.equal(result.ok, false);
   assert.match(result.reason, /diffère/);
 });
 
-test('verifyMergedTreeCi échoue si une vérification non requise est rouge', async () => {
+test('verifyMergedTreeCi ignore un contrôle facultatif en échec', async () => {
   const github = fakeGithub({
-    checkRuns: [
-      check('API', 'completed', 'success'),
-      check('API integration (Postgres)', 'completed', 'failure'),
-    ],
+    checkRuns: [...requiredRuns(), check('Analyze (swift)', 'completed', 'failure')],
   });
   const result = await run(github);
-  assert.equal(result.ok, false);
-  assert.match(result.reason, /API integration/);
+  assert.equal(result.ok, true);
 });
 
 test('verifyMergedTreeCi attend une vérification en cours puis réussit', async () => {
   const github = fakeGithub({
     checkRuns: [
-      [check('API', 'completed', 'success'), check('Connect e2e', 'in_progress', null)],
-      [check('API', 'completed', 'success'), check('Connect e2e', 'completed', 'success')],
+      requiredRuns({ Dashboard: check('Dashboard', 'in_progress', null) }),
+      requiredRuns(),
     ],
   });
   assert.equal((await run(github)).ok, true);
 });
 
 test('verifyMergedTreeCi abandonne au délai', async () => {
-  const github = fakeGithub({ checkRuns: [check('Connect e2e', 'in_progress', null)] });
+  const github = fakeGithub({
+    checkRuns: requiredRuns({ Dashboard: check('Dashboard', 'in_progress', null) }),
+  });
   const result = await run(github, { timeoutSeconds: 0 });
   assert.equal(result.ok, false);
   assert.match(result.reason, /délai dépassé/);

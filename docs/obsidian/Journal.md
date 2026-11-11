@@ -4042,3 +4042,7 @@ Non fait ou non vérifié : connexion réelle (Google compris) ; appel de test (
 ## 2026-11-12 — Migration du slug de démonstration en staging
 
 Le workflow manuel Deploy Staging reçoit `run_demo_slug_migration` (désactivé par défaut). Il ne lance le SQL qu'après les smoke tests et E2E, refuse toute URL qui ne cible pas `sokar_staging`, puis requalifie les deux slugs. Le VPS n'ayant pas `psql` pour `deploy`, l'action utilise la commande Prisma déjà disponible. Le SQL vérifie que seul `chez-suppernote-demo` reste stocké. Runbook mis à jour ; déploiement et migration staging encore en attente de CI verte.
+
+## 2026-11-12 — Premier essai de migration du slug staging
+
+La release compatible a été déployée sur staging et les smoke tests (pages, widgets, cartes cadeaux) ainsi que les E2E Dashboard/Connect ont réussi. L'étape SQL a échoué sur `%TYPE` dans le bloc PL/pgSQL, avant toute instruction UPDATE ; les deux endpoints widget répondent toujours 200. `Restaurant.id` étant un `String` Prisma sans type natif UUID, le script déclare désormais les variables en `TEXT`. Nouvelle CI puis nouvelle qualification nécessaires ; aucune production touchée.

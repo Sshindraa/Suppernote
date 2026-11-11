@@ -2,8 +2,8 @@ BEGIN;
 
 DO $$
 DECLARE
-  legacy_id "Restaurant"."id"%TYPE;
-  canonical_id "Restaurant"."id"%TYPE;
+  legacy_id TEXT;
+  canonical_id TEXT;
 BEGIN
   SELECT id INTO legacy_id
   FROM "Restaurant"

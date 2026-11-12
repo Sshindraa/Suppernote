@@ -11,8 +11,8 @@
 - [ ] Réponses SMS/WhatsApp Telnyx : définir une corrélation fiable et qualifier la revue opérateur en staging ; voir `docs/runbooks/inbound-reply-review.md`.
 - [ ] CRM #659 : migration corrective qualifiée en staging ; surveiller les rafales même client avant promotion ; PR sans auto-merge.
 
-- [x] Slug de démo Suppernote : compatibilité des deux slugs, URLs qualifiées et slug stocké migré en staging le 2026-11-12 (PR #702 ouvert ; production inchangée).
-- [ ] Production : relancer `Deploy Production` avec `run_demo_slug_migration=true` après correction de la garde loopback ; confirmer le slug stocké et les deux routes. PR #702 fusionnée, app déployée, migration DB non appliquée.
+- [x] Slug de démo Suppernote : compatibilité des deux slugs, URLs qualifiées et slug stocké migré en staging le 2026-11-12.
+- [x] Production : PR #703 fusionnée ; slug stocké canonisé en `chez-suppernote-demo` le 2026-11-12. Les deux slugs répondent 200 sur Connect, widget et cartes cadeaux.
 - [ ] Suppernote : suivre `migration-suppernote.md` (webhooks, monogramme, paquets et démo) et refaire un appel vocal après recharge OpenRouter.
 
 - [ ] Marketing : avant tout envoi réel, rouvrir l'effacement et l'opposition, et mentionner le ciblage selon l'historique dans la notice client (`privacy-client-annex.md`).

@@ -4061,3 +4061,7 @@ La PR #702 ajoute à `Deploy Production` une entrée manuelle `run_demo_slug_mig
 ## 2026-11-12 — Correction de la garde loopback en production
 
 Le dispatch production 43131027474 a passé le déploiement et les smoke tests, mais a refusé la migration avant l’appel à Prisma : PostgreSQL de production est local au VPS et la garde le rejetait à tort. Le contrôle par nom de base exact `sokar` reste ; la garde rejettera les cibles `sokar_staging`/`sokar_test` mais acceptera le loopback attendu. Aucune donnée de production n’a été modifiée. La PR #702 était déjà fusionnée ; correction à livrer dans une PR de suivi.
+
+## 2026-11-12 — Canonisation du slug de démo en production
+
+Après la fusion de la correction #703, la promotion staging 43132671403 et la promotion production 43133095038 ont réussi avec leurs smoke tests. Le dispatch explicite 43133246782 a ensuite ciblé la base `sokar` sur loopback, appliqué le SQL transactionnel avec succès et vérifié six routes en HTTP 200 : page Connect, widget et packs de cartes cadeaux pour `chez-suppernote-demo` et l’alias `chez-sokar-demo`. La base de production ne conserve désormais que le slug canonique ; le premier dispatch 43131027474 avait été refusé par la garde avant SQL et n’avait modifié aucune donnée.

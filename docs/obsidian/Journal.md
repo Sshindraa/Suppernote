@@ -4053,3 +4053,7 @@ Le second essai staging a échoué avant le script : `Restaurant` est mappé sur
 ## 2026-11-12 — Qualification et migration du slug de démo en staging
 
 Le workflow `Deploy Staging` 43123063792 a déployé la branche `codex/suppernote-demo-slug-migration`. Santé, rollback, E2E dashboard et E2E Connect sont passés. La migration SQL a réussi sur la table physique `restaurants` : le slug stocké en staging est maintenant `chez-suppernote-demo`, tandis que `chez-sokar-demo` reste accepté comme alias. La vérification post-migration des deux slugs a réussi. PR #702 reste ouverte sans auto-merge ; aucune base de production n’a été modifiée.
+
+## 2026-11-12 — Garde de migration du slug de démo en production
+
+La PR #702 ajoute à `Deploy Production` une entrée manuelle `run_demo_slug_migration`, désactivée par défaut. La migration ne peut démarrer qu’après un déploiement et des smoke tests verts ; le script exige la base `sokar` et refuse staging, test et localhost, puis exécute le SQL transactionnel déjà qualifié en staging et vérifie les routes des deux slugs. En attente de la fusion, de la promotion production et du dispatch explicite ; aucune donnée de production n’a encore été modifiée.

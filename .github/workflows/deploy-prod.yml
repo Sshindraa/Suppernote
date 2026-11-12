@@ -6,6 +6,12 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch: # déclenchement manuel (fallback)
+    inputs:
+      run_demo_slug_migration:
+        description: 'Après le déploiement et les smoke tests, canoniser le slug du restaurant de démonstration en production'
+        required: false
+        type: boolean
+        default: false
 
 # Évite les déploiements concurrents en production.
 concurrency:
@@ -250,3 +256,54 @@ jobs:
 
           echo ""
           echo "✅ All production smoke tests passed"
+
+  migrate-demo-slug:
+    name: Migrate production demo slug
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_demo_slug_migration == true }}
+    needs: [deploy, smoke-tests]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - name: Migrate production demo slug
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: deploy
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd /opt/sokar
+            DATABASE_URL=$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2- | sed "s/^[\"'[:space:]]*//;s/[\"'[:space:]]*$//")
+            DATABASE_PATH="${DATABASE_URL%%\?*}"
+            DATABASE_NAME="${DATABASE_PATH##*/}"
+            if [ "$DATABASE_NAME" != sokar ]; then
+              echo "Refusing demo slug migration: target is not the sokar production database."
+              exit 1
+            fi
+            case "$DATABASE_URL" in
+              *sokar_staging*|*sokar_test*|*localhost*|*127.0.0.1*)
+                echo "Refusing demo slug migration: target is not a remote production database."
+                exit 1
+                ;;
+            esac
+            pnpm exec prisma db execute --url="$DATABASE_URL" \
+              --file=packages/database/prisma/scripts/migrate-demo-slug.sql
+            echo "Production database contains the canonical demo slug only."
+
+      - name: Verify both demo slugs after production migration
+        run: |
+          set -euo pipefail
+          for DEMO_SLUG in chez-suppernote-demo chez-sokar-demo; do
+            for URL in \
+              "https://suppernote.com/restaurant/$DEMO_SLUG" \
+              "https://api.suppernote.com/public/widget/$DEMO_SLUG" \
+              "https://suppernote.com/public/gift-cards/packs/$DEMO_SLUG"; do
+              STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 "$URL" || echo FAIL)
+              echo "$URL → $STATUS"
+              test "$STATUS" = 200
+            done
+          done

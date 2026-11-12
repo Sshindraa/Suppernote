@@ -4057,3 +4057,7 @@ Le workflow `Deploy Staging` 43123063792 a déployé la branche `codex/suppernot
 ## 2026-11-12 — Garde de migration du slug de démo en production
 
 La PR #702 ajoute à `Deploy Production` une entrée manuelle `run_demo_slug_migration`, désactivée par défaut. La migration ne peut démarrer qu’après un déploiement et des smoke tests verts ; le script exige la base `sokar` et refuse staging, test et localhost, puis exécute le SQL transactionnel déjà qualifié en staging et vérifie les routes des deux slugs. En attente de la fusion, de la promotion production et du dispatch explicite ; aucune donnée de production n’a encore été modifiée.
+
+## 2026-11-12 — Correction de la garde loopback en production
+
+Le dispatch production 43131027474 a passé le déploiement et les smoke tests, mais a refusé la migration avant l’appel à Prisma : PostgreSQL de production est local au VPS et la garde le rejetait à tort. Le contrôle par nom de base exact `sokar` reste ; la garde rejettera les cibles `sokar_staging`/`sokar_test` mais acceptera le loopback attendu. Aucune donnée de production n’a été modifiée. La PR #702 était déjà fusionnée ; correction à livrer dans une PR de suivi.

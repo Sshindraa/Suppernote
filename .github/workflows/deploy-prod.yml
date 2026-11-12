@@ -285,8 +285,8 @@ jobs:
               exit 1
             fi
             case "$DATABASE_URL" in
-              *sokar_staging*|*sokar_test*|*localhost*|*127.0.0.1*)
-                echo "Refusing demo slug migration: target is not a remote production database."
+              *sokar_staging*|*sokar_test*)
+                echo "Refusing demo slug migration: target is a staging or test database."
                 exit 1
                 ;;
             esac

@@ -4050,3 +4050,6 @@ La release compatible a été déployée sur staging et les smoke tests (pages, 
 ## 2026-11-12 — Nom physique de la table du slug
 
 Le second essai staging a échoué avant le script : `Restaurant` est mappé sur la table PostgreSQL `restaurants`, pas sur une table physique `"Restaurant"` (P1014). Le script cible maintenant `restaurants`, et `prisma db execute` reçoit l'URL directement pour exécuter ce SQL brut sans introspection préalable. Aucun changement de données n'a été appliqué ; CI et nouvelle qualification staging nécessaires.
+## 2026-11-12 — Qualification et migration du slug de démo en staging
+
+Le workflow `Deploy Staging` 43123063792 a déployé la branche `codex/suppernote-demo-slug-migration`. Santé, rollback, E2E dashboard et E2E Connect sont passés. La migration SQL a réussi sur la table physique `restaurants` : le slug stocké en staging est maintenant `chez-suppernote-demo`, tandis que `chez-sokar-demo` reste accepté comme alias. La vérification post-migration des deux slugs a réussi. PR #702 reste ouverte sans auto-merge ; aucune base de production n’a été modifiée.

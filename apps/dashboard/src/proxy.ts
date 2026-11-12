@@ -1,4 +1,3 @@
-import { resolveDemoSlug, SUPPERNOTE_DEMO_SLUG } from '@suppernote/shared';
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server';
 
@@ -48,12 +47,11 @@ if (process.env.NODE_ENV === 'production' && !hasClerkKey && !process.env.CI) {
   );
 }
 
-/** Les liens courts et l’alias de démonstration utilisent le même widget. */
+/** Les liens courts utilisent le même widget en conservant le slug demandé. */
 function rewritePublicWidget(req: NextRequest): NextResponse | null {
-  const match = req.nextUrl.pathname.match(/^\/(book|widget)\/([^/]+)$/);
-  if (!match || (match[1] === 'widget' && match[2] !== SUPPERNOTE_DEMO_SLUG)) return null;
-  const slug = resolveDemoSlug(match[2]);
-  const url = new URL(`/widget/${slug}`, req.url);
+  const match = req.nextUrl.pathname.match(/^\/book\/([^/]+)$/);
+  if (!match) return null;
+  const url = new URL(`/widget/${match[1]}`, req.url);
   url.search = req.nextUrl.search;
   return NextResponse.rewrite(url);
 }

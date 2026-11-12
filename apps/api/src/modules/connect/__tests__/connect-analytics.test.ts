@@ -43,7 +43,7 @@ describe('emitConnectEvent', () => {
     const result = await emitConnectEvent(queue as unknown as Queue<ConnectAnalyticsJobData>, {
       event: 'restaurant_page_view',
       restaurantId: 'rest-1',
-      restaurantSlug: 'chez-sokar-demo',
+      restaurantSlug: 'chez-suppernote-demo',
       city: 'Lyon',
       source: 'google',
     });
@@ -91,7 +91,7 @@ describe('emitConnectEvent', () => {
     await emitConnectEvent(queue as unknown as Queue<ConnectAnalyticsJobData>, {
       event: 'reservation_confirmed',
       restaurantId: 'rest-1',
-      restaurantSlug: 'chez-sokar-demo',
+      restaurantSlug: 'chez-suppernote-demo',
       city: 'Lyon',
       source: 'chatgpt',
       date: '2026-07-02',

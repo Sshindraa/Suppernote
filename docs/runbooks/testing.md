@@ -230,8 +230,9 @@ chaque livraison.
 
 Après une livraison sur `main`, le workflow staging exécute en outre les smoke
 tests Playwright contre les URLs publiques : le Dashboard vérifie
-`/widget/chez-sokar-demo` et ses disponibilités, et Connect vérifie
-`/restaurant/chez-sokar-demo`. Tout échec de ces parcours bloque la conclusion
+`/widget/chez-suppernote-demo` et ses disponibilités, et Connect vérifie
+`/restaurant/chez-suppernote-demo`. Les smoke tests CI contrôlent aussi les deux
+URLs historiques `chez-sokar-demo` pendant la migration. Tout échec bloque la conclusion
 du workflow staging et donc la promotion production. La confirmation de
 réservation et l'achat de carte cadeau restent des campagnes contrôlées, car
 ils écrivent des données métier ou nécessitent l'activation commerciale du

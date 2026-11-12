@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import type Stripe from 'stripe';
+import { canonicalDemoSlug, getDemoSlugAlias } from '@suppernote/shared';
 import { db } from '../../shared/db/client';
 import {
   createExperienceCheckoutSession,
@@ -55,18 +56,23 @@ function slugUrl(slug: string, query: string): string {
 
 async function experienceRestaurantBySlug(slug: string) {
   // tenant-scoping: global — resolve the restaurant root by its unique public slug; all child records use the returned restaurantId.
-  return db.restaurant.findUnique({
-    where: { slug },
-    select: {
-      id: true,
-      name: true,
-      publishedAt: true,
-      exposureSettings: { select: { connectPublished: true } },
-      experienceStripeAccountId: true,
-      giftCardStripeAccountId: true,
-      experienceCommissionRate: true,
-    },
-  });
+  const select = {
+    id: true,
+    name: true,
+    publishedAt: true,
+    exposureSettings: { select: { connectPublished: true } },
+    experienceStripeAccountId: true,
+    giftCardStripeAccountId: true,
+    experienceCommissionRate: true,
+  } as const;
+  const alias = getDemoSlugAlias(slug);
+  return (
+    (await db.restaurant.findUnique({ where: { slug }, select })) ??
+    (alias
+      ? // tenant-scoping: global — the unique public alias resolves the restaurant root.
+        await db.restaurant.findUnique({ where: { slug: alias }, select })
+      : null)
+  );
 }
 
 async function publicRestaurant(slug: string) {
@@ -336,7 +342,7 @@ export async function createPublicExperienceCheckout(input: {
 
   if (!checkout || !sessionData)
     throw new ExperienceCheckoutError('EXPERIENCE_SESSION_NOT_FOUND', 404);
-  const sessionUrlBase = slugUrl(input.slug, '');
+  const sessionUrlBase = slugUrl(canonicalDemoSlug(input.slug), '');
   const stripeSession = checkout.stripeCheckoutSessionId
     ? await retrieveExperienceCheckoutSession(
         checkout.stripeCheckoutSessionId,

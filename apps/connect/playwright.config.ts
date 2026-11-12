@@ -10,7 +10,7 @@ import { defineConfig } from '@playwright/test';
  *
  * Contrairement au dashboard, Connect nécessite l'API Fastify (localhost:4100 en
  * staging, localhost:4000 en dev) + une DB seedée (restaurant de démo
- * "chez-sokar-demo"). Les tests utilisent un test.beforeAll qui vérifie la
+ * "chez-suppernote-demo"). Les tests utilisent un test.beforeAll qui vérifie la
  * santé de l'API et skippe tout le fichier si elle n'est pas disponible —
  * non-bloquant en CI sans infra.
  *

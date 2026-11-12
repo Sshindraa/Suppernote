@@ -11,7 +11,9 @@
 - [ ] Réponses SMS/WhatsApp Telnyx : définir une corrélation fiable et qualifier la revue opérateur en staging ; voir `docs/runbooks/inbound-reply-review.md`.
 - [ ] CRM #659 : migration corrective qualifiée en staging ; surveiller les rafales même client avant promotion ; PR sans auto-merge.
 
-- [ ] Suppernote : suivre `migration-suppernote.md` (webhooks, monogramme, paquets et démo) ; refaire un appel vocal après recharge OpenRouter.
+- [x] Slug de démo Suppernote : compatibilité des deux slugs, URLs qualifiées et slug stocké migré en staging le 2026-11-12 (PR #702 ouvert ; production inchangée).
+- [ ] Production : fusionner la PR #702, attendre les déploiements staging et production verts, puis lancer le dispatch protégé `run_demo_slug_migration=true` et vérifier les deux slugs.
+- [ ] Suppernote : suivre `migration-suppernote.md` (webhooks, monogramme, paquets et démo) et refaire un appel vocal après recharge OpenRouter.
 
 - [ ] Marketing : avant tout envoi réel, rouvrir l'effacement et l'opposition, et mentionner le ciblage selon l'historique dans la notice client (`privacy-client-annex.md`).
 - [ ] RGPD #616 : vérification/export rouverts en prod ; effacement et opposition restent bloqués (503). Examiner les journaux ; demandes manuelles : privacy@sokar.tech.

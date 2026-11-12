@@ -3,7 +3,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { clerkClient } from '@clerk/fastify';
 import type { Prisma } from '@prisma/client';
-import { normalizePhone, SUPPERNOTE_DEMO_SLUG } from '@suppernote/shared';
+import {
+  canonicalDemoSlug,
+  getDemoSlugAlias,
+  isOfficialDemoSlug,
+  normalizePhone,
+} from '@suppernote/shared';
 import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
 import { publicReadMax } from '../../plugins/rate-limit';
 import { trackOnboardingEvent, type OnboardingAnalyticsEvent } from '../analytics/events.service';
@@ -944,34 +949,37 @@ export async function restaurantRoutes(app: FastifyInstance) {
     async (req, reply) => {
       const { slug } = req.params as { slug: string };
       try {
-        const restaurant = await app.db.restaurant.findUniqueOrThrow({
-          where: { slug },
-          select: {
-            id: true,
-            publishedAt: true,
-            agenticOptIn: true,
-            exposureSettings: { select: { connectPublished: true } },
-            name: true,
-            openingHours: true,
-            phoneNumber: true,
-            // Champs Suppernote Connect utiles pour le rendu
-            slug: true,
-            city: true,
-            cuisineType: true,
-            coverImageUrl: true,
-            formattedAddress: true,
-            giftCardEnabled: true,
-            floorPlans: {
-              where: { isDefault: true, isActive: true },
-              select: {
-                sections: {
-                  select: { id: true, name: true },
-                  orderBy: { name: 'asc' },
-                },
+        const select = {
+          id: true,
+          publishedAt: true,
+          agenticOptIn: true,
+          exposureSettings: { select: { connectPublished: true } },
+          name: true,
+          openingHours: true,
+          phoneNumber: true,
+          // Champs Suppernote Connect utiles pour le rendu
+          slug: true,
+          city: true,
+          cuisineType: true,
+          coverImageUrl: true,
+          formattedAddress: true,
+          giftCardEnabled: true,
+          floorPlans: {
+            where: { isDefault: true, isActive: true },
+            select: {
+              sections: {
+                select: { id: true, name: true },
+                orderBy: { name: 'asc' },
               },
             },
           },
-        });
+        } satisfies Prisma.RestaurantSelect;
+        const alias = getDemoSlugAlias(slug);
+        // tenant-scoping: global — resolve the unique public slug; only public widget data is returned.
+        const restaurant =
+          (await app.db.restaurant.findUnique({ where: { slug }, select })) ??
+          (alias ? await app.db.restaurant.findUnique({ where: { slug: alias }, select }) : null);
+        if (!restaurant) return reply.status(404).send({ error: 'Restaurant not found' });
         const defaultFloorPlan = restaurant.floorPlans?.[0];
         const {
           publishedAt: _publishedAt,
@@ -981,6 +989,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
         } = restaurant;
         return reply.send({
           ...publicRestaurant,
+          slug: canonicalDemoSlug(restaurant.slug ?? slug),
           bookingEnabled: isPublicConnectPage(restaurant),
           sections: defaultFloorPlan?.sections ?? [],
           whatsappReminderOptInEnabled: process.env.WHATSAPP_CONSENT_ENABLED === 'true',
@@ -1337,7 +1346,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
     }
     const body = UpdateConnectSchema.parse(req.body ?? {});
 
-    if (body.slug === SUPPERNOTE_DEMO_SLUG) {
+    if (body.slug && isOfficialDemoSlug(body.slug)) {
       return reply.status(409).send({ error: 'Ce slug est réservé à la démonstration.' });
     }
 
@@ -1567,8 +1576,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
     const existing = await app.db.restaurant.findUnique({
       where: { slug },
     });
-    const available =
-      slug !== SUPPERNOTE_DEMO_SLUG && (!existing || existing.id === req.restaurantId);
+    const available = !isOfficialDemoSlug(slug) && (!existing || existing.id === req.restaurantId);
     return reply.send({ available });
   };
 

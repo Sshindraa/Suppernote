@@ -11,8 +11,8 @@ import type { ConnectScoreResult } from '../connect-score.service';
 
 function makeBaseRestaurant(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    name: 'Chez Sokar',
-    slug: 'chez-sokar-demo',
+    name: 'Chez Suppernote',
+    slug: 'chez-suppernote-demo',
     description: 'Une cuisine française raffinée au cœur de Paris, avec une touche créative.',
     coverImageUrl: 'https://cdn.example.com/cover.jpg',
     city: 'Paris',

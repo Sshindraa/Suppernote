@@ -9,14 +9,14 @@ import { getApp, closeApp } from '../../../test/helpers';
 import { db } from '../../../shared/db/client';
 import { redisCache } from '../../../shared/redis/client';
 
-const SLUG = 'chez-sokar-demo';
+const SLUG = 'chez-suppernote-demo';
 const RESTAURANT_ID = 'ba5be41b-eb72-4e05-bb9c-b576e39e33ba';
 const NOW = new Date('2026-07-02T13:00:00.000Z'); // 15:00 à Paris
 
 const restaurant = {
   id: RESTAURANT_ID,
   slug: SLUG,
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   description: 'Bistrot français à Lyon',
   formattedAddress: '12 Rue de la République, 69001 Lyon',
   city: 'Lyon',

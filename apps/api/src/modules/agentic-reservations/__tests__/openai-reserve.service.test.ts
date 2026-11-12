@@ -87,6 +87,31 @@ describe('OpenaiReserveService', () => {
       });
     });
 
+    it('émet le slug canonique pour la fiche de démonstration encore stockée sous son alias', async () => {
+      vi.mocked(prisma.restaurant.count).mockResolvedValue(1);
+      vi.mocked(prisma.restaurant.findMany).mockResolvedValue([
+        {
+          id: 'r-demo',
+          name: 'Chez Suppernote',
+          slug: 'chez-sokar-demo',
+          formattedAddress: '1 rue de Paris, 75001 Paris, France',
+          phoneE164: '+33123456789',
+          websiteUrl: 'https://suppernote.com',
+          lat: 48.86,
+          lng: 2.35,
+          cuisineType: ['french'],
+          priceRange: 2,
+          openingHours: {},
+        },
+      ] as unknown as Awaited<ReturnType<typeof prisma.restaurant.findMany>>);
+
+      const result = await service.getBusinessFeed({ page: 1, page_size: 20 });
+
+      expect(result.businesses[0].platform_url).toBe(
+        'http://localhost:4002/restaurant/chez-suppernote-demo',
+      );
+    });
+
     it('parse formattedAddress en structuré', async () => {
       vi.mocked(prisma.restaurant.count).mockResolvedValue(1);
       vi.mocked(prisma.restaurant.findMany).mockResolvedValue([

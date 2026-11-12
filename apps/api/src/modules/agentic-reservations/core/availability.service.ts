@@ -13,7 +13,7 @@
  */
 
 import type { PrismaClient } from '@prisma/client';
-import { isConnectDemoSlug } from '@suppernote/shared';
+import { canonicalDemoSlug, isConnectDemoSlug } from '@suppernote/shared';
 import type { RestaurantPolicyInput } from './policies.service.js';
 import { buildPolicySnapshot } from './policies.service.js';
 import {
@@ -203,7 +203,7 @@ export class AvailabilityService {
         results.push({
           id: c.id,
           name: c.name,
-          slug: c.slug,
+          slug: c.slug ? canonicalDemoSlug(c.slug) : null,
           formattedAddress: c.formattedAddress,
           cuisineType: c.cuisineType,
           priceRange: c.priceRange,
@@ -291,7 +291,7 @@ export class AvailabilityService {
         return {
           restaurantId: restaurant.id,
           name: restaurant.name,
-          slug: restaurant.slug,
+          slug: restaurant.slug ? canonicalDemoSlug(restaurant.slug) : null,
           formattedAddress: restaurant.formattedAddress,
           cuisineType: restaurant.cuisineType,
           priceRange: restaurant.priceRange,

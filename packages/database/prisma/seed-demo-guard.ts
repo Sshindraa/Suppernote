@@ -1,6 +1,6 @@
 /**
  * Decides whether `prisma/seed.ts` may create the extra Suppernote Connect demo
- * listings (`chez-sokar-*`, excluding `chez-sokar-demo`).
+ * listings (`chez-sokar-*`, excluding both official demo slugs).
  *
  * Those listings exist so the city pages (`/restaurants/:city`, which require at
  * least five listings per city) have something to render. They are published, so

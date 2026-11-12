@@ -14,7 +14,11 @@ import { createHash } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { logger } from '../../shared/logger/pino';
 import { env } from '../../env';
-import { normalizeOpeningHours as normalizeSharedOpeningHours } from '@suppernote/shared';
+import {
+  canonicalDemoSlug,
+  getDemoSlugAlias,
+  normalizeOpeningHours as normalizeSharedOpeningHours,
+} from '@suppernote/shared';
 import {
   type OpeningHoursDay,
   type OpeningHoursSpec,
@@ -60,15 +64,17 @@ export class ConnectService {
       }
     }
 
-    const restaurant = await this.prisma.restaurant.findUnique({
-      where: { slug },
-      include: {
-        exposureSettings: true,
-        images: {
-          orderBy: [{ isCover: 'desc' }, { position: 'asc' }],
-        },
+    const include = {
+      exposureSettings: true,
+      images: {
+        orderBy: [{ isCover: 'desc' }, { position: 'asc' }],
       },
-    });
+    } satisfies Prisma.RestaurantInclude;
+    const alias = getDemoSlugAlias(slug);
+    // tenant-scoping: global — the unique public slug resolves the public Connect page.
+    const restaurant =
+      (await this.prisma.restaurant.findUnique({ where: { slug }, include })) ??
+      (alias ? await this.prisma.restaurant.findUnique({ where: { slug: alias }, include }) : null);
 
     if (!restaurant) {
       return null;
@@ -190,6 +196,7 @@ export class ConnectService {
    * Gère le format openingHours (JSON libre) et l'extraction de la cover.
    */
   private toPublicDto(r: PublicRestaurantSource): PublicRestaurantDto {
+    const slug = canonicalDemoSlug(r.slug!);
     const city = r.city ?? '';
     const country = r.country ?? 'FR';
     const addressLine1 = r.formattedAddress ?? '';
@@ -203,7 +210,7 @@ export class ConnectService {
 
     return {
       id: r.id,
-      slug: r.slug!,
+      slug,
       name: r.name,
       description: r.description ?? undefined,
       address: {
@@ -216,7 +223,7 @@ export class ConnectService {
       cuisineTypes: r.cuisineType,
       priceRange: priceRangeToSymbol(r.priceRange),
       openingHours,
-      reservationUrl: `${env.SITE_URL}/book/${r.slug}`,
+      reservationUrl: `${env.SITE_URL}/book/${slug}`,
       images: {
         cover,
         gallery,

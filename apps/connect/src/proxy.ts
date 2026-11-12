@@ -22,7 +22,6 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveDemoSlug, SUPPERNOTE_DEMO_SLUG } from '@suppernote/shared';
 
 // Bots IA à tracker (pour mesurer l'efficacité réelle du web crawl).
 // Loggué côté serveur via console.log (récupéré par PM2 / Docker logs).
@@ -129,19 +128,8 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  const url = request.nextUrl.clone();
-  const [root, section, slug, ...rest] = url.pathname.split('/');
-  const isDemoAlias =
-    (section === 'restaurant' || section === 'widget') && slug === SUPPERNOTE_DEMO_SLUG;
-  if (isDemoAlias) {
-    // Nginx termine TLS ; le serveur Next.js interne écoute en HTTP.
-    url.protocol = 'http:';
-    url.pathname = [root, section, resolveDemoSlug(slug), ...rest].join('/');
-  }
   const requestOptions = { request: { headers: requestHeaders } };
-  const response = isDemoAlias
-    ? NextResponse.rewrite(url, requestOptions)
-    : NextResponse.next(requestOptions);
+  const response = NextResponse.next(requestOptions);
 
   // Instrumentation : log les hits par bot IA sur les pages publiques.
   // Permet de savoir quels bots crawlent réellement Suppernote (vs hypothèse).

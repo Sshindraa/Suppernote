@@ -26,15 +26,19 @@ const EXPECTED_PUBLIC_PREDICATE = {
   publishedAt: { not: null },
   slug: {
     not: null,
-    notIn: expect.arrayContaining(['chez-sokar-demo', 'chez-sokar-bistrot-paris']),
+    notIn: expect.arrayContaining([
+      'chez-suppernote-demo',
+      'chez-sokar-demo',
+      'chez-sokar-bistrot-paris',
+    ]),
   },
   agenticOptIn: true,
 };
 
 const RESTAURANT_BASE = {
   id: 'rest-1',
-  slug: 'chez-sokar-demo',
-  name: 'Chez Sokar',
+  slug: 'chez-suppernote-demo',
+  name: 'Chez Suppernote',
   description: 'Restaurant démo',
   phone: '+331****0405',
   address: {
@@ -48,7 +52,7 @@ const RESTAURANT_BASE = {
   images: { cover: null, gallery: [] },
   rating: null,
   acceptsReservations: true,
-  reservationUrl: 'https://suppernote.com/r/chez-sokar-demo/book',
+  reservationUrl: 'https://suppernote.com/r/chez-suppernote-demo/book',
   published: true,
   publishedAt: '2026-06-24T10:00:00.000Z',
   connectAgentic: false,

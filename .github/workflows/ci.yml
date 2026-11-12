@@ -538,7 +538,7 @@ jobs:
         run: pnpm --filter @suppernote/database migrate:deploy
 
       - name: Seed demo restaurant and floor plan
-        # Le seed publie `chez-sokar-demo` (Connect) ; le plan de salle fournit
+        # Le seed publie `chez-suppernote-demo` (Connect) ; le plan de salle fournit
         # les tables sans lesquelles l'endpoint de disponibilité ne renvoie
         # aucun créneau et le parcours de réservation ne serait pas exerçable.
         run: |

@@ -1,13 +1,14 @@
 # Runbook — Sandbox MCP
 
 > **Statut : ACTIF — 29 septembre 2026.**
-> Cette sandbox réutilise le restaurant `chez-sokar-demo`. Elle est conçue pour
+> Cette sandbox réutilise le restaurant `chez-suppernote-demo`. Elle est conçue pour
 > les tests de connecteurs et rejette les bases dont le nom n’indique pas un
 > environnement local, staging, test ou dev.
 
 ## Prérequis
 
-- Le seed a créé `chez-sokar-demo` avec `agenticOptIn=true` et `mcpEnabled=true`.
+- Le seed a créé `chez-suppernote-demo` avec `agenticOptIn=true` et `mcpEnabled=true`.
+- L’ancien slug `chez-sokar-demo` reste accepté pendant la migration de la fiche.
 - La base cible est locale, staging, test ou dev.
 - Les tests utilisent le téléphone factice `+33612345600`.
 - Un seul run MCP sandbox est exécuté à la fois sur le restaurant de démo.
@@ -25,7 +26,7 @@ La commande ne crée aucune donnée. Elle affiche un manifeste à conserver :
   "runId": "mcp-xxxxxxxx",
   "startedAt": "2026-09-29T10:00:00.000Z",
   "restaurantId": "…",
-  "restaurantSlug": "chez-sokar-demo",
+  "restaurantSlug": "chez-suppernote-demo",
   "customerPhone": "+33612345600",
   "specialRequestsMarker": "MCP-SANDBOX:mcp-xxxxxxxx"
 }
@@ -39,7 +40,7 @@ pnpm --filter @suppernote/database mcp:sandbox start --run-id=chatgpt-20260929
 
 ## Scénario de test
 
-Utiliser `chez-sokar-demo`, le téléphone du manifeste et, pour chaque
+Utiliser `chez-suppernote-demo`, le téléphone du manifeste et, pour chaque
 réservation créée manuellement, ajouter le marqueur dans `specialRequests` :
 
 ```text

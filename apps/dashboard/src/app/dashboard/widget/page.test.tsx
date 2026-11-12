@@ -20,8 +20,8 @@ vi.mock('@/features/onboarding/onboarding-guard', () => ({
 
 const validSettings = {
   restaurantId: 'resto-1',
-  slug: 'chez-sokar-demo',
-  name: 'Chez Sokar',
+  slug: 'chez-suppernote-demo',
+  name: 'Chez Suppernote',
   connectPublished: true,
 };
 
@@ -61,13 +61,13 @@ describe('WidgetIntegrationPage', () => {
     expect(screen.getByText('Aperçu')).toBeInTheDocument();
 
     const snippetInput = screen.getByLabelText('Code du widget') as HTMLInputElement;
-    expect(snippetInput.value).toContain('data-slug="chez-sokar-demo"');
+    expect(snippetInput.value).toContain('data-slug="chez-suppernote-demo"');
     expect(snippetInput.value).toContain('/embed.js');
 
     const iframe = screen.getByTitle('Aperçu du widget Suppernote');
     expect(iframe).toHaveAttribute(
       'src',
-      expect.stringContaining('/widget/chez-sokar-demo?embedded=1'),
+      expect.stringContaining('/widget/chez-suppernote-demo?embedded=1'),
     );
   });
 
@@ -119,7 +119,7 @@ describe('WidgetIntegrationPage', () => {
     fireEvent.click(copyButton);
 
     expect(writeTextMock).toHaveBeenCalledWith(
-      expect.stringContaining('data-slug="chez-sokar-demo"'),
+      expect.stringContaining('data-slug="chez-suppernote-demo"'),
     );
     expect(await screen.findByText('Code copié')).toBeInTheDocument();
   });

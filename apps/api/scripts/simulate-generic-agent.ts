@@ -20,6 +20,8 @@ import { env } from '../src/env';
 import { db } from '../src/shared/db/client';
 
 const API_URL = 'http://localhost:4000';
+const DEMO_SLUG = 'chez-suppernote-demo';
+const LEGACY_DEMO_SLUG = 'chez-sokar-demo';
 
 const KEY = env.AGENT_DEV_KEY;
 if (!KEY) {
@@ -97,9 +99,11 @@ function nextOpenSlot(): { start: string; end: string } {
 }
 
 async function main() {
-  const resto = await db.restaurant.findUnique({ where: { slug: 'chez-sokar-demo' } });
+  const resto =
+    (await db.restaurant.findUnique({ where: { slug: DEMO_SLUG } })) ??
+    (await db.restaurant.findUnique({ where: { slug: LEGACY_DEMO_SLUG } }));
   if (!resto) {
-    console.error('Restaurant chez-sokar-demo non trouvé. Lance pnpm db:seed.');
+    console.error(`Restaurant ${DEMO_SLUG} non trouvé. Lance pnpm db:seed.`);
     process.exit(1);
   }
 

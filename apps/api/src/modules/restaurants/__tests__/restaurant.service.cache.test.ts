@@ -85,7 +85,7 @@ describe('RestaurantService context cache', () => {
     vi.mocked(getCachedContext).mockResolvedValue(null);
     vi.mocked(db.restaurant.findUniqueOrThrow).mockResolvedValue({
       ...restaurantFromDb,
-      slug: 'chez-sokar-demo',
+      slug: 'chez-suppernote-demo',
       managerPhone: '+33601020304',
     } as never);
     const result = await RestaurantService.loadContext('pn-demo');
@@ -97,7 +97,7 @@ describe('RestaurantService context cache', () => {
     const { RestaurantService } = await import('../restaurant.service');
     vi.mocked(getCachedContext).mockResolvedValue({
       ...restaurantFromDb,
-      slug: 'chez-sokar-demo',
+      slug: 'chez-suppernote-demo',
       managerPhone: '+33601020304',
     } as never);
     expect((await RestaurantService.loadContext('pn-demo')).managerPhone).toBe('');
@@ -105,7 +105,7 @@ describe('RestaurantService context cache', () => {
 
   it.each([
     ['restaurant réel', 'chez-cache', '+33601020304'],
-    ['secours démo configuré', 'chez-sokar-demo', '+33600000000'],
+    ['secours démo configuré', 'chez-suppernote-demo', '+33600000000'],
   ])(
     'conserve le numéro du %s sans exclusion approximative',
     async (_label, slug, managerPhone) => {

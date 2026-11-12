@@ -7,7 +7,8 @@ const prisma = new PrismaClient({
   datasources: { db: { url: process.env.DATABASE_URL } },
 });
 
-const DEMO_SLUG = 'chez-sokar-demo';
+const DEMO_SLUG = 'chez-suppernote-demo';
+const LEGACY_DEMO_SLUG = 'chez-sokar-demo';
 const DEMO_PHONE = '+33102030405';
 const DEMO_MCP_CLIENT_NAME = 'Suppernote demo MCP client';
 
@@ -30,13 +31,23 @@ const onboardingTasks: Prisma.JsonValue = {
 async function main() {
   console.log('Seeding demo restaurant...');
 
+  const legacyDemo = await prisma.restaurant.findUnique({
+    where: { slug: LEGACY_DEMO_SLUG },
+    select: { id: true },
+  });
+  if (legacyDemo) {
+    throw new Error(
+      `The demo restaurant still uses ${LEGACY_DEMO_SLUG}. Qualify both staging URLs, then migrate its stored slug before seeding.`,
+    );
+  }
+
   const restaurant = await prisma.restaurant.upsert({
     where: { slug: DEMO_SLUG },
     update: {
       name: 'Chez Suppernote',
       plan: 'STARTER',
       managerPhone: '+33601020304',
-      managerEmail: 'demo@sokar.com',
+      managerEmail: 'demo@suppernote.com',
       phoneNumber: DEMO_PHONE,
       phoneE164: DEMO_PHONE,
       openingHours,

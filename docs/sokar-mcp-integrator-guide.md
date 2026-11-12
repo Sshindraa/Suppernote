@@ -358,14 +358,14 @@ Réponse:
   "searchOutcome": "available",
   "requestedRestaurant": {
     "id": "ba5be41b-eb72-4e05-bb9c-b576e39e33ba",
-    "name": "Chez Sokar",
+    "name": "Chez Suppernote",
     "status": "available"
   },
   "restaurants": [
     {
       "id": "ba5be41b-eb72-4e05-bb9c-b576e39e33ba",
-      "name": "Chez Sokar",
-      "slug": "chez-sokar-demo",
+      "name": "Chez Suppernote",
+      "slug": "chez-suppernote-demo",
       "formattedAddress": "12 Rue de la République, 69001 Lyon",
       "cuisineType": ["Bistrot", "Française"],
       "priceRange": 2,
@@ -413,8 +413,8 @@ Réponse:
 ```json
 {
   "id": "ba5be41b-eb72-4e05-bb9c-b576e39e33ba",
-  "name": "Chez Sokar",
-  "slug": "chez-sokar-demo",
+  "name": "Chez Suppernote",
+  "slug": "chez-suppernote-demo",
   "formattedAddress": "12 Rue de la République, 69001 Lyon",
   "phoneE164": "[REDACTED]",
   "websiteUrl": null,

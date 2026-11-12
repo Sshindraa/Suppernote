@@ -9,13 +9,13 @@ import { test, expect } from '@playwright/test';
  * "Réserver une table" est visible.
  *
  * Nécessite l'API Fastify (localhost:4000 en dev, 4100 en staging) + DB seedée
- * avec le restaurant de démo "chez-sokar-demo".
+ * avec le restaurant de démo "chez-suppernote-demo".
  * Si l'API n'est pas disponible, la suite est skippée (non bloquant pour un job
  * CI sans infra) plutôt que marquée en échec.
  */
 
 const API_URL = process.env.API_URL || 'http://localhost:4000';
-const RESTAURANT_SLUG = 'chez-sokar-demo';
+const RESTAURANT_SLUG = 'chez-suppernote-demo';
 
 let apiAvailable = false;
 test.beforeAll(async () => {

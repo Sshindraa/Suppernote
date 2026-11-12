@@ -115,6 +115,36 @@ describe('experience routes', () => {
     expect(db.experience.findMany).not.toHaveBeenCalled();
   });
 
+  it('resolves the canonical experience URL while the stored slug is legacy', async () => {
+    vi.stubEnv('EXPERIENCES_ENABLED', 'true');
+    vi.stubEnv('EXPERIENCE_BOOKING_ENABLED', 'true');
+    const findUnique = vi.mocked(db.restaurant.findUnique);
+    findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: 'demo-rest-1',
+      slug: 'chez-sokar-demo',
+      publishedAt: NOW,
+      exposureSettings: { connectPublished: true },
+    } as never);
+    vi.mocked(db.experience.findMany).mockResolvedValue([] as never);
+
+    const app = await getApp();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/public/r/chez-suppernote-demo/experiences',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ data: { experiences: [] } });
+    expect(findUnique).toHaveBeenNthCalledWith(1, {
+      where: { slug: 'chez-suppernote-demo' },
+      select: expect.anything(),
+    });
+    expect(findUnique).toHaveBeenNthCalledWith(2, {
+      where: { slug: 'chez-sokar-demo' },
+      select: expect.anything(),
+    });
+  });
+
   it('enforces the Pro entitlement before the runtime flag', async () => {
     vi.stubEnv('EXPERIENCES_ENABLED', 'true');
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({

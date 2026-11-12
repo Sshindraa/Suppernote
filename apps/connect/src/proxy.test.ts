@@ -51,17 +51,14 @@ function getCsp(response: ReturnType<typeof proxy>): string | null {
 
 describe('proxy framing policy', () => {
   it.each([
-    ['/restaurant', '/book', "'none'"],
-    ['/widget', '/gift-card', '*'],
+    ['/restaurant', "'none'"],
+    ['/widget', '*'],
   ])(
-    'réécrit l’alias %s en conservant le suffixe, la requête et le CSP',
-    (prefix, suffix, framing) => {
-      const response = proxy(
-        makeRequest(`${prefix}/chez-suppernote-demo${suffix}?date=2026-11-04`),
-      );
-      expect(response.headers.get('x-middleware-rewrite')).toBe(
-        `http://suppernote.com${prefix}/chez-sokar-demo${suffix}?date=2026-11-04`,
-      );
+    'laisse le slug Suppernote %s être résolu par l’API sans réécriture externe',
+    (prefix, framing) => {
+      const response = proxy(makeRequest(`${prefix}/chez-suppernote-demo?date=2026-11-04`));
+      expect(response.headers.get('x-middleware-rewrite')).toBeNull();
+      expect(response.headers.get('x-middleware-next')).toBe('1');
       expect(getCspFrameAncestors(response)).toBe(framing);
     },
   );

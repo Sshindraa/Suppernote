@@ -4036,3 +4036,24 @@ Non fait ou non vérifié : connexion réelle (Google compris) ; appel de test (
 2026-11-11 — [release, tarifs] Hamza autorise explicitement l’ouverture publique Pro/Multi après qualification staging ; PR #688 relie les CTA à l’inscription. CI, staging/smoke et catalogues Stripe test/live verts (8/8). Checkout TEST affiché : Pro 299 €/mois, Multi 2 sites 398 €/mois, 14 jours sans carte ; sessions expirées, aucune souscription ni charge. La clé test staging expirée a été remplacée par une clé test valide du même catalogue ; production inchangée. Pas de compte Clerk, webhook ni pilote externe testé ; PILOTS reste OPEN et différé.
 2026-11-11 — [CI, déploiement] Élimination des suites CI en double sur les branches de PR : les événements `push` restent limités à `main`, les PR exécutent la suite complète une fois. Le gate staging vérifie uniquement les six statuts requis par la protection de `main`; CodeQL reste actif mais facultatif. L’analyse Swift est conservée car `apps/ios/Sokar/SokarApp.swift` fait partie du dépôt.
 2026-11-11 — [Stripe, facturation] Checkout synchronise l’adresse vérifiée du propriétaire Clerk sur le client Stripe, avec `managerEmail` en repli pour les comptes historiques. Un Checkout encore ouvert est expiré si l’adresse a changé, afin que Stripe affiche la nouvelle adresse.
+
+2026-11-11 — [slug démo Suppernote, compatibilité] `chez-suppernote-demo` devient le slug émis par Connect, widget, cartes cadeaux, expériences, MCP et liens ; `chez-sokar-demo` reste résolu en alias. Seed, scripts, smoke checks et runbook alignés ; sorties sitemap et domaine personnalisé canonisées, cache inclus. Vérifications : tests ciblés API 243/243, Connect 38/38, Dashboard 30/30, widget 23/23, shared 1/1, database 3/3 ; pre-push vert. Le SQL de renommage est préparé, non exécuté. En staging avant le déploiement compatible : pages/API legacy 200, API canonique 404, page canonique en timeout ; aucune base modifiée. Qualification staging requise avant de migrer le slug stocké.
+
+## 2026-11-12 — Migration du slug de démonstration en staging
+
+Le workflow manuel Deploy Staging reçoit `run_demo_slug_migration` (désactivé par défaut). Il ne lance le SQL qu'après les smoke tests et E2E, refuse toute URL qui ne cible pas `sokar_staging`, puis requalifie les deux slugs. Le VPS n'ayant pas `psql` pour `deploy`, l'action utilise la commande Prisma déjà disponible. Le SQL vérifie que seul `chez-suppernote-demo` reste stocké. Runbook mis à jour ; déploiement et migration staging encore en attente de CI verte.
+
+## 2026-11-12 — Premier essai de migration du slug staging
+
+La release compatible a été déployée sur staging et les smoke tests (pages, widgets, cartes cadeaux) ainsi que les E2E Dashboard/Connect ont réussi. L'étape SQL a échoué sur `%TYPE` dans le bloc PL/pgSQL, avant toute instruction UPDATE ; les deux endpoints widget répondent toujours 200. `Restaurant.id` étant un `String` Prisma sans type natif UUID, le script déclare désormais les variables en `TEXT`. Nouvelle CI puis nouvelle qualification nécessaires ; aucune production touchée.
+
+## 2026-11-12 — Nom physique de la table du slug
+
+Le second essai staging a échoué avant le script : `Restaurant` est mappé sur la table PostgreSQL `restaurants`, pas sur une table physique `"Restaurant"` (P1014). Le script cible maintenant `restaurants`, et `prisma db execute` reçoit l'URL directement pour exécuter ce SQL brut sans introspection préalable. Aucun changement de données n'a été appliqué ; CI et nouvelle qualification staging nécessaires.
+## 2026-11-12 — Qualification et migration du slug de démo en staging
+
+Le workflow `Deploy Staging` 43123063792 a déployé la branche `codex/suppernote-demo-slug-migration`. Santé, rollback, E2E dashboard et E2E Connect sont passés. La migration SQL a réussi sur la table physique `restaurants` : le slug stocké en staging est maintenant `chez-suppernote-demo`, tandis que `chez-sokar-demo` reste accepté comme alias. La vérification post-migration des deux slugs a réussi. PR #702 reste ouverte sans auto-merge ; aucune base de production n’a été modifiée.
+
+## 2026-11-12 — Garde de migration du slug de démo en production
+
+La PR #702 ajoute à `Deploy Production` une entrée manuelle `run_demo_slug_migration`, désactivée par défaut. La migration ne peut démarrer qu’après un déploiement et des smoke tests verts ; le script exige la base `sokar` et refuse staging, test et localhost, puis exécute le SQL transactionnel déjà qualifié en staging et vérifie les routes des deux slugs. En attente de la fusion, de la promotion production et du dispatch explicite ; aucune donnée de production n’a encore été modifiée.

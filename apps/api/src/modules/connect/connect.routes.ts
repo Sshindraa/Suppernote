@@ -24,7 +24,12 @@ import {
   reservationManagementUrl,
 } from '../reservations/reservation-management';
 import { createWhatsAppReminderConsent, withdrawWhatsAppReminderConsent } from './whatsapp-consent';
-import { slugifyCity, slugifyCuisine } from '@suppernote/shared';
+import {
+  canonicalDemoSlug,
+  getDemoSlugAlias,
+  slugifyCity,
+  slugifyCuisine,
+} from '@suppernote/shared';
 import { DEFAULT_MAX_PARTY_SIZE } from '@suppernote/config';
 import { db } from '../../shared/db/client';
 import { redisCache } from '../../shared/redis/client';
@@ -243,7 +248,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
       if (cached) {
         const parsed = JSON.parse(cached) as { slug: string | null };
         if (parsed.slug) {
-          return reply.send({ slug: parsed.slug });
+          return reply.send({ slug: canonicalDemoSlug(parsed.slug) });
         }
         return reply.status(404).send({ slug: null });
       }
@@ -252,7 +257,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
         where: { customDomain: host, customDomainStatus: 'active' },
         select: { restaurantId: true, restaurant: { select: { slug: true } } },
       });
-      const slug = settings?.restaurant.slug ?? null;
+      const slug = settings?.restaurant.slug ? canonicalDemoSlug(settings.restaurant.slug) : null;
       // Cache le résultat (positif ou négatif) pendant 5 min
       await app.redisCache.set(cacheKey, JSON.stringify({ slug }), 'EX', 300);
       if (!slug) {
@@ -280,7 +285,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
       const restaurants = rows
         .filter((r): r is typeof r & { slug: string } => r.slug !== null)
         .map((r) => ({
-          slug: r.slug,
+          slug: canonicalDemoSlug(r.slug),
           updatedAt: (r.updatedAt ?? new Date()).toISOString(),
           publishedAt: (r.publishedAt ?? new Date()).toISOString(),
         }));
@@ -1242,10 +1247,16 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Invalid request' });
       // tenant-scoping: global — resolve the public slug only; consent access then requires
       // the matching restaurant, reservation ID and withdrawal token (no booking data exposed).
-      const restaurant = await db.restaurant.findUnique({
-        where: { slug: params.data.slug },
-        select: { id: true },
-      });
+      const alias = getDemoSlugAlias(params.data.slug);
+      // tenant-scoping: global — this public endpoint only resolves the unique slug to an ID.
+      const restaurant =
+        (await db.restaurant.findUnique({
+          where: { slug: params.data.slug },
+          select: { id: true },
+        })) ??
+        (alias
+          ? await db.restaurant.findUnique({ where: { slug: alias }, select: { id: true } })
+          : null);
       if (!restaurant) return reply.status(404).send({ error: 'Not found' });
       const outcome = await withdrawWhatsAppReminderConsent(
         db,

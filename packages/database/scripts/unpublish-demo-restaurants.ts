@@ -9,8 +9,8 @@ import { PrismaClient } from '@prisma/client';
  * production database with NODE_ENV unset publishes them for real: they then show
  * up in the public sitemap and get indexed.
  *
- * `chez-sokar-demo` is deliberately excluded: it is the official demo listing
- * used to validate the ChatGPT deep link.
+ * `chez-suppernote-demo` is deliberately excluded: it is the official demo
+ * listing. Its legacy alias `chez-sokar-demo` is not in this list either.
  *
  * This only flips `connectPublished`/`connectPublishedAt` back to false/null. The
  * rows are kept, so republishing is a single boolean.

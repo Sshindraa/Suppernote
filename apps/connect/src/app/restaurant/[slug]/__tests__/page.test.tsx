@@ -35,13 +35,13 @@ import RestaurantPage, { generateMetadata } from '../page';
 
 const restaurant: PublicRestaurantDto = {
   id: 'r1',
-  slug: 'chez-sokar-demo',
-  name: 'Chez Sokar',
+  slug: 'chez-suppernote-demo',
+  name: 'Chez Suppernote',
   address: { line1: '12 Rue de la République', city: 'Lyon', country: 'FR' },
   phone: '+33102030405',
   cuisineTypes: ['Bistrot'],
   openingHours: [],
-  reservationUrl: 'https://suppernote.com/book/chez-sokar-demo',
+  reservationUrl: 'https://suppernote.com/book/chez-suppernote-demo',
   images: { gallery: [] },
   acceptsReservations: true,
   publishedAt: '2026-06-24T00:00:00.000Z',
@@ -51,7 +51,7 @@ const restaurant: PublicRestaurantDto = {
 async function render(overrides: Partial<PublicRestaurantDto> = {}) {
   mocks.fetchPublicRestaurant.mockResolvedValue({ ...restaurant, ...overrides });
   await RestaurantPage({
-    params: Promise.resolve({ slug: 'chez-sokar-demo' }),
+    params: Promise.resolve({ slug: 'chez-suppernote-demo' }),
     searchParams: Promise.resolve({}),
   });
 }
@@ -112,7 +112,7 @@ describe('page restaurant Connect : « aujourd’hui »', () => {
 
 describe('indexabilité des fiches', () => {
   it.each([
-    ['chez-sokar-demo', false],
+    ['chez-suppernote-demo', false],
     ['chez-sokar-bistrot-paris', false],
     ['chez-sokar', true],
   ])('%s index=%s, sans exclusion par préfixe', async (slug, index) => {
@@ -133,7 +133,7 @@ describe('parcours de réservation test depuis l’onboarding', () => {
     mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
     mocks.fetchAvailability.mockResolvedValue({ slots });
     const page = await RestaurantPage({
-      params: Promise.resolve({ slug: 'chez-sokar-demo' }),
+      params: Promise.resolve({ slug: 'chez-suppernote-demo' }),
       searchParams: Promise.resolve(searchParams),
     });
     return renderToStaticMarkup(page);

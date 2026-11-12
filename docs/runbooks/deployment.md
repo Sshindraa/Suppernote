@@ -68,6 +68,10 @@ l'API.
   # `workflow_dispatch` redéploie même si le SHA est déjà actif : vérifier releases/.latest-hash avant
   gh workflow run deploy-prod.yml --ref main
   ```
+- Migration ponctuelle du slug de démo après le déploiement et les smoke tests ; l'option est désactivée par défaut, cible uniquement la base `sokar`, puis vérifie les deux slugs :
+  ```zsh
+  gh workflow run deploy-prod.yml --ref main --field run_demo_slug_migration=true
+  ```
 - Privileged wrapper: `/usr/local/sbin/sokar-deploy-root`.
 - The `deploy` account is **not** in `sudo` or `docker` groups.
 
@@ -93,7 +97,8 @@ En dry-run, le script ne fait ni `git pull` ni `checkout` (il construit le check
 
 - `curl /health` and `/livez` on `api-staging.suppernote.com` (staging) / `api.suppernote.com` (prod) → 200.
 - `curl /dashboard` → 200 or 302 (Clerk redirect).
-- `curl /` and `/restaurant/chez-sokar-demo` → 200.
+- `curl /` and both `/restaurant/chez-suppernote-demo` and
+  `/restaurant/chez-sokar-demo` → 200.
 - Playwright E2E functional tests on staging are blocking: Dashboard smoke plus
   the public reservation widget (including availability) and the Connect
   restaurant page. The Connect confirmation flow and gift-card purchase are

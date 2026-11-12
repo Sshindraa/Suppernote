@@ -5,6 +5,7 @@ import type Stripe from 'stripe';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Prisma, GiftCard, GiftCardRedemption } from '@prisma/client';
+import { getDemoSlugAlias } from '@suppernote/shared';
 import { db } from '../../shared/db/client';
 import { requireOrg } from '../../plugins/clerk';
 import {
@@ -722,10 +723,12 @@ export async function giftCardRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/public/gift-cards/packs/:slug', async (req, reply) => {
     const slug = (req.params as { slug: string }).slug;
-    const restaurant = await db.restaurant.findFirst({
-      where: { slug },
-      select: { id: true, giftCardEnabled: true },
-    });
+    const select = { id: true, giftCardEnabled: true } as const;
+    const alias = getDemoSlugAlias(slug);
+    // tenant-scoping: global — resolve the unique public slug; packs are fetched by restaurantId.
+    const restaurant =
+      (await db.restaurant.findUnique({ where: { slug }, select })) ??
+      (alias ? await db.restaurant.findUnique({ where: { slug: alias }, select }) : null);
     if (!restaurant) {
       return reply.status(404).send({ error: 'Restaurant introuvable' });
     }

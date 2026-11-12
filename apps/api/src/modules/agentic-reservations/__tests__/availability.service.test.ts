@@ -220,6 +220,33 @@ describe('AvailabilityService', () => {
       expect(result.restaurantMatches).toEqual([{ restaurantId: 'r-sokar', name: 'Chez Sokar' }]);
     });
 
+    it('publie le slug canonique dans les résultats MCP pendant la transition', async () => {
+      const findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'r-demo',
+          name: 'Chez Suppernote',
+          slug: 'chez-sokar-demo',
+          formattedAddress: '12 Rue de la République, 69001 Lyon',
+          cuisineType: ['Bistrot'],
+          priceRange: 2,
+          exposureSettings: { maxPartySize: 6 },
+          floorPlans: [{ tables: [{ capacity: 6 }] }],
+        },
+      ]);
+      const service = new AvailabilityService(makeFakePrisma({ findMany }));
+      vi.spyOn(service, 'checkAvailability').mockResolvedValue({ available: true });
+
+      const results = await service.searchAvailableRestaurantsPage({
+        city: 'Lyon',
+        restaurantName: 'Chez Suppernote',
+        partySize: 2,
+        slotStart: new Date('2026-09-17T17:00:00Z'),
+        slotEnd: new Date('2026-09-17T19:00:00Z'),
+        maxResults: 5,
+      });
+      expect(results.results[0].slug).toBe('chez-suppernote-demo');
+    });
+
     it('expose la limite en ligne quand un groupe dépasse la capacité', async () => {
       const findMany = vi.fn().mockResolvedValue([
         {
@@ -518,18 +545,24 @@ describe('AvailabilityService.checkAvailability — créneaux passés', () => {
 });
 
 describe('isHiddenDemoRestaurant', () => {
-  const demo = { name: 'Chez Sokar', slug: 'chez-sokar-demo' };
-  const demoBranch = { name: 'Chez Sokar — Sushi Bar', slug: 'chez-sokar-sushi-lyon' };
+  const demo = { name: 'Chez Suppernote', slug: 'chez-suppernote-demo' };
+  const legacyDemo = { name: 'Chez Suppernote', slug: 'chez-sokar-demo' };
+  const demoBranch = {
+    name: 'Chez Suppernote — Bar à sushi',
+    slug: 'chez-sokar-sushi-lyon',
+  };
   const real = { name: 'Le Bistrot', slug: 'le-bistrot-lyon' };
 
   it('masque les établissements de démo dans une recherche ouverte', () => {
     expect(isHiddenDemoRestaurant(demo)).toBe(true);
-    expect(isHiddenDemoRestaurant(demoBranch, 'Chez Sokar')).toBe(true);
+    expect(isHiddenDemoRestaurant(legacyDemo)).toBe(true);
+    expect(isHiddenDemoRestaurant(demoBranch, 'Chez Suppernote')).toBe(true);
     expect(isHiddenDemoRestaurant(real)).toBe(false);
   });
 
   it('les montre quand on les nomme exactement, pour les essais et les relecteurs', () => {
-    expect(isHiddenDemoRestaurant(demo, ' chez sokar ')).toBe(false);
-    expect(isHiddenDemoRestaurant(demoBranch, 'Chez Sokar — Sushi Bar')).toBe(false);
+    expect(isHiddenDemoRestaurant(demo, ' chez suppernote ')).toBe(false);
+    expect(isHiddenDemoRestaurant(legacyDemo, ' chez suppernote ')).toBe(false);
+    expect(isHiddenDemoRestaurant(demoBranch, 'Chez Suppernote — Bar à sushi')).toBe(false);
   });
 });

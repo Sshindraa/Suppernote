@@ -2,7 +2,7 @@
  * Suppernote Connect — Widget embed snippet.
  *
  * Usage :
- *   <script src="https://suppernote.com/embed.js" data-slug="chez-sokar-demo"
+ *   <script src="https://suppernote.com/embed.js" data-slug="chez-suppernote-demo"
  *           data-primary="#0f172a" data-accent="#f97316"></script>
  *
  * Le script injecte un iframe responsive vers /widget/:slug. L'iframe

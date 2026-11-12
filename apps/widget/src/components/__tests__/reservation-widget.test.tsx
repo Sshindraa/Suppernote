@@ -112,7 +112,7 @@ describe('ReservationWidget — rendu initial', () => {
   });
 
   it("affiche l'étape details avec le sélecteur de date et party size via ?slug=", async () => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
     render(<ReservationWidget />);
 
     // Le formulaire details doit être présent
@@ -134,7 +134,7 @@ describe('ReservationWidget — rendu initial', () => {
 
 describe('ReservationWidget — étape details', () => {
   beforeEach(() => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
   });
 
   it('incrémente et décrémente le nombre de personnes', async () => {
@@ -204,7 +204,7 @@ describe('ReservationWidget — étape details', () => {
 
 describe('ReservationWidget — étape slots', () => {
   beforeEach(() => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
   });
 
   it('appelle fetchWithTimeout avec les bons params (slug, date, partySize)', async () => {
@@ -222,7 +222,7 @@ describe('ReservationWidget — étape slots', () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
     const calledUrl = mockFetch.mock.calls[0][0] as string;
-    expect(calledUrl).toContain('/public/r/chez-sokar-demo/availability');
+    expect(calledUrl).toContain('/public/r/chez-suppernote-demo/availability');
     expect(calledUrl).toContain('date=2030-01-15');
     expect(calledUrl).toContain('partySize=2');
   });
@@ -297,7 +297,7 @@ describe('ReservationWidget — étape slots', () => {
 
 describe('ReservationWidget — étape customer', () => {
   beforeEach(() => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
   });
 
   /** Navigue jusqu'à l'étape customer avec un créneau sélectionné. */
@@ -424,7 +424,7 @@ describe('ReservationWidget — refus 409 du hold et de la confirmation', () => 
     'Ce créneau est trop proche : ce restaurant accepte les réservations au moins 2 h à l’avance.';
 
   beforeEach(() => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
   });
 
   function conflict(body: Record<string, unknown>) {
@@ -499,7 +499,7 @@ describe('ReservationWidget — refus 409 du hold et de la confirmation', () => 
 
 describe('ReservationWidget — écran confirmation', () => {
   beforeEach(() => {
-    setSearch('?slug=chez-sokar-demo');
+    setSearch('?slug=chez-suppernote-demo');
   });
 
   /** Navigue jusqu'à l'écran de confirmation (flow complet mocké). */

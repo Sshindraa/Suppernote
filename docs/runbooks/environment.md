@@ -1069,7 +1069,10 @@ docs/runbooks/observability.md.
 
 ## Demo restaurant
 
-The seed creates a fictional `Chez Sokar` (slug `chez-sokar-demo`):
+The seed creates a fictional `Chez Suppernote` (canonical slug `chez-suppernote-demo`;
+`chez-sokar-demo` remains a read alias during the data migration):
+
+If the legacy slug is still stored, the seed stops instead of creating a duplicate. Complete the staged slug migration in `migration-suppernote.md` first.
 
 - Number: `+331****0405`
 - MCP + OpenAI Reserve opt-in enabled
@@ -1077,7 +1080,7 @@ The seed creates a fictional `Chez Sokar` (slug `chez-sokar-demo`):
 
 Used for local voice / MCP tests before a real pilot.
 
-The seed also creates extra published demo listings (`chez-sokar-*` outside `chez-sokar-demo`) so
+The seed also creates extra published demo listings (`chez-sokar-*` outside both official demo slugs) so
 the city pages (`/restaurants/:city`, which require at least five listings per city) have something
 to render. Those are **refused on a remote database** unless `SEED_DEMO_RESTAURANTS=true` is set:
 seeding them on production once published ten fake restaurants in the public sitemap (2026-06-28,

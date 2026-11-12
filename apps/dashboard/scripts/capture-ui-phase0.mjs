@@ -600,7 +600,7 @@ async function run() {
       if (!['phase3', 'phase4'].includes(capturePhase)) {
         const { page, context } = await makePage(browser, sizeName, 'widget-selected');
         await page.goto(
-          `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
+          `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
           { waitUntil: 'domcontentloaded', timeout: 45_000 },
         );
         await page
@@ -646,7 +646,7 @@ async function run() {
         'mobile',
         'creneau-indisponible',
         'widget-unavailable',
-        `/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
+        `/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
         'Le créneau de 20h30 n’est plus disponible',
       ],
       [
@@ -654,7 +654,7 @@ async function run() {
         'mobile',
         'jour-complet',
         'widget-full',
-        `/book/chez-sokar-demo?date=${widgetDate}&partySize=4&source=restaurant`,
+        `/book/chez-suppernote-demo?date=${widgetDate}&partySize=4&source=restaurant`,
         'Complet ce jour-là',
       ],
       [
@@ -693,7 +693,7 @@ async function run() {
         [
           'widget',
           'widget-availability-error',
-          `/book/chez-sokar-demo?date=${widgetDate}&partySize=4&source=restaurant`,
+          `/book/chez-suppernote-demo?date=${widgetDate}&partySize=4&source=restaurant`,
           'Disponibilités indisponibles',
         ],
       ]) {
@@ -787,7 +787,7 @@ async function run() {
     if (capturePhase === 'phase5') {
       const { page, context } = await makePage(browser, 'mobile', 'widget-availability-error');
       await page.goto(
-        `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&partySize=4&source=restaurant`,
+        `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&partySize=4&source=restaurant`,
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
       await page
@@ -799,7 +799,7 @@ async function run() {
 
       const noContent = await makePage(browser, 'mobile', 'widget-no-content');
       await noContent.page.goto(
-        `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
+        `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
       await noContent.page
@@ -810,7 +810,7 @@ async function run() {
 
       const embedded = await makePage(browser, 'mobile', 'widget-selected');
       await embedded.page.goto(
-        `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant&embedded=1`,
+        `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant&embedded=1`,
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
       await embedded.page
@@ -821,7 +821,7 @@ async function run() {
 
       const success = await makePage(browser, 'mobile', 'widget-submit');
       await success.page.goto(
-        `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
+        `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
       await success.page.getByRole('button', { name: /Continuer · 20h30/ }).click();
@@ -839,7 +839,7 @@ async function run() {
         height: 500,
       });
       await reducedMobile.page.goto(
-        `${baseUrl}/book/chez-sokar-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
+        `${baseUrl}/book/chez-suppernote-demo?date=${widgetDate}&time=20:30&partySize=4&source=restaurant`,
         { waitUntil: 'domcontentloaded', timeout: 45_000 },
       );
       await reducedMobile.page.getByRole('button', { name: /Continuer · 20h30/ }).click();

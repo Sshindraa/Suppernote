@@ -74,10 +74,12 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Host: suppernote.com" http://127.0.
 
 # 4. Health check via Cloudflare (URL publique, ajouter le host)
 curl -s -o /dev/null -w "%{http_code}\n" -H "Host: suppernote.com" https://suppernote.com/r/chez-sokar-demo
-# Attendu : 200 (la page restaurant demo est seedée)
+# Attendu : 200 (alias legacy)
+curl -s -o /dev/null -w "%{http_code}\n" -H "Host: suppernote.com" https://suppernote.com/r/chez-suppernote-demo
+# Attendu : 200 (URL canonique)
 
 # 5. JSON-LD présent (snippet de validation)
-curl -s https://suppernote.com/r/chez-sokar-demo | grep -o 'application/ld+json'
+curl -s https://suppernote.com/r/chez-suppernote-demo | grep -o 'application/ld+json'
 # Attendu : 1 occurrence (Restaurant schema)
 ```
 

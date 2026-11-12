@@ -29,7 +29,11 @@ const EXPECTED_PUBLIC_PREDICATE = {
   publishedAt: { not: null },
   slug: {
     not: null,
-    notIn: expect.arrayContaining(['chez-sokar-demo', 'chez-sokar-bistrot-paris']),
+    notIn: expect.arrayContaining([
+      'chez-suppernote-demo',
+      'chez-sokar-demo',
+      'chez-sokar-bistrot-paris',
+    ]),
   },
   agenticOptIn: true,
 };
@@ -96,7 +100,7 @@ import { ConsentService } from '../../rgpd/consent.service';
 import * as connectRateLimit from '../connect-rate-limit';
 import { consumeTestBookingQuota, issueTestBookingToken } from '../test-booking';
 
-const SLUG = 'chez-sokar-demo';
+const SLUG = 'chez-suppernote-demo';
 const RESTAURANT_ID = 'ba5be41b-eb72-4e05-bb9c-b576e39e33ba';
 const CONFIRM_HOLD_TOKEN = ['tok', 'confirm'].join('-');
 const TEST_HOLD_TOKEN = ['tok', 'test'].join('-');
@@ -158,10 +162,11 @@ describe('Suppernote Connect — Routes publiques', () => {
 
   describe('GET /public/r/:slug', () => {
     it('retourne 200 + DTO si le restaurant est publié', async () => {
-      vi.mocked(db.restaurant.findUnique).mockResolvedValue({
+      const findUnique = vi.mocked(db.restaurant.findUnique);
+      findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({
         id: RESTAURANT_ID,
-        slug: SLUG,
-        name: 'Chez Sokar',
+        slug: 'chez-sokar-demo',
+        name: 'Chez Suppernote',
         description: 'Bistrot français à Lyon',
         formattedAddress: '12 Rue de la République, 69001 Lyon',
         city: 'Lyon',
@@ -192,8 +197,17 @@ describe('Suppernote Connect — Routes publiques', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.slug).toBe(SLUG);
-      expect(body.name).toBe('Chez Sokar');
+      expect(body.reservationUrl).toContain(`/book/${SLUG}`);
+      expect(body.name).toBe('Chez Suppernote');
       expect(body.connectAgentic).toBe(false);
+      expect(findUnique).toHaveBeenNthCalledWith(1, {
+        where: { slug: SLUG },
+        include: expect.anything(),
+      });
+      expect(findUnique).toHaveBeenNthCalledWith(2, {
+        where: { slug: 'chez-sokar-demo' },
+        include: expect.anything(),
+      });
     });
 
     it('retourne 404 si restaurant inexistant', async () => {
@@ -357,7 +371,7 @@ describe('Suppernote Connect — Routes publiques', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.restaurants).toHaveLength(2);
-      expect(body.restaurants[0].slug).toBe('chez-sokar-demo');
+      expect(body.restaurants[0].slug).toBe('chez-suppernote-demo');
       expect(body.restaurants[0].updatedAt).toBe('2026-06-24T00:00:00.000Z');
 
       // Le sitemap doit annoncer exactement les fiches que la page détail
@@ -380,6 +394,41 @@ describe('Suppernote Connect — Routes publiques', () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.json().restaurants).toHaveLength(1);
+    });
+  });
+
+  describe('GET /public/resolve-custom-domain', () => {
+    it('renvoie le slug canonique pour une fiche stockée sous le slug legacy', async () => {
+      vi.mocked(db.restaurantExposureSettings.findFirst).mockResolvedValue({
+        restaurantId: RESTAURANT_ID,
+        restaurant: { slug: 'chez-sokar-demo' },
+      } as unknown as Awaited<ReturnType<typeof db.restaurantExposureSettings.findFirst>>);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/public/resolve-custom-domain?host=chez-test.example',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ slug: 'chez-suppernote-demo' });
+    });
+
+    it('normalise aussi un slug legacy déjà présent dans le cache', async () => {
+      await app.redisCache.set(
+        'connect:custom-domain:chez-test.example',
+        JSON.stringify({ slug: 'chez-sokar-demo' }),
+        'EX',
+        300,
+      );
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/public/resolve-custom-domain?host=chez-test.example',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ slug: 'chez-suppernote-demo' });
+      expect(db.restaurantExposureSettings.findFirst).not.toHaveBeenCalled();
     });
   });
 

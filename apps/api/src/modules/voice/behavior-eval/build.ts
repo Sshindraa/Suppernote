@@ -41,7 +41,7 @@ export interface BuildOptions {
 }
 
 /**
- * Profil du restaurant du cas : le sien, sinon le profil par défaut du fichier (Chez Sokar, tel qu'en base).
+ * Profil du restaurant du cas : le sien, sinon le profil par défaut du fichier (Chez Suppernote, tel qu'en base).
  * Il n'existe aucune consigne « minimale » : un cas sans vraie base ne se construit pas.
  */
 export function profileOf(testCase: BehaviorCase, file: BehaviorCasesFile): BehaviorProfile {

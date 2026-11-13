@@ -15,8 +15,8 @@ import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import { env } from '../src/env.js';
 import {
-  SokarAgentClient,
-  SokarAgentRunner,
+  SuppernoteAgentClient,
+  SuppernoteAgentRunner,
   OpenAICompatibleAdapter,
   GeminiAdapter,
   MockAdapter,
@@ -188,14 +188,14 @@ async function main() {
     process.exit(1);
   }
 
-  const client = new SokarAgentClient({
+  const client = new SuppernoteAgentClient({
     baseUrl: SOKAR_BASE_URL,
     apiKey: SOKAR_API_KEY,
     toolFormat: 'openai',
   });
 
   const llm = buildLLM();
-  const runner = new SokarAgentRunner(client);
+  const runner = new SuppernoteAgentRunner(client);
 
   log('Provider LLM : ' + llm.provider);
   log('Suppernote base URL : ' + SOKAR_BASE_URL + '\n');
@@ -213,7 +213,7 @@ async function main() {
   await runRepl(runner, llm);
 }
 
-async function runSingleTurn(runner: SokarAgentRunner, llm: LLMAdapter, userMessage: string) {
+async function runSingleTurn(runner: SuppernoteAgentRunner, llm: LLMAdapter, userMessage: string) {
   try {
     const result = await runner.run({ llm, userMessage });
     log('--- Réponse finale ---');
@@ -225,7 +225,7 @@ async function runSingleTurn(runner: SokarAgentRunner, llm: LLMAdapter, userMess
   }
 }
 
-async function runRepl(runner: SokarAgentRunner, llm: LLMAdapter) {
+async function runRepl(runner: SuppernoteAgentRunner, llm: LLMAdapter) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   let history: Message[] = [];
 

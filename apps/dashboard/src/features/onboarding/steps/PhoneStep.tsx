@@ -73,12 +73,12 @@ function digitGroups(number: string) {
 }
 
 /** Le geste exact pour activer le renvoi, avec le numéro Suppernote déjà rempli. */
-function lineGuide(type: LineType, sokarNumber: string) {
+function lineGuide(type: LineType, assistantPhoneNumber: string) {
   if (type === 'mobile') {
     return {
       title: 'Depuis le téléphone du restaurant, composez ces caractères à la suite, puis appelez.',
-      code: `**21*${sokarNumber}#`,
-      parts: ['**21*', sokarNumber, '#'],
+      code: `**21*${assistantPhoneNumber}#`,
+      parts: ['**21*', assistantPhoneNumber, '#'],
       help: 'Un message de l’opérateur confirme l’activation.',
       stop: '##21#',
     };
@@ -86,8 +86,8 @@ function lineGuide(type: LineType, sokarNumber: string) {
   if (type === 'fixed') {
     return {
       title: 'Depuis la ligne fixe du restaurant, composez ces caractères à la suite.',
-      code: `*21*${toNational(sokarNumber)}#`,
-      parts: ['*21*', toNational(sokarNumber), '#'],
+      code: `*21*${toNational(assistantPhoneNumber)}#`,
+      parts: ['*21*', toNational(assistantPhoneNumber), '#'],
       help: 'Si le code n’est pas reconnu, activez le renvoi depuis l’espace client de votre opérateur.',
       stop: '#21#',
     };
@@ -95,8 +95,8 @@ function lineGuide(type: LineType, sokarNumber: string) {
   return {
     title: 'Activez le renvoi dans l’espace client de votre opérateur.',
     code: '',
-    parts: ['', sokarNumber, ''],
-    help: `Rubrique « Renvoi d’appel » de votre abonnement, vers le ${toNationalDisplay(sokarNumber)}. Le code à composer dépend de l’opérateur.`,
+    parts: ['', assistantPhoneNumber, ''],
+    help: `Rubrique « Renvoi d’appel » de votre abonnement, vers le ${toNationalDisplay(assistantPhoneNumber)}. Le code à composer dépend de l’opérateur.`,
     stop: '',
   };
 }

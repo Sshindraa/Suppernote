@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../plugins/clerk', () => ({
-  requireSokarOperator:
+  requirePlatformOperator:
     () =>
     async (
       req: { userId?: string },

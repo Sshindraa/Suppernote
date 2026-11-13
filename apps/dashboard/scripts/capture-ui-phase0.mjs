@@ -283,7 +283,7 @@ const recommendations = [
 
 const publicRestaurant = {
   id: restaurantId,
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   city: 'Lyon',
   cuisine: 'Bistrot',
   address: 'Adresse fictive, Lyon',
@@ -335,7 +335,7 @@ function mockResponse(pathname, query, variant) {
       sites: [
         {
           id: restaurantId,
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           siteStatus: 'ACTIVE',
           isPrimary: true,
           role: 'OWNER',

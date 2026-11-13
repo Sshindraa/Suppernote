@@ -1,4 +1,4 @@
-# Diagnostics Sokar
+# Diagnostics Suppernote
 
 Scripts de diagnostic manuels pour le pipeline vocal, MCP et le dogfood QA.
 Non exécutés en CI — usage développeur local uniquement.
@@ -30,7 +30,7 @@ Non exécutés en CI — usage développeur local uniquement.
 | `CARTESIA_BENCHMARK_DIR`   | benchmark-cartesia-voices                                | `/private/tmp/sokar-cartesia-voice-benchmark` | Répertoire temporaire des MP3 et du manifeste             |
 | `SOKAR_API_BASE`           | test-mcp-client, sokar-mcp-stdio                         | `http://localhost:4000`                       | URL de base de l'API                                      |
 | `SOKAR_MCP_KEY`            | test-mcp-client, sokar-mcp-stdio                         | obligatoire                                   | Clé MCP locale générée par le dashboard                   |
-| `SOKAR_DOGFOOD_URL`        | dogfood-sokar                                            | `https://sokar.tech`                          | URL cible dogfood                                         |
+| `SOKAR_DOGFOOD_URL`        | dogfood-sokar                                            | `https://suppernote.com`                      | URL cible dogfood                                         |
 | `SOKAR_DOGFOOD_OUTPUT`     | dogfood-sokar                                            | `$REPO_ROOT/.hermes/dogfood`                  | Répertoire de sortie                                      |
 
 ## Notes

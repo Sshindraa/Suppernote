@@ -41,10 +41,10 @@ borné d'une facture, le contrôle EUR et la sérialisation vers le format du ra
   sont décrits dans
   `docs/release/evidence/p0-usage-accounting-package-2026-08.md`.
 - Résoudre le rattachement du rapport non nul de mai 2026 (1 272 secondes,
-  0,0424 USD) à des événements Sokar et documenter la conversion USD/EUR ; voir
+  0,0424 USD) à des événements Suppernote et documenter la conversion USD/EUR ; voir
   `docs/release/evidence/p0-usage-nonzero-2026-05.md`.
 - Rejouer la preuve dans l'environnement CI/staging prévu par le runbook si cette
   exigence est retenue comme condition de clôture.
 
-Les alertes de budget 70/90/100 restent un signal interne pour l'équipe Sokar ;
+Les alertes de budget 70/90/100 restent un signal interne pour l'équipe Suppernote ;
 elles ne modifient aucun quota ni parcours du restaurateur.

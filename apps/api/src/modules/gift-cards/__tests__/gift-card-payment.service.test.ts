@@ -55,10 +55,10 @@ describe('GiftCardPaymentService', () => {
     vi.mocked(db.giftCard.findFirst).mockResolvedValue(null);
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({
       id: RESTAURANT_ID,
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       giftCardCommissionRate: d(0.05),
       giftCardMinimumAmount: 10,
-      managerEmail: 'manager@chezsokar.fr',
+      managerEmail: 'manager@example.invalid',
       managerPhone: null,
     } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
     vi.mocked(db.giftCard.create).mockResolvedValue({
@@ -233,7 +233,7 @@ describe('GiftCardPaymentService', () => {
     it('utilise le taux de commission par défaut (5%) si non défini', async () => {
       vi.mocked(db.restaurant.findUnique).mockResolvedValue({
         id: RESTAURANT_ID,
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         giftCardCommissionRate: null,
         giftCardMinimumAmount: 10,
         managerEmail: null,
@@ -259,10 +259,10 @@ describe('GiftCardPaymentService', () => {
     it('persiste le SMS dans l’outbox au lieu de l’envoyer pendant le paiement', async () => {
       vi.mocked(db.restaurant.findUnique).mockResolvedValue({
         id: RESTAURANT_ID,
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         giftCardCommissionRate: d(0.05),
         giftCardMinimumAmount: 10,
-        managerEmail: 'manager@chezsokar.fr',
+        managerEmail: 'manager@example.invalid',
         managerPhone: '+33100000000',
       } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
 

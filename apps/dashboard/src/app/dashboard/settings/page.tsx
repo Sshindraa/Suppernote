@@ -282,7 +282,7 @@ export default function SettingsPage() {
     return (
       <div className="space-y-8">
         <Skeleton className="h-8 w-40" />
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardHeader>
             <Skeleton className="h-5 w-32" />
           </CardHeader>
@@ -504,7 +504,7 @@ export default function SettingsPage() {
       </nav>
 
       {error && (
-        <div ref={errorRef} role="alert" className="sokar-error">
+        <div ref={errorRef} role="alert" className="suppernote-error">
           <AlertCircle size={18} />
           {error}
         </div>
@@ -518,7 +518,7 @@ export default function SettingsPage() {
       )}
 
       {/* Infos restaurant */}
-      <Card id="settings-info" className="sokar-card scroll-mt-24">
+      <Card id="settings-info" className="suppernote-card scroll-mt-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Store size={18} />
@@ -596,7 +596,10 @@ export default function SettingsPage() {
       <CardGuaranteeSettingsCard restaurantName={restaurant?.name || name || 'Votre restaurant'} />
 
       {canManageCrmPrivacy && (
-        <Card id="settings-crm" className="sokar-card scroll-mt-24 transition-all duration-200">
+        <Card
+          id="settings-crm"
+          className="suppernote-card scroll-mt-24 transition-all duration-200"
+        >
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <ShieldCheck size={18} />
@@ -663,7 +666,10 @@ export default function SettingsPage() {
       )}
 
       {/* Préférences d'affichage */}
-      <Card id="settings-display" className="sokar-card scroll-mt-24 transition-all duration-200">
+      <Card
+        id="settings-display"
+        className="suppernote-card scroll-mt-24 transition-all duration-200"
+      >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Languages size={18} />
@@ -684,7 +690,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Plan actuel */}
-      <Card id="settings-plan" className="sokar-card scroll-mt-24">
+      <Card id="settings-plan" className="suppernote-card scroll-mt-24">
         <CardHeader>
           <CardTitle className="text-lg">Plan actuel</CardTitle>
         </CardHeader>
@@ -798,7 +804,7 @@ export default function SettingsPage() {
       {/* File d&apos;attente */}
       <Card
         id="settings-waiting-list"
-        className="sokar-card scroll-mt-24 transition-all duration-200"
+        className="suppernote-card scroll-mt-24 transition-all duration-200"
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -865,7 +871,7 @@ export default function SettingsPage() {
       {/* Cartes cadeaux */}
       <Card
         id="settings-gift-cards"
-        className="sokar-card scroll-mt-24 transition-all duration-200"
+        className="suppernote-card scroll-mt-24 transition-all duration-200"
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -899,7 +905,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Personnalité de l'agent vocal */}
-      <Card id="settings-agent" className="sokar-card scroll-mt-24">
+      <Card id="settings-agent" className="suppernote-card scroll-mt-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bot size={18} />

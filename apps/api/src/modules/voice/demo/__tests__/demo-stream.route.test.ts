@@ -55,7 +55,7 @@ describe('WebSocket /voice/demo-stream/:ticket (câblage Fastify)', () => {
     mocks.release.mockResolvedValue(undefined);
     mocks.loadContextById.mockResolvedValue({
       id: 'rest-1',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       phoneNumber: '',
       managerPhone: '',
       onlineReservationsActive: false,

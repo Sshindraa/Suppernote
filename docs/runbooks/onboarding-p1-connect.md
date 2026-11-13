@@ -1,8 +1,8 @@
-# Onboarding Pilote P1 Sokar Connect
+# Onboarding Pilote P1 Suppernote Connect
 
 > **Statut : MODÈLE DE RUNBOOK — audité le 12 septembre 2026.** Les prérequis techniques sont
 > livrés. Les cases vides ci-dessous doivent être copiées et remplies pour chaque restaurant ; elles
-> ne décrivent pas des fonctions manquantes dans Sokar. La campagne de 10 restaurants n'est pas
+> ne décrivent pas des fonctions manquantes dans Suppernote. La campagne de 10 restaurants n'est pas
 > documentée comme terminée. Voir [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
 
 La finalisation du provisioning admin est gardée côté API : `POST
@@ -12,7 +12,7 @@ dates `testCallValidatedAt` et `forwardingConfiguredAt` ne sont jamais fabriqué
 
 ## Objectif
 
-10 restaurants réels onboardés sur Sokar Connect pour valider les 4 critères go/no-go P1.
+10 restaurants réels onboardés sur Suppernote Connect pour valider les 4 critères go/no-go P1.
 
 ## Critères go/no-go P1 (dashboard `/dashboard/connect/pilot`)
 
@@ -51,7 +51,7 @@ Source : `apps/api/src/modules/connect/connect-kpis.service.ts` (`CONNECT_TARGET
 
 ### 2. Configuration via dashboard
 
-- [ ] Accéder au dashboard Sokar (`https://suppernote.com/dashboard`)
+- [ ] Accéder au dashboard Suppernote (`https://suppernote.com/dashboard`)
 - [ ] Créer le restaurant
 - [ ] Compléter le socle commun (`restaurant`, `hours`, `floor` : salle et règles) puis les 2 étapes Connect (nouveau parcours local, 9 octobre 2026) :
   - `connect-identity` — Votre page : éditeur et aperçu côte à côte ; adresse importée à la sélection Google et enregistrée à l’étape restaurant ; correction de l’adresse intégrée. Photo, présentation, cuisine, gamme de prix, régimes et ambiance facultatifs.

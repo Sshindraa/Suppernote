@@ -4,7 +4,7 @@ Date : 2026-10-07 · Statut : phase 1 livrée en dev, phases 2 et 3 à lancer.
 
 ## Pourquoi
 
-L'onboarding était organisé par produit Sokar (assistant vocal, puis Connect). Le restaurateur raisonne
+L'onboarding était organisé par produit Suppernote (assistant vocal, puis Connect). Le restaurateur raisonne
 par résultat : « d'où viennent mes réservations, et mes tables sont-elles justes ? ». Sur les quatre
 canaux d'entrée (téléphone, widget et lien Google Maps, assistants IA par MCP, passage sans réservation),
 seul le téléphone avait un parcours.
@@ -70,7 +70,7 @@ On configure le restaurant une seule fois, puis chaque canal se branche dessus.
   seul endroit ; la gestion « sur place » reste dans les outils d'exploitation ;
 - état vide du simulateur limité au résultat de la date et du groupe choisis, sans diagnostic non
   vérifié ;
-- bouton « Continuer vers Sokar Connect » : refusé tant que `readiness.ready` est faux (409
+- bouton « Continuer vers Suppernote Connect » : refusé tant que `readiness.ready` est faux (409
   `NOT_READY_TO_BOOK`). Cette étape vérifie le socle et enchaîne vers Connect ; elle ne publie pas
   la page et ne prétend pas ouvrir tous les canaux.
 

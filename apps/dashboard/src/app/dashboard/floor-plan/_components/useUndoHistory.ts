@@ -21,6 +21,8 @@ export type UndoHistory<T> = {
   undo: () => T | null;
   /** Retourne le snapshot suivant, ou null si la pile est vide. */
   redo: () => T | null;
+  /** Retire une action enregistrée (la mutation correspondante a échoué en base). */
+  discard: (action: HistoryAction<T>) => void;
   canUndo: boolean;
   canRedo: boolean;
   reset: () => void;
@@ -61,6 +63,15 @@ export function useUndoHistory<T>(): UndoHistory<T> {
     return action.after;
   }, [bump]);
 
+  const discard = useCallback(
+    (action: HistoryAction<T>) => {
+      pastRef.current = pastRef.current.filter((entry) => entry !== action);
+      futureRef.current = futureRef.current.filter((entry) => entry !== action);
+      bump();
+    },
+    [bump],
+  );
+
   const reset = useCallback(() => {
     pastRef.current = [];
     futureRef.current = [];
@@ -73,6 +84,7 @@ export function useUndoHistory<T>(): UndoHistory<T> {
     redo,
     canUndo: pastRef.current.length > 0,
     canRedo: futureRef.current.length > 0,
+    discard,
     reset,
   };
 }

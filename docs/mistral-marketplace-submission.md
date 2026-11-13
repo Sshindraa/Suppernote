@@ -1,4 +1,4 @@
-# Dossier de soumission — Connector Mistral Marketplace (Sokar)
+# Dossier de soumission — Connector Mistral Marketplace (Suppernote)
 
 > **Statut : DRAFT EXTERNE / NON VÉRIFIÉ — audité le 12 septembre 2026.**
 > Le serveur MCP/OAuth existe, mais ce dossier n'est pas une preuve de soumission ni
@@ -9,8 +9,8 @@
 
 ## 1. Informations generales
 
-- **Nom du connector** : `sokar` (ou `sokar-restaurant-reservations`)
-- **Description** : Reservez une table dans un restaurant partenaire Sokar directement depuis Mistral Le Chat.
+- **Nom du connector** : `suppernote` (ou `suppernote-restaurant-reservations`)
+- **Description** : Reservez une table dans un restaurant partenaire Suppernote directement depuis Mistral Le Chat.
 - **Server URL** : `https://api-staging.suppernote.com/mcp`
 - **Icon URL** : (a fournir, ex: https://staging.suppernote.com/favicon.ico)
 - **System prompt** : (optionnel — prompt injecte quand les outils sont utilises)
@@ -51,9 +51,9 @@
 
 ## 5. Notes pour Mistral
 
-- Le MCP server Sokar implemente **StreamableHTTP** (POST /mcp) et refuse le GET /mcp (405), conformement a la spec MCP 2025-03-26.
+- Le MCP server Suppernote implemente **StreamableHTTP** (POST /mcp) et refuse le GET /mcp (405), conformement a la spec MCP 2025-03-26.
 - L'authentification se fait via OAuth 2.0 Authorization Code avec PKCE.
-- Le consentement est public (pas de login Clerk cote client final) : l'utilisateur approuve/deny sur une page Sokar.
+- Le consentement est public (pas de login Clerk cote client final) : l'utilisateur approuve/deny sur une page Suppernote.
 - Le scoping se fait au niveau des tools : le token donne acces a tous les restaurants ayant active MCP dans leur dashboard.
 
 ## 6. Contact

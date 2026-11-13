@@ -466,7 +466,7 @@ describe('marketing campaign control plane', () => {
       scheduledAt: null,
       timezone: 'Europe/Paris',
       audienceCount: 3,
-      restaurant: { name: 'Chez Sokar' },
+      restaurant: { name: 'Chez Suppernote' },
     } as never);
     vi.mocked(db.campaignAudienceMember.findMany).mockResolvedValue([
       { customerId: 'customer-1' },
@@ -505,7 +505,7 @@ describe('marketing campaign control plane', () => {
       scheduledAt: new Date('2026-09-20T12:00:00.000Z'),
       timezone: 'Europe/Paris',
       audienceCount: 3,
-      restaurant: { name: 'Chez Sokar' },
+      restaurant: { name: 'Chez Suppernote' },
     } as never);
     vi.mocked(db.campaignAudienceMember.findMany).mockResolvedValue([
       { customerId: 'customer-1' },

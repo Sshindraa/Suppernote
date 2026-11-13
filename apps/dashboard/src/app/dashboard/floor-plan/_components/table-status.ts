@@ -16,11 +16,8 @@ export function getTableStatus(
     (r) => r.tableId === table.id && !['CANCELLED', 'NO_SHOW'].includes(r.state),
   );
 
-  const current = tableRes.find((r) => {
-    const start = parseISO(r.startsAt);
-    const end = parseISO(r.endsAt);
-    return isWithinInterval(now, { start, end }) && r.state === 'SEATED';
-  });
+  // Une table assise reste occupée après la fin de son créneau : seul le serveur la libère.
+  const current = tableRes.find((r) => r.state === 'SEATED' && !isAfter(parseISO(r.startsAt), now));
 
   if (current) {
     return { status: 'occupied', reservation: current };
@@ -63,4 +60,34 @@ export function getTableStatus(
   }
 
   return { status: 'free', reservation: null };
+}
+
+/**
+ * Début de la prochaine réservation pas encore assise sur la table ; null si rien d'autre aujourd'hui.
+ * Une réservation commencée depuis moins d'une heure compte encore : ses clients attendent peut-être.
+ */
+export function getFreeUntil(
+  table: FloorPlanTable,
+  reservations: PlanningReservation[],
+  now: Date,
+): Date | null {
+  const starts = reservations
+    .filter(
+      (r) =>
+        r.tableId === table.id &&
+        ['PENDING', 'CONFIRMED'].includes(r.state) &&
+        isAfter(parseISO(r.startsAt), new Date(now.getTime() - 60 * 60_000)) &&
+        isSameDay(parseISO(r.startsAt), now),
+    )
+    .map((r) => parseISO(r.startsAt).getTime());
+  return starts.length ? new Date(Math.min(...starts)) : null;
+}
+
+/** Durée d'un repas : la durée médiane des créneaux réservés du jour, 90 min à défaut. */
+export function getMealMinutes(reservations: PlanningReservation[]): number {
+  const durations = reservations
+    .map((r) => differenceInMinutes(parseISO(r.endsAt), parseISO(r.startsAt)))
+    .filter((minutes) => minutes > 0)
+    .sort((a, b) => a - b);
+  return durations.length ? durations[Math.floor(durations.length / 2)] : 90;
 }

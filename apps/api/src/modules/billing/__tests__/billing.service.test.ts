@@ -616,7 +616,7 @@ describe('billing.service - événements Stripe de la même seconde (recette du 
 
   const second = 1_792_614_589;
   const retrieve = () =>
-    (globalThis as Record<string, unknown>).__sokarStripeSubscriptionRetrieve as ReturnType<
+    (globalThis as Record<string, unknown>).__stripeSubscriptionRetrieve as ReturnType<
       typeof vi.fn
     >;
   const liveActive = {
@@ -805,7 +805,7 @@ describe('billing.service - réparation des dossiers décalés', () => {
   });
 
   const retrieve = () =>
-    (globalThis as Record<string, unknown>).__sokarStripeSubscriptionRetrieve as ReturnType<
+    (globalThis as Record<string, unknown>).__stripeSubscriptionRetrieve as ReturnType<
       typeof vi.fn
     >;
   const stored = {

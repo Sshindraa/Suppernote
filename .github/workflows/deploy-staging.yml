@@ -181,7 +181,7 @@ jobs:
               # secret scanning) : les hooks husky locaux n'ont rien à y
               # contrôler, et leur heuristique anti-secret bloquait le
               # déploiement sur les clés factices des tests.
-              HUSKY=0 git -c user.name='Sokar staging snapshot' \
+              HUSKY=0 git -c user.name='Suppernote staging snapshot' \
                 -c user.email='deploy@suppernote.com' \
                 commit --no-verify -m "chore(staging): snapshot ${SOURCE_SHA}"
             fi

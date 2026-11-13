@@ -3,7 +3,7 @@
 Étude + correctif désactivé par défaut. **Rien changé en production ni en staging.** Aucune donnée personnelle
 ci-dessous : catégories, comptes et durées. Audio et transcriptions restés hors du dépôt.
 
-## Cas déclencheur (appel test du 21/10, 01 h 01, Chez Sokar)
+## Cas déclencheur (appel test du 21/10, 01 h 01, Chez Suppernote)
 
 Léa : « À quelle heure souhaitez-vous venir ? ». Appelant : « midi 30 » (0,88 s de voix). Chronologie (horloge
 audio Deepgram, `E` = fin du dernier mot = 24 740 ms) :
@@ -25,7 +25,7 @@ code ne surveillait le cas « l'appelant a parlé, s'est tu, et Deepgram n'a enc
 
 ## Le phénomène sur les enregistrements
 
-Rejeu Nova-3 de #532 (61 appels Chez Sokar, 283 tours) et journaux de production 14 → 21/10 (56 tours) :
+Rejeu Nova-3 de #532 (61 appels Chez Suppernote, 283 tours) et journaux de production 14 → 21/10 (56 tours) :
 
 - Tours courts (≤ 3 mots, voix ≤ 1,5 s) : 57 avec texte. Catégories : oui/non 22, nombre 9, heure 5, autres 21.
   Texte couvrant le dernier mot après `E` : p50 420 ms, p90 670 ms ; plus d'une seconde dans 3 cas, et dans deux
@@ -85,7 +85,7 @@ Tests Vitest dans `stt-bridge.test.ts` (7 cas).
 
 ## Activation proposée
 
-Chez Sokar seul (`VOICE_DEEPGRAM_SILENCE_FLUSH_RESTAURANT_IDS=710309f4-d699-472d-a1db-f22d527fc4d0`), sur feu
+Chez Suppernote seul (`VOICE_DEEPGRAM_SILENCE_FLUSH_RESTAURANT_IDS=710309f4-d699-472d-a1db-f22d527fc4d0`), sur feu
 vert, puis un appel test : réponses d'un ou deux mots (heure, nombre, « oui »), une épellation, un « oui… » suivi
 d'une pause puis d'une précision. Suivre `finalTrigger: silence_flush` et les reprises de l'appelant juste après.
 

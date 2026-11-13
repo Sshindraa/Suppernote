@@ -85,7 +85,7 @@ async function main() {
     '',
     '## 1. Informations generales',
     '',
-    '- **Nom du connector** : `sokar` (ou `sokar-restaurant-reservations`)',
+    '- **Nom du connector** : `suppernote` (ou `suppernote-restaurant-reservations`)',
     '- **Description** : Reservez une table dans un restaurant partenaire Suppernote directement depuis Mistral Le Chat.',
     '- **Server URL** : `{{ISSUER}}/mcp`',
     '- **Icon URL** : (a fournir, ex: https://staging.suppernote.com/favicon.ico)',

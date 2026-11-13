@@ -63,14 +63,14 @@ ssh pmbtc 'hostname && pwd'
 - **Hermes racine** : `config.yaml`, `auth.json`, `.env`, `memories/`, `kanban.db`, `cron_jobs.json`, `plugins/`, `skills/`
 - **5 profils** (`default`, `backend`, `dashboard`, `database`, `supervisor`) : `config.yaml`, `auth.json`, `bin/`, `state.db`, `lsp/`, caches
 - **SSH** : `config`, `known_hosts`, `sokar_ovh{,.pub}`, `mac_tunnel_key`
-- **Sokar** : `.env.local`, `packages/database/.env`
+- **Suppernote** : `.env.local`, `packages/database/.env`
 - **Shell** : `extras.zsh` injecté dans `~/.zshrc` (PATH node@22, alias `sokar-tunnel`, alias `sokar`)
 
 ## Ce qui N'est PAS dans le bundle (volontairement)
 
 - Sessions de debug (`~/.hermes/profiles/*/sessions/*`) — régénérées à l'usage
 - `node_modules/`, caches pnpm, `target/` — réinstallés via `pnpm install`
-- `.git/` du repo Sokar — re-cloné depuis GitHub
+- `.git/` du repo Suppernote — re-cloné depuis GitHub
 - Bases Postgres/Redis — ce sont des services à réinstaller (brew services)
 - Clés API et tokens vivants restent dans `auth.json` + `config.yaml` du bundle
 

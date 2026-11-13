@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Skill Hermes — Obsidian Vault Sokar
+Skill Hermes — Obsidian Vault Suppernote
 Exposes tools to read, write, list and search notes in the Obsidian vault.
 """
 import os

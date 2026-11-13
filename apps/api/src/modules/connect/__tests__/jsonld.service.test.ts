@@ -34,7 +34,7 @@ const baseRestaurant: PublicRestaurantDto = {
     { day: 'tuesday', open: '12:00', close: '14:30' },
   ],
   reservationUrl: 'https://suppernote.com/r/chez-mario-lyon/book',
-  images: { cover: 'https://sokar.app/img/cover.jpg', gallery: [] },
+  images: { cover: 'https://images.example.invalid/img/cover.jpg', gallery: [] },
   acceptsReservations: true,
   publishedAt: '2026-06-24T00:00:00.000Z',
   connectAgentic: false,
@@ -204,16 +204,19 @@ describe('buildPublicRestaurantJsonLd', () => {
       restaurant: {
         ...baseRestaurant,
         images: {
-          cover: 'https://sokar.app/img/cover.jpg',
-          gallery: ['https://sokar.app/img/1.jpg', 'https://sokar.app/img/2.jpg'],
+          cover: 'https://images.example.invalid/img/cover.jpg',
+          gallery: [
+            'https://images.example.invalid/img/1.jpg',
+            'https://images.example.invalid/img/2.jpg',
+          ],
         },
       },
       attributesConfidence: null,
     });
     expect(jsonLd.image).toEqual([
-      'https://sokar.app/img/cover.jpg',
-      'https://sokar.app/img/1.jpg',
-      'https://sokar.app/img/2.jpg',
+      'https://images.example.invalid/img/cover.jpg',
+      'https://images.example.invalid/img/1.jpg',
+      'https://images.example.invalid/img/2.jpg',
     ]);
   });
 });

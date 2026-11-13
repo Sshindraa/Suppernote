@@ -1,4 +1,4 @@
-# Sokar — phase 6, validation locale
+# Suppernote — phase 6, validation locale
 
 Cette passe réunit les preuves des phases 0 à 5, rejoue les scénarios UI ciblés et consigne les limites restantes. À la demande de l’utilisateur, la finition visuelle de phase 5 a ensuite été annulée : son dossier de captures décrit la variante rejetée, tandis que le widget courant reprend l’apparence de la phase 2. Les captures et réponses réseau sont locales et fictives ; aucune base distante ni staging n’a été utilisé.
 

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Sokar Auto-Commit System
+# Suppernote Auto-Commit System
 # Commits automatiquement avec des messages intelligents basés sur les fichiers modifiés
 # Usage: ./auto-commit.sh [message_custom] [--push]
 
@@ -75,7 +75,7 @@ generate_message() {
 }
 
 # ── Main ──
-echo "${GREEN}Sokar Auto-Commit${NC}"
+echo "${GREEN}Suppernote Auto-Commit${NC}"
 echo "=================="
 
 # Stage all changes

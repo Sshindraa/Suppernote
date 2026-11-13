@@ -95,7 +95,7 @@ L'attribution d'un numéro à un restaurant (`POST /admin/provisioning/:id/assig
 le numéro à l'application voix Telnyx avec `TELNYX_CONNECTION_ID` (l'identifiant de
 l'application Call Control qui envoie les appels à `/voice/telnyx`). Sans cette variable, ou si
 le numéro est saisi à la main plutôt que choisi dans l'inventaire, le numéro est attribué dans
-Sokar mais ne reçoit aucun appel : la page Provisioning affiche alors un avertissement et il
+Suppernote mais ne reçoit aucun appel : la page Provisioning affiche alors un avertissement et il
 faut le relier dans le portail Telnyx. `TELNYX_APP_ID` figure dans les exemples mais n'est lu
 par aucun code ; il désigne probablement le même identifiant, à confirmer dans le portail avant
 de les fusionner.
@@ -178,7 +178,7 @@ commercial avant l'ouverture de la vitrine. Il se définit comme secret GitHub
 `scripts/ops/sync-env.sh demo-request` le copie dans le `.env` de l'API à chaque
 déploiement, sans l'afficher. Sans secret, la configuration existante est conservée.
 
-Ces canaux servent au monitoring interne de Sokar. Ils ne constituent pas une
+Ces canaux servent au monitoring interne de Suppernote. Ils ne constituent pas une
 notification client et ne peuvent pas limiter la consommation d'un restaurant.
 La promesse Essential/Pro reste sans quota ; le suivi visuel par établissement
 se fait dans l'espace opérateur séparé `/admin/margin` (l'ancienne URL
@@ -186,12 +186,12 @@ se fait dans l'espace opérateur séparé `/admin/margin` (l'ancienne URL
 `USAGE_ALERT_VOICE_BUDGET_MINUTES` et `USAGE_ALERT_SMS_BUDGET_SEGMENTS` ne
 définissent que des budgets de cost-watch opérateur.
 
-### Espace opérateur Sokar
+### Espace opérateur Suppernote
 
 Le dashboard restaurant et l'espace opérateur ont des URLs et des layouts distincts :
 
 - `https://suppernote.com/dashboard` pour un établissement ;
-- `https://suppernote.com/admin` pour l'équipe Sokar.
+- `https://suppernote.com/admin` pour l'équipe Suppernote.
 
 Les pages `/admin/*` et les routes API `/admin/*` exigent un identifiant Clerk présent dans
 `SOKAR_OPERATOR_USER_IDS`, une liste CSV injectée uniquement dans l'environnement de l'API par
@@ -756,7 +756,7 @@ libre ; il ne lance donc pas de requête LLM shadow séparée sur ce chemin. La
 policy valide puis compare la proposition à l’état effectivement conservé.
 Aucune valeur proposée ne modifie la conversation ni n’autorise un effet métier,
 et la télémétrie n’enregistre pas les valeurs de nom/téléphone. Si le modèle
-retourne le tool interne sans contenu parlé, Sokar effectue une génération de
+retourne le tool interne sans contenu parlé, Suppernote effectue une génération de
 récupération pour préserver la réponse vocale ; ce cas est tracé `speech_missing`.
 Le workflow staging active ce flag globalement. Le staging ne dispose pas de
 configuration Telnyx : ses smoke tests ne valident donc pas un appel vocal réel.
@@ -768,7 +768,7 @@ flag vocal en production, éditer le fichier d'environnement de l'API,
 attendre zéro session active, puis
 recharger `sokar-api` avec `pm2 reload sokar-api --update-env`.
 Les compteurs globaux de validité, décision de policy et accord sont exposés à
-Prometheus et présentés dans le dashboard Grafana `Sokar — Voice & SLO`. Ils
+Prometheus et présentés dans le dashboard Grafana `Suppernote — Voice & SLO`. Ils
 n'ont pas de label restaurant et ne contiennent aucune transcription. Le
 déploiement production démarre Prometheus et Grafana séparément sur la loopback,
 avec 30 jours de rétention Prometheus. Prometheus ne dépend pas du secret Grafana.
@@ -1106,11 +1106,11 @@ Voir [activation et qualification des cartes cadeaux](gift-card-financial-safety
 ### Réservation publique des expériences
 
 `EXPERIENCE_BOOKING_ENABLED` reste à `false` par défaut dans tous les environnements. Son ouverture
-ne suffit pas seule : `EXPERIENCES_ENABLED` doit aussi être activé, la page Sokar Connect doit être
+ne suffit pas seule : `EXPERIENCES_ENABLED` doit aussi être activé, la page Suppernote Connect doit être
 publiée, le compte Stripe Connect du restaurant doit autoriser les encaissements et versements, et
-Sokar doit avoir renseigné la commission de ce restaurant. Le réglage opérateur accepte un taux
+Suppernote doit avoir renseigné la commission de ce restaurant. Le réglage opérateur accepte un taux
 fractionnaire (`0.05` = 5 %) via `PATCH /api/internal/experiences/payment-config`; `null` retire le
-taux et bloque à nouveau le paiement. La route exige `requireSokarOperator`.
+taux et bloque à nouveau le paiement. La route exige `requirePlatformOperator`.
 
 La page publique utilise Stripe Checkout sur le compte connecté ; les places sont retenues pendant
 35 minutes et la réservation n'est confirmée que par webhook signé. Une annulation depuis le
@@ -1219,7 +1219,7 @@ collection or refunds. No migration is required. Turn it off to restore phone co
 `CRM_QUALIFICATION_RESTAURANT_IDS` : variable serveur du dashboard, liste séparée par des
 virgules d’identifiants de restaurants dédiés à la recette RGPD. Vide par défaut ; `*` est ignoré.
 Après complétion des étapes `restaurant`, `hours` et `floor`, ces restaurants peuvent accéder à
-`/dashboard/customers` et ses sous-pages sans numéro Sokar ni activation des canaux. Les autres
+`/dashboard/customers` et ses sous-pages sans numéro Suppernote ni activation des canaux. Les autres
 pages gardent le verrou d’onboarding complet. Ce réglage ne modifie aucune étape ni les contrôles
 API (Clerk, site, rôle, formule). Il ne confère pas la formule Pro : qualifier les droits requis
 séparément. Ne jamais publier le restaurant fictif. Retirer l’ID après la recette et redémarrer

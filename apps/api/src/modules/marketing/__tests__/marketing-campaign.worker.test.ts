@@ -52,7 +52,7 @@ function makeDependencies() {
         status: MarketingCampaignStatus.READY,
         subject: null,
         bodyTemplate: 'Bonjour {{customer.firstName}} {{unsubscribeUrl}}',
-        restaurant: { name: 'Chez Sokar', slug: 'chez-sokar' },
+        restaurant: { name: 'Chez Suppernote', slug: 'chez-sokar' },
       }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       update: vi.fn().mockResolvedValue({}),
@@ -91,7 +91,7 @@ function makeDependencies() {
     sendWhatsApp: vi.fn(),
     createUnsubscribeToken: vi.fn().mockResolvedValue('unsubscribe-token'),
     sendsEnabled: true,
-    marketingEmailFrom: 'bonjour@news.sokar.test',
+    marketingEmailFrom: 'bonjour@news.suppernote.test',
     now: () => new Date('2026-09-13T12:00:00.000Z'),
   };
   return { db, deps, sendSms };
@@ -122,7 +122,7 @@ function mockEmailCampaign(
     status: MarketingCampaignStatus.READY,
     subject: 'Une table vous attend',
     bodyTemplate: 'Bonjour {{customer.firstName}} {{unsubscribeUrl}}',
-    restaurant: { name: 'Chez Sokar, Paris', slug: 'chez-sokar', managerEmail },
+    restaurant: { name: 'Chez Suppernote, Paris', slug: 'chez-sokar', managerEmail },
     ...campaign,
   } as never);
   vi.mocked(db.campaignMessage.findMany)
@@ -149,7 +149,7 @@ describe('marketing campaign worker', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.API_URL = 'https://api.sokar.test';
+    process.env.API_URL = 'https://api.suppernote.test';
     vi.stubEnv('MARKETING_OPTOUT_HASH_SECRET', 'k'.repeat(40));
   });
 
@@ -268,7 +268,7 @@ describe('marketing campaign worker', () => {
       status: MarketingCampaignStatus.READY,
       subject: null,
       bodyTemplate: 'Réservez ici : {{reservationLink}}',
-      restaurant: { name: 'Chez Sokar', slug: 'chez-sokar' },
+      restaurant: { name: 'Chez Suppernote', slug: 'chez-sokar' },
     } as never);
     const createAttributionLink = vi.fn().mockResolvedValue({
       token: attributionToken,
@@ -303,9 +303,9 @@ describe('marketing campaign worker', () => {
       subject: 'Une table vous attend',
       bodyTemplate: 'Bonjour {{customer.firstName}}\nSe désinscrire : {{unsubscribeUrl}}',
       restaurant: {
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         slug: 'chez-sokar',
-        managerEmail: 'manager@chez-sokar.test',
+        managerEmail: 'manager@chez-suppernote.test',
         formattedAddress: '1 rue de Test, 75001 Paris',
       },
     } as never);
@@ -336,14 +336,15 @@ describe('marketing campaign worker', () => {
       accepted: 1,
       failed: 0,
     });
-    const unsubscribeUrl = 'https://api.sokar.test/marketing/unsubscribe?token=unsubscribe-token';
+    const unsubscribeUrl =
+      'https://api.suppernote.test/marketing/unsubscribe?token=unsubscribe-token';
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'alice@example.com',
         subject: 'Une table vous attend',
         html:
           `Bonjour Alice<br>Se désinscrire : <a href="${unsubscribeUrl}">Se désinscrire</a>` +
-          '<br><br>Chez Sokar, 1 rue de Test, 75001 Paris<br>' +
+          '<br><br>Chez Suppernote, 1 rue de Test, 75001 Paris<br>' +
           'Vous recevez ce message car vous avez accepté de recevoir les actualités de ce restaurant par e-mail.',
         headers: {
           'List-Unsubscribe': `<${unsubscribeUrl}>`,
@@ -362,7 +363,7 @@ describe('marketing campaign worker', () => {
       status: MarketingCampaignStatus.READY,
       subject: null,
       bodyTemplate: 'Bonjour {{customer.firstName}} {{unsubscribeUrl}}',
-      restaurant: { name: 'Chez Sokar', slug: 'chez-sokar' },
+      restaurant: { name: 'Chez Suppernote', slug: 'chez-sokar' },
       targetServiceStart: new Date('2026-11-04T11:00:00.000Z'),
       targetServiceEnd: new Date('2026-11-04T15:00:00.000Z'),
     } as never);
@@ -423,7 +424,7 @@ describe('marketing campaign worker', () => {
 
   it('envoie depuis l’expéditeur marketing dédié, au nom du restaurant, avec son adresse en Reply-To', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'Manager@Chez-Sokar.test');
+    mockEmailCampaign(db, 'Manager@Chez-Suppernote.test');
     const sendEmail = vi.fn().mockResolvedValue(ACCEPTED_EMAIL);
     deps.sendEmail = sendEmail as never;
 
@@ -432,8 +433,8 @@ describe('marketing campaign worker', () => {
     });
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: '"Chez Sokar, Paris" <bonjour@news.sokar.test>',
-        replyTo: 'manager@chez-sokar.test',
+        from: '"Chez Suppernote, Paris" <bonjour@news.suppernote.test>',
+        replyTo: 'manager@chez-suppernote.test',
       }),
     );
   });
@@ -450,7 +451,7 @@ describe('marketing campaign worker', () => {
 
   it('une programmation partie avant sa date repasse le contrôle pour le jour réel d’envoi', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test', {
+    mockEmailCampaign(db, 'manager@chez-suppernote.test', {
       status: MarketingCampaignStatus.SCHEDULED,
       scheduledAt: new Date('2030-01-15T09:00:00.000Z'),
       audienceCount: 30,
@@ -482,7 +483,7 @@ describe('marketing campaign worker', () => {
 
   it('une programmation le jour J n’est pas bloquée par ses propres messages', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test', {
+    mockEmailCampaign(db, 'manager@chez-suppernote.test', {
       status: MarketingCampaignStatus.SCHEDULED,
       scheduledAt: new Date('2030-01-10T09:00:00.000Z'),
       audienceCount: 30,
@@ -517,7 +518,7 @@ describe('marketing campaign worker', () => {
 
   it('rend le créneau de fréquence et garde le motif quand la liste blanche refuse l’envoi', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test');
+    mockEmailCampaign(db, 'manager@chez-suppernote.test');
     deps.sendEmail = vi.fn().mockResolvedValue({
       outcome: 'failure_certain',
       provider: 'resend',
@@ -549,7 +550,7 @@ describe('marketing campaign worker', () => {
 
   it('rend le créneau quand Resend refuse et masque l’adresse dans le code d’erreur', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test');
+    mockEmailCampaign(db, 'manager@chez-suppernote.test');
     deps.sendEmail = vi
       .fn()
       .mockRejectedValue(new Error('Resend API error: invalid to alice@example.com')) as never;
@@ -568,7 +569,7 @@ describe('marketing campaign worker', () => {
 
   it('garde le créneau quand on ne sait pas si le message est parti', async () => {
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test');
+    mockEmailCampaign(db, 'manager@chez-suppernote.test');
     deps.sendEmail = vi.fn().mockResolvedValue({
       outcome: 'unknown',
       provider: 'resend',
@@ -585,7 +586,7 @@ describe('marketing campaign worker', () => {
   it('refuse l’envoi e-mail sans MARKETING_EMAIL_FROM, sans jamais se rabattre sur EMAIL_FROM', async () => {
     vi.stubEnv('EMAIL_FROM', 'noreply@suppernote.com');
     const { db, deps } = makeDependencies();
-    mockEmailCampaign(db, 'manager@chez-sokar.test');
+    mockEmailCampaign(db, 'manager@chez-suppernote.test');
     deps.marketingEmailFrom = null;
     const sendEmail = vi.fn();
     deps.sendEmail = sendEmail as never;

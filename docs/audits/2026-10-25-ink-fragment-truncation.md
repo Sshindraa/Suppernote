@@ -58,7 +58,7 @@ remplace pas cette correction du protocole.
 
 Le diagnostic initial « Ink a mal reconnu l'heure » doit être corrigé : le rejeu
 montre une reconnaissance complète et un défaut reproductible d'assemblage et
-de clôture côté Sokar. Sans messages bruts de l'appel initial, l'attribution à
+de clôture côté Suppernote. Sans messages bruts de l'appel initial, l'attribution à
 ce mécanisme reste fortement étayée plutôt qu'une preuve réseau exhaustive.
 
 ## Sources et preuves

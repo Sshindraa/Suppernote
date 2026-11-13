@@ -496,7 +496,7 @@ test('a taken modification slot leaves the current booking intact', async ({ pag
       });
     await route.fulfill({
       json: {
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         restaurantPhone: '+33100000000',
         date: '2026-10-20',
         time: '19:30',

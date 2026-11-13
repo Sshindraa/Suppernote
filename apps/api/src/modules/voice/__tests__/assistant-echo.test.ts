@@ -80,12 +80,17 @@ describe("écho aligné sur le moment où l'appelant a été entendu (appel 1b3f
   };
 
   it("reconnaît l'écho de l'accueil, transcrit bien après la fin du son", () => {
-    const session = speech('Bonjour, ici Chez Sokar. Je vous écoute.');
+    const session = speech('Bonjour, ici Chez Suppernote. Je vous écoute.');
     noteAgentAudioStarted(session, T0);
     noteAgentAudioEnded(session, T0 + 2_400);
     // Le son revenu a commencé pendant l'accueil ; sa transcription n'arrive que 2,3 s après la fin.
     session.sttLastSpeechStartedAt = T0 + 2_000;
-    const echo = filterAssistantEcho(session, 'bonjour ici chez sokar', 'committed', T0 + 4_700);
+    const echo = filterAssistantEcho(
+      session,
+      'bonjour ici chez suppernote',
+      'committed',
+      T0 + 4_700,
+    );
     expect(echo).toMatchObject({ suppressed: true, transcript: '' });
   });
 

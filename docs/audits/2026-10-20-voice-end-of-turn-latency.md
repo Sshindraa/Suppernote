@@ -5,7 +5,7 @@ ci-dessous : des comptes et des durées. L'audio et les transcriptions du rejeu 
 
 ## Données
 
-- **Enregistrements** : les 61 appels enregistrés de Chez Sokar (22/09 → 20/10, appels de test, 50,7 min de piste
+- **Enregistrements** : les 61 appels enregistrés de Chez Suppernote (22/09 → 20/10, appels de test, 50,7 min de piste
   appelant). Détection de voix par énergie sur chaque piste (trames de 20 ms), écho de Léa écarté (trame plus faible
   de 6 dB que la piste agent au même instant). 283 tours où Léa répond après une prise de parole de l'appelant.
   Repère commun : `E`, fin de la dernière voix de l'appelant avant que Léa parle ; `A`, début de la voix de Léa.
@@ -21,7 +21,7 @@ et repères `E`/`A`), `eot_evaluate.py` (comparaison), `flux-probe.ts` (sonde de
 
 ## 1. Toutes les attentes entre la fin de parole et la voix
 
-Valeurs de production (Chez Sokar) ; « défaut » = variable absente du `.env`.
+Valeurs de production (Chez Suppernote) ; « défaut » = variable absente du `.env`.
 
 | Attente                                  | Réglage                                                                 | Valeur prod                      | Rôle                                      |
 | ---------------------------------------- | ----------------------------------------------------------------------- | -------------------------------- | ----------------------------------------- |

@@ -341,7 +341,7 @@ async function main(): Promise<void> {
     throw new Error('BENCH_CONCURRENCY doit être un entier entre 1 et 8');
   }
 
-  const keyterms = buildSttKeyterms('Chez Sokar');
+  const keyterms = buildSttKeyterms('Chez Suppernote');
   const tasks = await makeTasks(limit);
   const audioSeconds = tasks.reduce(
     (sum, task) => sum + task.audio.length / BYTES_PER_MS / 1000 + TRAILING_SILENCE_MS / 1000,

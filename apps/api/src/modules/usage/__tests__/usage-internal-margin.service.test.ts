@@ -29,7 +29,7 @@ describe('internal usage margin report', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'restaurant-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'restaurant-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
 
     const report = await getInternalMarginReport({ monthKey: '2026-09' });
@@ -61,7 +61,7 @@ describe('internal usage margin report', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'restaurant-1', name: 'Chez Sokar', plan: 'STARTER' },
+      { id: 'restaurant-1', name: 'Chez Suppernote', plan: 'STARTER' },
     ] as never);
 
     const report = await getInternalMarginReport({ monthKey: '2026-09' });
@@ -92,7 +92,7 @@ describe('internal usage margin report', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'restaurant-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'restaurant-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
     vi.mocked(db.usageReconciliationAdjustment.findMany).mockResolvedValue([
       {
@@ -173,7 +173,7 @@ describe('internal usage margin report', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'restaurant-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'restaurant-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
 
     const report = await getInternalMarginReport({ monthKey: '2026-09' });

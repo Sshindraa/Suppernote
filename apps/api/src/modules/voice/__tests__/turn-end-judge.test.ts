@@ -96,7 +96,7 @@ describe('juge de fin de tour (prototype de banc)', () => {
     // Même question de l'agent, même parole : seule la consigne change.
     expect(candidate.messages[1]).toEqual(current.messages[1]);
     expect(String(current.messages[1].content)).toContain(
-      'Bonjour, ici Chez Sokar. Je vous écoute.',
+      'Bonjour, ici Chez Suppernote. Je vous écoute.',
     );
   });
 

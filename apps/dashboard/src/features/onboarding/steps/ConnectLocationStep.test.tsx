@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   setPlaceImportDraft: vi.fn(),
   restaurant: {
     id: 'local-test',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     formattedAddress: '12 rue de la République',
     postalCode: '69002',
     city: 'Lyon',

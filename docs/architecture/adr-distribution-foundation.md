@@ -6,7 +6,7 @@ Portée commerciale : Pro et Multi-site (`distribution.manage`)
 
 ## Contexte
 
-La distribution est l'écart le plus visible entre le socle Sokar et un produit comme
+La distribution est l'écart le plus visible entre le socle Suppernote et un produit comme
 SevenRooms : disponibilité publiée sur un canal tiers, réservation rattachée à la bonne
 source et synchronisation contrôlable. La demande commerciale peut viser Google Reserve,
 Meta Reserve, une plateforme de réservation ou une API publique. Les contrats, les secrets,
@@ -72,7 +72,7 @@ La migration additive est
 - date de service, début/fin, taille de groupe, disponibilité et capacité bornées ;
 - révision source et `payloadHash` pour expliquer une valeur ;
 - `observedAt` permet de détecter un snapshot périmé ;
-- le snapshot est informatif et ne devient jamais la source autoritaire de capacité Sokar.
+- le snapshot est informatif et ne devient jamais la source autoritaire de capacité Suppernote.
 
 ### `DistributionReservationLink`
 
@@ -120,7 +120,7 @@ d'idempotence, le payload ou l'identifiant opérateur en clair.
    `409 DISTRIBUTION_SYNC_IDEMPOTENCY_CONFLICT` ;
 4. terminer un run une seule fois ; un état final rejoué à l'identique est un no-op, un autre
    état est refusé ;
-5. upsert un snapshot borné par slot, sans écrire dans les tables de capacité Sokar ;
+5. upsert un snapshot borné par slot, sans écrire dans les tables de capacité Suppernote ;
 6. lier un identifiant externe uniquement à une réservation existante du même tenant ; un
    collision de hash ou de réservation est un conflit ;
 7. ingérer une enveloppe de webhook et la rejouer par `(restaurantId, provider, externalEventHash)` ;
@@ -135,21 +135,21 @@ relecture. Les lignes finales ne sont jamais réécrites silencieusement.
 Les routes sont enregistrées dans `main.ts` et utilisent `requireOrg`,
 `requireCapability('distribution.manage')`, le rôle du site et `DISTRIBUTION_ENABLED`.
 
-| Méthode        | Route                                                  | Rôle et comportement                                                             |
-| -------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `GET`          | `/distribution/connections`                            | Liste tenant-scoped pour l'équipe du site.                                       |
-| `POST`         | `/distribution/connections`                            | Owner/Manager ; connexion ou mise à jour locale, référence de secret opaque.     |
-| `GET`          | `/distribution/connections/:id`                        | Détail masqué d'une connexion.                                                   |
-| `POST`         | `/distribution/connections/:id/disconnect`             | Owner/Manager ; conserve les traces.                                             |
-| `GET` / `POST` | `/distribution/connections/:id/availability`           | Lecture équipe ; upsert de snapshot Owner/Manager.                               |
-| `GET`          | `/distribution/sync-runs`                              | Runs bornés, filtrables par connexion/état.                                      |
-| `POST`         | `/distribution/connections/:id/sync-runs`              | Owner/Manager ; `Idempotency-Key` obligatoire. Crée une trace locale uniquement. |
-| `GET`          | `/distribution/reservation-links`                      | Associations masquées pour l'équipe.                                             |
-| `POST`         | `/distribution/connections/:id/reservation-links`      | Owner/Manager ; association explicite à une réservation existante.               |
-| `GET`          | `/distribution/webhooks`                               | Inbox hachée pour la revue de l'équipe.                                          |
-| `POST`         | `/api/internal/distribution/webhook-events`            | Opérateur Sokar ; fixture/enveloppe préparatoire, sans route publique signée.    |
-| `POST`         | `/api/internal/distribution/webhook-events/:id/finish` | Opérateur Sokar ; transition finale idempotente.                                 |
-| `POST`         | `/api/internal/distribution/sync-runs/:id/finish`      | Opérateur/adaptateur futur ; compteurs et état final bornés.                     |
+| Méthode        | Route                                                  | Rôle et comportement                                                               |
+| -------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `GET`          | `/distribution/connections`                            | Liste tenant-scoped pour l'équipe du site.                                         |
+| `POST`         | `/distribution/connections`                            | Owner/Manager ; connexion ou mise à jour locale, référence de secret opaque.       |
+| `GET`          | `/distribution/connections/:id`                        | Détail masqué d'une connexion.                                                     |
+| `POST`         | `/distribution/connections/:id/disconnect`             | Owner/Manager ; conserve les traces.                                               |
+| `GET` / `POST` | `/distribution/connections/:id/availability`           | Lecture équipe ; upsert de snapshot Owner/Manager.                                 |
+| `GET`          | `/distribution/sync-runs`                              | Runs bornés, filtrables par connexion/état.                                        |
+| `POST`         | `/distribution/connections/:id/sync-runs`              | Owner/Manager ; `Idempotency-Key` obligatoire. Crée une trace locale uniquement.   |
+| `GET`          | `/distribution/reservation-links`                      | Associations masquées pour l'équipe.                                               |
+| `POST`         | `/distribution/connections/:id/reservation-links`      | Owner/Manager ; association explicite à une réservation existante.                 |
+| `GET`          | `/distribution/webhooks`                               | Inbox hachée pour la revue de l'équipe.                                            |
+| `POST`         | `/api/internal/distribution/webhook-events`            | Opérateur Suppernote ; fixture/enveloppe préparatoire, sans route publique signée. |
+| `POST`         | `/api/internal/distribution/webhook-events/:id/finish` | Opérateur Suppernote ; transition finale idempotente.                              |
+| `POST`         | `/api/internal/distribution/sync-runs/:id/finish`      | Opérateur/adaptateur futur ; compteurs et état final bornés.                       |
 
 Les erreurs d'entrée renvoient `400`, les ressources hors tenant `404`, et les collisions ou
 états finaux `409`. Une route interne exige `restaurantId` dans le corps car le guard opérateur
@@ -164,7 +164,7 @@ Le choix du premier canal doit produire une implémentation distincte, par exemp
    sans renvoyer le secret au domaine ;
 2. mappe les disponibilités vers `slotKey`, date et capacité, en conservant une révision source ;
 3. crée un `DistributionSyncRun`, utilise le curseur et signe chaque requête ;
-4. associe une réservation externe uniquement après confirmation d'une réservation Sokar ;
+4. associe une réservation externe uniquement après confirmation d'une réservation Suppernote ;
 5. vérifie la signature, l'horodatage et l'anti-rejeu d'un webhook avant de créer l'enveloppe ;
 6. journalise des métriques sans nom, téléphone, token ou payload ;
 7. finit le run en `SUCCEEDED`, `FAILED` ou `NEEDS_REVIEW` selon une classification explicite.

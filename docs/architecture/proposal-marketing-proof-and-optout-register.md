@@ -173,7 +173,7 @@ reprendre est probablement nul ou très faible.
 3. **Identifiant de l'auteur** (`actor_user_id`) : accord pour conserver un identifiant opaque de membre
    d'équipe dans le journal (visible dans l'export RGPD du client ?). À trancher avec la politique.
 4. **Portée du registre** : par restaurant (proposé : une opposition envers un restaurant ne vaut pas pour un
-   autre) ou commune à tous les restaurants de Sokar.
+   autre) ou commune à tous les restaurants de Suppernote.
 5. **Mention** du registre dans la politique de confidentialité et l'annexe client, avant écriture à de vrais
    clients.
 

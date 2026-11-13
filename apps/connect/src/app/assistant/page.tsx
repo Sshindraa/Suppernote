@@ -105,7 +105,7 @@ export default function AssistantPage() {
           <pre className="mt-3 overflow-x-auto rounded bg-muted p-3 text-xs text-ink">
             <code>{`{
   "mcpServers": {
-    "sokar": {
+    "suppernote": {
       "url": "${API_URL}/mcp"
     }
   }

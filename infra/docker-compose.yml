@@ -1,4 +1,4 @@
-# ── Sokar Infra Stack ───────────────────────────────────────────────────────
+# ── Suppernote Infra Stack ──────────────────────────────────────────────────
 # PostgreSQL + Redis via Docker
 # API et Dashboard tournent directement via PM2 (build natif sur le VPS)
 

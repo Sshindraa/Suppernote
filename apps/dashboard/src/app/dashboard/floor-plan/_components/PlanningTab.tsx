@@ -475,14 +475,14 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="sokar-error">
+        <div className="suppernote-error">
           <AlertCircle size={18} />
           {error}
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Taux d&apos;occupation
@@ -498,7 +498,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Réservations
@@ -510,7 +510,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Tables</CardTitle>
           </CardHeader>
@@ -522,7 +522,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
           </CardContent>
         </Card>
 
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Date</CardTitle>
           </CardHeader>
@@ -554,13 +554,13 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
       </div>
 
       {allTables.length === 0 ? (
-        <div className="sokar-empty">
+        <div className="suppernote-empty">
           <UtensilsCrossed size={40} className="opacity-30" />
           <p className="text-sm">Aucune table dans votre plan de salle</p>
           <p className="text-xs opacity-60">Créez des tables pour visualiser le planning.</p>
         </div>
       ) : (
-        <Card className="sokar-card overflow-hidden">
+        <Card className="suppernote-card overflow-hidden">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-medium">
               Planning {format(parseISO(date), 'dd/MM/yyyy')}
@@ -730,7 +730,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
           </DialogHeader>
 
           {dialogError ? (
-            <div className="sokar-error text-sm">
+            <div className="suppernote-error text-sm">
               <AlertCircle size={16} />
               {dialogError}
             </div>

@@ -388,7 +388,7 @@ export default function CustomersPage() {
       const url = URL.createObjectURL(new Blob([res.data.csv], { type: 'text/csv;charset=utf-8' }));
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `clients-sokar-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.download = `clients-suppernote-${new Date().toISOString().slice(0, 10)}.csv`;
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
@@ -580,7 +580,7 @@ export default function CustomersPage() {
       )}
       {customers.length === 0 ? (
         error ? null : (
-          <div className="sokar-empty">
+          <div className="suppernote-empty">
             <Users size={40} className="opacity-30" />
             <p className="text-sm">
               {hasFilters
@@ -623,7 +623,7 @@ export default function CustomersPage() {
         </div>
       ) : (
         /* ========== DESKTOP: Table ========== */
-        <div className="sokar-card overflow-hidden">
+        <div className="suppernote-card overflow-hidden">
           <div className="mobile-table-wrapper">
             <Table>
               <TableHeader>

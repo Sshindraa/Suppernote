@@ -1,6 +1,6 @@
 #!/bin/bash
 set -Eeuo pipefail
-# Librairie partagée pour les déploiements Sokar (prod + staging).
+# Librairie partagée pour les déploiements Suppernote (prod + staging).
 # Sourcée par scripts/deploy.sh avant le parsing des arguments.
 #
 # Variables attendues (set par deploy.sh avant d'appeler les fonctions) :
@@ -104,7 +104,7 @@ ensure_privileged_wrapper() {
 # Attendre que les services soient up (health + livez), timeout configurable
 wait_for_services() {
     local timeout=${1:-$WAIT_TIMEOUT}
-    local WAIT_START WAIT_NOW API_HEALTH API_LIVEZ DASH_READY CONNECT_READY
+    local WAIT_START WAIT_NOW API_HEALTH API_LIVEZ DASH_READY CONNECT_READY CONNECT_CANONICAL_READY
     log info ""
     log info "⏳ Waiting for ${DEPLOY_ENV} services to be ready (timeout ${timeout}s)..."
     WAIT_START=$(date +%s)
@@ -545,7 +545,7 @@ recover_services() {
 
     log info ""
     log_error "Services ${DEPLOY_ENV} restaurés à l'état pré-build. Le déploiement a échoué."
-    notify "🔴 Sokar ${DEPLOY_ENV} deploy failed (branch ${BRANCH}, exit ${exit_code})"
+    notify "🔴 Suppernote ${DEPLOY_ENV} deploy failed (branch ${BRANCH}, exit ${exit_code})"
     exit "$exit_code"
 }
 
@@ -1101,7 +1101,7 @@ health_checks() {
             log_error "Deploy REGRESSED : dashboard HTML répond 200 mais assets statiques en échec (dashboard=$DASH_CSS_STATUS, /pricing CSS=$PRICING_CSS_STATUS)."
             log info "   Cause probable : scripts/copy-static.sh non exécuté ou .next/static manquant."
             log info "   Fix manuel : cd /opt/sokar/apps/dashboard && bash scripts/copy-static.sh && pm2 restart sokar-dashboard"
-            notify "🔴 Sokar production deploy REGRESSED (static assets 404, branch ${BRANCH})"
+            notify "🔴 Suppernote production deploy REGRESSED (static assets 404, branch ${BRANCH})"
             DEPLOY_HEALTH_OK=false
             DEPLOY_HEALTH_REGRESSED=true
         else
@@ -1384,11 +1384,11 @@ handle_rollback() {
         log info ""
         log_ok "Rollback vers $TARGET_RELEASE terminé"
         log info "   Meta: $(cat "$RELEASE_PATH/META" 2>/dev/null | tr '\n' ' ')"
-        notify "✅ Sokar ${DEPLOY_ENV} rollback OK (${TARGET_RELEASE})"
+        notify "✅ Suppernote ${DEPLOY_ENV} rollback OK (${TARGET_RELEASE})"
     else
         log info ""
         log_error "Rollback terminé mais vérifications échouées — investiguer manuellement"
-        notify "🔴 Sokar ${DEPLOY_ENV} rollback failed (${TARGET_RELEASE})"
+        notify "🔴 Suppernote ${DEPLOY_ENV} rollback failed (${TARGET_RELEASE})"
         return 1
     fi
     return 0

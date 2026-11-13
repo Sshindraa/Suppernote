@@ -1,4 +1,4 @@
-# Sokar — Sprint 1 : Brief Technique Agent Code
+# Suppernote — Sprint 1 : Brief Technique Agent Code
 
 ### MVP Production-Ready — Mai 2026
 

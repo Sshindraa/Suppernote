@@ -58,7 +58,7 @@ export function SiteManagementCard() {
   }
 
   return (
-    <Card className="sokar-card">
+    <Card className="suppernote-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Building2 size={18} />

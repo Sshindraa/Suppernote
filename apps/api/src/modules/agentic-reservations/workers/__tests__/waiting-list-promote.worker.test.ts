@@ -46,7 +46,7 @@ const baseEntry = {
   slotStart,
   restaurant: {
     id: 'rest-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     phoneNumber: '+33123456789',
     phoneE164: '+33123456789',
   },
@@ -154,7 +154,7 @@ describe('waiting-list-promote.worker', () => {
     const [to, text] = vi.mocked(sendSms).mock.calls[0] as [string, string];
     expect(to).toBe('+33612345678');
     expect(text).toContain('Bonne nouvelle !');
-    expect(text).toContain('Chez Sokar');
+    expect(text).toContain('Chez Suppernote');
     expect(text).toContain('mercredi 14 janvier 2026');
     expect(text).toContain('19:30');
     expect(text).toContain('4 personnes');
@@ -177,9 +177,9 @@ describe('waiting-list-promote.worker', () => {
       { to: string; subject: string; html: string },
     ];
     expect(opts.to).toBe('alice@example.com');
-    expect(opts.subject).toBe('Votre table chez Chez Sokar est confirmée');
+    expect(opts.subject).toBe('Votre table chez Chez Suppernote est confirmée');
     expect(opts.html).toContain('Bonne nouvelle !');
-    expect(opts.html).toContain('Chez Sokar');
+    expect(opts.html).toContain('Chez Suppernote');
     expect(opts.html).toContain('mercredi 14 janvier 2026');
     expect(opts.html).toContain('19:30');
     expect(opts.html).toContain('4 personnes');

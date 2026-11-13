@@ -35,7 +35,7 @@ export function SyncOrganization() {
         if (res.ok) {
           setFailure(null);
           // Le provider multi-site peut avoir chargé avant la création du restaurant.
-          window.dispatchEvent(new Event('sokar:organization-synced'));
+          window.dispatchEvent(new Event('suppernote:organization-synced'));
           return;
         }
         retryable = res.status >= 500 || res.status === 429;

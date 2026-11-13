@@ -22,7 +22,7 @@ vi.mock('../../../shared/db/client', () => ({
   db: {
     reservation: { findMany: vi.fn(), aggregate: vi.fn() },
     $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn({})),
-    restaurant: { findUnique: vi.fn().mockResolvedValue({ name: 'Chez Sokar' }) },
+    restaurant: { findUnique: vi.fn().mockResolvedValue({ name: 'Chez Suppernote' }) },
   },
 }));
 vi.mock('../../floor-plan/availability-capacity-aware.service', () => ({

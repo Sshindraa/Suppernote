@@ -229,7 +229,7 @@ export default function CallsPage() {
         </div>
       ) : (
         /* ========== DESKTOP: Table ========== */
-        <div className="sokar-card overflow-hidden">
+        <div className="suppernote-card overflow-hidden">
           <div className="mobile-table-wrapper">
             <Table>
               <TableHeader>

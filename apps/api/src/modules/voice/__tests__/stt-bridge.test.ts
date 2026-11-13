@@ -150,7 +150,7 @@ describe('buildDeepgramSttUrl', () => {
     ['PCMU', 'mulaw', '8000'],
     ['L16', 'linear16', '16000'],
   ] as const)('déclare le format %s correspondant au codec entrant', (codec, encoding, rate) => {
-    const url = new URL(buildDeepgramSttUrl(codec, ['Chez Sokar', 'réservation']));
+    const url = new URL(buildDeepgramSttUrl(codec, ['Chez Suppernote', 'réservation']));
     expect(url.hostname).toBe('api.deepgram.com');
     expect(url.pathname).toBe('/v1/listen');
     expect(url.searchParams.get('model')).toBe('nova-3');
@@ -163,11 +163,11 @@ describe('buildDeepgramSttUrl', () => {
     expect(url.searchParams.get('numerals')).toBe('true');
     expect(url.searchParams.get('punctuate')).toBe('false');
     expect(url.searchParams.get('mip_opt_out')).toBe('true');
-    expect(url.searchParams.getAll('keyterm')).toEqual(['Chez Sokar', 'réservation']);
+    expect(url.searchParams.getAll('keyterm')).toEqual(['Chez Suppernote', 'réservation']);
   });
 
   it('sélectionne Flux v2 avec le hint français et ses seuils de tour', () => {
-    const url = new URL(buildDeepgramSttUrl('PCMA', ['Chez Sokar'], 'flux-general-multi'));
+    const url = new URL(buildDeepgramSttUrl('PCMA', ['Chez Suppernote'], 'flux-general-multi'));
     expect(url.pathname).toBe('/v2/listen');
     expect(url.searchParams.get('model')).toBe('flux-general-multi');
     expect(url.searchParams.get('language_hint')).toBe('fr');
@@ -178,7 +178,7 @@ describe('buildDeepgramSttUrl', () => {
     expect(url.searchParams.get('mip_opt_out')).toBe('true');
     expect(url.searchParams.get('numerals')).toBe('true');
     expect(url.searchParams.has('punctuate')).toBe(false);
-    expect(url.searchParams.getAll('keyterm')).toEqual(['Chez Sokar']);
+    expect(url.searchParams.getAll('keyterm')).toEqual(['Chez Suppernote']);
   });
 
   it('transmet les paramètres expérimentaux de formatage et l’opt-out MIP explicites', () => {

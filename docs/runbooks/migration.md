@@ -63,7 +63,7 @@ Une migration destructive reste possible, mais elle doit être assumée dans le
 fichier lui-même :
 
 ```sql
--- sokar:destructive-ok — colonne remplacée par une vue, backfill vérifié le 21/09
+-- suppernote:destructive-ok — colonne remplacée par une vue, backfill vérifié le 21/09
 ALTER TABLE "reservations" DROP COLUMN "legacy_status";
 ```
 

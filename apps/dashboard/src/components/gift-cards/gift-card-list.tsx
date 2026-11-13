@@ -63,7 +63,7 @@ export default function GiftCardList({
 
   if (items.length === 0) {
     return (
-      <div className="sokar-empty">
+      <div className="suppernote-empty">
         <Gift size={40} className="opacity-30" />
         {filtered ? (
           <>
@@ -220,7 +220,7 @@ export default function GiftCardList({
   }
 
   return (
-    <div className="sokar-card overflow-hidden">
+    <div className="suppernote-card overflow-hidden">
       <div className="mobile-table-wrapper">
         <Table>
           <TableHeader>

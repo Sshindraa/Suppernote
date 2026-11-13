@@ -33,15 +33,15 @@ export default function LoginHeadline() {
   }, []);
 
   return (
-    <h2 className="sokar-login__story-heading">
+    <h2 className="suppernote-login__story-heading">
       <span
         key={LOGIN_HEADLINES[activeIndex]}
-        className="sokar-login__rotating-word"
+        className="suppernote-login__rotating-word"
         aria-live="off"
       >
         {LOGIN_HEADLINES[activeIndex]}
       </span>
-      <span className="sokar-login__story-highlight">Suppernote s’en occupe pour vous.</span>
+      <span className="suppernote-login__story-highlight">Suppernote s’en occupe pour vous.</span>
     </h2>
   );
 }

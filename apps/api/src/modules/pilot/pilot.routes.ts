@@ -11,14 +11,14 @@ import type { FastifyInstance } from 'fastify';
 import { PilotKpiService } from './pilot-kpis.service';
 import { logger } from '../../shared/logger/pino';
 import { db } from '../../shared/db/client';
-import { requireSokarOperator } from '../../plugins/clerk';
+import { requirePlatformOperator } from '../../plugins/clerk';
 
 export async function pilotRoutes(app: FastifyInstance): Promise<void> {
   const service = new PilotKpiService(db);
 
   app.get(
     '/api/internal/pilot-kpis',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_req, reply) => {
       try {
         const kpis = await service.getKpis();

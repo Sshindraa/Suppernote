@@ -29,21 +29,21 @@ describe('restaurant routes — sites accessibles', () => {
       restaurants: [
         {
           id: 'site_primary',
-          name: 'Chez Sokar Lyon',
+          name: 'Chez Suppernote Lyon',
           siteStatus: 'ACTIVE',
           isPrimary: true,
           createdAt: new Date(1),
         },
         {
           id: 'site_two',
-          name: 'Chez Sokar Paris',
+          name: 'Chez Suppernote Paris',
           siteStatus: 'ACTIVE',
           isPrimary: false,
           createdAt: new Date(2),
         },
         {
           id: 'site_paused',
-          name: 'Chez Sokar Lille',
+          name: 'Chez Suppernote Lille',
           siteStatus: 'SUSPENDED',
           isPrimary: false,
           createdAt: new Date(3),
@@ -65,21 +65,21 @@ describe('restaurant routes — sites accessibles', () => {
       sites: [
         {
           id: 'site_primary',
-          name: 'Chez Sokar Lyon',
+          name: 'Chez Suppernote Lyon',
           siteStatus: 'ACTIVE',
           isPrimary: true,
           role: 'OWNER',
         },
         {
           id: 'site_two',
-          name: 'Chez Sokar Paris',
+          name: 'Chez Suppernote Paris',
           siteStatus: 'ACTIVE',
           isPrimary: false,
           role: 'OWNER',
         },
         {
           id: 'site_paused',
-          name: 'Chez Sokar Lille',
+          name: 'Chez Suppernote Lille',
           siteStatus: 'SUSPENDED',
           isPrimary: false,
           role: 'OWNER',
@@ -129,7 +129,7 @@ describe('restaurant routes — sites accessibles', () => {
     } as never);
     vi.mocked(db.restaurant.create).mockResolvedValue({
       id: 'site_two',
-      name: 'Chez Sokar Paris',
+      name: 'Chez Suppernote Paris',
       siteStatus: 'ACTIVE',
       isPrimary: false,
     } as never);
@@ -138,13 +138,13 @@ describe('restaurant routes — sites accessibles', () => {
       method: 'POST',
       url: '/restaurants/sites',
       headers: { authorization: 'Bearer test' },
-      payload: { name: 'Chez Sokar Paris', phoneNumber: '+33123456789' },
+      payload: { name: 'Chez Suppernote Paris', phoneNumber: '+33123456789' },
     });
 
     expect(res.statusCode).toBe(201);
     expect(res.json()).toEqual({
       id: 'site_two',
-      name: 'Chez Sokar Paris',
+      name: 'Chez Suppernote Paris',
       siteStatus: 'ACTIVE',
       isPrimary: false,
       role: 'OWNER',
@@ -154,7 +154,7 @@ describe('restaurant routes — sites accessibles', () => {
         accountId: 'test-account-1',
         isPrimary: false,
         siteStatus: 'ACTIVE',
-        name: 'Chez Sokar Paris',
+        name: 'Chez Suppernote Paris',
         // La ligne saisie est la ligne publique du site ; le numéro Suppernote est provisoire et
         // attribué ensuite par un opérateur.
         phoneNumber: expect.stringMatching(/^\+000site-/),
@@ -198,7 +198,7 @@ describe('restaurant routes — sites accessibles', () => {
       accountId: 'test-account-1',
       isPrimary: true,
       siteStatus: 'ACTIVE',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
     } as never);
     vi.mocked(db.restaurant.count).mockResolvedValue(0);
 
@@ -221,12 +221,12 @@ describe('restaurant routes — sites accessibles', () => {
       accountId: 'test-account-1',
       isPrimary: true,
       siteStatus: 'ACTIVE',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
     } as never);
     vi.mocked(db.restaurant.findFirst).mockResolvedValue({ id: 'site_two' } as never);
     vi.mocked(db.restaurant.update).mockResolvedValue({
       id: 'test-rest-1',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       siteStatus: 'SUSPENDED',
       isPrimary: false,
     } as never);

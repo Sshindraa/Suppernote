@@ -25,7 +25,7 @@ vi.mock('../../../shared/observability/system-checks', () => ({
 
 const restaurant = {
   id: 'resto-1',
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   slug: 'chez-sokar',
   phoneNumber: '+33451221528',
   carrier: 'telnyx',
@@ -89,7 +89,7 @@ describe('buildRestaurantHealth', () => {
     const health = await buildRestaurantHealth('resto-1');
 
     expect(health).not.toBeNull();
-    expect(health!.restaurant.name).toBe('Chez Sokar');
+    expect(health!.restaurant.name).toBe('Chez Suppernote');
     expect(health!.phone).toMatchObject({
       number: '+33451221528',
       provisioningStatus: 'READY',

@@ -9,7 +9,7 @@
 --
 
 \set ON_ERROR_STOP on
-\echo '>>> SOKAR AUDIT CHECKS — starting at:'
+\echo '>>> SUPPERNOTE AUDIT CHECKS — starting at:'
 SELECT now();
 
 -- ─── 1. Doubles réservations actives sur le même slot ────────────────────────────────────
@@ -78,5 +78,5 @@ WHERE a.created_at >= now() - interval '24 hours'
 GROUP BY a.event
 ORDER BY count(*) DESC;
 
-\echo '>>> SOKAR AUDIT CHECKS — done.'
+\echo '>>> SUPPERNOTE AUDIT CHECKS — done.'
 SELECT now();

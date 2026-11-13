@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { SokarAgentClient } from './sokar-client.js';
+import type { SuppernoteAgentClient } from './suppernote-client.js';
 import type { AgentRunnerOptions, AgentRunnerResult, Message, ToolName } from './types.js';
 
 function chooseToolChoice(_messages: Message[]): 'auto' | 'any' {
@@ -7,8 +7,8 @@ function chooseToolChoice(_messages: Message[]): 'auto' | 'any' {
   return 'auto';
 }
 
-export class SokarAgentRunner {
-  constructor(private readonly client: SokarAgentClient) {}
+export class SuppernoteAgentRunner {
+  constructor(private readonly client: SuppernoteAgentClient) {}
 
   /**
    * Lance une conversation multi-tours.
@@ -87,6 +87,6 @@ export class SokarAgentRunner {
       }
     }
 
-    throw new Error(`SokarAgentRunner: max tool turns reached (${maxToolTurns})`);
+    throw new Error(`SuppernoteAgentRunner: max tool turns reached (${maxToolTurns})`);
   }
 }

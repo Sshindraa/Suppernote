@@ -1,4 +1,4 @@
-# Livraison groupée — accueil Sokar
+# Livraison groupée — accueil Suppernote
 
 15 octobre 2026. **Livré en staging et production, recette publique exécutée avec réserves (§10.30).**
 Le texte de préparation ci-dessous est historique ; Hamza a ensuite autorisé la livraison par « ok go ».

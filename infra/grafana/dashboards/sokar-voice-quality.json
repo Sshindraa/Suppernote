@@ -1,7 +1,7 @@
 {
   "uid": "sokar-voice-quality",
-  "title": "Sokar — Qualité des réservations vocales",
-  "tags": ["sokar", "voice", "quality"],
+  "title": "Suppernote — Qualité des réservations vocales",
+  "tags": ["suppernote", "voice", "quality"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "1m",

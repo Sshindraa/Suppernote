@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Vérifie ou complète les événements Stripe requis par la facturation Sokar.
+ * Vérifie ou complète les événements Stripe requis par la facturation Suppernote.
  *
  * Stripe ne livre que les événements explicitement cochés sur un endpoint. Un
  * Checkout peut donc sembler fonctionner tout en laissant le compte bloqué en

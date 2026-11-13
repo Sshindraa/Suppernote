@@ -2,7 +2,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getAuth } from '@clerk/fastify';
 import { db } from '../../shared/db/client';
-import { requireOrg, requireSokarOperator } from '../clerk';
+import { requireOrg, requirePlatformOperator } from '../clerk';
 
 vi.mock('@clerk/fastify', () => ({
   clerkPlugin: vi.fn(),
@@ -48,7 +48,7 @@ function makeReply() {
   return reply;
 }
 
-describe('requireSokarOperator', () => {
+describe('requirePlatformOperator', () => {
   afterEach(() => {
     vi.clearAllMocks();
     process.env.CLERK_PUBLISHABLE_KEY = originalEnv.clerkPublishableKey;
@@ -74,7 +74,7 @@ describe('requireSokarOperator', () => {
     const request = makeRequest();
     const reply = makeReply();
 
-    await requireSokarOperator()(request, reply);
+    await requirePlatformOperator()(request, reply);
 
     expect(reply.status).toHaveBeenCalledWith(401);
     expect(reply.send).toHaveBeenCalledWith({ error: 'Authentication required' });
@@ -85,7 +85,7 @@ describe('requireSokarOperator', () => {
     const request = makeRequest();
     const reply = makeReply();
 
-    await requireSokarOperator()(request, reply);
+    await requirePlatformOperator()(request, reply);
 
     expect(reply.status).toHaveBeenCalledWith(403);
     expect(reply.send).toHaveBeenCalledWith({ error: 'Suppernote operator access required' });
@@ -96,7 +96,7 @@ describe('requireSokarOperator', () => {
     const request = makeRequest();
     const reply = makeReply();
 
-    await requireSokarOperator()(request, reply);
+    await requirePlatformOperator()(request, reply);
 
     expect(reply.status).not.toHaveBeenCalled();
     expect(request.userId).toBe('user-operator');
@@ -117,7 +117,7 @@ describe('requireSokarOperator', () => {
       const request = makeRequest();
       const reply = makeReply();
 
-      await requireSokarOperator()(request, reply);
+      await requirePlatformOperator()(request, reply);
 
       if (status) expect(reply.status).toHaveBeenCalledWith(status);
       else expect(reply.status).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('requireSokarOperator', () => {
     request.userId = 'demo-user';
     const reply = makeReply();
 
-    await requireSokarOperator()(request, reply);
+    await requirePlatformOperator()(request, reply);
 
     expect(reply.status).not.toHaveBeenCalled();
   });

@@ -1,5 +1,5 @@
 /**
- * Client MCP de test pour Sokar.
+ * Client MCP de test pour Suppernote.
  *
  * Usage :
  *   cd apps/api
@@ -90,7 +90,7 @@ function buildSlotCandidates(): TestSlot[] {
 }
 
 async function main() {
-  console.log('=== MCP Sokar — test client ===\n');
+  console.log('=== MCP Suppernote — test client ===\n');
 
   // 1. Initialize
   console.log('1. initialize');

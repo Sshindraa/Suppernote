@@ -11,7 +11,7 @@ import { logger } from '../../shared/logger/pino';
 const SimulateCallSchema = z.object({
   /** Numéro de l'appelant */
   callerPhone: z.string().min(5),
-  /** Optionnel : numéro du restaurant (défaut = Chez Sokar démo) */
+  /** Optionnel : numéro du restaurant (sans numéro, utilise le numéro de test par défaut) */
   restaurantPhone: z.string().min(5).optional(),
   /** Mode enregistré sur l'appel de test (le mode « mock » à outils n'existe plus : simple libellé). */
   mode: z.enum(['auto', 'mock']).default('auto'),

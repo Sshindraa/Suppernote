@@ -65,7 +65,7 @@ Relever dans les journaux et la base, sur la fenêtre temporelle du test :
 Un 409 est acceptable uniquement si un conflit réel a été provoqué volontairement. Dans ce cas,
 aucune mutation partielle ne doit exister.
 
-Un second clic ou une reprise réseau du même « Vérifier et appliquer » est attendu : Sokar renvoie
+Un second clic ou une reprise réseau du même « Vérifier et appliquer » est attendu : Suppernote renvoie
 le premier résultat sans créer une seconde promotion. En revanche, si une même clé d’action revient
 avec des données différentes (retard, table, groupe ou acceptation), le système répond 409 et le
 responsable doit relancer l’analyse. Cette comparaison est aussi refaite une fois les ressources
@@ -136,7 +136,7 @@ jamais forcer l’état en base : le refus protège une réservation déjà inst
 
 ## Shadow mode
 
-Pendant le shadow mode, le responsable décide d’abord ce qu’il ferait sans Sokar, puis révèle la
+Pendant le shadow mode, le responsable décide d’abord ce qu’il ferait sans Suppernote, puis révèle la
 proposition du Copilot. Aucune proposition ne doit être appliquée automatiquement.
 
 ### Télémétrie discrète
@@ -153,21 +153,21 @@ décision n’est envoyé à un tiers. Toute panne de télémétrie est sans eff
 Consulter les résultats dans `Copilot → Qualité des recommandations` (`/dashboard/copilot/quality`)
 ou via le résumé API, jamais dans le flux de décision du Live service. Cette page permet de comparer
 les périodes 7, 30 et 90 jours, puis les résultats par type de recommandation. Après le service,
-elle affiche les suggestions ouvertes ou expirées que Sokar ne peut pas observer physiquement : le
+elle affiche les suggestions ouvertes ou expirées que Suppernote ne peut pas observer physiquement : le
 responsable les classe « appliquée » ou « sans suite ». Les rééquilibrages de serveur, eux, sont
-contrôlés et enregistrés côté serveur : si la table ou son serveur a changé, Sokar refuse avec 409.
+contrôlés et enregistrés côté serveur : si la table ou son serveur a changé, Suppernote refuse avec 409.
 
 Pour chaque situation, relever :
 
 | Champ                     | Valeur attendue                                |
 | ------------------------- | ---------------------------------------------- |
 | Horodatage et service     | Date, déjeuner/dîner, niveau d’activité        |
-| Décision sans Sokar       | Action choisie avant d’ouvrir la proposition   |
-| Proposition Sokar         | Résumé exact des personnes, tables et horaires |
+| Décision sans Suppernote  | Action choisie avant d’ouvrir la proposition   |
+| Proposition Suppernote    | Résumé exact des personnes, tables et horaires |
 | Compris sans aide         | Oui/non, puis raison en cas de non             |
 | Décision                  | Acceptée, modifiée ou refusée                  |
 | Temps manuel              | Secondes jusqu’à la décision initiale          |
-| Temps avec Sokar          | Secondes jusqu’à la décision finale            |
+| Temps avec Suppernote     | Secondes jusqu’à la décision finale            |
 | Conflit 409               | Oui/non et cause réelle                        |
 | Mauvaise proposition      | Oui/non, sévérité et explication               |
 | Client en attente présent | Oui/non/vérifié par qui                        |
@@ -177,7 +177,7 @@ Pour chaque situation, relever :
 - Compréhension autonome = propositions comprises / propositions observées.
 - Taux d’acceptation = propositions acceptées sans modification / propositions applicables.
 - Conflits = nombre de 409, séparés entre conflits légitimes et anomalies.
-- Temps gagné médian = temps manuel moins temps avec Sokar.
+- Temps gagné médian = temps manuel moins temps avec Suppernote.
 - Taux de mauvaises propositions = propositions incorrectes ou dangereuses / propositions observées.
 - Présence réelle = entrées vérifiées présentes / entrées proposées.
 

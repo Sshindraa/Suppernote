@@ -3,7 +3,7 @@
 # Cible: nouveau Mac. Déchiffre le bundle et restore Hermes + SSH + .env + alias.
 #
 # Usage:  ./install.sh <chemin-vers-sokar-mac-migration-*.tar.gz.enc>
-# Sortie: Hermes, profils, SSH, alias .zshrc, et clone Sokar si absent.
+# Sortie: Hermes, profils, SSH, alias .zshrc, et clone Suppernote si absent.
 
 set -euo pipefail
 
@@ -94,11 +94,11 @@ for pub in "$BUNDLE"/ssh/*.pub; do
   fi
 done
 
-# ---------- 4. Sokar .env + clone ----------
-echo "== 4/5 Sokar repo + .env =="
+# ---------- 4. Suppernote .env + clone ----------
+echo "== 4/5 Suppernote repo + .env =="
 SOKAR_DIR="/Users/hamza/Desktop/Sokar"
 if [[ ! -d "$SOKAR_DIR/.git" ]]; then
-  echo "  → clone Sokar depuis GitHub (Sshindraa/Sokar)"
+  echo "  → clone Suppernote depuis GitHub (Sshindraa/Sokar)"
   git clone https://github.com/Sshindraa/Sokar.git "$SOKAR_DIR"
 else
   echo "  ✓ repo déjà présent, pas de re-clone"
@@ -141,7 +141,7 @@ echo
 echo "== Vérifications =="
 echo -n "  config.yaml: "; [[ -s ~/.hermes/config.yaml ]] && echo "OK ($(wc -c <~/.hermes/config.yaml) B)" || echo "MANQUANT"
 echo -n "  auth.json:   "; [[ -s ~/.hermes/auth.json ]] && echo "OK" || echo "MANQUANT"
-echo -n "  SSH sokar:   "; [[ -f ~/.ssh/sokar_ovh ]] && echo "OK" || echo "MANQUANT"
+echo -n "  SSH suppernote:   "; [[ -f ~/.ssh/sokar_ovh ]] && echo "OK" || echo "MANQUANT"
 echo -n "  SSH config:  "; [[ -f ~/.ssh/config ]] && echo "OK" || echo "MANQUANT"
 echo -n "  profiles:    "; ls -1 ~/.hermes/profiles/ 2>/dev/null | tr '\n' ' '; echo "(default = racine)"
 

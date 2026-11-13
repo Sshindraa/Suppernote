@@ -274,7 +274,7 @@ export default function McpPage() {
               tag="Terminal"
               steps={[
                 "Ajout direct via variable d'environnement ou commande",
-                'claude mcp add sokar --transport http https://api.suppernote.com/mcp',
+                'claude mcp add suppernote --transport http https://api.suppernote.com/mcp',
                 'Le flow OAuth se déclenche à la première utilisation',
                 'Le connecteur est persisté dans ~/.claude/mcp.json',
               ]}

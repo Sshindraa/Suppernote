@@ -2,7 +2,7 @@
 
 ## Décisions adoptées
 
-Le restaurant encaisse sur son compte Stripe Connect ; Sokar prélève une commission
+Le restaurant encaisse sur son compte Stripe Connect ; Suppernote prélève une commission
 avec `application_fee_amount`. La réservation associe une carte sans consommer son
 solde. Seul un appel authentifié par le restaurant débite le montant réel de l'addition.
 Le bénéficiaire consulte son solde sur `/gift-card/:code`, avec lien depuis les emails et le PDF, et réserve avec son code prérempli. La valeur offerte reste le montant payé : la commission est supportée par le restaurant.
@@ -10,7 +10,7 @@ Le bénéficiaire consulte son solde sur `/gift-card/:code`, avec lien depuis le
 ## Configuration intégrée Stripe Connect
 
 Le dashboard utilise `POST /restaurants/:id/gift-cards/stripe-connect/session` pour afficher
-le composant officiel `account_onboarding` dans Sokar, en français. Cette route exige le
+le composant officiel `account_onboarding` dans Suppernote, en français. Cette route exige le
 propriétaire du restaurant ciblé ; la session ne donne accès qu’à l’onboarding. La route
 historique `/onboarding` reste disponible pour compatibilité.
 
@@ -23,7 +23,7 @@ Stripe peut être nécessaire, même avec le formulaire intégré.
 
 Lot 1 vérifié sur localhost en sandbox le 01/10/2026 ; commit/push différés sur demande utilisateur.
 
-## Statut du compte dans Sokar
+## Statut du compte dans Suppernote
 
 La lecture `/stripe-connect` conserve les booléens d’encaissement et versement et ajoute
 `onboardingState`, `actionItems`, `deadline` et `detailsSubmitted`. Les demandes sont des catégories
@@ -38,12 +38,12 @@ Ces états sont lus directement chez Stripe, sans stockage supplémentaire ni mi
 
 ## Création des comptes Stripe Connect
 
-Sokar crée les nouveaux comptes via `POST /v2/core/accounts`, version de requête
+Suppernote crée les nouveaux comptes via `POST /v2/core/accounts`, version de requête
 `2026-08-26.dahlia`. Le SDK Stripe existant fournit `rawRequest` et encode les requêtes
 v2 en JSON ; la version des API de paiement et de facturation reste inchangée.
 Le compte français demande la configuration merchant et card_payments, le dashboard
 full et les responsabilités fees_collector/losses_collector à stripe. La commission
-Sokar reste celle du PaymentIntent direct.
+Suppernote reste celle du PaymentIntent direct.
 
 Les données personnelles ne sont pas préremplies : Stripe les recueille dans son
 onboarding hébergé. En France, leur préremplissage via Accounts v2 exige un account_token.
@@ -86,7 +86,7 @@ rechargement du navigateur après paiement, webhook avant/après retour client,
 rejeu simultané, réservation sans débit, débit réel partiel puis solde intégral,
 annulation et remboursement partiel externe. Vérifier dans Stripe : compte marchand,
 montant capturé, commission réellement prélevée, remboursement de commission,
-versement et corrélation avec le registre Sokar. Tester une contribution arrivant après
+versement et corrélation avec le registre Suppernote. Tester une contribution arrivant après
 clôture : aucune valeur créditée, demande de remboursement persistée.
 
 La qualification locale utilise PostgreSQL réel mais Stripe simulé ; elle ne prouve

@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # Usage : bash scripts/ops/test-apply-redis-config.sh
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-TMP="$(mktemp -d /tmp/sokar-redis-config-test.XXXXXX)"
+TMP="$(mktemp -d /tmp/suppernote-redis-config-test.XXXXXX)"
 trap 'rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/root/infra"

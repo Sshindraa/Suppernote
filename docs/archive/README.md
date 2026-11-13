@@ -1,4 +1,4 @@
-# Archives opérationnelles Sokar
+# Archives opérationnelles Suppernote
 
 > **Statut : HISTORIQUE — réconcilié le 15 septembre 2026.**
 

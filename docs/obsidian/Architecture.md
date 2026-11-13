@@ -1,4 +1,4 @@
-# Architecture Sokar
+# Architecture Suppernote
 
 **Dernière mise à jour** : 2026-09-22
 **Stack** : Fastify 5 + Prisma 6 + Redis + BullMQ + Telnyx / Next.js 15 + React 19 + Tailwind 3 / ElevenLabs Scribe Realtime STT + Cartesia Sonic 3.6 continu (`sonic-3.6`; pipeline vocal : STT ElevenLabs, LLM Cerebras (`qwen-3.8-27b`), TTS Cartesia). Agent CLI Hermes : `minimax-m3` via `opencode-go`.
@@ -7,8 +7,8 @@
 **Model switch** : Hermes sur `minimax-m3` via `opencode-go` (depuis 2026-06-23)
 
 > Note 2026-06-24 : rétro-référence aux changements majeurs depuis
-> 2026-05-21 (agentic P0, MCP, OpenAI Reserve, Sokar Connect). Pour le
-> détail des phases, voir [[Sokar Connect P0]] et `docs/sokar-mcp-agentic-reservations-v3.2.md`.
+> 2026-05-21 (agentic P0, MCP, OpenAI Reserve, Suppernote Connect). Pour le
+> détail des phases, voir [[Sokar Connect P0|Suppernote Connect P0]] et `docs/sokar-mcp-agentic-reservations-v3.2.md`.
 
 ---
 
@@ -150,7 +150,7 @@ Voir [[Hermes Obsidian Integration]] pour la configuration.
 - [[Telnyx Pipeline]] — ai_config, machine à états, webhooks
 - [[Scribe Pipeline Media Stream]] — Pipeline Scribe + barge-in
 - [[Fillers Audio]] — Cache fillers LLM
-- [[Sokar Connect P0]] — Spec phase 0 + tickets T1-T10
+- [[Sokar Connect P0|Suppernote Connect P0]] — Spec phase 0 + tickets T1-T10
 - [[Phone Number Strategy]] — Stratégie numéros Telnyx
 - [[Session Telnyx Debug 2026-06-10]] — Post-mortem Telnyx
 - [[Hermes Obsidian Integration]] — Intégration Hermes × Obsidian

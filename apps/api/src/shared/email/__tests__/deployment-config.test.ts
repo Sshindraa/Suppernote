@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 const script = resolve(__dirname, '../../../../../../scripts/ops/sync-env.sh');
 
 function synchronize(url: string | undefined, environment = 'staging') {
-  const directory = mkdtempSync(join(tmpdir(), 'sokar-email-config-'));
+  const directory = mkdtempSync(join(tmpdir(), 'suppernote-email-config-'));
   const target = join(directory, '.env');
   const original = 'UNRELATED=preserved\nRESEND_RATE_LIMIT_REDIS_URL=redis://localhost:6379/9\n';
   writeFileSync(target, original, { mode: 0o600 });

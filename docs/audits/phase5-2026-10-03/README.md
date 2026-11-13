@@ -1,4 +1,4 @@
-# Sokar — phase 5, widget (itération visuelle annulée)
+# Suppernote — phase 5, widget (itération visuelle annulée)
 
 À la demande de l’utilisateur, les retouches visuelles de la phase 5 ont été annulées : l’apparence du widget est revenue à la version de référence de la phase 2, que l’utilisateur préfère. Les captures ci-dessous documentent la proposition rejetée ; elles ne montrent pas l’interface actuellement dans le code. Les corrections fonctionnelles ultérieures (présélection Connect, disponibilité, retour et confirmation) sont conservées.
 

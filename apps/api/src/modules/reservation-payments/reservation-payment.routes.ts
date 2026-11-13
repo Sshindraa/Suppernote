@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ReservationPaymentStatus, ReservationPaymentType } from '@prisma/client';
 import { db } from '../../shared/db/client';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
 import {
   PAYMENT_AMOUNT_MODES,
@@ -239,7 +239,7 @@ export async function reservationPaymentRoutes(app: FastifyInstance): Promise<vo
    * It is intentionally tenant-agnostic and returns only a count. */
   app.post(
     '/api/internal/reservation-payments/expire',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_request, reply) => {
       if (!reservationPaymentsEnabled()) {
         return reply.status(503).send({ error: 'RESERVATION_PAYMENTS_DISABLED' });

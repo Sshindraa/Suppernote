@@ -94,7 +94,7 @@ beforeEach(() => {
   }));
   mocks.loadContextById.mockResolvedValue({
     id: 'rest-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     phoneNumber: '',
     managerPhone: '+33612345678',
     onlineReservationsActive: false,
@@ -237,7 +237,7 @@ describe('handleLiveDemoConnection', () => {
     socket.emit('close'); // fermeture avant la fin du chargement du contexte
     resolveContext({
       id: 'rest-1',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       phoneNumber: '',
       managerPhone: '',
       timezone: 'Europe/Paris',

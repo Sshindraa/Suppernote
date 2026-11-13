@@ -86,7 +86,7 @@ function escapeHtml(text: string): string {
 }
 
 /** `+33451221999` → `04 51 22 19 99` ; tout autre format est renvoyé tel quel. */
-export function formatSokarNumber(e164: string): string {
+export function formatFrenchPhoneNumber(e164: string): string {
   const match = /^\+33(\d{9})$/.exec(e164);
   if (!match) return e164;
   return `0${match[1]}`.replace(/(\d{2})(?=\d)/g, '$1 ');
@@ -122,7 +122,7 @@ export function buildReminderEmail(args: {
   action: ReminderAction;
   restaurantName: string;
   /** Numéro Suppernote du restaurant, quand il est attribué. */
-  sokarNumber?: string | null;
+  assistantPhoneNumber?: string | null;
   dashboardUrl: string;
 }): ReminderEmail | null {
   const { action } = args;
@@ -169,7 +169,9 @@ export function buildReminderEmail(args: {
 
   // Parcours terminé : seule la relance « inactive » (aucun appel test validé) a encore un sens.
   if (args.kind !== 'inactive') return null;
-  const number = args.sokarNumber ? escapeHtml(formatSokarNumber(args.sokarNumber)) : null;
+  const number = args.assistantPhoneNumber
+    ? escapeHtml(formatFrenchPhoneNumber(args.assistantPhoneNumber))
+    : null;
   return {
     subject: `${args.restaurantName} : entendez votre assistant`,
     html: layout({

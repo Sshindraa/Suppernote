@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# Lance Hermes Agent avec la config Sokar
+# Lance Hermes Agent avec la config Suppernote
 # Usage: zsh tools/hermes/scripts/start-hermes.sh
 
 set -euo pipefail
@@ -25,7 +25,7 @@ if [ -z "${OPENCODE_GO_API_KEY:-}" ]; then
     exit 1
 fi
 
-echo "[SOKAR-AGENT] Démarrage d'Hermes..."
+echo "[SUPPERNOTE-AGENT] Démarrage d'Hermes..."
 echo "  Live config: ~/.hermes/config.yaml"
 echo "  Project template: $REPO_ROOT/tools/hermes/config/hermes-config.yaml"
 echo ""

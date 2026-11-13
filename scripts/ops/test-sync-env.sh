@@ -5,7 +5,7 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RUNNER="$ROOT/scripts/ops/sync-env.sh"
-TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/sokar-sync-env-test.XXXXXX")"
+TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/suppernote-sync-env-test.XXXXXX")"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 BASE='# commentaire

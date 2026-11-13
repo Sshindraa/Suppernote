@@ -44,7 +44,7 @@ vi.mock('../plugins/clerk', () => ({
       }
     };
   },
-  requireSokarOperator: () => {
+  requirePlatformOperator: () => {
     return async (req: FastifyRequest, reply: FastifyReply) => {
       const authHeader = req.headers?.authorization;
       if (!authHeader) {

@@ -55,7 +55,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <script id="sokar-theme-bootstrap" dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script
+          id="suppernote-theme-bootstrap"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }}
+        />
       </head>
       <body className="min-h-screen bg-background antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>

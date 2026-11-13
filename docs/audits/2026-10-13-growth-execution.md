@@ -73,7 +73,7 @@ n'a été contournée.
 | `https://api.sokar.tech/public/sitemap-data` | 200, 1 fiche publiée (`chez-sokar-demo`)                                                                                                                                                  | HTTP, comptage uniquement            |
 | `https://api.sokar.tech/public/cities`       | 200, 0 ville                                                                                                                                                                              | HTTP                                 |
 | `/pricing` dans le sitemap                   | Absent                                                                                                                                                                                    | HTTP                                 |
-| `/`, `/pricing`, `/login`, `/register`       | Titre « Sokar — Restaurant Management », description générique en anglais, aucun canonical, aucun Open Graph ; `robots` absent                                                            | HTTP, HTML                           |
+| `/`, `/pricing`, `/login`, `/register`       | Titre « Suppernote — Restaurant Management », description générique en anglais, aucun canonical, aucun Open Graph ; `robots` absent                                                       | HTTP, HTML                           |
 | `/privacy`                                   | `robots: index, follow` et `og:locale fr_FR` (modèle de référence)                                                                                                                        | HTTP                                 |
 | Code `fetchPublishedSlugs` et `fetchCities`  | Retournent `[]` en cas d'erreur ; le sitemap ISR (5 min) la met en cache                                                                                                                  | `apps/connect/src/lib/api-client.ts` |
 | Routage Nginx                                | `/sitemap.xml` et `/robots.txt` vers Connect ; `/`, `/pricing`, `/login`, `/register` et `/widget/*` vers le dashboard ; `/widget/*/gift-card` vers Connect ; `/book/*` vers le dashboard | `infra/nginx/sokar.conf`             |
@@ -253,12 +253,12 @@ Rollback disponible : snapshot pré-build et sauvegarde datée (`/var/backups/so
 
 ### 10.2 Demande de démonstration sur staging
 
-- Envoi de test par le formulaire de staging, avec des données fictives (établissement « QA test Sokar
+- Envoi de test par le formulaire de staging, avec des données fictives (établissement « QA test Suppernote
   13-10-2026 (à supprimer) », e-mail `qa.sokar.test@example.com`). Requête réseau :
   `POST /api/proxy/public/demo-requests` → **201**. Le message « Demande bien enregistrée » est affiché.
   La demande est donc persistée et la table existe.
 - **Visible dans l'administration : non vérifié.** Staging tourne en mode démo : une requête anonyme est
-  traitée comme `demo-user`, et `GET /admin/demo-requests` répond 403 (« Sokar operator access required »).
+  traitée comme `demo-user`, et `GET /admin/demo-requests` répond 403 (« Suppernote operator access required »).
   Il faut un compte opérateur connecté pour voir la liste. Cette demande de test doit être clôturée
   par l'opérateur après contrôle.
 - **Notification reçue : non, et non configurable en l'état.** Constat : les workflows de déploiement
@@ -395,15 +395,15 @@ garanti) ; prix HT et engagement ; questions pratiques (FAQ) ; CTA vers `/demo`.
 
 ### 10.9 Dépendances restantes (après qualification)
 
-| Dépendance                                                                                        | Responsable               | Action précise                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Adresse de test autorisée pour la notification de staging, puis adresse commerciale en production | Hamza                     | Indiquer les deux adresses et autoriser la création du secret GitHub `DEMO_REQUEST_NOTIFY_TO` : au niveau dépôt (adresse de test, lue par staging) et dans l'environnement `production` (adresse commerciale, prioritaire en production)    |
-| Vérification de la liste opérateur                                                                | Hamza                     | Accès manquant : aucune session opérateur dans le navigateur intégré. Se connecter en compte opérateur sur staging, ouvrir `/dashboard/admin/demo-requests`, vérifier la ligne « QA test Sokar 13-10-2026 », puis la passer en « Clôturée » |
-| Qualification vocale                                                                              | Hamza ou équipe technique | Passer les sept scénarios de la [fiche de qualification](2026-10-13-commercial-demo-validation.md) avec un restaurant de test et un numéro de test, archiver les preuves expurgées                                                          |
-| Compte restaurateur de test                                                                       | Hamza                     | Créer un compte de test pour la démonstration en direct de l'onboarding                                                                                                                                                                     |
-| Suivi des demandes                                                                                | Hamza                     | Désigner le responsable et fixer le délai de réponse à afficher, ou ne rien afficher                                                                                                                                                        |
-| Search Console                                                                                    | Hamza                     | Donner l'accès à la propriété `sokar.tech` (non bloquant pour la landing)                                                                                                                                                                   |
-| Lien de navigation admin                                                                          | Auteur du chantier admin  | Ajouter le lien vers `/dashboard/admin/demo-requests`                                                                                                                                                                                       |
+| Dépendance                                                                                        | Responsable               | Action précise                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Adresse de test autorisée pour la notification de staging, puis adresse commerciale en production | Hamza                     | Indiquer les deux adresses et autoriser la création du secret GitHub `DEMO_REQUEST_NOTIFY_TO` : au niveau dépôt (adresse de test, lue par staging) et dans l'environnement `production` (adresse commerciale, prioritaire en production)         |
+| Vérification de la liste opérateur                                                                | Hamza                     | Accès manquant : aucune session opérateur dans le navigateur intégré. Se connecter en compte opérateur sur staging, ouvrir `/dashboard/admin/demo-requests`, vérifier la ligne « QA test Suppernote 13-10-2026 », puis la passer en « Clôturée » |
+| Qualification vocale                                                                              | Hamza ou équipe technique | Passer les sept scénarios de la [fiche de qualification](2026-10-13-commercial-demo-validation.md) avec un restaurant de test et un numéro de test, archiver les preuves expurgées                                                               |
+| Compte restaurateur de test                                                                       | Hamza                     | Créer un compte de test pour la démonstration en direct de l'onboarding                                                                                                                                                                          |
+| Suivi des demandes                                                                                | Hamza                     | Désigner le responsable et fixer le délai de réponse à afficher, ou ne rien afficher                                                                                                                                                             |
+| Search Console                                                                                    | Hamza                     | Donner l'accès à la propriété `sokar.tech` (non bloquant pour la landing)                                                                                                                                                                        |
+| Lien de navigation admin                                                                          | Auteur du chantier admin  | Ajouter le lien vers `/dashboard/admin/demo-requests`                                                                                                                                                                                            |
 
 ### 10.10 Après fusion de #418 (13/10/2026, 18:33 UTC)
 
@@ -464,20 +464,20 @@ Le texte de `scripts/ops/sync-demo-request-config.sh` apparaît dans les journau
 
 **Affirmations retirées ou reformulées.** La garde `apps/dashboard/src/app/marketing-claims.test.ts` liste les formulations sans preuve. Elle a échoué sur sept pages avant les corrections (sept cas rouges) et passe après. Chaque retrait est listé ci-dessous.
 
-| Page                         | Affirmation                                                                                                                          | Action                                                  | Motif                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Inscription et connexion     | Témoignage « Chef Matthieu, Bistrot L’Ardoise — 2 étoiles Michelin », « Sokar gère 100 % des appels », badge « Partenaire Certifié » | Retiré                                                  | Aucune source dans le dépôt ; le plan réserve les témoignages à leurs propres preuves       |
-| Inscription et connexion     | « 98,4 % » « Taux de réponse garanti », « +18,4 % », « 412 » « Appels traités ce mois »                                              | Retiré                                                  | Valeurs codées en dur, sans source, présentées hors de tout libellé de simulation           |
-| Inscription et connexion     | Badge « Simulation temps réel »                                                                                                      | Remplacé par « Exemple illustratif — données simulées » | Même libellé que la démonstration de l’accueil                                              |
-| Offres, Essential            | « Répond aux appels transférés, 24h/24 »                                                                                             | « Répond aux appels transférés »                        | Disponibilité 24 h/24 non démontrée                                                         |
-| Offres, Pro                  | « Tout l’Essential, sans limite »                                                                                                    | « Tout l’Essential »                                    | Aucune limite de volume démontrée                                                           |
-| Offres, Pro                  | « Vos clients reconnus à chaque appel »                                                                                              | Retiré                                                  | Reconnaissance des appelants non démontrée dans le parcours vocal                           |
-| Offres, Pro                  | « Réservable depuis ChatGPT et Claude »                                                                                              | Retiré                                                  | MCP peut rester en observation (voir docs/architecture/reservation-commercial-readiness.md) |
-| Offres, Pro                  | « Support prioritaire 7j/7 »                                                                                                         | Retiré                                                  | Engagement de support non démontré                                                          |
-| Accueil                      | « Toujours disponible » (carte flottante)                                                                                            | « Répond aux appels transférés »                        | Garantie de disponibilité non démontrée                                                     |
-| Illustration du parcours     | « client reconnu »                                                                                                                   | « fiche client »                                        | Reconnaissance non démontrée                                                                |
-| Page MCP                     | « Trois scopes, zéro débordement »                                                                                                   | « Trois scopes distincts »                              | Garantie absolue non démontrée                                                              |
-| Politique de confidentialité | « Sokar est conforme au RGPD. »                                                                                                      | Retiré                                                  | Affirmation juridique, à valider (dépendance juridique)                                     |
+| Page                         | Affirmation                                                                                                                               | Action                                                  | Motif                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Inscription et connexion     | Témoignage « Chef Matthieu, Bistrot L’Ardoise — 2 étoiles Michelin », « Suppernote gère 100 % des appels », badge « Partenaire Certifié » | Retiré                                                  | Aucune source dans le dépôt ; le plan réserve les témoignages à leurs propres preuves       |
+| Inscription et connexion     | « 98,4 % » « Taux de réponse garanti », « +18,4 % », « 412 » « Appels traités ce mois »                                                   | Retiré                                                  | Valeurs codées en dur, sans source, présentées hors de tout libellé de simulation           |
+| Inscription et connexion     | Badge « Simulation temps réel »                                                                                                           | Remplacé par « Exemple illustratif — données simulées » | Même libellé que la démonstration de l’accueil                                              |
+| Offres, Essential            | « Répond aux appels transférés, 24h/24 »                                                                                                  | « Répond aux appels transférés »                        | Disponibilité 24 h/24 non démontrée                                                         |
+| Offres, Pro                  | « Tout l’Essential, sans limite »                                                                                                         | « Tout l’Essential »                                    | Aucune limite de volume démontrée                                                           |
+| Offres, Pro                  | « Vos clients reconnus à chaque appel »                                                                                                   | Retiré                                                  | Reconnaissance des appelants non démontrée dans le parcours vocal                           |
+| Offres, Pro                  | « Réservable depuis ChatGPT et Claude »                                                                                                   | Retiré                                                  | MCP peut rester en observation (voir docs/architecture/reservation-commercial-readiness.md) |
+| Offres, Pro                  | « Support prioritaire 7j/7 »                                                                                                              | Retiré                                                  | Engagement de support non démontré                                                          |
+| Accueil                      | « Toujours disponible » (carte flottante)                                                                                                 | « Répond aux appels transférés »                        | Garantie de disponibilité non démontrée                                                     |
+| Illustration du parcours     | « client reconnu »                                                                                                                        | « fiche client »                                        | Reconnaissance non démontrée                                                                |
+| Page MCP                     | « Trois scopes, zéro débordement »                                                                                                        | « Trois scopes distincts »                              | Garantie absolue non démontrée                                                              |
+| Politique de confidentialité | « Sokar est conforme au RGPD. »                                                                                                           | Retiré                                                  | Affirmation juridique, à valider (dépendance juridique)                                     |
 
 **Restent à confirmer, non modifiés :**
 
@@ -539,7 +539,7 @@ Search Console n'est pas une condition.
 
 Le runbook staging prévoit `VOICE_DISABLED=true`, `RESEND_API_KEY` vide, et aucun appel réel sans configuration Telnyx complète. Dans le code, sans `RESEND_API_KEY`, l'envoi lève « RESEND_API_KEY is not set » : **une notification de démo ne peut pas partir de staging en l'état**.
 
-**Restaurant de test.** La fiche `chez-sokar-demo` existe sur staging, publiée sous le nom « Chez Sokar ». Son numéro affiché est le numéro public de démonstration : il n'est pas opérationnel et ne sert pas aux essais.
+**Restaurant de test.** La fiche `chez-sokar-demo` existe sur staging, publiée sous le nom « Chez Suppernote ». Son numéro affiché est le numéro public de démonstration : il n'est pas opérationnel et ne sert pas aux essais.
 
 **Affectation Telnyx.** Non vérifiable depuis ce poste : la clé Telnyx du `.env` de développement est vide. Le contrôle en lecture seule revient à Hamza (section « Ce qui bloque »).
 
@@ -663,16 +663,16 @@ Les canonical pointent sur leur URL production, sans redirection sur les pages 2
 | `/demo`                                        | 200  | index, follow ; formulaire dans HTML                     | Oui               | NON VÉRIFIÉE               |
 | `/assistant`                                   | 200  | index, follow ; canonical propre, intention consommateur | Oui               | NON VÉRIFIÉE               |
 | `/robots.txt`                                  | 200  | Allow / ; seuls espaces privés interdits                 | Référence sitemap | Sans objet                 |
-| `/sitemap.xml`                                 | 200  | XML valide, quatre pages publiques et Chez Sokar         | Sans objet        | Ne prouve pas l’indexation |
+| `/sitemap.xml`                                 | 200  | XML valide, quatre pages publiques et Chez Suppernote    | Sans objet        | Ne prouve pas l’indexation |
 | `/restaurant/chez-sokar-demo`                  | 200  | **Anomalie : index, follow, fiche fictive**              | **Oui**           | NON VÉRIFIÉE               |
 | `/restaurant/chez-sokar-bistrot-paris`         | 404  | Non indexable par statut                                 | Non               | NON VÉRIFIÉE               |
 | `/solutions/assistant-telephonique-restaurant` | 404  | Brouillon #422 absent du main                            | Non               | NON VÉRIFIÉE               |
 
-Titles/H1 vérifiés : accueil « Sokar — Assistant téléphonique pour restaurants » /
-« Un assistant téléphonique pour vos réservations » ; tarifs « Tarifs — Sokar » /
+Titles/H1 vérifiés : accueil « Suppernote — Assistant téléphonique pour restaurants » /
+« Un assistant téléphonique pour vos réservations » ; tarifs « Tarifs — Suppernote » /
 « L’accueil commence avant le premier couvert. » ; démo « Demander une démonstration —
-Sokar » / « Demander une démonstration » ; assistant « Réserver avec votre assistant IA |
-Sokar » / « Réservez avec votre assistant IA ». Descriptions françaises, canonical et
+Suppernote » / « Demander une démonstration » ; assistant « Réserver avec votre assistant IA |
+Suppernote » / « Réservez avec votre assistant IA ». Descriptions françaises, canonical et
 liens internes présents. Accueil comporte 13 liens internes, tarifs 9, démo 6, assistant 2.
 La description tarifs servie utilise Multi-site 299 € et remise annuelle 10 %, cohérente
 avec main actuel ; aucun retour aux anciens montants de #426.
@@ -702,7 +702,7 @@ ouvrir globalement les protections ni déduire un blocage Googlebot.
 
 **Search Console.** Session Brave connectée à `hamza@sokar.tech`, écran
 `https://search.google.com/search-console/welcome` « Ajouter un site Web ».
-Aucune propriété Sokar accessible. Manque : propriété domaine `sokar.tech` validée
+Aucune propriété Suppernote accessible. Manque : propriété domaine `sokar.tech` validée
 ou accès à sa propriété existante pour ce compte. Pas de sitemap inspecté dans GSC,
 pas de test en direct ni canonical retenue par Google vérifiés. Indexation réelle
 **NON VÉRIFIÉE**. Aucune soumission d’indexation prétendue.
@@ -800,11 +800,11 @@ Le hook sera rejoué avec ce préalable déterministe, sans ignorer les tests.
 | `/solutions/assistant-telephonique-restaurant` | 200                   | **Non : brouillon noindex, follow**                     | NON VÉRIFIÉE                                     |
 
 Titles, descriptions, H1 et canonical toujours présents dans le HTML initial ;
-aucun X-Robots-Tag en production. Chez Sokar : title « Chez Sokar — Démonstration Sokar |
-Sokar », description d’établissement fictif, bandeau d’essai visible, aucun JSON-LD
+aucun X-Robots-Tag en production. Chez Suppernote : title « Chez Suppernote — Démonstration Suppernote |
+Suppernote », description d’établissement fictif, bandeau d’essai visible, aucun JSON-LD
 Restaurant. La liste publique staging n’annonce plus de restaurant (`total=0`).
 Les tarifs v3 sont inchangés. Landing : title « Assistant téléphonique pour restaurant —
-Sokar », H1 « Un assistant téléphonique pour votre restaurant », canonical absolue propre,
+Suppernote », H1 « Un assistant téléphonique pour votre restaurant », canonical absolue propre,
 liens démo avec source et tarifs présents. Hors sitemap et hors maillage entrant, décision
 maintenue tant que VOICE-01 et le parcours opérateur ne sont pas qualifiés.
 
@@ -906,7 +906,7 @@ Codex : `operator-cloture.png`, `sitemap-envoye.png`,
 
 ### 10.20 — VOICE-01 : préparation autorisée, recette encore ouverte (14 octobre)
 
-Accord explicite : clé séparée temporaire, routage du seul numéro démo vers staging puis restauration production ; consommation plafonnée à 20 minutes et 5 €, sans achat/recharge. Clé staging créée, expiration le 21 octobre 2026 à 23:55 UTC, stockée uniquement dans GitHub et le fichier environnement staging après transit privé supprimé. Application « Sokar VOICE-01 staging » créée avec webhook staging ; numéro encore en production et voix staging encore désactivée.
+Accord explicite : clé séparée temporaire, routage du seul numéro démo vers staging puis restauration production ; consommation plafonnée à 20 minutes et 5 €, sans achat/recharge. Clé staging créée, expiration le 21 octobre 2026 à 23:55 UTC, stockée uniquement dans GitHub et le fichier environnement staging après transit privé supprimé. Application « Suppernote VOICE-01 staging » créée avec webhook staging ; numéro encore en production et voix staging encore désactivée.
 
 Blocage corrigé : le seed démo fournit un numéro de gérant fictif. Le contexte vocal le neutralise pour les seuls slugs démo explicites, aussi sur cache existant, afin de conserver le secours par message. Aucun numéro réel modifié, aucun changement de schéma ni de contrat. Deux tests échouaient avant correction ; 80 tests ciblés, typage API et lint ciblé passent.
 
@@ -1033,7 +1033,7 @@ pas automatiser l'attribution ni filtrer les vues opérateur existantes.
 complété : cible indépendants mono-site, priorité bistrots/brasseries avec service à table et carnet
 commun possible ; exclusions métier, décideur, budget/cadence, preuve et prochaine action datée.
 Entretien aligné sur l'invitation de vingt minutes ; distinction candidat commercial/prêt à activer.
-Message de prise de contact explicite sur Sokar, invitation à une démo et proposition écrite de
+Message de prise de contact explicite sur Suppernote, invitation à une démo et proposition écrite de
 pilote préparés, tous non envoyés. Essential 199 € HT/mois ; annuel −10 %, 2 149,20 € HT/an, équivalent
 exact 179,10 € HT/mois. Aucun nouveau quota, remise, délai ou engagement de support inventé.
 Absence actuelle de quota client voix/SMS recoupée avec les inclusions publiques ; frais de renvoi
@@ -1097,7 +1097,7 @@ non commité, non déployé ; aucun appel, envoi, paiement ou effet distant.
 | Obsolète     | Création/maillage/indexation d’une landing séparée, anciennes indications d’accès GSC absent. Aucun nouveau bloc ni nouvelle route.                                                                                    |
 | À revérifier | FAQ et lien confidentialité après correction ci-dessous ; redirection et sitemap après livraison groupée.                                                                                                              |
 
-**Intention conservée.** Cible France entière : restaurateurs recherchant un assistant téléphonique pour leurs réservations. Secondaires compatibles : gestion des appels pendant le service, disponibilités du carnet, réservations téléphone/web/salle. « Réserver une table » seul vise le consommateur et ne devient pas la cible de l’accueil. Les recherches du §10.8 suffisent à ce cadrage ; aucune étude exhaustive ni nouveau volume nécessaire. Volumes, difficulté et potentiel restent inconnus. Title « Sokar — Assistant téléphonique pour restaurants », description, H1 et hero conservés : cible, tâche et fonctionnement explicites, sans gain chiffré. Open Graph et Twitter cohérents dans le HTML ; aucune image sociale ajoutée pour produire un changement. Un H1 ; sections en H2, détails en H3/H4. Les titres H4 du pied de page sont conservés : aucune ambiguïté commerciale démontrée justifiant une modification de structure.
+**Intention conservée.** Cible France entière : restaurateurs recherchant un assistant téléphonique pour leurs réservations. Secondaires compatibles : gestion des appels pendant le service, disponibilités du carnet, réservations téléphone/web/salle. « Réserver une table » seul vise le consommateur et ne devient pas la cible de l’accueil. Les recherches du §10.8 suffisent à ce cadrage ; aucune étude exhaustive ni nouveau volume nécessaire. Volumes, difficulté et potentiel restent inconnus. Title « Suppernote — Assistant téléphonique pour restaurants », description, H1 et hero conservés : cible, tâche et fonctionnement explicites, sans gain chiffré. Open Graph et Twitter cohérents dans le HTML ; aucune image sociale ajoutée pour produire un changement. Un H1 ; sections en H2, détails en H3/H4. Les titres H4 du pied de page sont conservés : aucune ambiguïté commerciale démontrée justifiant une modification de structure.
 
 **Deux corrections fondées sur des défauts observés.**
 
@@ -1266,7 +1266,7 @@ et ne démontrent pas un gain causal. Le test Google en direct autorise explorat
 indexation ; l’indexation de cette version et le canonical retenu restent à observer.
 
 **Réserve légale ouverte.** L’utilisateur refuse la publication de son identité légale.
-Aucune page limitée au nom commercial Sokar n’est présentée comme conforme ; aucun
+Aucune page limitée au nom commercial Suppernote n’est présentée comme conforme ; aucun
 nom, adresse, document source ni coordonnées personnelles ajoutés au dépôt. OVHcloud
 est confirmé par l’utilisateur comme hébergeur. Le lien Mentions légales reste à résoudre,
 les liens sociaux restent facultatifs. Référence :

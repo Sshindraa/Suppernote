@@ -2,7 +2,15 @@
 
 import { useServiceCopilotAccess } from '@/lib/use-service-copilot-access';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useApi } from '@/lib/api';
@@ -37,7 +45,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { getTableStatus, type TableStatus } from './table-status';
+import { getFreeUntil, getMealMinutes, getTableStatus, type TableStatus } from './table-status';
 import { format, parseISO, differenceInMinutes, formatDistanceToNow, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -76,6 +84,8 @@ import {
   AlignCenter,
   AlignRight,
   AlignVerticalJustifyCenter,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround,
   AlignVerticalJustifyStart,
   AlignVerticalJustifyEnd,
   RotateCw,
@@ -280,62 +290,10 @@ export function computeCenterScroll({
   };
 }
 
-/** Marge (coordonnées plan) ajoutée autour des tables au cadrage d'ouverture. */
-export const CONTENT_FIT_PADDING = 48;
 // Les cartes et leurs chaises peuvent dépasser les dimensions métier des tables.
 export const LIVE_CONTENT_FIT_PADDING = 24;
 
 export type ContentBounds = { x: number; y: number; width: number; height: number };
-
-/**
- * Rectangle englobant les tables posées, en coordonnées plan. Renvoie `null`
- * quand aucune table n'est posée : le cadrage retombe alors sur le plan entier.
- * Cadrer le canvas entier ne montre en effet que du vide quand les tables
- * n'occupent qu'un coin de la salle.
- */
-export function computeContentBounds(
-  tables: Array<{
-    positionX: number | null;
-    positionY: number | null;
-    width?: number | null;
-    height?: number | null;
-    shape?: TableShape | null;
-    rotation?: number | null;
-  }>,
-  canvasWidth: number,
-  canvasHeight: number,
-): ContentBounds | null {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const table of tables) {
-    if (table.positionX === null || table.positionY === null) continue;
-    const size = getTableSize(table);
-    const angle = ((table.rotation ?? 0) * Math.PI) / 180;
-    const cos = Math.abs(Math.cos(angle));
-    const sin = Math.abs(Math.sin(angle));
-    // La rotation pivote autour du centre de la carte : l'empreinte au sol est
-    // la boîte englobante du rectangle tourné.
-    const boundingWidth = size.width * cos + size.height * sin;
-    const boundingHeight = size.width * sin + size.height * cos;
-    const centerX = table.positionX + size.width / 2;
-    const centerY = table.positionY + size.height / 2;
-    minX = Math.min(minX, centerX - boundingWidth / 2);
-    minY = Math.min(minY, centerY - boundingHeight / 2);
-    maxX = Math.max(maxX, centerX + boundingWidth / 2);
-    maxY = Math.max(maxY, centerY + boundingHeight / 2);
-  }
-  if (minX === Number.POSITIVE_INFINITY || canvasWidth <= 0 || canvasHeight <= 0) return null;
-  const x = Math.max(0, minX - CONTENT_FIT_PADDING);
-  const y = Math.max(0, minY - CONTENT_FIT_PADDING);
-  return {
-    x,
-    y,
-    width: Math.max(1, Math.min(canvasWidth - x, maxX + CONTENT_FIT_PADDING - x)),
-    height: Math.max(1, Math.min(canvasHeight - y, maxY + CONTENT_FIT_PADDING - y)),
-  };
-}
 
 /** Cadre les éléments visibles du plan avec une marge autour de leur dessin. */
 export function computeLiveContentBounds(
@@ -512,6 +470,8 @@ const ZONE_MIN_HEIGHT = 80;
 const TABLE_CARD_MIN_WIDTH = 132;
 const TABLE_CARD_MIN_HEIGHT = 66;
 const TABLE_CARD_SEAT_HEIGHT = 32;
+/** Repère de passage entre deux plateaux, basé sur le débord d'une chaise. */
+const TABLE_MIN_GAP = TABLE_CARD_SEAT_HEIGHT / 2;
 function getTableBodyGeometry(width: number, height: number, round: boolean) {
   const bodyWidth = round
     ? Math.max(Math.min(width, height), 72)
@@ -524,6 +484,14 @@ function getTableBodyGeometry(width: number, height: number, round: boolean) {
       ? Math.round((height - bodyHeight) / 2)
       : Math.max(8, Math.round((height - (bodyHeight + TABLE_CARD_SEAT_HEIGHT)) / 2)),
   };
+}
+
+function formatTablePlateSize(table: CanvasTable) {
+  const { width, height } = getTableSize(table);
+  const round = table.shape === 'round';
+  const { bodyWidth, bodyHeight } = getTableBodyGeometry(width, height, round);
+  const length = formatRoomMeters(bodyWidth);
+  return round ? `Ø ${length} m` : `${length} × ${formatRoomMeters(bodyHeight)} m`;
 }
 
 /** Proposition d'allocation explicable renvoyée par l'API (Phase 5). */
@@ -550,6 +518,11 @@ type GeometrySnapshot = {
   tables: TableGeometry[];
   walls: WallGeometry[];
   zones?: ZoneGeometry[];
+  /**
+   * Tables créées (coller, dupliquer, rangée, palette) : absentes avant, présentes après.
+   * Le groupe est partagé entre les deux snapshots pour suivre les nouveaux identifiants au rétablissement.
+   */
+  creation?: { group: { tables: FloorPlanTable[] }; present: boolean };
 };
 
 function snapshotTableGeometry(table: FloorPlanTable): TableGeometry {
@@ -887,6 +860,10 @@ export type TableAlignmentGuide = {
   /** Position de départ à appliquer à la table déplacée pour l'aligner. */
   position: number;
   distance: number;
+  /** Distance pénalisée quand la référence n'a pas la même forme : sert au choix du guide. */
+  score: number;
+  /** Table avec laquelle on s'aligne, et son étendue sur l'autre axe : le guide s'arrête à elle. */
+  reference: { id: string; x: number; y: number; width: number; height: number };
 };
 
 export type TableAlignmentGuides = {
@@ -906,6 +883,8 @@ export function getTableAlignmentGuides({
   y,
   width,
   height,
+  shape = null,
+  rotation = 0,
   tables,
   excludedTableId,
   threshold = TABLE_ALIGN_GUIDE_DISTANCE,
@@ -914,53 +893,225 @@ export function getTableAlignmentGuides({
   y: number;
   width: number;
   height: number;
+  /** Forme de la table déplacée : on aligne les plateaux visibles, pas les chaises. */
+  shape?: TableShape | null;
+  rotation?: number;
   tables: CanvasTable[];
   excludedTableId?: string;
   threshold?: number;
 }): TableAlignmentGuides {
   const guides = emptyTableAlignmentGuides();
+  // Bords du plateau dans la boîte de la table : c'est ce que l'œil aligne.
+  const plateEdges = (
+    boxWidth: number,
+    boxHeight: number,
+    boxRotation: number,
+    tableShape: TableShape | null,
+  ) => {
+    const plate = getTablePlate(0, 0, boxWidth, boxHeight, boxRotation, tableShape);
+    // shortcut: étendue d'un plateau tourné de 0/90/180/270° ; les angles libres gardent cette approximation.
+    const quarter = Math.round(boxRotation / 90) % 2 !== 0;
+    const halfX = quarter ? plate.halfHeight : plate.halfWidth;
+    const halfY = quarter ? plate.halfWidth : plate.halfHeight;
+    return {
+      x: [plate.x - halfX, plate.x, plate.x + halfX],
+      y: [plate.y - halfY, plate.y, plate.y + halfY],
+    };
+  };
+  const moving = plateEdges(width, height, rotation, shape);
   const movingAxes = {
-    x: [
-      { value: x, offset: 0 },
-      { value: x + width / 2, offset: width / 2 },
-      { value: x + width, offset: width },
-    ],
-    y: [
-      { value: y, offset: 0 },
-      { value: y + height / 2, offset: height / 2 },
-      { value: y + height, offset: height },
-    ],
+    x: moving.x.map((offset) => ({ value: x + offset, offset })),
+    y: moving.y.map((offset) => ({ value: y + offset, offset })),
   };
 
   for (const table of tables) {
     if (table.id === excludedTableId || table.positionX === null || table.positionY === null) {
       continue;
     }
+    const { positionX, positionY } = table;
     const size = getTableSize(table);
+    const edges = plateEdges(size.width, size.height, size.rotation, table.shape);
     const referenceAxes = {
-      x: [table.positionX, table.positionX + size.width / 2, table.positionX + size.width],
-      y: [table.positionY, table.positionY + size.height / 2, table.positionY + size.height],
+      x: edges.x.map((offset) => positionX + offset),
+      y: edges.y.map((offset) => positionY + offset),
     };
 
     for (const axis of ['x', 'y'] as const) {
-      for (const movingAxis of movingAxes[axis]) {
-        for (const referenceValue of referenceAxes[axis]) {
-          const distance = Math.abs(movingAxis.value - referenceValue);
-          const current = guides[axis];
-          if (distance <= threshold && (!current || distance < current.distance)) {
-            guides[axis] = {
-              axis,
-              value: referenceValue,
-              position: Math.round(referenceValue - movingAxis.offset),
-              distance,
-            };
+      // Bord avec le même bord, centre avec centre.
+      const crossCenter = axis === 'x' ? y + height / 2 : x + width / 2;
+      const crossDistance = Math.abs(
+        (axis === 'x' ? positionY + size.height / 2 : positionX + size.width / 2) - crossCenter,
+      );
+      const sameShape = (table.shape === 'round') === (shape === 'round');
+      for (const [index, movingAxis] of movingAxes[axis].entries()) {
+        const referenceValue = referenceAxes[axis][index];
+        const distance = Math.abs(movingAxis.value - referenceValue);
+        if (distance > threshold) continue;
+        const score = distance + (sameShape ? 0 : threshold * 2 + 1);
+        const current = guides[axis];
+        if (current) {
+          const ref = current.reference;
+          const currentCrossDistance = Math.abs(
+            (axis === 'x' ? ref.y + ref.height / 2 : ref.x + ref.width / 2) - crossCenter,
+          );
+          if (
+            score > current.score ||
+            (score === current.score && crossDistance >= currentCrossDistance)
+          ) {
+            continue;
           }
         }
+        guides[axis] = {
+          axis,
+          value: referenceValue,
+          position: Math.round(referenceValue - movingAxis.offset),
+          distance,
+          score,
+          reference: {
+            id: table.id,
+            x: positionX,
+            y: positionY,
+            width: size.width,
+            height: size.height,
+          },
+        };
       }
     }
   }
 
   return guides;
+}
+
+export type TableSpacingGuide = {
+  axis: 'x' | 'y';
+  /** Position de départ à appliquer à la table déplacée. */
+  position: number;
+  distance: number;
+  gap: number;
+  /** Espaces égaux à dessiner : début et fin sur l'axe, et coordonnée sur l'autre axe. */
+  segments: { from: number; to: number; at: number }[];
+};
+
+/** Plateau visible d'une boîte de table, en coordonnées du plan (rotation 0/90/180/270). */
+function plateRect(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  rotation: number,
+  shape: TableShape | null,
+) {
+  const plate = getTablePlate(0, 0, width, height, rotation, shape);
+  const quarter = Math.round(rotation / 90) % 2 !== 0;
+  const halfX = quarter ? plate.halfHeight : plate.halfWidth;
+  const halfY = quarter ? plate.halfWidth : plate.halfHeight;
+  return {
+    left: x + plate.x - halfX,
+    right: x + plate.x + halfX,
+    top: y + plate.y - halfY,
+    bottom: y + plate.y + halfY,
+  };
+}
+
+/**
+ * Repère d'espacement égal : cale la table pour que son écart avec la voisine
+ * reprenne un écart déjà présent dans la rangée (ou la colonne), ou la centre
+ * entre deux voisines. Mesuré entre plateaux visibles, chaises exclues.
+ */
+export function getTableSpacingGuides({
+  x,
+  y,
+  width,
+  height,
+  shape = null,
+  rotation = 0,
+  tables,
+  excludedTableId,
+  threshold = TABLE_ALIGN_GUIDE_DISTANCE,
+}: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  shape?: TableShape | null;
+  rotation?: number;
+  tables: CanvasTable[];
+  excludedTableId?: string;
+  threshold?: number;
+}): { x: TableSpacingGuide | null; y: TableSpacingGuide | null } {
+  const moving = plateRect(x, y, width, height, rotation, shape);
+  const others = tables
+    .filter((t) => t.id !== excludedTableId && t.positionX !== null && t.positionY !== null)
+    .map((t) => {
+      const size = getTableSize(t);
+      return plateRect(t.positionX!, t.positionY!, size.width, size.height, size.rotation, t.shape);
+    });
+  const result: { x: TableSpacingGuide | null; y: TableSpacingGuide | null } = { x: null, y: null };
+
+  for (const axis of ['x', 'y'] as const) {
+    const [lo, hi, crossLo, crossHi] =
+      axis === 'x'
+        ? (['left', 'right', 'top', 'bottom'] as const)
+        : (['top', 'bottom', 'left', 'right'] as const);
+    const overlapsCross = (a: typeof moving, b: typeof moving) =>
+      Math.min(a[crossHi], b[crossHi]) - Math.max(a[crossLo], b[crossLo]) > 0;
+    const crossMid = (a: typeof moving, b: typeof moving) =>
+      (Math.max(a[crossLo], b[crossLo]) + Math.min(a[crossHi], b[crossHi])) / 2;
+    const row = others.filter((o) => overlapsCross(o, moving));
+    // Voisines directes de chaque côté dans la rangée.
+    const before = row
+      .filter((o) => o[hi] <= moving[lo] + threshold)
+      .sort((a, b) => b[hi] - a[hi])[0];
+    const after = row
+      .filter((o) => o[lo] >= moving[hi] - threshold)
+      .sort((a, b) => a[lo] - b[lo])[0];
+
+    // Écarts existants entre voisines directes qui partagent une rangée.
+    const gaps: { gap: number; from: number; to: number; at: number }[] = [];
+    for (const a of others) {
+      const next = others
+        .filter((b) => b !== a && b[lo] >= a[hi] && overlapsCross(a, b))
+        .sort((p, q) => p[lo] - q[lo])[0];
+      if (next)
+        gaps.push({ gap: next[lo] - a[hi], from: a[hi], to: next[lo], at: crossMid(a, next) });
+    }
+
+    let best: TableSpacingGuide | null = null;
+    const consider = (
+      shift: number,
+      gap: number,
+      extra: { from: number; to: number; at: number }[],
+    ) => {
+      const distance = Math.abs(shift);
+      if (gap <= 0 || distance > threshold || (best && distance >= best.distance)) return;
+      const placed = { ...moving, [lo]: moving[lo] + shift, [hi]: moving[hi] + shift };
+      const own: { from: number; to: number; at: number }[] = [];
+      if (before && Math.abs(placed[lo] - before[hi] - gap) < 0.5)
+        own.push({ from: before[hi], to: placed[lo], at: crossMid(before, placed) });
+      if (after && Math.abs(after[lo] - placed[hi] - gap) < 0.5)
+        own.push({ from: placed[hi], to: after[lo], at: crossMid(placed, after) });
+      best = {
+        axis,
+        position: Math.round((axis === 'x' ? x : y) + shift),
+        distance,
+        gap: Math.round(gap),
+        segments: [...own, ...extra],
+      };
+    };
+
+    if (before && after) {
+      const gap = (after[lo] - before[hi] - (moving[hi] - moving[lo])) / 2;
+      consider(before[hi] + gap - moving[lo], gap, []);
+    }
+    for (const ref of gaps) {
+      // L'écart de référence ne doit pas être celui que la table déplacée occupe.
+      if (before && after && ref.from === before[hi] && ref.to === after[lo]) continue;
+      if (before) consider(before[hi] + ref.gap - moving[lo], ref.gap, [ref]);
+      if (after) consider(after[lo] - ref.gap - moving[hi], ref.gap, [ref]);
+    }
+    result[axis] = best;
+  }
+  return result;
 }
 
 function getTablePlate(
@@ -1015,6 +1166,7 @@ function findOverlappingTablePlate({
   rotation = 0,
   shape = 'rect',
   tables,
+  gap = 0,
 }: {
   x: number;
   y: number;
@@ -1023,8 +1175,15 @@ function findOverlappingTablePlate({
   rotation?: number;
   shape?: TableShape | null;
   tables: CanvasTable[];
+  /** Écart minimal exigé entre plateaux, en plus du simple non-chevauchement. */
+  gap?: number;
 }) {
-  const candidate = getTablePlate(x, y, width, height, rotation, shape);
+  const plate = getTablePlate(x, y, width, height, rotation, shape);
+  const candidate = {
+    ...plate,
+    halfWidth: plate.halfWidth + gap,
+    halfHeight: plate.halfHeight + gap,
+  };
 
   return tables.find((table) => {
     if (table.positionX === null || table.positionY === null) return false;
@@ -1086,14 +1245,231 @@ export function tablePlatesOverlapAtPosition(
   return Boolean(findOverlappingTablePlate(candidate));
 }
 
-/** Cherche la place libre la plus proche du point proposé, sans sortir du plan. */
+type TablePlacementConflict = {
+  table: CanvasTable;
+  kind: 'plate' | 'chair' | 'gap';
+};
+
+function describeTablePlacementConflict({ table, kind }: TablePlacementConflict) {
+  const name = table.displayName ?? table.name;
+  if (kind === 'plate') return `Plateaux superposés avec ${name}`;
+  if (kind === 'chair') return `Chaises proches de ${name}`;
+  return `Passage serré près de ${name}`;
+}
+
+function findTablePlacementConflict(
+  table: CanvasTable,
+  neighbours: CanvasTable[],
+): TablePlacementConflict | undefined {
+  if (table.positionX === null || table.positionY === null) return undefined;
+  const { width, height, rotation } = getTableSize(table);
+  const input = {
+    x: table.positionX,
+    y: table.positionY,
+    width,
+    height,
+    rotation,
+    shape: table.shape,
+    tables: neighbours.filter((other) => other.id !== table.id),
+  };
+  const plate = findOverlappingTablePlate(input);
+  if (plate) return { table: plate, kind: 'plate' };
+  const chair = findOverlappingTableChairs(table, input.tables);
+  if (chair) return { table: chair, kind: 'chair' };
+  const gap = findOverlappingTablePlate({ ...input, gap: TABLE_MIN_GAP });
+  if (gap) return { table: gap, kind: 'gap' };
+}
+
+export function findTablePlacementBlocker(table: CanvasTable, neighbours: CanvasTable[]) {
+  return findTablePlacementConflict(table, neighbours)?.table;
+}
+
+/** Rectangle du plateau rendu (celui des collisions), et son décalage par rapport à la boîte de la table. */
+function plateBox(table: CanvasTable, x: number, y: number) {
+  const { width, height, rotation } = getTableSize(table);
+  const plate = getTablePlate(x, y, width, height, rotation, table.shape);
+  // shortcut: rotations libres traitées comme des quarts de tour ; suffisant tant que les tables restent droites.
+  const quarter = Math.round(rotation / 90) % 2 !== 0;
+  const halfWidth = quarter ? plate.halfHeight : plate.halfWidth;
+  const halfHeight = quarter ? plate.halfWidth : plate.halfHeight;
+  return {
+    left: plate.x - halfWidth,
+    right: plate.x + halfWidth,
+    top: plate.y - halfHeight,
+    bottom: plate.y + halfHeight,
+    width: halfWidth * 2,
+    height: halfHeight * 2,
+  };
+}
+
+/** Écart visuel entre deux tables posées côte à côte (chaises tolérées, seuls les plateaux comptent). */
+const TABLE_SIDE_BY_SIDE_GAP = 4;
+
+/** Table voisine de côté (écart ≤ 2 pas de grille, bandes qui se recouvrent) : aligne l'autre axe sur elle. */
+function alignWithAdjacentTable(
+  table: CanvasTable,
+  tables: CanvasTable[],
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number } | null {
+  if (table.positionX === null || table.positionY === null) return null;
+  const { width, height, rotation } = getTableSize(table);
+  const x = table.positionX;
+  const y = table.positionY;
+  const mine = plateBox(table, x, y);
+  let best: { x: number; y: number; distance: number } | null = null;
+  for (const other of tables) {
+    if (other.positionX === null || other.positionY === null) continue;
+    const theirs = plateBox(other, other.positionX, other.positionY);
+    const sideBySide =
+      Math.max(mine.left - theirs.right, theirs.left - mine.right) <= 2 * GRID_SIZE &&
+      Math.min(mine.bottom, theirs.bottom) > Math.max(mine.top, theirs.top);
+    const stacked =
+      Math.max(mine.top - theirs.bottom, theirs.top - mine.bottom) <= 2 * GRID_SIZE &&
+      Math.min(mine.right, theirs.right) > Math.max(mine.left, theirs.left);
+    for (const shift of [0, 0.5, 1]) {
+      const options = [
+        // Même bord haut, centre ou bord bas : le plateau décide, pas la boîte.
+        sideBySide && {
+          x,
+          y: y + (theirs.top + (theirs.height - mine.height) * shift - mine.top),
+        },
+        stacked && {
+          x: x + (theirs.left + (theirs.width - mine.width) * shift - mine.left),
+          y,
+        },
+      ];
+      for (const option of options) {
+        if (!option) continue;
+        const next = { x: Math.round(option.x), y: Math.round(option.y) };
+        const distance = Math.hypot(next.x - x, next.y - y);
+        if (
+          (!best || distance < best.distance) &&
+          next.x >= 0 &&
+          next.y >= 0 &&
+          next.x + width <= canvasWidth &&
+          next.y + height <= canvasHeight &&
+          !tablePlatesOverlapAtPosition({
+            ...next,
+            width,
+            height,
+            rotation,
+            shape: table.shape,
+            tables,
+          })
+        )
+          best = { ...next, distance };
+      }
+    }
+  }
+  return best ? { x: best.x, y: best.y } : null;
+}
+
+/** Position libre la plus proche du dépôt, collée à un côté de la table gênante. */
+function findPositionBesideTable(
+  table: CanvasTable,
+  blocker: CanvasTable,
+  tables: CanvasTable[],
+  canvasWidth: number,
+  canvasHeight: number,
+): { x: number; y: number } | null {
+  if (
+    table.positionX === null ||
+    table.positionY === null ||
+    blocker.positionX === null ||
+    blocker.positionY === null
+  )
+    return null;
+  const { width, height, rotation } = getTableSize(table);
+  const drop = { x: table.positionX, y: table.positionY };
+  const mine = plateBox(table, drop.x, drop.y);
+  const theirs = plateBox(blocker, blocker.positionX, blocker.positionY);
+  const candidates: Array<{ x: number; y: number }> = [];
+  // Position de la boîte pour que le bord (ou centre) du plateau tombe à tel endroit.
+  const atLeft = (left: number) => drop.x + (left - mine.left);
+  const atTop = (top: number) => drop.y + (top - mine.top);
+  for (let gap = TABLE_SIDE_BY_SIDE_GAP; gap <= 6 * GRID_SIZE; gap += TABLE_SIDE_BY_SIDE_GAP) {
+    // Alignés sur le bord haut, le centre ou le bord bas (côtés gauche/droite), idem pour les colonnes.
+    for (const shift of [0, 0.5, 1]) {
+      const y = atTop(theirs.top + (theirs.height - mine.height) * shift);
+      const x = atLeft(theirs.left + (theirs.width - mine.width) * shift);
+      candidates.push(
+        { x: atLeft(theirs.right + gap), y },
+        { x: atLeft(theirs.left - mine.width - gap), y },
+        { x, y: atTop(theirs.bottom + gap) },
+        { x, y: atTop(theirs.top - mine.height - gap) },
+      );
+    }
+  }
+  return (
+    candidates
+      .map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }))
+      .filter(
+        ({ x, y }) =>
+          x >= 0 &&
+          y >= 0 &&
+          x + width <= canvasWidth &&
+          y + height <= canvasHeight &&
+          !tablePlatesOverlapAtPosition({
+            x,
+            y,
+            width,
+            height,
+            rotation,
+            shape: table.shape,
+            tables,
+          }),
+      )
+      .sort(
+        (a, b) => Math.hypot(a.x - drop.x, a.y - drop.y) - Math.hypot(b.x - drop.x, b.y - drop.y),
+      )[0] ?? null
+  );
+}
+
+/**
+ * Où une table lâchée à cet endroit se pose réellement : contre la table gênante si les
+ * plateaux se superposent, puis alignée sur sa voisine (sauf pose libre avec Alt).
+ * `null` : plateau superposé et aucune place libre. `aside` : la table a quitté son point de dépôt.
+ */
+export function settleTableDrop(
+  table: CanvasTable,
+  neighbours: CanvasTable[],
+  canvasWidth: number,
+  canvasHeight: number,
+  freeMove: boolean,
+): { x: number; y: number; aside: boolean } | null {
+  if (table.positionX === null || table.positionY === null) return null;
+  let position = { x: table.positionX, y: table.positionY };
+  let aside = false;
+  const conflict = findTablePlacementConflict(table, neighbours);
+  // Seul un plateau superposé déplace la table ; chaises et passage serré restent un simple avertissement.
+  if (conflict?.kind === 'plate') {
+    const beside =
+      findPositionBesideTable(table, conflict.table, neighbours, canvasWidth, canvasHeight) ??
+      findNearbyFreeTablePosition(table, neighbours, canvasWidth, canvasHeight);
+    if (!beside) return null;
+    position = beside;
+    aside = true;
+  }
+  if (!freeMove) {
+    const aligned = alignWithAdjacentTable(
+      { ...table, positionX: position.x, positionY: position.y },
+      neighbours,
+      canvasWidth,
+      canvasHeight,
+    );
+    if (aligned) position = aligned;
+  }
+  return { ...position, aside };
+}
+
 export function findNearbyFreeTablePosition(
   table: CanvasTable,
   tables: CanvasTable[],
   canvasWidth: number,
   canvasHeight: number,
 ): { x: number; y: number } | null {
-  const { width, height, rotation } = getTableSize(table);
+  const { width, height } = getTableSize(table);
   const originX = table.positionX ?? TABLE_DUPLICATE_GAP;
   const originY = table.positionY ?? TABLE_DUPLICATE_GAP;
   const positionedTables = tables.filter(
@@ -1105,27 +1481,20 @@ export function findNearbyFreeTablePosition(
     y >= 0 &&
     x + width <= canvasWidth &&
     y + height <= canvasHeight &&
-    !tablePlatesOverlapAtPosition({
-      x,
-      y,
-      width,
-      height,
-      rotation,
-      shape: table.shape,
-      tables: positionedTables,
-    });
+    // Identifiant distinct : une copie doit aussi garder ses distances avec l'original.
+    !findTablePlacementBlocker(
+      { ...table, id: `${table.id}-placement`, positionX: x, positionY: y },
+      positionedTables,
+    );
 
   const normalise = (value: number) => Math.round(value / GRID_SIZE) * GRID_SIZE;
-  const directCandidates = [
-    { x: originX + width + TABLE_DUPLICATE_GAP, y: originY },
-    { x: originX, y: originY + height + TABLE_DUPLICATE_GAP },
-    { x: originX - width - TABLE_DUPLICATE_GAP, y: originY },
-    { x: originX, y: originY - height - TABLE_DUPLICATE_GAP },
-    { x: originX + width + TABLE_DUPLICATE_GAP, y: originY + height + TABLE_DUPLICATE_GAP },
-    { x: originX - width - TABLE_DUPLICATE_GAP, y: originY + height + TABLE_DUPLICATE_GAP },
-    { x: originX + width + TABLE_DUPLICATE_GAP, y: originY - height - TABLE_DUPLICATE_GAP },
-    { x: originX - width - TABLE_DUPLICATE_GAP, y: originY - height - TABLE_DUPLICATE_GAP },
-  ];
+  // Côtés directs d'abord, avec un écart plus large si les chaises se touchent au plus près.
+  const directCandidates = [TABLE_DUPLICATE_GAP, TABLE_DUPLICATE_GAP * 2].flatMap((gap) => [
+    { x: originX + width + gap, y: originY },
+    { x: originX, y: originY + height + gap },
+    { x: originX - width - gap, y: originY },
+    { x: originX, y: originY - height - gap },
+  ]);
 
   for (const candidate of directCandidates) {
     const x = normalise(candidate.x);
@@ -1161,145 +1530,6 @@ function getNextTableName(tables: CanvasTable[]): string {
     return Math.max(max, match ? Number(match[1]) : 0);
   }, 0);
   return `T${highestNumber + 1}`;
-}
-
-type ChairPosition = {
-  left: number;
-  top: number;
-  rotation?: number;
-};
-
-type ChairLayoutInput = {
-  width: number;
-  height: number;
-  capacity?: number | null;
-  shape?: TableShape | null;
-};
-
-export function getChairPositions({
-  width: unsafeWidth,
-  height: unsafeHeight,
-  capacity,
-  shape = 'rect',
-}: ChairLayoutInput): ChairPosition[] {
-  const { width, height } = getSafeTableDimensions(unsafeWidth, unsafeHeight);
-  const chairCount = Math.min(capacity ?? 1, TABLE_LAYOUT.maximumChairCount);
-  const halfChairSize = TABLE_LAYOUT.chairSize / 2;
-  // TableCard uses `border-2` with `box-border`, so absolute children are
-  // positioned relative to the padding box. We must offset by the 2px border.
-  const { borderWidth, chairGap, chairSize, roundTableVisualGap } = TABLE_LAYOUT;
-  const chairs: ChairPosition[] = [];
-
-  if (shape === 'round') {
-    const centerX = width / 2 - borderWidth;
-    const centerY = height / 2 - borderWidth;
-    const chairClearance = roundTableVisualGap + (chairSize / 2) * Math.SQRT2;
-    const radiusX = width / 2 + chairClearance;
-    const radiusY = height / 2 + chairClearance;
-    for (let i = 0; i < chairCount; i++) {
-      const angle = (i / chairCount) * 2 * Math.PI - Math.PI / 2;
-      const rotation = ((angle + Math.PI / 2) * 180) / Math.PI;
-      chairs.push({
-        left: centerX + radiusX * Math.cos(angle) - halfChairSize,
-        top: centerY + radiusY * Math.sin(angle) - halfChairSize,
-        rotation,
-      });
-    }
-    return chairs;
-  }
-
-  const perimeter = 2 * (width + height);
-  let topCount = Math.max(0, Math.round((chairCount * width) / perimeter));
-  let bottomCount = topCount;
-  let leftCount = Math.max(0, Math.round((chairCount * height) / perimeter));
-  let rightCount = leftCount;
-  const total = topCount + bottomCount + leftCount + rightCount;
-
-  const adjust = (remaining: number) => {
-    while (remaining !== 0) {
-      if (remaining > 0) {
-        if (width >= height) {
-          topCount++;
-          if (--remaining === 0) break;
-          bottomCount++;
-          remaining--;
-        } else {
-          leftCount++;
-          if (--remaining === 0) break;
-          rightCount++;
-          remaining--;
-        }
-      } else if (width >= height) {
-        if (leftCount > 0) {
-          leftCount--;
-        } else if (rightCount > 0) {
-          rightCount--;
-        } else if (topCount > 1) {
-          topCount--;
-        } else if (bottomCount > 1) {
-          bottomCount--;
-        } else {
-          break;
-        }
-        remaining++;
-      } else {
-        if (topCount > 0) {
-          topCount--;
-        } else if (bottomCount > 0) {
-          bottomCount--;
-        } else if (leftCount > 1) {
-          leftCount--;
-        } else if (rightCount > 1) {
-          rightCount--;
-        } else {
-          break;
-        }
-        remaining++;
-      }
-    }
-  };
-
-  adjust(chairCount - total);
-
-  const place = (count: number, length: number, side: 'top' | 'bottom' | 'left' | 'right') => {
-    if (count <= 0) return;
-    const spacing = length / (count + 1);
-    for (let i = 1; i <= count; i++) {
-      const position = i * spacing;
-      if (side === 'top') {
-        chairs.push({
-          left: position - halfChairSize - borderWidth,
-          top: -(chairSize + chairGap + borderWidth),
-          rotation: 0,
-        });
-      } else if (side === 'bottom') {
-        chairs.push({
-          left: position - halfChairSize - borderWidth,
-          top: height - borderWidth + chairGap,
-          rotation: 180,
-        });
-      } else if (side === 'left') {
-        chairs.push({
-          left: -(chairSize + chairGap + borderWidth),
-          top: position - halfChairSize - borderWidth,
-          rotation: 270,
-        });
-      } else {
-        chairs.push({
-          left: width - borderWidth + chairGap,
-          top: position - halfChairSize - borderWidth,
-          rotation: 90,
-        });
-      }
-    }
-  };
-
-  place(topCount, width, 'top');
-  place(bottomCount, width, 'bottom');
-  place(leftCount, height, 'left');
-  place(rightCount, height, 'right');
-
-  return chairs;
 }
 
 function replaceTable(floorPlan: FloorPlan, updated: FloorPlanTable): FloorPlan {
@@ -1561,29 +1791,69 @@ function getRenderedTableChairs(table: CanvasTable, width: number, height: numbe
   });
 }
 
+function getChairsOnPlan(table: CanvasTable) {
+  if (table.positionX === null || table.positionY === null) return [];
+  const { positionX, positionY } = table;
+  const { width, height, rotation } = getTableSize(table);
+  const angle = (rotation * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return getRenderedTableChairs(table, width, height).map((chair) => {
+    const x = chair.x - width / 2;
+    const y = chair.y - height / 2;
+    return {
+      x: positionX + width / 2 + x * cos - y * sin,
+      y: positionY + height / 2 + x * sin + y * cos,
+      // shortcut: tester le cœur circulaire des chaises ; affiner si les contacts de bord doivent être signalés.
+      radius: Math.min(chair.width, TABLE_CARD_SEAT_HEIGHT) / 2,
+    };
+  });
+}
+
+function chairCirclesOverlap(
+  chair: ReturnType<typeof getChairsOnPlan>[number],
+  other: ReturnType<typeof getChairsOnPlan>[number],
+) {
+  return (chair.x - other.x) ** 2 + (chair.y - other.y) ** 2 < (chair.radius + other.radius) ** 2;
+}
+
+function getConflictingSeats(table: CanvasTable, other: CanvasTable) {
+  const plateFor = (item: CanvasTable) => {
+    const size = getTableSize(item);
+    return getTablePlate(
+      item.positionX!,
+      item.positionY!,
+      size.width,
+      size.height,
+      size.rotation,
+      item.shape,
+    );
+  };
+  const plate = plateFor(table);
+  const otherPlate = plateFor(other);
+  const moving = getChairsOnPlan(table);
+  const stationary = getChairsOnPlan(other);
+  return {
+    [table.id]: moving.flatMap((chair, index) =>
+      circleOverlapsTablePlate(chair, otherPlate) ||
+      stationary.some((seat) => chairCirclesOverlap(chair, seat))
+        ? [index]
+        : [],
+    ),
+    [other.id]: stationary.flatMap((chair, index) =>
+      circleOverlapsTablePlate(chair, plate) ||
+      moving.some((seat) => chairCirclesOverlap(chair, seat))
+        ? [index]
+        : [],
+    ),
+  };
+}
+
 export function findOverlappingTableChairs(
   table: CanvasTable,
   tables: CanvasTable[],
   { plateOnly = false } = {},
 ) {
-  const getChairsOnPlan = (table: CanvasTable) => {
-    if (table.positionX === null || table.positionY === null) return [];
-    const { positionX, positionY } = table;
-    const { width, height, rotation } = getTableSize(table);
-    const angle = (rotation * Math.PI) / 180;
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    return getRenderedTableChairs(table, width, height).map((chair) => {
-      const x = chair.x - width / 2;
-      const y = chair.y - height / 2;
-      return {
-        x: positionX + width / 2 + x * cos - y * sin,
-        y: positionY + height / 2 + x * sin + y * cos,
-        // shortcut: tester le cœur circulaire des chaises ; affiner si les contacts de bord doivent être signalés.
-        radius: Math.min(chair.width, TABLE_CARD_SEAT_HEIGHT) / 2,
-      };
-    });
-  };
   if (table.positionX === null || table.positionY === null) return;
   const size = getTableSize(table);
   const plate = getTablePlate(
@@ -1611,12 +1881,7 @@ export function findOverlappingTableChairs(
       getChairsOnPlan(other).some(
         (chair) =>
           circleOverlapsTablePlate(chair, plate) ||
-          (!plateOnly &&
-            movingChairs.some(
-              (moving) =>
-                (chair.x - moving.x) ** 2 + (chair.y - moving.y) ** 2 <
-                (chair.radius + moving.radius) ** 2,
-            )),
+          (!plateOnly && movingChairs.some((moving) => chairCirclesOverlap(chair, moving))),
       )
     );
   });
@@ -1627,22 +1892,46 @@ export function nudgeTableClearOfChairs(
   neighbours: CanvasTable[],
   canvasWidth: number,
   canvasHeight: number,
+  maxRadius = 2 * GRID_SIZE,
+  /** Point d'où vient la table : les directions qui y retournent sont essayées d'abord. */
+  from?: { x: number; y: number },
+  /** Vérifier aussi les chaises des voisines. */
+  chairsToo = false,
 ) {
   if (table.positionX === null || table.positionY === null) return;
   const { positionX, positionY } = table;
   const size = getTableSize(table);
-  // shortcut: huit directions sur deux carreaux ; affiner si les plans serrés nécessitent une recherche continue.
-  for (let radius = 4; radius <= 2 * GRID_SIZE; radius += 4) {
-    for (let direction = 0; direction < 8; direction++) {
+  const back = from ? Math.atan2(from.y - positionY, from.x - positionX) : 0;
+  const gap = (direction: number) => {
+    const diff = Math.abs((direction * Math.PI) / 4 - back) % (2 * Math.PI);
+    return Math.min(diff, 2 * Math.PI - diff);
+  };
+  const directions = [0, 1, 2, 3, 4, 5, 6, 7].sort((a, b) => gap(a) - gap(b));
+  // shortcut: huit directions ; affiner si les plans serrés nécessitent une recherche continue.
+  for (let radius = 4; radius <= maxRadius; radius += 4) {
+    for (const direction of directions) {
       const angle = (direction * Math.PI) / 4;
       const x = positionX + Math.round(radius * Math.cos(angle));
       const y = positionY + Math.round(radius * Math.sin(angle));
-      if (x < 0 || y < 0 || x + size.width > canvasWidth || y + size.height > canvasHeight)
+      if (
+        x < 0 ||
+        y < 0 ||
+        x + size.width > canvasWidth ||
+        y + size.height > canvasHeight ||
+        Math.hypot(x - positionX, y - positionY) > maxRadius
+      )
         continue;
       if (
-        !findOverlappingTablePlate({ ...size, x, y, shape: table.shape, tables: neighbours }) &&
+        !findOverlappingTablePlate({
+          ...size,
+          x,
+          y,
+          shape: table.shape,
+          tables: neighbours,
+          gap: chairsToo ? TABLE_MIN_GAP : 0,
+        }) &&
         !findOverlappingTableChairs({ ...table, positionX: x, positionY: y }, neighbours, {
-          plateOnly: true,
+          plateOnly: !chairsToo,
         })
       )
         return { positionX: x, positionY: y };
@@ -1653,7 +1942,15 @@ export function nudgeTableClearOfChairs(
 type TableCardProps = {
   table: CanvasTable;
   invalidPlacement?: boolean;
-  status?: { status: TableStatus; reservation: PlanningReservation | null };
+  conflictingSeats?: number[];
+  status?: {
+    status: TableStatus;
+    reservation: PlanningReservation | null;
+    now?: Date;
+    /** Table libre : début de la réservation suivante, null si libre toute la soirée. */
+    freeUntil?: Date | null;
+    mealMinutes?: number;
+  };
   onClick?: (e?: React.MouseEvent) => void;
   onDoubleClick?: () => void;
   dragRef?: React.Ref<HTMLDivElement>;
@@ -1671,11 +1968,14 @@ type TableCardProps = {
   editable?: boolean;
   /** Rendu tactile : nom et point d'état seuls, sans libellé ni client. */
   compact?: boolean;
+  /** Appui long sur une table occupée (Live) : libération en un geste. */
+  onReservationLongPress?: () => void;
 };
 
 function TableCard({
   table,
   invalidPlacement = false,
+  conflictingSeats,
   status,
   onClick,
   onDoubleClick,
@@ -1693,6 +1993,7 @@ function TableCard({
   assignmentCandidate = false,
   editable = true,
   compact = false,
+  onReservationLongPress,
 }: TableCardProps) {
   const { width, height, rotation } = getTableSize(table);
   const displayName = table.displayName ?? table.name;
@@ -1704,7 +2005,72 @@ function TableCard({
   // still provide different interactions, but the table itself should remain
   // recognisable when moving between them.
   const liveStatusLabel = status ? statusMeta[status.status].label : null;
-  const liveRailClass = status ? statusDotClasses[status.status] : 'bg-floor-table-accent';
+  // Salle de nuit : une table assise est « éclairée » (nappe claire), les
+  // autres restent sombres. Le contour sert d'horloge : compte à rebours avant
+  // l'arrivée, avancement du repas, plein et battant en cas de retard.
+  const liveState = status?.status;
+  const liveReservation = status?.reservation ?? null;
+  const lit = liveState === 'occupied';
+  const liveStart = liveReservation ? parseISO(liveReservation.startsAt) : null;
+  const liveMinutes =
+    liveStart && status?.now
+      ? Math.abs(
+          differenceInMinutes(
+            lit && liveReservation?.seatedAt ? parseISO(liveReservation.seatedAt) : liveStart,
+            status.now,
+          ),
+        )
+      : null;
+  const liveStartTime = liveStart ? format(liveStart, 'HH:mm', { locale: fr }) : null;
+  // Table libre : le contour dit combien de temps elle l'est (plein = un repas tient, ambre = court).
+  const freeMinutes =
+    (liveState === 'free' || liveState === 'reserved') && status?.now
+      ? status.freeUntil
+        ? differenceInMinutes(status.freeUntil, status.now)
+        : Number.POSITIVE_INFINITY
+      : null;
+  const freeLongEnough = freeMinutes !== null && freeMinutes >= (status?.mealMinutes ?? 90);
+  const liveEnd = lit && liveReservation ? parseISO(liveReservation.endsAt) : null;
+  const overrunMinutes = liveEnd && status?.now ? differenceInMinutes(status.now, liveEnd) : null;
+  const overrun = overrunMinutes !== null && overrunMinutes > 0;
+  const liveEndTime = liveEnd ? format(liveEnd, 'HH:mm', { locale: fr }) : null;
+  // Table occupée : le dépassement n'alarme que si des clients arrivent pour cette table.
+  const paid = lit && Boolean(liveReservation?.paidAt);
+  const nextTime =
+    lit && status?.freeUntil ? format(status.freeUntil, 'HH:mm', { locale: fr }) : null;
+  const nextPressing =
+    lit &&
+    Boolean(status?.freeUntil && status.now) &&
+    differenceInMinutes(status!.freeUntil!, status!.now!) <= NEXT_PRESSING_MINUTES;
+  const blocking = !paid && overrun && nextPressing;
+  const liveRing =
+    freeMinutes !== null && freeMinutes >= FREE_RING_MIN_MINUTES
+      ? 1
+      : liveState === 'late' || blocking || (paid && nextPressing)
+        ? 1
+        : liveMinutes === null || !liveReservation
+          ? null
+          : liveState === 'upcoming'
+            ? 1 - liveMinutes / 30
+            : lit
+              ? liveMinutes /
+                Math.max(1, differenceInMinutes(parseISO(liveReservation.endsAt), liveStart!))
+              : null;
+  const liveRingClass =
+    freeMinutes !== null
+      ? freeLongEnough
+        ? 'stroke-floor-status-free/50'
+        : 'stroke-floor-status-upcoming'
+      : blocking
+        ? 'stroke-floor-status-late'
+        : paid && nextPressing
+          ? 'stroke-floor-status-upcoming'
+          : liveState === 'late'
+            ? 'stroke-floor-status-late animate-pulse motion-reduce:animate-none'
+            : liveState === 'upcoming'
+              ? 'stroke-floor-status-upcoming'
+              : 'stroke-floor-table-muted';
+  const liveInkClass = lit ? 'text-floor-table-lit-text' : 'text-floor-table-text';
   const liveStatusTextClass =
     status?.status === 'occupied'
       ? 'text-floor-table-accent'
@@ -1724,6 +2090,13 @@ function TableCard({
     top: liveBodyTop,
   } = getTableBodyGeometry(width, height, isRound);
   const liveBodyLeft = Math.round((width - liveBodyWidth) / 2);
+  // Une grande table a la place d'écrire plus gros : lisible à bout de bras.
+  const roomy = Boolean(status) && !compact && !isRound && liveBodyHeight >= 96;
+  // Contour tracé dans la boîte intérieure du plateau (bordure de 1 px déduite).
+  const ringW = liveBodyWidth - 2;
+  const ringH = liveBodyHeight - 2;
+  const ringR = isRound ? ringW / 2 - 2 : 10;
+  const liveRingPath = `M ${ringW / 2} 2 H ${ringW - 2 - ringR} a ${ringR} ${ringR} 0 0 1 ${ringR} ${ringR} V ${ringH - 2 - ringR} a ${ringR} ${ringR} 0 0 1 ${-ringR} ${ringR} H ${2 + ringR} a ${ringR} ${ringR} 0 0 1 ${-ringR} ${-ringR} V ${2 + ringR} a ${ringR} ${ringR} 0 0 1 ${ringR} ${-ringR} Z`;
   const chairs = getRenderedTableChairs(table, width, height);
   const arrival = status?.status === 'upcoming' ? status.reservation?.startsAt : undefined;
   const arrivalTime = arrival ? format(parseISO(arrival), 'HH:mm', { locale: fr }) : null;
@@ -1734,6 +2107,7 @@ function TableCard({
       ref={dragRef}
       className={cn(
         'group/table relative box-border min-w-0 min-h-0 select-none outline-none',
+        status && onClick && 'cursor-pointer',
         'overflow-visible',
         !isOverlay && 'absolute',
         className,
@@ -1766,29 +2140,78 @@ function TableCard({
           onClick?.();
         }
       }}
-      title={`${displayName} · ${table.capacity} places${liveStatusLabel ? ` · ${liveStatusLabel}` : ''}${arrivalTime ? ` à ${arrivalTime}` : ''}`}
+      // En édition, le nom et les places sont déjà écrits : l'infobulle native traînait après un glisser.
+      title={
+        editable
+          ? undefined
+          : `${displayName} · ${table.capacity} places${liveStatusLabel ? ` · ${liveStatusLabel}` : ''}${arrivalTime ? ` à ${arrivalTime}` : ''}`
+      }
       {...dragProps}
     >
       <>
-        {chairs.map((chair, index) => (
+        {lit && !isOverlay ? (
+          // Même forme que le plateau : la lueur l'entoure uniformément, quelle que soit sa taille.
           <span
-            key={index}
-            className="absolute z-0 rounded-full border-2 border-floor-table-muted/50 bg-floor-table-chair shadow-sm"
+            className={cn(
+              'floor-table-glow pointer-events-none absolute z-0',
+              isRound ? 'rounded-full' : 'rounded-xl',
+            )}
             style={{
-              left: chair.x - chair.width / 2,
-              top: chair.y - TABLE_CARD_SEAT_HEIGHT / 2,
-              width: chair.width,
-              height: TABLE_CARD_SEAT_HEIGHT,
-              transform: `rotate(${chair.rotation}deg)`,
+              height: liveBodyHeight,
+              left: liveBodyLeft,
+              top: liveBodyTop,
+              width: liveBodyWidth,
             }}
             aria-hidden="true"
           />
-        ))}
+        ) : null}
+        {chairs.map((chair, index) => {
+          const conflicting = conflictingSeats?.includes(index);
+          const thickness = conflicting ? 3 : CHAIR_LINE_PX;
+          return (
+            <span
+              key={index}
+              data-floor-seat
+              data-floor-seat-conflict={conflicting || undefined}
+              className={cn(
+                // Une chaise est un simple trait fin le long de la table.
+                'absolute z-0 rounded-full',
+                // Seules les chaises occupées s'allument : 2 clients sur une table de 4 = 2 chaises.
+                conflicting
+                  ? 'bg-warning'
+                  : lit && index < (liveReservation?.partySize ?? chairs.length)
+                    ? 'bg-floor-table-text/70'
+                    : liveState === 'free'
+                      ? 'bg-floor-table-muted/30'
+                      : 'bg-floor-table-muted/50',
+              )}
+              style={{
+                // Trait posé un peu à l'extérieur du plateau, là où s'assoit le client.
+                left:
+                  chair.x - CHAIR_LINE_LENGTH_PX / 2 + chairOffset(chair, width, height, isRound).x,
+                top: chair.y - thickness / 2 + chairOffset(chair, width, height, isRound).y,
+                width: CHAIR_LINE_LENGTH_PX,
+                height: thickness,
+                transform: `rotate(${chair.rotation}deg)`,
+              }}
+              aria-hidden="true"
+            />
+          );
+        })}
         <div
+          data-floor-top
           className={cn(
-            'absolute z-10 overflow-hidden border border-floor-table-muted/15 bg-floor-table-surface shadow-sm',
-            isRound ? 'rounded-full' : 'rounded-[0.6rem]',
-            'transition-[border-color,box-shadow] duration-200 group-focus-visible/table:ring-2 group-focus-visible/table:ring-primary group-focus-visible/table:ring-offset-2 group-focus-visible/table:ring-offset-background',
+            'absolute z-10 overflow-hidden border',
+            lit
+              ? 'border-transparent bg-floor-table-lit shadow-md'
+              : liveState === 'free'
+                ? // Libre = à plat et au niveau du sol ; une table tenue est un cran plus claire.
+                  'border-floor-table-muted/25 bg-floor-table-idle'
+                : status
+                  ? 'border-floor-table-muted/25 bg-floor-table-held shadow-sm'
+                  : 'border-floor-table-muted/15 bg-floor-table-surface shadow-sm',
+            isRound ? 'rounded-full' : 'rounded-xl',
+            'transition-[border-color,box-shadow,filter] duration-200 group-hover/table:brightness-105 group-focus-visible/table:ring-2 group-focus-visible/table:ring-primary group-focus-visible/table:ring-offset-2 group-focus-visible/table:ring-offset-background',
             invalidPlacement && 'border-destructive bg-destructive/25 ring-2 ring-destructive',
             assignmentCandidate &&
               !isOverlay &&
@@ -1804,11 +2227,28 @@ function TableCard({
             width: liveBodyWidth,
           }}
         >
-          <span
-            className={cn('absolute inset-y-0 right-0', isRound ? 'w-2' : 'w-3', liveRailClass)}
-            aria-hidden="true"
-            title={liveStatusLabel ?? undefined}
-          />
+          {liveRing !== null ? (
+            <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+              {/* Contour-horloge : piste complète puis progression, parties du haut au centre. */}
+              {[100, Math.round(Math.min(1, Math.max(0.02, liveRing)) * 100)].map(
+                (length, index) => (
+                  <path
+                    key={index}
+                    d={liveRingPath}
+                    pathLength={100}
+                    strokeDasharray={`${length} 100`}
+                    strokeLinecap="round"
+                    className={cn(
+                      'fill-none',
+                      // « Disponible » reste un rappel discret : l'épaisseur est réservée à ce qui presse.
+                      freeLongEnough ? 'stroke-[1.5]' : 'stroke-[3]',
+                      index === 0 ? 'stroke-floor-table-muted/25' : liveRingClass,
+                    )}
+                  />
+                ),
+              )}
+            </svg>
+          ) : null}
           <div
             className={cn(
               'absolute inset-0 flex flex-col',
@@ -1816,21 +2256,134 @@ function TableCard({
                 ? 'items-center justify-center gap-1 px-3 text-center'
                 : compact
                   ? 'items-start justify-between px-2 py-1.5 pr-3 text-left'
-                  : 'items-start justify-between px-3 py-2 pr-5 text-left',
+                  : status
+                    ? 'items-start justify-between px-3 py-2 text-left'
+                    : 'items-start justify-between px-3 py-2 pr-5 text-left',
             )}
           >
-            <p className="max-w-full truncate pr-2 text-[13px] font-bold leading-none text-floor-table-text">
-              {displayName}
-            </p>
-            <p className="max-w-full truncate text-[11px] font-medium leading-none text-floor-table-text/90">
-              {table.capacity} places
-            </p>
-            {status ? (
+            <div
+              className={
+                isRound ? 'contents' : 'flex w-full min-w-0 items-start justify-between gap-2'
+              }
+            >
+              <p
+                className={cn(
+                  'max-w-full truncate pr-2',
+                  status && !compact ? null : 'font-bold',
+                  // En Live, numéro en caractères à empattements, comme un numéro de table posé.
+                  roomy
+                    ? 'font-brand text-3xl font-medium'
+                    : status && !compact
+                      ? 'font-brand text-lg font-medium'
+                      : 'text-[13px]',
+                  // Après la taille : une classe de taille posée ensuite annulerait l'interligne.
+                  'leading-none',
+                  liveState === 'free' ? 'text-floor-table-text/70' : liveInkClass,
+                )}
+              >
+                {displayName}
+              </p>
+              {status && !compact && !isRound && liveReservation ? (
+                // Couverts en haut à droite : la table s'équilibre et la ligne du bas reste courte.
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'flex shrink-0 items-center gap-0.5 font-semibold tabular-nums opacity-70',
+                    roomy ? 'text-sm' : 'text-[11px]',
+                    'leading-none',
+                    liveInkClass,
+                  )}
+                >
+                  <Users size={roomy ? 14 : 11} />
+                  {liveReservation.partySize}
+                </span>
+              ) : null}
+            </div>
+            {!status || liveState === 'free' || liveState === 'inactive' || compact ? (
+              <p
+                className={cn(
+                  'max-w-full truncate text-[11px] font-medium leading-none',
+                  liveState === 'free' ? 'text-floor-table-text/70' : 'text-floor-table-text/90',
+                )}
+              >
+                {table.capacity} places
+              </p>
+            ) : null}
+            {status && !compact && liveReservation && liveStartTime ? (
+              <div
+                aria-hidden="true"
+                className={cn(
+                  'flex min-w-0 max-w-full flex-col tabular-nums',
+                  roomy ? 'text-sm' : 'text-xs',
+                  'leading-[1.15]',
+                  isRound ? 'items-center' : 'items-start',
+                  liveInkClass,
+                )}
+              >
+                {liveState === 'reserved' ? (
+                  // Le carton posé sur la table : l'heure de la réservation.
+                  <time
+                    dateTime={liveReservation.startsAt}
+                    className="-rotate-2 rounded-sm bg-floor-table-lit px-1 text-[11px] font-semibold leading-[1.2] tabular-nums text-floor-table-lit-text shadow-sm"
+                  >
+                    {liveStartTime}
+                  </time>
+                ) : (
+                  <span
+                    className={cn(
+                      'max-w-full truncate font-semibold',
+                      liveState === 'late' && 'text-floor-status-late',
+                      liveState === 'upcoming' && 'text-floor-status-upcoming',
+                    )}
+                  >
+                    {/* Table ronde : une seule ligne courte, le détail est dans la fiche. */}
+                    {isRound
+                      ? lit
+                        ? paid
+                          ? 'Payé'
+                          : blocking
+                            ? nextTime
+                            : liveEndTime
+                        : liveState === 'late'
+                          ? `+${liveMinutes ?? 0} min`
+                          : liveStartTime
+                      : lit
+                        ? paid
+                          ? nextPressing
+                            ? `Payé · suivant ${nextTime}`
+                            : 'Payé'
+                          : blocking
+                            ? `Suivant ${nextTime}`
+                            : `Jusqu’à ${liveEndTime}`
+                        : liveState === 'late'
+                          ? `Retard ${liveMinutes ?? 0} min`
+                          : `Dans ${liveMinutes ?? 0} min`}
+                  </span>
+                )}
+                {isRound ? null : (
+                  <span className="flex min-w-0 max-w-full items-center gap-1 whitespace-nowrap opacity-70">
+                    {/* Ligne 2, toujours la même : qui et combien. */}
+                    {
+                      <>
+                        {liveState !== 'reserved' && !lit ? (
+                          <time dateTime={liveReservation.startsAt} className="tabular-nums">
+                            {liveStartTime}
+                          </time>
+                        ) : null}
+                        <span className="truncate">
+                          {formatCustomerName(liveReservation.customerName)}
+                        </span>
+                      </>
+                    }
+                  </span>
+                )}
+              </div>
+            ) : status && compact ? (
               <div
                 aria-hidden="true"
                 className={cn(
                   'flex min-w-0 max-w-full items-center gap-1 text-[11px] font-medium leading-tight',
-                  liveStatusTextClass,
+                  lit ? liveInkClass : liveStatusTextClass,
                 )}
               >
                 {status.status === 'free' ? (
@@ -1853,19 +2406,22 @@ function TableCard({
               reservation={status.reservation}
               fromTableId={table.id}
               disabled={!draggableReservation}
+              onLongPress={status.status === 'occupied' ? onReservationLongPress : undefined}
             />
           ) : null}
         </div>
       </>
       {isSelected && editable && !isOverlay && onResizeStart ? (
         <div
-          className="absolute -bottom-1.5 -right-1.5 z-30 size-3 cursor-nwse-resize rounded-full border-2 border-floor-table-surface bg-floor-table-accent shadow-md"
+          className="absolute bottom-0 right-0 z-30 grid size-5 cursor-nwse-resize place-items-center rounded-md border border-border bg-background text-foreground shadow-sm"
           onPointerDown={(e) => {
             e.stopPropagation();
             onResizeStart(e as unknown as React.PointerEvent);
           }}
           title="Redimensionner"
-        />
+        >
+          <Maximize2 size={12} />
+        </div>
       ) : null}
       {isSelected && editable && !isOverlay && onRotateStart ? (
         <div
@@ -1883,15 +2439,90 @@ function TableCard({
   );
 }
 
+function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours ? `${hours} h${rest ? ` ${String(rest).padStart(2, '0')}` : ''}` : `${rest} min`;
+}
+
+/** Ce que la table offre dans le temps : jusqu'à quand elle est libre, ou jusqu'où va son créneau. */
+export function formatTableTimeWindow(
+  status:
+    | {
+        status: TableStatus;
+        reservation: PlanningReservation | null;
+        now?: Date;
+        freeUntil?: Date | null;
+      }
+    | undefined,
+): string | null {
+  if (!status?.now) return null;
+  const next = status.freeUntil ? format(status.freeUntil, 'HH:mm') : null;
+  if (status.status === 'free' || status.status === 'reserved') {
+    return status.freeUntil
+      ? `Libre jusqu’à ${next} · ${formatMinutes(differenceInMinutes(status.freeUntil, status.now))}`
+      : 'Libre ce soir';
+  }
+  if (status.status === 'occupied' && status.reservation) {
+    const end = parseISO(status.reservation.endsAt);
+    const over = differenceInMinutes(status.now, end);
+    const slot =
+      over > 0
+        ? `Créneau dépassé de ${formatMinutes(over)}`
+        : `Créneau jusqu’à ${format(end, 'HH:mm')}`;
+    return next ? `${slot} · suivant ${next}` : slot;
+  }
+  return null;
+}
+
+const CHAIR_LINE_PX = 1;
+const CHAIR_LINE_LENGTH_PX = 14;
+const CHAIR_LINE_GAP_PX = 3;
+
+/** Décalage vers l'extérieur : rayon pour une table ronde, haut ou bas pour une table droite. */
+function chairOffset(
+  chair: { x: number; y: number },
+  width: number,
+  height: number,
+  isRound: boolean,
+): { x: number; y: number } {
+  const dx = chair.x - width / 2;
+  const dy = chair.y - height / 2;
+  if (!isRound) return { x: 0, y: dy < 0 ? -CHAIR_LINE_GAP_PX : CHAIR_LINE_GAP_PX };
+  const length = Math.hypot(dx, dy) || 1;
+  return { x: (dx / length) * CHAIR_LINE_GAP_PX, y: (dy / length) * CHAIR_LINE_GAP_PX };
+}
+const LONG_PRESS_MS = 550;
+/** En dessous, une table libre ne vaut pas un contour : elle est de fait réservée bientôt. */
+const FREE_RING_MIN_MINUTES = 30;
+/** Une réservation suivante plus proche que ça rend un dépassement urgent. */
+const NEXT_PRESSING_MINUTES = 30;
+const RELEASE_UNDO_MS = 5000;
+
 function DraggableReservation({
   reservation,
   fromTableId,
   disabled = false,
+  onLongPress,
 }: {
   reservation: PlanningReservation;
   fromTableId: string;
   disabled?: boolean;
+  onLongPress?: () => void;
 }) {
+  // Appui long immobile = libérer. Bouger de plus de 8 px l'annule : c'est alors un déplacement.
+  const longPressRef = useRef<{
+    timer: ReturnType<typeof setTimeout>;
+    x: number;
+    y: number;
+  } | null>(null);
+  const cancelLongPress = () => {
+    if (!longPressRef.current) return;
+    clearTimeout(longPressRef.current.timer);
+    longPressRef.current = null;
+  };
+  useEffect(() => cancelLongPress, []);
+
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `reservation-${reservation.id}`,
     data: { kind: 'reservation', reservation, fromTableId } as ActiveDragData,
@@ -1911,7 +2542,24 @@ function DraggableReservation({
       onPointerDown={(e) => {
         onPointerDown?.(e);
         e.stopPropagation();
+        cancelLongPress();
+        if (!onLongPress || e.button !== 0) return;
+        longPressRef.current = {
+          x: e.clientX,
+          y: e.clientY,
+          timer: setTimeout(() => {
+            longPressRef.current = null;
+            onLongPress();
+          }, LONG_PRESS_MS),
+        };
       }}
+      onPointerMove={(e) => {
+        const start = longPressRef.current;
+        if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancelLongPress();
+      }}
+      onPointerUp={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      onPointerLeave={cancelLongPress}
       className={cn(
         'absolute inset-0 z-20 cursor-grab rounded-[inherit] active:cursor-grabbing',
         isDragging && 'opacity-0',
@@ -1975,7 +2623,19 @@ function ZoneCard({
         }
       }}
     >
-      <span className="text-xs font-semibold uppercase tracking-[0.14em]">{zone.name}</span>
+      <span
+        className={cn(
+          'uppercase tracking-[0.14em]',
+          editable
+            ? cn(
+                'pointer-events-none absolute left-2 top-0 rounded bg-background px-1.5 py-0.5 text-xs font-semibold',
+                zone.y >= 12 && '-translate-y-1/2',
+              )
+            : 'text-[10px] font-medium opacity-60',
+        )}
+      >
+        {zone.name}
+      </span>
       {!editable && zone.sectionName ? (
         <span className="mt-1 text-[10px]">{zone.sectionName}</span>
       ) : null}
@@ -1999,7 +2659,15 @@ function ZoneCard({
 type DraggableTableProps = {
   table: CanvasTable;
   invalidPlacement?: boolean;
-  status?: { status: TableStatus; reservation: PlanningReservation | null };
+  conflictingSeats?: number[];
+  status?: {
+    status: TableStatus;
+    reservation: PlanningReservation | null;
+    now?: Date;
+    /** Table libre : début de la réservation suivante, null si libre toute la soirée. */
+    freeUntil?: Date | null;
+    mealMinutes?: number;
+  };
   isSelected?: boolean;
   onClick: (e?: React.MouseEvent) => void;
   onDoubleClick?: () => void;
@@ -2015,11 +2683,13 @@ type DraggableTableProps = {
   editable?: boolean;
   /** Carte tactile compacte (téléphone) : nom + point d'état seulement. */
   compact?: boolean;
+  onReservationLongPress?: () => void;
 };
 
 function DraggableTable({
   table,
   invalidPlacement,
+  conflictingSeats,
   status,
   isSelected,
   onClick,
@@ -2035,6 +2705,7 @@ function DraggableTable({
   assignmentCandidate = false,
   editable = true,
   compact = false,
+  onReservationLongPress,
 }: DraggableTableProps) {
   const {
     attributes,
@@ -2064,6 +2735,7 @@ function DraggableTable({
     <TableCard
       table={table}
       invalidPlacement={invalidPlacement}
+      conflictingSeats={conflictingSeats}
       status={status}
       isSelected={isSelected}
       onClick={onClick}
@@ -2077,6 +2749,7 @@ function DraggableTable({
       assignmentCandidate={assignmentCandidate}
       editable={editable}
       compact={compact}
+      onReservationLongPress={onReservationLongPress}
       className={cn(
         draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
         droppable && isOver && 'ring-2 ring-primary ring-offset-1',
@@ -2295,19 +2968,22 @@ function FloorPlanPalette({
   return (
     <div className="flex max-h-32 w-full min-w-0 flex-row gap-3 overflow-x-auto overflow-y-hidden border-t border-border bg-card p-2.5 lg:order-1 lg:h-full lg:max-h-none lg:w-36 lg:min-w-36 lg:flex-col lg:items-center lg:gap-2 lg:overflow-y-auto lg:border-r lg:border-t-0 lg:p-2">
       <div className="min-w-36 flex-1 lg:w-full lg:min-w-0 lg:flex-none">
-        <h4 className="mb-1.5 hidden text-center text-[9px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
-          Tables à placer · {tablesToPlace.length}
-        </h4>
+        {/* Ce bloc n'apparaît que s'il y a des tables créées mais pas encore posées sur le plan. */}
+        {tablesToPlace.length > 0 ? (
+          <h4 className="mb-1.5 hidden text-center text-[9px] font-semibold uppercase tracking-wider text-muted-foreground lg:block">
+            Tables à placer · {tablesToPlace.length}
+          </h4>
+        ) : null}
         <div className="flex flex-col gap-2">
           {tablesToPlace.length > 0 ? (
             tablesToPlace.map((table) => (
               <PaletteExistingTableCard key={table.id} table={table} onPlace={onPlaceTable} />
             ))
-          ) : (
+          ) : totalTables === 0 ? (
             <p className="px-1 text-[10px] leading-tight text-muted-foreground">
-              {totalTables === 0 ? 'Aucune table configurée.' : 'Toutes les tables sont placées.'}
+              Aucune table configurée.
             </p>
-          )}
+          ) : null}
           <Button
             type="button"
             variant="outline"
@@ -2567,6 +3243,7 @@ export function FloorPlanCanvas({
   // mutation, quel que soit l'objet ou le nombre de tables concernées.
   const {
     record: recordGeometry,
+    discard: discardGeometry,
     undo: undoGeometrySnapshot,
     redo: redoGeometrySnapshot,
     canUndo,
@@ -2598,6 +3275,8 @@ export function FloorPlanCanvas({
   // pendant le coup de feu (le bouton et la touche « G » restent disponibles).
   const [gridVisible, setGridVisible] = useState(mode !== 'service');
   const [snap, setSnap] = useState(true);
+  const [panMode, setPanMode] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const live = mode === 'service';
   // Cadres tactiles : sur téléphone et tablette, le plan est la surface
@@ -2647,6 +3326,14 @@ export function FloorPlanCanvas({
   });
   const [mobileServiceDetailsOpen, setMobileServiceDetailsOpen] = useState(false);
   const [updatingReservationStateId, setUpdatingReservationStateId] = useState<string | null>(null);
+  // Libérations en attente d'envoi (fenêtre « Annuler ») : la table s'affiche déjà libre.
+  const [releasingReservationIds, setReleasingReservationIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const pendingReleasesRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const [releaseAllOpen, setReleaseAllOpen] = useState(false);
+  // « Sans réservation » : taille du groupe à l'entrée ; allume les tables où il tient un repas entier.
+  const [walkInPartySize, setWalkInPartySize] = useState<number | null>(null);
   const [suggestions, setSuggestions] = useState<TableSuggestion[]>([]);
   const [headerAssignment, setHeaderAssignment] = useState<{
     reservation: PlanningReservation;
@@ -2735,12 +3422,19 @@ export function FloorPlanCanvas({
 
   const [activeDragData, setActiveDragData] = useState<ActiveDragData | null>(null);
   const [dragStart, setDragStart] = useState<DragStartInfo | null>(null);
-  const [tableDragPreview, setTableDragPreview] = useState<{
-    positionX: number;
-    positionY: number;
-    blocker?: CanvasTable;
-    chairConflict?: CanvasTable;
+  const [tableDragPreview, setTableDragPreview] = useState<ReturnType<
+    typeof resolveTableDragPosition
+  > | null>(null);
+  const tableDragPreviewRef = useRef<ReturnType<typeof resolveTableDragPosition> | null>(null);
+  const [tableDropNotice, setTableDropNotice] = useState<{
+    text: string;
+    blocked: boolean;
   } | null>(null);
+  useEffect(() => {
+    if (!tableDropNotice) return;
+    const timeout = window.setTimeout(() => setTableDropNotice(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [tableDropNotice]);
   const [tableDropOverlapping, setTableDropOverlapping] = useState(false);
   const [autoLayoutLoading, setAutoLayoutLoading] = useState(false);
   const [autoLayoutNotice, setAutoLayoutNotice] = useState(false);
@@ -2811,11 +3505,6 @@ export function FloorPlanCanvas({
   const [wallAlignGuide, setWallAlignGuide] = useState<{ axis: 'x' | 'y'; value: number } | null>(
     null,
   );
-  // Guides de table (bords et centres) visibles pendant le déplacement : ils
-  // rendent le magnétisme compréhensible au lieu de laisser un déplacement
-  // sembler arbitraire.
-  const [tableAlignGuides, setTableAlignGuides] =
-    useState<TableAlignmentGuides>(emptyTableAlignmentGuides);
   const [wallLengthGuide, setWallLengthGuide] = useState<WallLengthGuide | null>(null);
   const [wallResizeAlignGuide, setWallResizeAlignGuide] = useState<WallResizeAlignGuide | null>(
     null,
@@ -2868,7 +3557,8 @@ export function FloorPlanCanvas({
       });
       const stageBounds = contentBoundsRef.current;
       let bounds = focusTables ? (tableBoundsRef.current ?? stageBounds) : stageBounds;
-      if (focusTables && bounds && stageBounds) {
+      // En édition, on cadre toujours les tables : une zone dessinée trop grande ne doit pas réduire le plan.
+      if (live && focusTables && bounds && stageBounds) {
         const roomZoom = Math.min(
           viewportWidth / stageBounds.width,
           viewportHeight / stageBounds.height,
@@ -2930,8 +3620,23 @@ export function FloorPlanCanvas({
 
   /** Zoom manuel : il ne doit plus être écrasé par le cadrage automatique. */
   function changeZoom(delta: number) {
+    const viewport = canvasViewportRef.current;
+    const current = zoomRef.current;
+    const next = clampZoom(Math.round((current + delta) * 100) / 100, manualMinZoom());
+    if (next === current) return;
     userAdjustedZoomRef.current = true;
-    setZoom((current) => clampZoom(Math.round((current + delta) * 100) / 100, manualMinZoom()));
+    setZoom(next);
+    if (viewport) {
+      const scroll = computeZoomAnchorScroll({
+        scrollLeft: viewport.scrollLeft,
+        scrollTop: viewport.scrollTop,
+        offsetX: viewport.clientWidth / 2,
+        offsetY: viewport.clientHeight / 2,
+        zoom: current,
+        nextZoom: next,
+      });
+      window.requestAnimationFrame(() => viewport.scrollTo(scroll.left, scroll.top));
+    }
   }
 
   /** Replace le plan à l'échelle de cadrage et le centre (double-tap, bouton). */
@@ -2939,7 +3644,7 @@ export function FloorPlanCanvas({
     const viewport = canvasViewportRef.current;
     if (!viewport) return;
     userAdjustedZoomRef.current = false;
-    const fit = fitCanvasToViewport();
+    const fit = fitCanvasToViewport(!live);
     const scroll = fit?.scroll ?? {
       ...computeCenterScroll({
         viewportWidth: viewport.clientWidth,
@@ -2950,7 +3655,7 @@ export function FloorPlanCanvas({
       }),
     };
     window.requestAnimationFrame(() => {
-      viewport.scrollTo({ ...scroll, behavior: 'smooth' });
+      viewport.scrollTo({ ...scroll, behavior: live ? 'smooth' : 'instant' });
     });
   }
 
@@ -2999,6 +3704,7 @@ export function FloorPlanCanvas({
     if (dockedServiceInspectorOpen) userAdjustedZoomRef.current = false;
   }, [dockedServiceInspectorOpen]);
 
+  // En édition, le zoom ne bouge pas quand on sélectionne : l'écran ne saute pas sous la main.
   useIsomorphicLayoutEffect(() => {
     if (!live || serviceTab !== 'plan') return;
     const viewport = canvasViewportRef.current;
@@ -3303,14 +4009,74 @@ export function FloorPlanCanvas({
         );
         setReservations((prev) => prev.map((r) => (r.id === reservationId ? { ...r, state } : r)));
         await loadReservations({ force: true });
+        return true;
       } catch (err) {
         setError(getErrorMessage(err, 'Impossible de mettre à jour le statut'));
+        return false;
       } finally {
         setUpdatingReservationStateId(null);
       }
     },
     [orgId, loadReservations],
   );
+
+  const stopReleasing = useCallback((reservationId: string) => {
+    pendingReleasesRef.current.delete(reservationId);
+    setReleasingReservationIds((prev) => {
+      const next = new Set(prev);
+      next.delete(reservationId);
+      return next;
+    });
+  }, []);
+
+  // « Libérée » (HONORED) est définitif côté API : l'envoi attend la fin de la fenêtre « Annuler ».
+  const releaseTableWithUndo = useCallback(
+    (reservation: PlanningReservation, tableName: string) => {
+      if (pendingReleasesRef.current.has(reservation.id)) return;
+      // Le relâchement qui suit l'appui long ne doit pas ouvrir la fiche de la table.
+      justDraggedRef.current = true;
+      window.addEventListener(
+        'pointerup',
+        () => setTimeout(() => (justDraggedRef.current = false), 0),
+        { once: true },
+      );
+      const timer = setTimeout(() => {
+        void updateReservationState(reservation.id, 'HONORED').finally(() =>
+          stopReleasing(reservation.id),
+        );
+      }, RELEASE_UNDO_MS);
+      pendingReleasesRef.current.set(reservation.id, timer);
+      setReleasingReservationIds((prev) => new Set(prev).add(reservation.id));
+      setSelectedServiceTableId(null);
+      toast(`${tableName} libérée`, {
+        duration: RELEASE_UNDO_MS,
+        action: {
+          label: 'Annuler',
+          onClick: () => {
+            clearTimeout(timer);
+            stopReleasing(reservation.id);
+          },
+        },
+      });
+    },
+    [updateReservationState, stopReleasing],
+  );
+
+  // Quitter la page pendant la fenêtre « Annuler » envoie quand même les libérations en attente.
+  useEffect(() => {
+    const pending = pendingReleasesRef.current;
+    return () => {
+      for (const [reservationId, timer] of pending) {
+        clearTimeout(timer);
+        void patchRef
+          .current<void>(`restaurants/${orgId}/floor-plan/reservations/${reservationId}/state`, {
+            state: 'HONORED',
+          })
+          .catch(() => undefined);
+      }
+      pending.clear();
+    };
+  }, [orgId]);
 
   // Place un client sans réservation. Rejette avec un message clair : le formulaire de la table
   // l'affiche, il n'y a donc pas de bandeau d'erreur global ici.
@@ -3865,14 +4631,32 @@ export function FloorPlanCanvas({
     ? (zones.find((zone) => zone.id === selectedZoneId) ?? null)
     : null;
   const tableStatuses = useMemo(() => {
-    const map = new Map<string, { status: TableStatus; reservation: PlanningReservation | null }>();
+    const map = new Map<
+      string,
+      {
+        status: TableStatus;
+        reservation: PlanningReservation | null;
+        now: Date;
+        freeUntil: Date | null;
+        mealMinutes: number;
+      }
+    >();
     if (!live) return map;
     const now = new Date();
+    const shown = releasingReservationIds.size
+      ? reservations.filter((r) => !releasingReservationIds.has(r.id))
+      : reservations;
+    const mealMinutes = getMealMinutes(shown);
     for (const table of allTables) {
-      map.set(table.id, getTableStatus(table, reservations, now));
+      map.set(table.id, {
+        ...getTableStatus(table, shown, now),
+        now,
+        freeUntil: getFreeUntil(table, shown, now),
+        mealMinutes,
+      });
     }
     return map;
-  }, [live, allTables, reservations]);
+  }, [live, allTables, reservations, releasingReservationIds]);
 
   const serverSummary = useMemo(() => {
     const counts = new Map<string, number>();
@@ -3928,6 +4712,39 @@ export function FloorPlanCanvas({
     [selectedTables, selectedTableIds.size],
   );
 
+  // En édition, le panneau de la table rétrécit le plan sans changer le zoom :
+  // on fait seulement défiler pour que la table choisie reste visible.
+  const selectedTableToReveal = !live ? selectedTable : null;
+  useEffect(() => {
+    const table = selectedTableToReveal;
+    const viewport = canvasViewportRef.current;
+    if (!table || !viewport || table.positionX === null || table.positionY === null) return;
+    const { positionX, positionY } = table;
+    const frame = window.requestAnimationFrame(() => {
+      const { width, height } = getTableSize(table);
+      const margin = 48;
+      const left = positionX * zoomRef.current;
+      const top = positionY * zoomRef.current;
+      const right = left + width * zoomRef.current;
+      const bottom = top + height * zoomRef.current;
+      const nextLeft =
+        right + margin > viewport.scrollLeft + viewport.clientWidth
+          ? right + margin - viewport.clientWidth
+          : left - margin < viewport.scrollLeft
+            ? left - margin
+            : viewport.scrollLeft;
+      const nextTop =
+        bottom + margin > viewport.scrollTop + viewport.clientHeight
+          ? bottom + margin - viewport.clientHeight
+          : top - margin < viewport.scrollTop
+            ? top - margin
+            : viewport.scrollTop;
+      viewport.scrollLeft = Math.max(0, nextLeft);
+      viewport.scrollTop = Math.max(0, nextTop);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedTableToReveal?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedServiceTable = useMemo(
     () => allTables.find((table) => table.id === selectedServiceTableId) ?? null,
     [allTables, selectedServiceTableId],
@@ -3943,16 +4760,6 @@ export function FloorPlanCanvas({
   );
   const reportedDelayOriginalTableId = delayImpact ? reportedDelayReservation?.tableId : null;
   const reportedDelayAlternativeTableId = delayImpact?.alternativeTable?.id ?? null;
-
-  function centerCanvas() {
-    const viewport = canvasViewportRef.current;
-    if (!viewport) return;
-    viewport.scrollTo({
-      left: Math.max(0, (canvasWidth * zoom - viewport.clientWidth) / 2),
-      top: Math.max(0, (canvasHeight * zoom - viewport.clientHeight) / 2),
-      behavior: 'smooth',
-    });
-  }
 
   function openRoomSettings() {
     setFloorSettings({
@@ -3989,10 +4796,11 @@ export function FloorPlanCanvas({
     const { x, y } = position;
     const before = snapshotTableGeometry(table);
     const after = snapshotTableGeometry({ ...table, positionX: x, positionY: y });
-    recordGeometry({
+    const historyAction = {
       before: { tables: [before], walls: [] },
       after: { tables: [after], walls: [] },
-    });
+    };
+    recordGeometry(historyAction);
     setSelectedTableIds(new Set([table.id]));
     setLastSelectedTableId(table.id);
     setSelectedWallId(null);
@@ -4014,6 +4822,7 @@ export function FloorPlanCanvas({
           : prev,
       );
     } catch (err) {
+      discardGeometry(historyAction);
       setError(getErrorMessage(err, 'Impossible de placer la table'));
       setFloorPlan((prev) =>
         prev ? replaceTablePosition(prev, table.id, table.positionX, table.positionY) : prev,
@@ -4395,7 +5204,15 @@ export function FloorPlanCanvas({
     }
     if (live) {
       if (unassignedPlacement.reservationId) {
-        if (unassignedPlacement.suggestions.some((suggestion) => suggestion.tableId === table.id)) {
+        // Une table marquée occupée reste choisissable : le panneau propose de la libérer.
+        const occupiedAndFits =
+          tableStatuses.get(table.id)?.status === 'occupied' &&
+          selectedUnassignedReservation !== null &&
+          selectedUnassignedReservation.partySize <= table.capacity;
+        if (
+          occupiedAndFits ||
+          unassignedPlacement.suggestions.some((suggestion) => suggestion.tableId === table.id)
+        ) {
           setUnassignedPlacement((current) => ({
             ...current,
             targetTableId: table.id,
@@ -4597,7 +5414,61 @@ export function FloorPlanCanvas({
   function changeTableCapacity(table: CanvasTable, delta: number) {
     const capacity = Math.max(1, table.capacity + delta);
     if (capacity === table.capacity) return;
-    void patchTable(table.id, { capacity });
+    transformTable(table, { capacity });
+  }
+
+  /**
+   * Pivoter, redimensionner, changer de forme ou de couverts : même règle qu'au lâcher.
+   * Si la table transformée touche une voisine, elle se décale à la place libre la plus proche ;
+   * sans place, le changement est refusé. Une table déjà trop proche n'est pas bloquée.
+   */
+  function transformTable(table: CanvasTable, updates: Partial<FloorPlanTable>) {
+    let next: CanvasTable = { ...table, ...updates };
+    const neighbours = allTables.filter((other) => other.id !== table.id);
+    if (
+      !freeMoveRef.current &&
+      findTablePlacementBlocker(next, neighbours) &&
+      !findTablePlacementBlocker(table, neighbours)
+    ) {
+      const size = getTableSize(next);
+      const nearby = nudgeTableClearOfChairs(
+        next,
+        neighbours,
+        canvasWidth,
+        canvasHeight,
+        Math.max(size.width, size.height) + 2 * GRID_SIZE,
+        { x: table.positionX ?? 0, y: table.positionY ?? 0 },
+        true,
+      );
+      if (!nearby) {
+        toast.error(
+          `Pas assez de place autour de ${table.displayName ?? table.name} pour ce changement.`,
+        );
+        // Les poignées ont déjà modifié l'aperçu : on remet la table telle qu'elle était.
+        setFloorPlan((prev) => (prev ? replaceTable(prev, table) : prev));
+        return;
+      }
+      next = { ...next, ...nearby };
+    }
+    const geometric =
+      next.positionX !== table.positionX ||
+      next.positionY !== table.positionY ||
+      next.width !== table.width ||
+      next.height !== table.height ||
+      next.rotation !== table.rotation;
+    if (geometric) {
+      recordGeometry({
+        before: { tables: [snapshotTableGeometry(table)], walls: [] },
+        after: { tables: [snapshotTableGeometry(next)], walls: [] },
+      });
+    }
+    setFloorPlan((prev) => (prev ? replaceTable(prev, next) : prev));
+    void patchTable(table.id, {
+      ...updates,
+      ...(next.positionX !== table.positionX || next.positionY !== table.positionY
+        ? { positionX: next.positionX, positionY: next.positionY }
+        : {}),
+    });
   }
 
   async function patchZone(zoneId: string, updates: Partial<FloorPlanZone>) {
@@ -4655,24 +5526,38 @@ export function FloorPlanCanvas({
   }
 
   async function duplicateSingleTable(table: FloorPlanTable) {
-    if (!orgId || !floorPlan) return;
+    await pasteTables([table]);
+  }
+
+  const copiedTablesRef = useRef<FloorPlanTable[]>([]);
+
+  /** Colle (ou duplique) des tables à côté des originaux, chacune sur une place libre, noms à la suite. */
+  async function pasteTables(tables: FloorPlanTable[]) {
+    if (!orgId || !floorPlan || tables.length === 0) return;
+    const occupied: CanvasTable[] = [...allTables];
+    const created: FloorPlanTable[] = [];
     try {
-      const position = findNearbyFreeTablePosition(table, allTables, canvasWidth, canvasHeight);
-      if (!position) {
-        setError('Aucun emplacement libre pour dupliquer cette table dans le plan.');
-        return;
-      }
-      const created = await duplicateTable(table, position.x, position.y);
-      if (created) {
-        setFloorPlan((prev) =>
-          prev ? { ...prev, tables: [...(prev.tables ?? []), created] } : prev,
-        );
-        setSelectedTableIds(new Set([created.id]));
-        setLastSelectedTableId(created.id);
+      for (const [index, table] of tables.entries()) {
+        const position = findNearbyFreeTablePosition(table, occupied, canvasWidth, canvasHeight);
+        if (!position) {
+          setError('Aucun emplacement libre pour coller cette table dans le plan.');
+          break;
+        }
+        const copy = await duplicateTable(table, position.x, position.y, nextTableName(index + 1));
+        if (!copy) break;
+        created.push(copy);
+        occupied.push(copy as CanvasTable);
       }
     } catch (err) {
-      setError(getErrorMessage(err, 'Impossible de dupliquer la table'));
+      setError(getErrorMessage(err, 'Impossible de coller la table'));
     }
+    if (created.length === 0) return;
+    setFloorPlan((prev) =>
+      prev ? { ...prev, tables: [...(prev.tables ?? []), ...created] } : prev,
+    );
+    recordTableCreation(created);
+    setSelectedTableIds(new Set(created.map((table) => table.id)));
+    setLastSelectedTableId(created[created.length - 1].id);
   }
 
   function nextTableName(offset = 1): string {
@@ -4746,6 +5631,7 @@ export function FloorPlanCanvas({
       setError(getErrorMessage(err, 'Impossible de terminer la rangée'));
     }
     if (created.length > 0) {
+      recordTableCreation(created);
       setSelectedTableIds(new Set(created.map((table) => table.id)));
       setLastSelectedTableId(created.at(-1)?.id ?? null);
     }
@@ -4816,36 +5702,79 @@ export function FloorPlanCanvas({
       };
     });
 
+    commitSelectedTablesMove(
+      dimensions.map(({ table }) => table),
+      nextTables,
+      'Cet alignement ferait se chevaucher des tables.',
+    );
+  }
+
+  /** Espaces égaux entre les plateaux : la première et la dernière table ne bougent pas. */
+  function distributeSelectedTables(axis: 'x' | 'y') {
+    if (selectedTables.length < 3) return;
+    const items = selectedTables
+      .map((table) => {
+        const size = getTableSize(table);
+        const plate = plateRect(
+          table.positionX ?? 0,
+          table.positionY ?? 0,
+          size.width,
+          size.height,
+          size.rotation,
+          table.shape,
+        );
+        const [start, end] = axis === 'x' ? [plate.left, plate.right] : [plate.top, plate.bottom];
+        return { table, start, end };
+      })
+      .sort((a, b) => a.start - b.start);
+    const first = items[0];
+    const last = items[items.length - 1];
+    const filled = items.reduce((sum, item) => sum + item.end - item.start, 0);
+    const gap = (last.end - first.start - filled) / (items.length - 1);
+    if (gap < 0) {
+      toast.error('Pas assez de place pour répartir ces tables.');
+      return;
+    }
+    let cursor = first.start;
+    const nextTables = items.map(({ table, start, end }) => {
+      const shift = cursor - start;
+      cursor += end - start + gap;
+      return axis === 'x'
+        ? { ...table, positionX: Math.round((table.positionX ?? 0) + shift) }
+        : { ...table, positionY: Math.round((table.positionY ?? 0) + shift) };
+    });
+    commitSelectedTablesMove(
+      items.map(({ table }) => table),
+      nextTables,
+      'Cette répartition ferait se chevaucher des tables.',
+    );
+  }
+
+  function commitSelectedTablesMove(
+    previous: CanvasTable[],
+    nextTables: CanvasTable[],
+    overlapMessage: string,
+  ) {
     if (
       nextTables.every(
         (table, index) =>
-          table.positionX === dimensions[index].table.positionX &&
-          table.positionY === dimensions[index].table.positionY,
+          table.positionX === previous[index].positionX &&
+          table.positionY === previous[index].positionY,
       )
     ) {
       return;
     }
-
     const occupied = placedTables.filter((table) => !selectedTableIds.has(table.id));
     for (const table of nextTables) {
-      if (
-        tablePlatesOverlapAtPosition({
-          ...getTableSize(table),
-          x: table.positionX,
-          y: table.positionY,
-          shape: table.shape,
-          tables: occupied,
-        }) ||
-        findOverlappingTableChairs(table, occupied, { plateOnly: true })
-      ) {
-        toast.error('Cet alignement ferait se chevaucher des tables.');
+      if (findTablePlacementBlocker(table, occupied)) {
+        toast.error(overlapMessage);
         return;
       }
       occupied.push(table);
     }
 
     const before: GeometrySnapshot = {
-      tables: dimensions.map(({ table }) => snapshotTableGeometry(table)),
+      tables: previous.map(snapshotTableGeometry),
       walls: [],
     };
     const after: GeometrySnapshot = { tables: nextTables.map(snapshotTableGeometry), walls: [] };
@@ -4952,24 +5881,8 @@ export function FloorPlanCanvas({
       const finalWidth = Math.round(start.currentWidth ?? start.width);
       const finalHeight = Math.round(start.currentHeight ?? start.height);
       if (start.beforeTable && (finalWidth !== start.width || finalHeight !== start.height)) {
-        recordGeometry({
-          before: { tables: [snapshotTableGeometry(start.beforeTable)], walls: [] },
-          after: {
-            tables: [
-              snapshotTableGeometry({
-                ...start.beforeTable,
-                width: finalWidth,
-                height: finalHeight,
-              }),
-            ],
-            walls: [],
-          },
-        });
+        transformTable(start.beforeTable, { width: finalWidth, height: finalHeight });
       }
-      void patchTable(resizeTableId, {
-        width: finalWidth,
-        height: finalHeight,
-      });
       setResizeTableId(null);
       resizeStartRef.current = null;
     }
@@ -4977,17 +5890,8 @@ export function FloorPlanCanvas({
       const start = rotateStartRef.current;
       const finalRotation = start.currentRotation ?? start.startRotation;
       if (start.beforeTable && finalRotation !== start.startRotation) {
-        recordGeometry({
-          before: { tables: [snapshotTableGeometry(start.beforeTable)], walls: [] },
-          after: {
-            tables: [snapshotTableGeometry({ ...start.beforeTable, rotation: finalRotation })],
-            walls: [],
-          },
-        });
+        transformTable(start.beforeTable, { rotation: finalRotation });
       }
-      void patchTable(rotateTableId, {
-        rotation: finalRotation,
-      });
       setRotateTableId(null);
       rotateStartRef.current = null;
     }
@@ -5135,7 +6039,66 @@ export function FloorPlanCanvas({
    * géométrie. Une action de groupe (aligner) reste donc atomique du
    * point de vue de la pile, tout en conservant les mutations API existantes.
    */
+  function recordTableCreation(created: FloorPlanTable[]) {
+    if (created.length === 0) return;
+    const group = { tables: created };
+    recordGeometry({
+      before: { tables: [], walls: [], creation: { group, present: false } },
+      after: { tables: [], walls: [], creation: { group, present: true } },
+    });
+  }
+
+  async function applyTableCreation({ group, present }: NonNullable<GeometrySnapshot['creation']>) {
+    if (!orgId) return;
+    setError('');
+    if (!present) {
+      const ids = new Set(group.tables.map((table) => table.id));
+      setFloorPlan((prev) => {
+        if (!prev) return prev;
+        let next = prev;
+        for (const id of ids) next = removeTable(next, id);
+        return next;
+      });
+      setSelectedTableIds((current) =>
+        [...current].some((id) => ids.has(id)) ? new Set() : current,
+      );
+      try {
+        await Promise.all(
+          [...ids].map((id) =>
+            del(
+              `restaurants/${orgId}/floor-plan/tables/${id}${floorPlanId ? `?floorPlanId=${floorPlanId}` : ''}`,
+            ),
+          ),
+        );
+      } catch (err) {
+        setError(getErrorMessage(err, 'Impossible d’annuler la création des tables'));
+      }
+      return;
+    }
+    try {
+      const recreated: FloorPlanTable[] = [];
+      for (const table of group.tables) {
+        const copy = await duplicateTable(
+          table,
+          table.positionX ?? 0,
+          table.positionY ?? 0,
+          table.name,
+        );
+        if (copy) recreated.push(copy);
+      }
+      // shortcut: les actions plus récentes qui visaient les anciens identifiants sont ignorées au rétablissement ; remapper les identifiants si ce cas gêne.
+      group.tables = recreated;
+      setFloorPlan((prev) =>
+        prev ? { ...prev, tables: [...(prev.tables ?? []), ...recreated] } : prev,
+      );
+      setSelectedTableIds(new Set(recreated.map((table) => table.id)));
+    } catch (err) {
+      setError(getErrorMessage(err, 'Impossible de rétablir les tables'));
+    }
+  }
+
   function applyGeometrySnapshot(snapshot: GeometrySnapshot) {
+    if (snapshot.creation) void applyTableCreation(snapshot.creation);
     if (snapshot.tables.length === 0 && snapshot.walls.length === 0 && !snapshot.zones?.length)
       return;
 
@@ -5708,8 +6671,12 @@ export function FloorPlanCanvas({
       ) {
         return;
       }
+      if (target === canvasViewportRef.current && event.key.startsWith('Arrow')) return;
 
-      if (event.key.toLowerCase() === 'g' && !live) {
+      if (event.key === 'Escape' && panMode) {
+        panStartRef.current = null;
+        setPanMode(false);
+      } else if (event.key.toLowerCase() === 'g' && !live) {
         event.preventDefault();
         setGridVisible((visible) => !visible);
       } else if (event.key.toLowerCase() === 's' && !live) {
@@ -5717,9 +6684,28 @@ export function FloorPlanCanvas({
         setSnap((enabled) => !enabled);
       } else if (event.key.toLowerCase() === 'f' && !live) {
         event.preventDefault();
-        centerCanvas();
+        resetView();
+      } else if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'c' &&
+        !live &&
+        selectedTables.length > 0 &&
+        !window.getSelection()?.toString()
+      ) {
+        copiedTablesRef.current = selectedTables;
+      } else if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'v' &&
+        !live &&
+        copiedTablesRef.current.length > 0
+      ) {
+        event.preventDefault();
+        void pasteTables(copiedTablesRef.current);
       } else if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
-        if (selectedWall && !live) {
+        if (selectedTables.length > 0 && !live) {
+          event.preventDefault();
+          void pasteTables(selectedTables);
+        } else if (selectedWall && !live) {
           event.preventDefault();
           void duplicateWall(selectedWall);
         }
@@ -5767,18 +6753,21 @@ export function FloorPlanCanvas({
         });
         const selectedIds = new Set(nextTables.map((table) => table.id));
         const stationaryTables = allTables.filter((table) => !selectedIds.has(table.id));
+        // Une table déjà trop proche peut toujours s'éloigner ; Alt colle exprès.
         if (
-          nextTables.some((table) => {
-            const { width, height, rotation } = getTableSize(table);
-            return tablePlatesOverlapAtPosition({
-              x: table.positionX ?? 0,
-              y: table.positionY ?? 0,
-              width,
-              height,
-              rotation,
-              shape: table.shape,
-              tables: stationaryTables,
-            });
+          !event.altKey &&
+          nextTables.some((table, index) => {
+            const blocker = findTablePlacementBlocker(table, stationaryTables);
+            if (!blocker) return false;
+            const before = selectedTables[index];
+            if (!findTablePlacementBlocker(before, stationaryTables)) return true;
+            // Déjà trop près : seul un pas qui s'éloigne de la table gênante est accepté.
+            const distance = (t: CanvasTable) =>
+              Math.hypot(
+                (t.positionX ?? 0) - (blocker.positionX ?? 0),
+                (t.positionY ?? 0) - (blocker.positionY ?? 0),
+              );
+            return distance(table) <= distance(before);
           })
         ) {
           return;
@@ -5799,65 +6788,134 @@ export function FloorPlanCanvas({
     return () => window.removeEventListener('keydown', handleShortcut);
   });
 
-  function resolveTableDragPosition(
+  /** Position brute du glissement (celle qu'on voit pendant le geste), avec guides et conflit. */
+  function resolveRawTableDragPosition(
     start: DragStartInfo,
     delta: { x: number; y: number },
   ): {
+    delta: { x: number; y: number };
     positionX: number;
     positionY: number;
     guides: TableAlignmentGuides;
-    blocker?: CanvasTable;
+    conflict?: TablePlacementConflict;
   } {
-    const rawX = start.originalX + delta.x / zoom;
-    const rawY = start.originalY + delta.y / zoom;
-    const boundedX = Math.max(0, Math.min(canvasWidth - start.width, rawX));
-    const boundedY = Math.max(0, Math.min(canvasHeight - start.height, rawY));
-    const guides = snap
-      ? getTableAlignmentGuides({
-          x: boundedX,
-          y: boundedY,
-          width: start.width,
-          height: start.height,
-          tables: allTables,
-          excludedTableId: start.tableId,
-        })
-      : emptyTableAlignmentGuides();
-    const grid = snap ? GRID_SIZE : 1;
-    const snappedX = guides.x?.position ?? Math.round(boundedX / grid) * grid;
-    const snappedY = guides.y?.position ?? Math.round(boundedY / grid) * grid;
-    const positionX = Math.max(0, Math.min(canvasWidth - start.width, snappedX));
-    const positionY = Math.max(0, Math.min(canvasHeight - start.height, snappedY));
-
+    const previous = tableDragPreviewRef.current;
+    const x = Math.max(0, Math.min(canvasWidth - start.width, start.originalX + delta.x / zoom));
+    const y = Math.max(0, Math.min(canvasHeight - start.height, start.originalY + delta.y / zoom));
+    const raw = { positionX: Math.round(x), positionY: Math.round(y) };
     const neighbours = placedTables.filter((table) => table.id !== start.tableId);
-    const proposed = { ...start.table, positionX, positionY };
-    const plateBlocker = findOverlappingTablePlate({
-      x: positionX,
-      y: positionY,
-      width: start.width,
-      height: start.height,
-      rotation: start.table.rotation ?? 0,
-      shape: start.table.shape,
-      tables: neighbours,
-    });
-    const chairBlocker = plateBlocker
-      ? undefined
-      : findOverlappingTableChairs(proposed, neighbours, { plateOnly: true });
-    if (chairBlocker) {
-      const nearby = nudgeTableClearOfChairs(proposed, neighbours, canvasWidth, canvasHeight);
-      if (nearby) return { ...nearby, guides: emptyTableAlignmentGuides() };
+    const conflictAt = (position: typeof raw) =>
+      findTablePlacementConflict({ ...start.table, ...position }, neighbours);
+    const guides = emptyTableAlignmentGuides();
+    if (snap && !freeMoveRef.current) {
+      const viewport = canvasViewportRef.current;
+      const stage = canvasRef.current;
+      const view = viewport?.getBoundingClientRect();
+      const room = stage?.getBoundingClientRect();
+      const radius = 220 / zoom;
+      const localTables = neighbours.filter((table) => {
+        const { width, height } = getTableSize(table);
+        const centerX = table.positionX! + width / 2;
+        const centerY = table.positionY! + height / 2;
+        return (
+          Math.hypot(centerX - x - start.width / 2, centerY - y - start.height / 2) <= radius &&
+          (!view ||
+            !room ||
+            (room.left + centerX * zoom >= view.left &&
+              room.left + centerX * zoom <= view.right &&
+              room.top + centerY * zoom >= view.top &&
+              room.top + centerY * zoom <= view.bottom))
+        );
+      });
+      const input = {
+        x,
+        y,
+        width: start.width,
+        height: start.height,
+        shape: start.table.shape,
+        rotation: start.table.rotation ?? 0,
+        tables: localTables,
+        threshold: 6 / zoom,
+      };
+      const alignment = getTableAlignmentGuides(input);
+      const snapped = { ...raw };
+      for (const axis of ['x', 'y'] as const) {
+        const held = previous?.guides[axis];
+        const keepGuide =
+          held &&
+          Math.abs(input[axis] - held.position) * zoom <= 10 &&
+          localTables.some((table) => table.id === held.reference.id);
+        const key = axis === 'x' ? 'positionX' : 'positionY';
+        const maximum = axis === 'x' ? canvasWidth - start.width : canvasHeight - start.height;
+        const guide = keepGuide ? held : alignment[axis];
+        if (!guide || guide.position < 0 || guide.position > maximum) continue;
+        snapped[key] = guide.position;
+        guides[axis] = guide;
+      }
+      if (guides.x || guides.y) {
+        const conflict = conflictAt(snapped);
+        if (conflict?.kind !== 'plate') return { delta, ...snapped, guides, conflict };
+      }
     }
-    const blocker = plateBlocker ?? chairBlocker;
 
+    return { delta, ...raw, guides: emptyTableAlignmentGuides(), conflict: conflictAt(raw) };
+  }
+
+  /**
+   * Même résultat pendant le glissement et au lâcher : `settled` est l'endroit où la table
+   * se pose (contre la table gênante, alignée), `null` si plateau superposé sans place libre.
+   */
+  function resolveTableDragPosition(start: DragStartInfo, delta: { x: number; y: number }) {
+    const raw = resolveRawTableDragPosition(start, delta);
+    const settled = settleTableDrop(
+      { ...start.table, positionX: raw.positionX, positionY: raw.positionY },
+      placedTables.filter((table) => table.id !== start.tableId),
+      canvasWidth,
+      canvasHeight,
+      freeMoveRef.current,
+    );
+    return { ...raw, settled };
+  }
+
+  function updateTableDragPreview(start: DragStartInfo, delta: { x: number; y: number }) {
+    const preview = resolveTableDragPosition(start, delta);
+    tableDragPreviewRef.current = preview;
+    setTableDragPreview(preview);
+  }
+
+  /** Pose d'une nouvelle table : aimantation aux tables et aux écarts réguliers. */
+  function magnetNewTablePosition(
+    table: Pick<FloorPlanTable, 'id' | 'shape' | 'rotation'>,
+    rawX: number,
+    rawY: number,
+    width: number,
+    height: number,
+  ) {
+    const x = Math.max(0, Math.min(canvasWidth - width, rawX));
+    const y = Math.max(0, Math.min(canvasHeight - height, rawY));
+    if (!snap || freeMoveRef.current) return { x: Math.round(x), y: Math.round(y) };
+    const input = {
+      x,
+      y,
+      width,
+      height,
+      shape: table.shape,
+      rotation: table.rotation ?? 0,
+      tables: allTables,
+      excludedTableId: table.id,
+      threshold: 6 / zoom,
+    };
+    const align = getTableAlignmentGuides(input);
+    const spacing = getTableSpacingGuides(input);
+    const pick = (axis: 'x' | 'y') => {
+      const a = align[axis];
+      const b = spacing[axis];
+      if (a && (!b || a.distance <= b.distance)) return a.position;
+      return b?.position;
+    };
     return {
-      positionX,
-      positionY,
-      blocker,
-      guides: blocker
-        ? emptyTableAlignmentGuides()
-        : {
-            x: guides.x && positionX === guides.x.position ? guides.x : null,
-            y: guides.y && positionY === guides.y.position ? guides.y : null,
-          },
+      x: Math.max(0, Math.min(canvasWidth - width, pick('x') ?? Math.round(x))),
+      y: Math.max(0, Math.min(canvasHeight - height, pick('y') ?? Math.round(y))),
     };
   }
 
@@ -5869,35 +6927,60 @@ export function FloorPlanCanvas({
     if (!canvasRef.current) return null;
     const rect = canvasRef.current.getBoundingClientRect();
     const { width, height } = getTableSize(table);
-    const grid = snap ? GRID_SIZE : 1;
     const cursorX = (pointerStart.x + delta.x - rect.left) / zoom;
     const cursorY = (pointerStart.y + delta.y - rect.top) / zoom;
-    const dropX = Math.round(cursorX / grid) * grid;
-    const dropY = Math.round(cursorY / grid) * grid;
-    const x = Math.max(0, Math.min(canvasWidth - width, dropX - width / 2));
-    const y = Math.max(0, Math.min(canvasHeight - height, dropY - height / 2));
+    const { x, y } = magnetNewTablePosition(
+      table,
+      cursorX - width / 2,
+      cursorY - height / 2,
+      width,
+      height,
+    );
     return {
       x,
       y,
       width,
       height,
-      overlapping: tablePlatesOverlapAtPosition({
-        x,
-        y,
-        width,
-        height,
-        rotation: table.rotation ?? 0,
-        shape: table.shape,
-        tables: placedTables.filter((placedTable) => placedTable.id !== table.id),
-      }),
+      overlapping: Boolean(
+        findTablePlacementBlocker(
+          { ...(table as CanvasTable), positionX: x, positionY: y },
+          placedTables,
+        ),
+      ),
     };
   }
 
+  const dragActiveRef = useRef(false);
+  const freeMoveRef = useRef(false);
+  const refreshTableDragPreview = useEffectEvent(() => {
+    if (dragActiveRef.current && dragStart && tableDragPreview) {
+      updateTableDragPreview(dragStart, tableDragPreview.delta);
+    }
+  });
+  useEffect(() => {
+    const setFreeMove = (enabled: boolean) => {
+      if (freeMoveRef.current === enabled) return;
+      freeMoveRef.current = enabled;
+      refreshTableDragPreview();
+    };
+    const track = (event: KeyboardEvent) => setFreeMove(event.altKey);
+    const reset = () => setFreeMove(false);
+    window.addEventListener('keydown', track);
+    window.addEventListener('keyup', track);
+    window.addEventListener('blur', reset);
+    return () => {
+      window.removeEventListener('keydown', track);
+      window.removeEventListener('keyup', track);
+      window.removeEventListener('blur', reset);
+    };
+  }, []);
   function handleDragStart(event: DragStartEvent) {
     justDraggedRef.current = true;
+    dragActiveRef.current = true;
     setTableDragPreview(null);
+    tableDragPreviewRef.current = null;
+    setTableDropNotice(null);
     setTableDropOverlapping(false);
-    setTableAlignGuides(emptyTableAlignmentGuides());
     const pointer = event.activatorEvent as PointerEvent | undefined;
     if (pointer) {
       pointerStartRef.current = { x: pointer.clientX, y: pointer.clientY };
@@ -5934,12 +7017,13 @@ export function FloorPlanCanvas({
   }
 
   function handleDragCancel() {
+    dragActiveRef.current = false;
+    tableDragPreviewRef.current = null;
     setActiveDragData(null);
     setDragStart(null);
     setTableDragPreview(null);
     setTableDropOverlapping(false);
     setWallAlignGuide(null);
-    setTableAlignGuides(emptyTableAlignmentGuides());
     pointerStartRef.current = null;
     setTimeout(() => {
       justDraggedRef.current = false;
@@ -5950,12 +7034,12 @@ export function FloorPlanCanvas({
     const start = dragStart;
     const data = activeDragData;
     const pointerStart = pointerStartRef.current;
+    dragActiveRef.current = false;
     setActiveDragData(null);
     setDragStart(null);
     setTableDragPreview(null);
     setTableDropOverlapping(false);
     setWallAlignGuide(null);
-    setTableAlignGuides(emptyTableAlignmentGuides());
     pointerStartRef.current = null;
     setTimeout(() => {
       justDraggedRef.current = false;
@@ -5978,17 +7062,25 @@ export function FloorPlanCanvas({
 
     if (data?.kind === 'existingTable') {
       if (!start) return;
-      const candidate = resolveTableDragPosition(start, event.delta);
-      if (candidate.blocker) {
-        toast.error(
-          `Trop près de ${candidate.blocker.displayName ?? candidate.blocker.name}. La table est revenue à sa place.`,
-        );
-        return;
+      const preview = tableDragPreviewRef.current;
+      const candidate =
+        preview?.delta.x === event.delta.x && preview.delta.y === event.delta.y
+          ? preview
+          : resolveTableDragPosition(start, event.delta);
+      tableDragPreviewRef.current = null;
+      const { positionX: rawX, positionY: rawY } = candidate;
+      if (rawX === start.originalX && rawY === start.originalY) return;
+      if (candidate.conflict && !candidate.settled?.aside) {
+        const reason = `${start.table.displayName ?? start.table.name} · ${describeTablePlacementConflict(candidate.conflict)}`;
+        const blocked = candidate.settled === null;
+        setTableDropNotice({ text: blocked ? `${reason}. Déplacement annulé.` : reason, blocked });
       }
-      const { positionX: clampedX, positionY: clampedY } = candidate;
+      if (!candidate.settled) return;
+      const { x: clampedX, y: clampedY } = candidate.settled;
+      // Alignement ou retrait qui ramène la table à sa place : rien à enregistrer.
       if (clampedX === start.originalX && clampedY === start.originalY) return;
 
-      recordGeometry({
+      const historyAction = {
         before: {
           tables: [
             snapshotTableGeometry({
@@ -6005,7 +7097,8 @@ export function FloorPlanCanvas({
           ],
           walls: [],
         },
-      });
+      };
+      recordGeometry(historyAction);
 
       setFloorPlan((prev) =>
         prev ? replaceTablePosition(prev, start.tableId, clampedX, clampedY) : prev,
@@ -6044,6 +7137,7 @@ export function FloorPlanCanvas({
         ) {
           return;
         }
+        discardGeometry(historyAction);
         setError(
           `Déplacement de ${start.table.displayName ?? start.table.name} non enregistré. ${getErrorMessage(err, 'Réessayez.')}`,
         );
@@ -6077,10 +7171,11 @@ export function FloorPlanCanvas({
         positionX: finalPosition.x,
         positionY: finalPosition.y,
       });
-      recordGeometry({
+      const historyAction = {
         before: { tables: [before], walls: [] },
         after: { tables: [after], walls: [] },
-      });
+      };
+      recordGeometry(historyAction);
       setSelectedTableIds(new Set([data.table.id]));
       setLastSelectedTableId(data.table.id);
       setSelectedWallId(null);
@@ -6103,63 +7198,7 @@ export function FloorPlanCanvas({
           prev ? replaceTablePosition(prev, data.table.id, positionX, positionY) : prev,
         );
       } catch (err) {
-        setError(getErrorMessage(err, 'Impossible de placer la table'));
-        setFloorPlan((prev) =>
-          prev
-            ? replaceTablePosition(prev, data.table.id, data.table.positionX, data.table.positionY)
-            : prev,
-        );
-      }
-      return;
-    }
-
-    if (data?.kind === 'placeTable' && pointerStart && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const { width, height } = getTableSize(data.table);
-      const grid = snap ? GRID_SIZE : 1;
-      const cursorX = (pointerStart.x + event.delta.x - rect.left) / zoom;
-      const cursorY = (pointerStart.y + event.delta.y - rect.top) / zoom;
-      const positionX = Math.max(
-        0,
-        Math.min(canvasWidth - width, Math.round((cursorX - width / 2) / grid) * grid),
-      );
-      const positionY = Math.max(
-        0,
-        Math.min(canvasHeight - height, Math.round((cursorY - height / 2) / grid) * grid),
-      );
-      const before = snapshotTableGeometry(data.table);
-      const after = snapshotTableGeometry({ ...data.table, positionX, positionY });
-      recordGeometry({
-        before: { tables: [before], walls: [] },
-        after: { tables: [after], walls: [] },
-      });
-      setSelectedTableIds(new Set([data.table.id]));
-      setLastSelectedTableId(data.table.id);
-      setSelectedWallId(null);
-      setFloorPlan((prev) =>
-        prev ? replaceTablePosition(prev, data.table.id, positionX, positionY) : prev,
-      );
-      try {
-        setError('');
-        const updated = await patch<FloorPlanTable>(
-          `restaurants/${orgId}/floor-plan/tables/${data.table.id}`,
-          {
-            positionX,
-            positionY,
-            ...(floorPlanId ? { floorPlanId } : {}),
-          },
-        );
-        setFloorPlan((prev) =>
-          prev
-            ? replaceTablePosition(
-                prev,
-                data.table.id,
-                updated.positionX ?? positionX,
-                updated.positionY ?? positionY,
-              )
-            : prev,
-        );
-      } catch (err) {
+        discardGeometry(historyAction);
         setError(getErrorMessage(err, 'Impossible de placer la table'));
         setFloorPlan((prev) =>
           prev
@@ -6219,8 +7258,8 @@ export function FloorPlanCanvas({
       const finalClientY = pointerStart.y + event.delta.y;
 
       const grid = snap ? GRID_SIZE : 1;
-      let dropX = Math.round((finalClientX - rect.left) / zoom / grid) * grid;
-      let dropY = Math.round((finalClientY - rect.top) / zoom / grid) * grid;
+      const dropX = Math.round((finalClientX - rect.left) / zoom / grid) * grid;
+      const dropY = Math.round((finalClientY - rect.top) / zoom / grid) * grid;
 
       if (data.kind === 'table') {
         const table = {
@@ -6268,6 +7307,7 @@ export function FloorPlanCanvas({
             ...(floorPlanId ? { floorPlanId } : {}),
           });
           setFloorPlan((prev) => (prev ? replaceTable(prev, created) : prev));
+          recordTableCreation([created]);
         } catch (err) {
           setError(getErrorMessage(err, 'Impossible de créer la table'));
         }
@@ -6353,29 +7393,10 @@ export function FloorPlanCanvas({
     const data = activeDragData;
     const pointerStart = pointerStartRef.current;
 
+    // Un mouvement arrivé après le lâcher garde l'ancien état : il ne doit pas réafficher l'alerte.
+    if (!dragActiveRef.current) return;
     if (data?.kind === 'existingTable' && dragStart) {
-      const nextPosition = resolveTableDragPosition(dragStart, event.delta);
-      const nextGuides = nextPosition.guides;
-      setTableDragPreview({
-        ...nextPosition,
-        chairConflict: nextPosition.blocker
-          ? undefined
-          : findOverlappingTableChairs(
-              {
-                ...dragStart.table,
-                positionX: nextPosition.positionX,
-                positionY: nextPosition.positionY,
-              },
-              placedTables,
-            ),
-      });
-      setTableAlignGuides((current) => {
-        const sameGuide = (a: TableAlignmentGuide | null, b: TableAlignmentGuide | null) =>
-          a?.value === b?.value && a?.position === b?.position;
-        return sameGuide(current.x, nextGuides.x) && sameGuide(current.y, nextGuides.y)
-          ? current
-          : nextGuides;
-      });
+      updateTableDragPreview(dragStart, event.delta);
       if (wallAlignGuide) setWallAlignGuide(null);
       return;
     }
@@ -6395,15 +7416,11 @@ export function FloorPlanCanvas({
       setTableDropOverlapping(
         resolvePaletteTableDropPosition(table, pointerStart, event.delta)?.overlapping ?? false,
       );
-      setTableAlignGuides(emptyTableAlignmentGuides());
       if (wallAlignGuide) setWallAlignGuide(null);
       return;
     }
 
     setTableDropOverlapping(false);
-    setTableAlignGuides((current) =>
-      current.x || current.y ? emptyTableAlignmentGuides() : current,
-    );
 
     if (data?.kind !== 'wall' || !pointerStart || !canvasRef.current) {
       if (wallAlignGuide) setWallAlignGuide(null);
@@ -6622,13 +7639,55 @@ export function FloorPlanCanvas({
     />
   );
 
+  const seatedReservations = serviceIsToday
+    ? reservations.filter(
+        (r) => r.state === 'SEATED' && r.tableId && !releasingReservationIds.has(r.id),
+      )
+    : [];
+
+  async function releaseAllTables() {
+    setReleaseAllOpen(false);
+    if (!orgId) return;
+    try {
+      for (const reservation of seatedReservations) {
+        await patchRef.current<void>(
+          `restaurants/${orgId}/floor-plan/reservations/${reservation.id}/state`,
+          { state: 'HONORED' },
+        );
+      }
+    } catch (err) {
+      setError(getErrorMessage(err, 'Impossible de libérer toutes les tables'));
+    }
+    await loadReservations({ force: true });
+  }
+
+  const releaseAllConfirm = (
+    <ConfirmDialog
+      open={releaseAllOpen}
+      onConfirm={() => void releaseAllTables()}
+      onCancel={() => setReleaseAllOpen(false)}
+      title="Libérer toute la salle"
+      description={`${seatedReservations.length} table${seatedReservations.length > 1 ? 's occupées seront libérées' : ' occupée sera libérée'} et les clients marqués comme partis. Cette action est définitive.`}
+      confirmLabel="Tout libérer"
+      cancelLabel="Annuler"
+    />
+  );
+
   const multiDeleteConfirm = (
     <ConfirmDialog
       open={multiDeleteConfirmOpen}
       onConfirm={confirmMultiDelete}
       onCancel={() => setMultiDeleteConfirmOpen(false)}
-      title={`Supprimer ${selectedTables.length} tables`}
-      description="Cette action est irréversible. Voulez-vous vraiment supprimer les tables sélectionnées ?"
+      title={
+        selectedTables.length === 1
+          ? `Supprimer ${selectedTables[0].name}`
+          : `Supprimer ${selectedTables.length} tables`
+      }
+      description={
+        selectedTables.length === 1
+          ? 'Cette action est irréversible. Voulez-vous vraiment supprimer cette table ?'
+          : 'Cette action est irréversible. Voulez-vous vraiment supprimer les tables sélectionnées ?'
+      }
       confirmLabel="Supprimer"
       cancelLabel="Annuler"
       variant="destructive"
@@ -6876,6 +7935,7 @@ export function FloorPlanCanvas({
     ? tableStatuses.get(selectedServiceTable.id)
     : undefined;
   const selectedServiceReservation = selectedServiceStatus?.reservation ?? null;
+  const selectedServiceTimeLabel = formatTableTimeWindow(selectedServiceStatus);
   const unassignedReservations = useMemo(
     () =>
       (loadedLiveDate === liveDate ? reservations : [])
@@ -6894,6 +7954,11 @@ export function FloorPlanCanvas({
   const unassignedAssignmentTable = unassignedPlacement.targetTableId
     ? (allTables.find((table) => table.id === unassignedPlacement.targetTableId) ?? null)
     : null;
+  const unassignedTargetStatus = unassignedAssignmentTable
+    ? tableStatuses.get(unassignedAssignmentTable.id)
+    : undefined;
+  const unassignedTargetOccupant =
+    unassignedTargetStatus?.status === 'occupied' ? unassignedTargetStatus.reservation : null;
   const compatibleUnassignedReservations =
     serviceIsToday &&
     selectedServiceTable &&
@@ -6982,6 +8047,10 @@ export function FloorPlanCanvas({
 
   async function confirmUnassignedAssignment() {
     if (!selectedUnassignedReservation || !unassignedAssignmentTable) return;
+    if (unassignedTargetOccupant) {
+      const released = await updateReservationState(unassignedTargetOccupant.id, 'HONORED');
+      if (!released) return;
+    }
     const assigned = await assignTable(
       selectedUnassignedReservation.id,
       unassignedAssignmentTable.id,
@@ -7222,14 +8291,27 @@ export function FloorPlanCanvas({
               'Table indisponible'}
             {unassignedAssignmentTable ? ` · ${unassignedAssignmentTable.capacity} places` : ''}
           </p>
+          {unassignedTargetOccupant ? (
+            <p className="text-xs font-medium text-floor-status-late">
+              Occupée · {unassignedTargetOccupant.customerName || 'Sans nom'}
+              {unassignedTargetOccupant.seatedAt
+                ? ` · depuis ${differenceInMinutes(new Date(), parseISO(unassignedTargetOccupant.seatedAt))} min`
+                : ''}
+            </p>
+          ) : null}
           {selectedUnassignedReservation.state === 'CONFIRMED' ? (
             <Button
               type="button"
-              className="w-full transition-all duration-200"
-              disabled={!unassignedAssignmentTable}
+              className="h-11 w-full transition-all duration-200"
+              disabled={
+                !unassignedAssignmentTable ||
+                updatingReservationStateId === unassignedTargetOccupant?.id
+              }
               onClick={() => void confirmUnassignedAssignment()}
             >
-              Confirmer l’attribution
+              {unassignedTargetOccupant
+                ? `Libérer et placer ${selectedUnassignedReservation.customerName || 'la réservation'}`
+                : 'Confirmer l’attribution'}
             </Button>
           ) : null}
           <Button
@@ -7376,6 +8458,7 @@ export function FloorPlanCanvas({
                   {selectedServiceStatus
                     ? statusMeta[selectedServiceStatus.status].label
                     : 'Disponible'}
+                  {selectedServiceTimeLabel ? ` · ${selectedServiceTimeLabel}` : ''}
                 </p>
                 {combinableTableIds.has(selectedServiceTable.id) ? (
                   <p className="mt-1 text-xs text-foreground">
@@ -7454,9 +8537,11 @@ export function FloorPlanCanvas({
                     name: selectedServiceTable.displayName ?? selectedServiceTable.name,
                     capacity: selectedServiceTable.capacity,
                   }}
-                  onPlace={(partySize, name) =>
-                    createWalkIn(selectedServiceTable.id, partySize, name)
-                  }
+                  defaultPartySize={walkInPartySize}
+                  onPlace={async (partySize, name) => {
+                    await createWalkIn(selectedServiceTable.id, partySize, name);
+                    setWalkInPartySize(null);
+                  }}
                 />
               )}
               {selectedServiceReservation ? (
@@ -7523,7 +8608,7 @@ export function FloorPlanCanvas({
                   {selectedTable.displayName ?? selectedTable.name}
                   <span className="font-normal text-muted-foreground">
                     {' · '}
-                    {selectedTable.capacity} places
+                    {selectedTable.capacity} places · {formatTablePlateSize(selectedTable)}
                   </span>
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -7622,7 +8707,7 @@ export function FloorPlanCanvas({
                 size="sm"
                 className="h-9 justify-center gap-1.5 text-xs font-medium transition-all duration-200"
                 onClick={() =>
-                  void patchTable(selectedTable.id, {
+                  transformTable(selectedTable, {
                     rotation: ((selectedTable.rotation ?? 0) + 90) % 360,
                   })
                 }
@@ -7740,6 +8825,11 @@ export function FloorPlanCanvas({
                     ? statusMeta[selectedServiceStatus.status].label
                     : 'Disponible'}
                 </Badge>
+                {selectedServiceTimeLabel ? (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {selectedServiceTimeLabel}
+                  </span>
+                ) : null}
                 <Button
                   type="button"
                   variant="ghost"
@@ -7996,9 +9086,11 @@ export function FloorPlanCanvas({
                       name: selectedServiceTable.displayName ?? selectedServiceTable.name,
                       capacity: selectedServiceTable.capacity,
                     }}
-                    onPlace={(partySize, name) =>
-                      createWalkIn(selectedServiceTable.id, partySize, name)
-                    }
+                    defaultPartySize={walkInPartySize}
+                    onPlace={async (partySize, name) => {
+                      await createWalkIn(selectedServiceTable.id, partySize, name);
+                      setWalkInPartySize(null);
+                    }}
                     className="w-full flex-none"
                   />
                 </div>
@@ -8016,17 +9108,31 @@ export function FloorPlanCanvas({
         selectedTables.length > 0 || tablePlacementZoneId ? 'hidden lg:flex' : 'flex',
       )}
     >
-      <div className="border-b border-border px-4 py-3">
-        <p className="text-sm font-semibold">Inspecteur</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <p className="text-sm font-semibold">
           {selectedWall
-            ? 'Mur sélectionné'
+            ? 'Mur'
             : selectedZone
-              ? `Zone ${selectedZone.name}`
+              ? selectedZone.name
               : selectedTables.length === 1
                 ? `Table ${selectedTables[0]?.name ?? ''}`
-                : `${selectedTables.length} tables sélectionnées`}
+                : `${selectedTables.length} tables`}
         </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Fermer la fiche"
+          onClick={() => {
+            setSelectedWallId(null);
+            setSelectedZoneId(null);
+            setSelectedTableIds(new Set());
+            setLastSelectedTableId(null);
+          }}
+        >
+          <X size={16} />
+        </Button>
       </div>
       {selectedWall ? (
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -8215,9 +9321,9 @@ export function FloorPlanCanvas({
           </p>
           <Button
             type="button"
-            variant="destructive"
+            variant="ghost"
             size="sm"
-            className="w-full transition-all duration-200"
+            className="w-full text-destructive transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
             onClick={() => void deleteZone(selectedZone.id)}
           >
             <Trash2 size={14} className="mr-1.5" />
@@ -8272,6 +9378,12 @@ export function FloorPlanCanvas({
                   </div>
                 </div>
               </div>
+              <p className="flex justify-between gap-2 text-sm text-muted-foreground">
+                Plateau{' '}
+                <span className="font-medium tabular-nums text-foreground">
+                  {formatTablePlateSize(selectedTable)}
+                </span>
+              </p>
               <div className="space-y-2 border-t border-border pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Forme
@@ -8286,7 +9398,7 @@ export function FloorPlanCanvas({
                     )}
                     aria-label="Forme rectangle"
                     aria-pressed={selectedTable.shape !== 'round'}
-                    onClick={() => void patchTable(selectedTable.id, { shape: 'rect' })}
+                    onClick={() => transformTable(selectedTable, { shape: 'rect' })}
                   >
                     <Square size={14} className="mr-1" />
                     Rectangle
@@ -8300,7 +9412,7 @@ export function FloorPlanCanvas({
                     )}
                     aria-label="Forme ronde"
                     aria-pressed={selectedTable.shape === 'round'}
-                    onClick={() => void patchTable(selectedTable.id, { shape: 'round' })}
+                    onClick={() => transformTable(selectedTable, { shape: 'round' })}
                   >
                     <Circle size={14} className="mr-1" />
                     Ronde
@@ -8327,7 +9439,7 @@ export function FloorPlanCanvas({
                   className="w-full justify-center transition-all duration-200"
                   title="Pivoter de 90°"
                   onClick={() =>
-                    void patchTable(selectedTable.id, {
+                    transformTable(selectedTable, {
                       rotation: ((selectedTable.rotation ?? 0) + 90) % 360,
                     })
                   }
@@ -8389,6 +9501,18 @@ export function FloorPlanCanvas({
                   Bas
                 </Button>
               </div>
+              {selectedTables.length > 2 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => distributeSelectedTables('x')}>
+                    <AlignHorizontalSpaceAround size={14} className="mr-1" />
+                    Répartir ↔
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => distributeSelectedTables('y')}>
+                    <AlignVerticalSpaceAround size={14} className="mr-1" />
+                    Répartir ↕
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -8405,7 +9529,12 @@ export function FloorPlanCanvas({
           ) : null}
 
           <div className="border-t border-border pt-4">
-            <Button variant="destructive" size="sm" onClick={() => setMultiDeleteConfirmOpen(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setMultiDeleteConfirmOpen(true)}
+            >
               <Trash2 size={14} className="mr-1" />
               Supprimer
             </Button>
@@ -8418,7 +9547,7 @@ export function FloorPlanCanvas({
   if (loading) {
     return (
       <>
-        <Card className={cn('sokar-card', live && 'flex flex-1 flex-col')}>
+        <Card className={cn('suppernote-card', live && 'flex flex-1 flex-col')}>
           <CardHeader className="p-4">
             <Skeleton className="h-6 w-32 rounded-md" />
           </CardHeader>
@@ -8445,7 +9574,7 @@ export function FloorPlanCanvas({
   if (!floorPlan) {
     return (
       <>
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardContent className="p-6">
             <DataFetchError
               message={planLoadError || error || 'Impossible de charger le plan de salle.'}
@@ -8464,6 +9593,25 @@ export function FloorPlanCanvas({
   }
 
   const activeDragTable = activeDragData?.kind === 'existingTable' ? activeDragData.table : null;
+  const tableAlignGuides = tableDragPreview?.guides;
+  const tableConflict = tableDragPreview?.conflict;
+  const blocksTableDrop = tableConflict?.kind === 'plate';
+  const noticeText =
+    tableConflict && activeDragTable
+      ? `${activeDragTable.displayName ?? activeDragTable.name} · ${describeTablePlacementConflict(tableConflict)}${tableDragPreview?.settled === null ? '. Aucune place libre.' : tableDragPreview?.settled?.aside ? '. Sera posée à côté. Alt désactive l’alignement.' : ''}`
+      : tableDropNotice?.text;
+  const conflictingSeats =
+    tableDragPreview && tableConflict?.kind === 'chair' && activeDragTable
+      ? getConflictingSeats(
+          {
+            ...activeDragTable,
+            positionX: tableDragPreview.positionX,
+            positionY: tableDragPreview.positionY,
+          },
+          tableConflict.table,
+        )
+      : undefined;
+
   const liveViewportBounds = live && serviceTab === 'plan' ? contentBounds : null;
   // En Live, le viewport est lui-même dimensionné sur la zone utile. Le canvas
   // complet est ensuite translaté sous ce cadre : les coordonnées métier restent
@@ -8518,7 +9666,7 @@ export function FloorPlanCanvas({
           // Vue service : même surface que les autres rubriques (arrondis, bordure,
           // fond carte). Le plein écran repasse en angles droits pour ne pas laisser
           // apparaître la page dans les coins de l'écran.
-          'sokar-card',
+          'suppernote-card',
           live && 'flex flex-1 flex-col',
           live && isFullscreen && 'rounded-none',
         )}
@@ -8538,11 +9686,12 @@ export function FloorPlanCanvas({
                 variant="ghost"
                 size="sm"
                 className="hidden h-8 shrink-0 px-2 sm:flex"
-                title="Paramètres du plan"
-                aria-label="Paramètres du plan"
+                title="Taille et nom de la salle"
+                aria-label="Réglages de la salle"
                 onClick={openRoomSettings}
               >
-                <Settings2 size={16} />
+                <Settings2 size={16} className="mr-1.5" />
+                Réglages
               </Button>
               <div
                 role="toolbar"
@@ -8559,15 +9708,16 @@ export function FloorPlanCanvas({
                 >
                   <ZoomOut size={16} />
                 </Button>
-                <button
-                  type="button"
-                  className="min-w-11 rounded-md px-1 text-center text-xs tabular-nums text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"
-                  title="Ajuster le plan à l'écran"
-                  aria-label="Ajuster le plan à l'écran"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-xs transition-all duration-200"
+                  title="Voir toute la salle — F"
+                  aria-label="Voir toute la salle"
                   onClick={resetView}
                 >
-                  {Math.round(zoom * 100)}%
-                </button>
+                  Toute la salle
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -8582,17 +9732,6 @@ export function FloorPlanCanvas({
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2"
-                  title="Centrer le plan — F"
-                  aria-label="Centrer le plan"
-                  onClick={centerCanvas}
-                >
-                  <LocateFixed size={16} className="sm:mr-1.5" />
-                  <span className="hidden sm:inline">Centrer</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2"
                   title="Plein écran"
                   aria-label="Plein écran"
                   onClick={() => {
@@ -8601,6 +9740,19 @@ export function FloorPlanCanvas({
                   }}
                 >
                   <Maximize2 size={16} />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn('h-8 px-2', panMode && 'bg-secondary')}
+                  title="Déplacer la vue en glissant · Échap pour quitter"
+                  aria-label="Déplacer la vue"
+                  aria-pressed={panMode}
+                  onClick={() => setPanMode((enabled) => !enabled)}
+                >
+                  <Move size={16} />
+                  <span className="ml-1 hidden xl:inline">Déplacer</span>
                 </Button>
               </div>
               <div
@@ -8628,13 +9780,6 @@ export function FloorPlanCanvas({
                 >
                   <Grid2x2 size={16} className="sm:mr-1.5" />
                   <span className="hidden sm:inline">Grille</span>
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full',
-                      gridVisible ? 'bg-primary' : 'bg-muted-foreground/40',
-                    )}
-                  />
                 </Button>
                 <span className="mx-0.5 h-5 w-px bg-border" aria-hidden="true" />
                 <Button
@@ -8648,22 +9793,19 @@ export function FloorPlanCanvas({
                   )}
                   title={
                     snap
-                      ? 'Magnétisme actif — désactiver avec S'
-                      : 'Magnétisme inactif — activer avec S'
+                      ? 'Les tables s’alignent toutes seules — désactiver avec S'
+                      : 'Alignement automatique coupé — activer avec S'
                   }
-                  aria-label={snap ? 'Magnétisme actif, désactiver' : 'Magnétisme inactif, activer'}
+                  aria-label={
+                    snap
+                      ? 'Alignement automatique actif, désactiver'
+                      : 'Alignement automatique coupé, activer'
+                  }
                   aria-pressed={snap}
                   onClick={() => setSnap((s) => !s)}
                 >
                   <Magnet size={16} className="sm:mr-1.5" />
-                  <span className="hidden sm:inline">Magnétisme</span>
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full',
-                      snap ? 'bg-primary' : 'bg-muted-foreground/40',
-                    )}
-                  />
+                  <span className="hidden sm:inline">Aligner</span>
                 </Button>
               </div>
               <div
@@ -8694,12 +9836,32 @@ export function FloorPlanCanvas({
                   <Redo2 size={16} />
                 </Button>
               </div>
-              {planWriteStatus ? (
+              <div
+                role="status"
+                aria-atomic="true"
+                className={noticeText ? 'ml-auto min-w-0' : 'sr-only'}
+              >
+                {noticeText ? (
+                  <p
+                    className={cn(
+                      'line-clamp-2 text-xs leading-4',
+                      blocksTableDrop || tableDropNotice?.blocked
+                        ? 'text-destructive'
+                        : 'text-foreground',
+                    )}
+                    title={noticeText}
+                  >
+                    {noticeText}
+                  </p>
+                ) : null}
+              </div>
+              {planWriteStatus &&
+              (planWriteStatus !== 'saved' || (!activeDragTable && !tableDropNotice?.blocked)) ? (
                 <div
                   role="status"
                   aria-live="polite"
                   aria-atomic="true"
-                  className="ml-0 flex min-h-9 shrink-0 items-center sm:ml-auto"
+                  className={cn('flex min-h-9 shrink-0 items-center', !noticeText && 'sm:ml-auto')}
                 >
                   {planWriteStatus === 'error' ? (
                     <Button
@@ -8791,13 +9953,13 @@ export function FloorPlanCanvas({
                     </Button>
                   </div>
                   {serviceIsToday ? (
-                    <div className="flex min-w-0 items-center gap-2 text-xs">
+                    <div className="flex min-w-0 items-center gap-2 text-sm">
                       <span
                         role="status"
                         className={cn(
                           serviceHeader?.blocked
                             ? 'font-semibold text-foreground'
-                            : 'text-muted-foreground',
+                            : 'font-medium text-foreground/80',
                         )}
                       >
                         {serviceHeader?.blocked ? (
@@ -8843,6 +10005,54 @@ export function FloorPlanCanvas({
                     {copilotAllowed && serviceTab === 'plan' ? (
                       <ServiceCopilotSimulator orgId={orgId} selectedFloorPlanId={floorPlanId} />
                     ) : null}
+                    {serviceTab === 'plan' && serviceIsToday ? (
+                      <div
+                        role="group"
+                        aria-label="Client sans réservation : taille du groupe"
+                        title="Allumer les tables où ce groupe tient un repas"
+                        className="flex h-8 items-center gap-0.5 rounded-md border border-border px-1"
+                      >
+                        <Users
+                          size={14}
+                          aria-hidden="true"
+                          className="ml-1 text-muted-foreground"
+                        />
+                        <span className="mr-1 whitespace-nowrap text-xs text-muted-foreground">
+                          Sans résa
+                        </span>
+                        {[2, 3, 4, 5, 6].map((size) => (
+                          <Button
+                            key={size}
+                            type="button"
+                            size="sm"
+                            variant={walkInPartySize === size ? 'secondary' : 'ghost'}
+                            aria-pressed={walkInPartySize === size}
+                            aria-label={`Sans réservation, ${size} personnes`}
+                            className="h-6 w-6 p-0 text-xs tabular-nums transition-all duration-200"
+                            onClick={() => {
+                              setWalkInPartySize(walkInPartySize === size ? null : size);
+                              setUnassignedPanelOpen(false);
+                            }}
+                          >
+                            {size}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {serviceTab === 'plan' && seatedReservations.length > 0 ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        aria-label="Libérer toute la salle"
+                        title="Libérer toute la salle"
+                        className="h-8 gap-1.5 whitespace-nowrap px-2 transition-all duration-200"
+                        onClick={() => setReleaseAllOpen(true)}
+                      >
+                        <DoorOpen size={14} aria-hidden="true" />
+                        <span className="hidden xl:inline">Tout libérer</span>
+                      </Button>
+                    ) : null}
                     {serviceTab === 'plan' &&
                     serviceIsToday &&
                     unassignedReservations.length > 0 ? (
@@ -8853,7 +10063,12 @@ export function FloorPlanCanvas({
                         aria-label={`${unassignedReservations.length} réservations à placer`}
                         aria-pressed={unassignedPanelOpen}
                         aria-expanded={unassignedPanelOpen}
-                        className="h-8 gap-1.5 whitespace-nowrap px-2 transition-all duration-200"
+                        className={cn(
+                          'h-8 gap-1.5 whitespace-nowrap px-2 transition-all duration-200',
+                          // Des réservations sans table : c'est l'action la plus urgente de la barre.
+                          !unassignedPanelOpen &&
+                            'border-floor-status-upcoming bg-floor-status-upcoming/10 font-semibold',
+                        )}
                         onClick={() => {
                           const open = !unassignedPanelOpen;
                           setUnassignedPanelOpen(open);
@@ -8961,7 +10176,7 @@ export function FloorPlanCanvas({
         </CardHeader>
 
         {live && (error || reservationsError) ? (
-          <div className="sokar-error m-4 text-sm">
+          <div className="suppernote-error m-4 text-sm">
             <AlertCircle size={16} />
             {error || reservationsError}
           </div>
@@ -9156,6 +10371,7 @@ export function FloorPlanCanvas({
           ) : (
             <DndContext
               sensors={sensors}
+              autoScroll={live}
               onDragStart={handleDragStart}
               onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
@@ -9181,20 +10397,6 @@ export function FloorPlanCanvas({
                   ) : null}
                 </div>
                 <div className="relative order-1 flex min-h-0 min-w-0 flex-1 flex-col lg:order-2">
-                  <div role="status" className="pointer-events-none absolute left-3 top-3 z-40">
-                    {tableDragPreview?.blocker ? (
-                      <p className="rounded-md border border-destructive/40 bg-background px-2 py-1 text-sm text-destructive shadow-sm">
-                        Trop près de{' '}
-                        {tableDragPreview.blocker.displayName ?? tableDragPreview.blocker.name}
-                      </p>
-                    ) : tableDragPreview?.chairConflict ? (
-                      <p className="rounded-md border border-warning/40 bg-background px-2 py-1 text-sm text-foreground shadow-sm">
-                        Les chaises sont trop proches de{' '}
-                        {tableDragPreview.chairConflict.displayName ??
-                          tableDragPreview.chairConflict.name}
-                      </p>
-                    ) : null}
-                  </div>
                   {tablePlacementZoneId ? (
                     <div className="absolute left-3 right-3 top-3 z-50 flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-lg border border-primary/30 bg-card p-2 shadow-md">
                       <p role="status" className="pl-2 text-sm">
@@ -9212,7 +10414,7 @@ export function FloorPlanCanvas({
                   {!live && (error || reservationsError) ? (
                     <div
                       role="alert"
-                      className="sokar-error pointer-events-none absolute left-3 right-3 top-3 z-40 m-0 text-sm"
+                      className="suppernote-error pointer-events-none absolute left-3 right-3 top-3 z-40 m-0 text-sm"
                     >
                       <AlertCircle size={16} />
                       {error || reservationsError}
@@ -9222,10 +10424,44 @@ export function FloorPlanCanvas({
                       glissement d'un doigt le défile (défilement natif). */}
                   <div
                     ref={canvasViewportRef}
+                    tabIndex={live ? undefined : 0}
+                    role={live ? undefined : 'region'}
+                    aria-label={live ? undefined : 'Vue du plan'}
                     style={{ touchAction: 'pan-x pan-y' }}
+                    onPointerDownCapture={(event) => {
+                      if (live || !panMode || event.pointerType !== 'mouse' || event.button !== 0)
+                        return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const viewport = event.currentTarget;
+                      panStartRef.current = {
+                        x: event.clientX,
+                        y: event.clientY,
+                        left: viewport.scrollLeft,
+                        top: viewport.scrollTop,
+                      };
+                      viewport.setPointerCapture(event.pointerId);
+                    }}
+                    onPointerMove={(event) => {
+                      const start = panStartRef.current;
+                      if (!start) return;
+                      event.currentTarget.scrollTo(
+                        start.left + start.x - event.clientX,
+                        start.top + start.y - event.clientY,
+                      );
+                    }}
+                    onLostPointerCapture={() => {
+                      panStartRef.current = null;
+                    }}
+                    onClickCapture={(event) => {
+                      if (!live && panMode && event.detail > 0) event.stopPropagation();
+                    }}
                     className={cn(
                       'relative min-h-0 w-full flex-1 overflow-auto bg-muted/70',
                       !live && 'min-h-[14rem] md:min-h-[22rem]',
+                      !live &&
+                        panMode &&
+                        'cursor-grab active:cursor-grabbing [&_[role=button]]:cursor-inherit',
                       activeDragData?.kind === 'table' ||
                         activeDragData?.kind === 'wall' ||
                         activeDragData?.kind === 'zone'
@@ -9449,7 +10685,7 @@ export function FloorPlanCanvas({
                         // overflow-clip, pas hidden : une scène hidden reste défilable, et
                         // le focus d'une table pendant le rétrécissement du panneau la
                         // décale sans que le cadrage la remette à zéro.
-                        liveViewportBounds ? 'mx-auto overflow-clip' : undefined,
+                        liveViewportBounds ? 'floor-plan-parquet mx-auto overflow-clip' : undefined,
                       )}
                       data-testid={liveViewportBounds ? 'floor-plan-live-stage' : undefined}
                       style={{ width: stageWidth, height: stageHeight }}
@@ -9473,6 +10709,7 @@ export function FloorPlanCanvas({
                           liveViewportBounds
                             ? 'absolute left-0 top-0 origin-top-left border-0 bg-transparent shadow-none'
                             : 'absolute left-0 top-0 origin-top-left border border-border bg-background shadow-sm',
+                          activeDragTable && '[&_[data-floor-top]]:transition-none',
                           activeDragData?.kind === 'table' ||
                             activeDragData?.kind === 'wall' ||
                             activeDragData?.kind === 'zone'
@@ -9491,13 +10728,13 @@ export function FloorPlanCanvas({
                           height: canvasHeight,
                           transform: canvasTransform,
                           transformOrigin: 'top left',
+                          // Une seule grille, très pâle : la salle passe avant le quadrillage.
+                          // Le magnétisme garde son pas fin, invisible.
                           backgroundImage:
                             !live && gridVisible
-                              ? `linear-gradient(to right, hsl(var(--muted-foreground) / 0.22) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--muted-foreground) / 0.22) 1px, transparent 1px), linear-gradient(to right, hsl(var(--muted-foreground) / 0.08) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--muted-foreground) / 0.08) 1px, transparent 1px)`
+                              ? `linear-gradient(to right, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px)`
                               : undefined,
-                          backgroundSize: `${GRID_SIZE * 5}px ${GRID_SIZE * 5}px, ${GRID_SIZE * 5}px ${
-                            GRID_SIZE * 5
-                          }px, ${GRID_SIZE}px ${GRID_SIZE}px, ${GRID_SIZE}px ${GRID_SIZE}px`,
+                          backgroundSize: `${GRID_SIZE * 5}px ${GRID_SIZE * 5}px`,
                         }}
                       >
                         {zones.map((zone) => (
@@ -9704,53 +10941,106 @@ export function FloorPlanCanvas({
                             )}
                           </svg>
                         ) : null}
-                        {tableAlignGuides.x || tableAlignGuides.y ? (
+                        {(tableAlignGuides?.x || tableAlignGuides?.y) && dragStart ? (
                           <svg
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 h-full w-full"
-                            style={{ zIndex: 12 }}
+                            className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+                            // Sous les tables : le guide ne barre jamais un nom de table.
+                            style={{ zIndex: 1 }}
                           >
-                            {tableAlignGuides.x ? (
-                              <line
-                                x1={tableAlignGuides.x.value}
-                                y1={0}
-                                x2={tableAlignGuides.x.value}
-                                y2={canvasHeight}
-                                stroke="hsl(var(--primary))"
-                                strokeWidth={1.5}
-                                strokeDasharray="5 4"
-                                opacity={0.9}
-                              />
-                            ) : null}
-                            {tableAlignGuides.y ? (
-                              <line
-                                x1={0}
-                                y1={tableAlignGuides.y.value}
-                                x2={canvasWidth}
-                                y2={tableAlignGuides.y.value}
-                                stroke="hsl(var(--primary))"
-                                strokeWidth={1.5}
-                                strokeDasharray="5 4"
-                                opacity={0.9}
-                              />
-                            ) : null}
+                            {/* Guide court : de la table déplacée à sa référence, pas d'un bord à l'autre. */}
+                            {(['x', 'y'] as const).map((axis) => {
+                              const guide = tableAlignGuides[axis];
+                              if (!guide) return null;
+                              const moving = {
+                                x: tableDragPreview?.positionX ?? dragStart.originalX,
+                                y: tableDragPreview?.positionY ?? dragStart.originalY,
+                                width: dragStart.width,
+                                height: dragStart.height,
+                              };
+                              const ref = guide.reference;
+                              const round =
+                                placedTables.find((table) => table.id === ref.id)?.shape ===
+                                'round';
+                              const body = getTableBodyGeometry(ref.width, ref.height, round);
+                              const movingBody = getTableBodyGeometry(
+                                moving.width,
+                                moving.height,
+                                dragStart.table.shape === 'round',
+                              );
+                              const refLeft = ref.x + (ref.width - body.bodyWidth) / 2;
+                              const movingLeft =
+                                moving.x + (moving.width - movingBody.bodyWidth) / 2;
+                              const refTop = ref.y + body.top;
+                              const movingTop = moving.y + movingBody.top;
+                              const from =
+                                axis === 'x'
+                                  ? Math.min(refTop, movingTop)
+                                  : Math.min(refLeft, movingLeft);
+                              const to =
+                                axis === 'x'
+                                  ? Math.max(
+                                      refTop + body.bodyHeight,
+                                      movingTop + movingBody.bodyHeight,
+                                    )
+                                  : Math.max(
+                                      refLeft + body.bodyWidth,
+                                      movingLeft + movingBody.bodyWidth,
+                                    );
+                              return (
+                                <g key={axis}>
+                                  <rect
+                                    x={refLeft - 4}
+                                    y={refTop - 4}
+                                    width={body.bodyWidth + 8}
+                                    height={body.bodyHeight + 8}
+                                    rx={round ? (body.bodyWidth + 8) / 2 : 14}
+                                    fill="none"
+                                    stroke="hsl(var(--brand) / 0.7)"
+                                    strokeWidth={1}
+                                  />
+                                  <line
+                                    x1={axis === 'x' ? guide.value : from}
+                                    y1={axis === 'x' ? from : guide.value}
+                                    x2={axis === 'x' ? guide.value : to}
+                                    y2={axis === 'x' ? to : guide.value}
+                                    stroke="hsl(var(--brand))"
+                                    strokeWidth={1}
+                                  />
+                                </g>
+                              );
+                            })}
                           </svg>
                         ) : null}
                         {placedTables.map((table) => {
                           const { width, height } = getTableSize(table);
                           const status = live ? tableStatuses.get(table.id) : undefined;
                           const tableServer = table.assignedServer?.trim() || null;
+                          const walkInFit =
+                            live && walkInPartySize !== null
+                              ? (status?.status === 'free' || status?.status === 'reserved') &&
+                                table.capacity >= walkInPartySize &&
+                                (!status.freeUntil ||
+                                  differenceInMinutes(status.freeUntil, status.now) >=
+                                    status.mealMinutes)
+                              : null;
                           const isFilteredOut =
-                            live &&
-                            selectedServerFilter !== null &&
-                            (selectedServerFilter === '_unassigned_'
-                              ? Boolean(tableServer)
-                              : tableServer !== selectedServerFilter);
+                            walkInFit === false ||
+                            (live &&
+                              selectedServerFilter !== null &&
+                              (selectedServerFilter === '_unassigned_'
+                                ? Boolean(tableServer)
+                                : tableServer !== selectedServerFilter));
                           return (
                             <DraggableTable
                               key={table.id}
                               table={table}
-                              invalidPlacement={tableDragPreview?.blocker?.id === table.id}
+                              conflictingSeats={conflictingSeats?.[table.id]}
+                              invalidPlacement={Boolean(
+                                tableConflict?.kind === 'plate' &&
+                                (tableConflict.table.id === table.id ||
+                                  activeDragTable?.id === table.id),
+                              )}
                               status={status}
                               isSelected={
                                 live
@@ -9766,10 +11056,22 @@ export function FloorPlanCanvas({
                               editable={!live}
                               zoom={zoom}
                               compact={compactTableCards}
-                              assignmentCandidate={unassignedPlacement.suggestions.some(
-                                (suggestion) => suggestion.tableId === table.id,
-                              )}
+                              assignmentCandidate={
+                                walkInFit === true ||
+                                unassignedPlacement.suggestions.some(
+                                  (suggestion) => suggestion.tableId === table.id,
+                                )
+                              }
                               onClick={(e) => handleTableClick(table, e)}
+                              onReservationLongPress={
+                                live && serviceIsToday && status?.reservation
+                                  ? () =>
+                                      releaseTableWithUndo(
+                                        status.reservation!,
+                                        table.displayName ?? table.name,
+                                      )
+                                  : undefined
+                              }
                               onDoubleClick={() => handleTableDoubleClick(table)}
                               onResizeStart={
                                 selectedTableIds.size > 1
@@ -9783,66 +11085,47 @@ export function FloorPlanCanvas({
                               }
                               isCombinable={live && combinableTableIds.has(table.id)}
                               style={{
-                                left: table.positionX ?? 0,
-                                top: table.positionY ?? 0,
+                                // Pendant le glisser, c'est la vraie table qui suit la souris : rien à échanger au lâcher.
+                                left:
+                                  activeDragTable?.id === table.id
+                                    ? (tableDragPreview?.positionX ?? table.positionX ?? 0)
+                                    : (table.positionX ?? 0),
+                                top:
+                                  activeDragTable?.id === table.id
+                                    ? (tableDragPreview?.positionY ?? table.positionY ?? 0)
+                                    : (table.positionY ?? 0),
                                 width,
                                 height,
                                 position: 'absolute',
-                                zIndex: selectedTableIds.has(table.id) ? 3 : 2,
-                                opacity:
+                                zIndex:
                                   activeDragTable?.id === table.id
-                                    ? 0
-                                    : isFilteredOut &&
-                                        !unassignedPlacement.suggestions.some(
-                                          (suggestion) => suggestion.tableId === table.id,
-                                        )
-                                      ? 0.25
-                                      : 1,
-                                filter:
+                                    ? 30
+                                    : selectedTableIds.has(table.id)
+                                      ? 3
+                                      : 2,
+                                opacity:
                                   isFilteredOut &&
                                   !unassignedPlacement.suggestions.some(
                                     (suggestion) => suggestion.tableId === table.id,
                                   )
-                                    ? 'grayscale(80%)'
-                                    : undefined,
+                                    ? 0.25
+                                    : 1,
+                                filter:
+                                  activeDragTable?.id === table.id
+                                    ? 'drop-shadow(0 8px 14px rgb(0 0 0 / 0.16))'
+                                    : isFilteredOut &&
+                                        !unassignedPlacement.suggestions.some(
+                                          (suggestion) => suggestion.tableId === table.id,
+                                        )
+                                      ? 'grayscale(80%)'
+                                      : undefined,
+                                // Ni position ni opacité animées : la table suit la souris et reste où on la lâche.
                                 transition:
-                                  activeDragTable?.id === table.id ? 'none' : 'all 0.2s ease',
+                                  activeDragTable?.id === table.id ? 'none' : 'filter 0.2s ease',
                               }}
                             />
                           );
                         })}
-                        {activeDragTable && dragStart ? (
-                          <div
-                            aria-hidden="true"
-                            className="pointer-events-none absolute inset-0 z-20"
-                          >
-                            <div
-                              className={cn(
-                                'absolute border border-dashed border-muted-foreground/50',
-                                activeDragTable.shape === 'round' ? 'rounded-full' : 'rounded-lg',
-                              )}
-                              style={{
-                                left: dragStart.originalX,
-                                top: dragStart.originalY,
-                                width: dragStart.width,
-                                height: dragStart.height,
-                                transform: `rotate(${activeDragTable.rotation ?? 0}deg)`,
-                              }}
-                            />
-                            <TableCard
-                              table={activeDragTable}
-                              invalidPlacement={Boolean(tableDragPreview?.blocker)}
-                              isOverlay
-                              compact={compactTableCards}
-                              zoom={zoom}
-                              style={{
-                                position: 'absolute',
-                                left: tableDragPreview?.positionX ?? dragStart.originalX,
-                                top: tableDragPreview?.positionY ?? dragStart.originalY,
-                              }}
-                            />
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                     {placedTables.length === 0 &&
@@ -10046,6 +11329,7 @@ export function FloorPlanCanvas({
       {delayRecoveryConfirm}
       {delayRecoveryRevertConfirm}
       {multiDeleteConfirm}
+      {releaseAllConfirm}
       {settingsDialog}
       {bulkCreateDialog}
       {duplicateDialog}

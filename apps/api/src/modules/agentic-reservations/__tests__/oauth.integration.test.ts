@@ -127,7 +127,7 @@ describe('OAuth MCP integration flow', () => {
     expect(res.body).toContain('<span>Suppernote</span>');
     expect(res.body).toContain('Plus+Jakarta+Sans');
     expect(res.body).toContain("font-family: 'Outfit'");
-    expect(res.body).toContain('--sokar-blue: #0284c7');
+    expect(res.body).toContain('--suppernote-blue: #0284c7');
     expect(res.body).not.toContain('#f97316');
     expect(res.body).not.toContain('#0369a1');
     expect(res.body).not.toContain('#38bdf8');
@@ -397,7 +397,7 @@ describe('OAuth MCP integration flow', () => {
       mcpEnabled: true,
     } as unknown as Awaited<ReturnType<typeof db.restaurantExposureSettings.findFirst>>);
     vi.mocked(db.restaurant.findUnique).mockResolvedValueOnce({
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       agenticOptIn: true,
     } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
     const app = await getApp();
@@ -406,7 +406,7 @@ describe('OAuth MCP integration flow', () => {
       url: `/oauth/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=mcp%3Aread&state=scoped&restaurant_id=${restaurantId}&resource=${encodeURIComponent(MCP_RESOURCE)}&code_challenge=${PKCE_CHALLENGE}&code_challenge_method=S256`,
     });
     expect(get.statusCode).toBe(200);
-    expect(get.body).toContain('Chez Sokar');
+    expect(get.body).toContain('Chez Suppernote');
     const csrf = get.body.match(/name="csrf_token" value="([^"]+)"/)?.[1];
     const post = await app.inject({
       method: 'POST',
@@ -561,7 +561,7 @@ describe('OAuth MCP integration flow', () => {
     expect(res.body).toContain('<span>Suppernote</span>');
     expect(res.body).toContain('Plus+Jakarta+Sans');
     expect(res.body).toContain("font-family: 'Outfit'");
-    expect(res.body).toContain('--sokar-blue: #0284c7');
+    expect(res.body).toContain('--suppernote-blue: #0284c7');
     expect(res.body).not.toContain('#f97316');
     expect(res.body).not.toContain('#0369a1');
     expect(res.body).not.toContain('#38bdf8');

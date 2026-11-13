@@ -24,7 +24,7 @@ import {
 /**
  * Les établissements fictifs de démonstration (`CONNECT_DEMO_SLUGS`) ne sortent pas d'une recherche
  * ouverte : un assistant IA ne doit pas les proposer à un vrai client. Ils restent accessibles quand
- * on les nomme exactement (« Chez Sokar »), ce qui sert aux essais et aux relecteurs d'annuaire.
+ * on les nomme exactement (« Chez Suppernote »), ce qui sert aux essais et aux relecteurs d'annuaire.
  */
 export function isHiddenDemoRestaurant(
   restaurant: { name: string; slug: string | null },

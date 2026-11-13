@@ -205,7 +205,7 @@ describe('Cartesia Ink-2 en mode tours (secours)', () => {
     const frame = Buffer.alloc(160, 0xd5);
     expect(adapter.toProviderAudio('PCMA', frame)).toBe(frame);
     expect(adapter.chunkBytesPerMs('PCMA')).toBe(8);
-    const url = new URL(buildCartesiaTurnsUrl('PCMA', 'Chez Sokar'));
+    const url = new URL(buildCartesiaTurnsUrl('PCMA', 'Chez Suppernote'));
     expect(url.pathname).toBe('/stt/turns/websocket');
     expect(Object.fromEntries(url.searchParams)).toEqual(
       expect.objectContaining({
@@ -214,7 +214,7 @@ describe('Cartesia Ink-2 en mode tours (secours)', () => {
         encoding: 'pcm_alaw',
         sample_rate: '8000',
         turn_end_timeout_ms: '1500',
-        keyterm: 'Chez Sokar',
+        keyterm: 'Chez Suppernote',
       }),
     );
   });

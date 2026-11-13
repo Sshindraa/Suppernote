@@ -78,7 +78,7 @@ export function StatsTab({ orgId }: StatsTabProps) {
 
   if (error) {
     return (
-      <div className="sokar-error">
+      <div className="suppernote-error">
         <AlertCircle size={18} />
         {error}
       </div>
@@ -87,7 +87,7 @@ export function StatsTab({ orgId }: StatsTabProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="sokar-card">
+      <Card className="suppernote-card">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <BarChart3 size={16} />
@@ -102,7 +102,7 @@ export function StatsTab({ orgId }: StatsTabProps) {
         </CardContent>
       </Card>
 
-      <Card className="sokar-card">
+      <Card className="suppernote-card">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <LayoutGrid size={16} />
@@ -122,7 +122,7 @@ export function StatsTab({ orgId }: StatsTabProps) {
         </CardContent>
       </Card>
 
-      <Card className="sokar-card">
+      <Card className="suppernote-card">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <Users size={16} />
@@ -135,7 +135,7 @@ export function StatsTab({ orgId }: StatsTabProps) {
         </CardContent>
       </Card>
 
-      <Card className="sokar-card">
+      <Card className="suppernote-card">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
             <AlertTriangle size={16} />

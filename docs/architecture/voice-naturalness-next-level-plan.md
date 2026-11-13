@@ -1,4 +1,4 @@
-# Plan d’action expert — Voix Sokar « naturelle, fiable et transparente »
+# Plan d’action expert — Voix Suppernote « naturelle, fiable et transparente »
 
 Date : 2026-07-22
 Production de référence : `9ee05f7`
@@ -316,7 +316,7 @@ Validation locale : 86 tests voix ciblés, typecheck API, build API, lint API (0
 
 ### Passe du 11 septembre 2026 — correctif prosodie/latence
 
-- le fallback HTTP synthétise une réponse complète dans une seule requête ; les pauses fixes inter-phrases de Sokar sont supprimées afin que Sonic 3.6 applique sa ponctuation contextuelle ;
+- le fallback HTTP synthétise une réponse complète dans une seule requête ; les pauses fixes inter-phrases de Suppernote sont supprimées afin que Sonic 3.6 applique sa ponctuation contextuelle ;
 - le contexte WebSocket canary est ouvert pendant la génération LLM, avant le premier fragment, et accepte les deux formes de signal de fin Cartesia (`type=done` et `done=true`) ;
 - le timeout d'ouverture du contexte est limité à 1,5 seconde pour revenir rapidement au chemin HTTP en cas d'incident ;
 - le prébuffer Telnyx passe de deux trames à une trame de 100 ms, ce qui retire un silence fixe sans modifier le format G.711 ni le pacing réseau ;

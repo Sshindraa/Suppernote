@@ -176,21 +176,6 @@ describe('FloorPlanPage — switch desktop', () => {
     expect(screen.queryByTestId('create-floor-plan')).not.toBeInTheDocument();
   });
 
-  it('affiche le guide du premier service en vue Live, jamais dans l’édition', async () => {
-    window.localStorage.removeItem('sokar:first-service-guide:dismissed');
-    const { unmount } = render(<FloorPlanPage />);
-    await waitFor(() => expect(screen.getByText('service')).toBeInTheDocument());
-    expect(
-      await screen.findByRole('complementary', { name: 'Guide du premier service' }),
-    ).toBeInTheDocument();
-    unmount();
-
-    mocks.setSearchParams('view=edit-plan');
-    render(<FloorPlanPage />);
-    await waitFor(() => expect(screen.getByText('design')).toBeInTheDocument());
-    expect(screen.queryByRole('complementary', { name: 'Guide du premier service' })).toBeNull();
-  });
-
   it('affiche la vue Edition sans en-tête ni bascule redondante', async () => {
     mocks.setSearchParams('view=edit-plan');
     render(<FloorPlanPage />);

@@ -44,7 +44,7 @@ Référence : les écrans refaits (Réservations, Appels, Marketing, Pilotage, B
 
 ## Copy tone
 
-- Use `vous` everywhere, never `tu`. Sokar is a B2B SaaS billed monthly to restaurant managers (40-60, non-dev). `tu` feels consumer/developer-tool.
+- Use `vous` everywhere, never `tu`. Suppernote is a B2B SaaS billed monthly to restaurant managers (40-60, non-dev). `tu` feels consumer/developer-tool.
 - Includes: onboarding (steps, modal, guard, dashboard), tooltips, error messages, banners, marketing copy.
 - Indefinite pronoun `on` → `nous` in user-facing copy (OK in code comments).
 - A Vitest test (`onboarding-tone.test.ts`) enforces the convention.

@@ -106,6 +106,21 @@ function patchedTableResponse(
   return updatedTable;
 }
 
+async function mockTablePlacement(page: Page, tables: typeof demoFloorPlan.tables) {
+  const plan = { ...demoFloorPlan, tables };
+  const writes: Record<string, unknown>[] = [];
+  await page.route('**/api/proxy/**/floor-plan/tables/t5', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    const updates = route.request().postDataJSON();
+    writes.push(updates);
+    await route.fulfill({ json: patchedTableResponse(plan, '/t5', updates) });
+  });
+  await page.route(`**/api/proxy/**/floor-plans/${plan.id}`, (route) =>
+    route.fulfill({ json: plan }),
+  );
+  return writes;
+}
+
 type SimulationRequest = {
   partySize: number;
   startsAt: string;
@@ -259,7 +274,7 @@ async function openSimulator(page: Page) {
  * Garde-fou non-régression du plan de salle (/dashboard/floor-plan).
  *
  * En mode demo local (NEXT_PUBLIC_DEMO_RESTAURANT_ID défini), le dashboard
- * utilise le restaurant "Chez Sokar Demo" et appelle l'API via le proxy Next.js.
+ * utilise le restaurant "Chez Suppernote" et appelle l'API via le proxy Next.js.
  * Ce test vérifie que :
  *  - la vue Live s'affiche sans bandeau d'erreur ;
  *  - la navigation vers l'édition fonctionne ;
@@ -389,7 +404,7 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(page.getByText('Route démo non mockée')).toHaveCount(0);
   });
 
-  test('dépose la table à la position affichée et refuse un chevauchement', async ({
+  test('survole une table et dépose à destination seulement si elle est libre', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop-1440', 'Glisser-déposer à la souris.');
@@ -400,29 +415,169 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(table).toBeVisible();
     await expect(other).toBeVisible();
     const start = (await table.boundingBox())!;
-    const target = (await other.boundingBox())!;
+    const obstacle = (await other.boundingBox())!;
     const startX = start.x + start.width / 2;
     const startY = start.y + start.height / 2;
+    const obstacleX = obstacle.x + obstacle.width / 2;
+    const obstacleY = obstacle.y + obstacle.height / 2;
+    const overlap =
+      /Plateaux superposés avec T3\. Sera posée à côté\. Alt désactive l’alignement\./;
 
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
-    await expect(page.getByRole('status').filter({ hasText: 'Trop près de T3' })).toBeVisible();
-    await expect(table).toHaveCSS('opacity', '0');
+    await page.mouse.move(obstacleX, obstacleY, { steps: 12 });
+    await expect(page.getByText(overlap)).toBeVisible();
+    expect(Math.abs((await table.boundingBox())!.x + start.width / 2 - obstacleX)).toBeLessThan(2);
     await page.mouse.up();
+    // Dépôt sur T3 : la table est posée à côté, elle ne revient pas en arrière.
+    await expect(page.getByText(/Sera posée à côté/)).toHaveCount(0);
+    await expect(table).not.toHaveCSS('left', '96px');
+    await page.keyboard.press('Meta+z');
     await expect(table).toHaveCSS('left', '96px');
     await expect(table).toHaveCSS('top', '96px');
 
     await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(startX + 17, startY + 135, { steps: 10 });
-    const preview = page.locator('[aria-hidden="true"] > [aria-label="T1 · 2 places"]');
-    await expect(preview).toBeVisible();
-    const [left, top] = await preview.evaluate((node) => [node.style.left, node.style.top]);
-    expect(top).not.toBe('96px');
+    await page.mouse.move(obstacleX, obstacleY, { steps: 12 });
+    await expect(page.getByText(overlap)).toBeVisible();
+    await page.mouse.move(obstacleX + 45, obstacleY + 245, { steps: 12 });
+    await expect(page.getByText(/Sera posée à côté/)).toHaveCount(0);
+    const [left, top] = await table.evaluate((node) => [node.style.left, node.style.top]);
+    expect(parseInt(left, 10)).toBeGreaterThan(280);
     await page.mouse.up();
     await expect(table).toHaveCSS('left', left);
     await expect(table).toHaveCSS('top', top);
+    await page.keyboard.press('Meta+z');
+    await expect(table).toHaveCSS('left', '96px');
+    await expect(table).toHaveCSS('top', '96px');
+  });
+
+  test('signale les chaises proches et enregistre la position affichée', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'Glisser-déposer à la souris.');
+    const base = { ...demoFloorPlan.tables[1], width: 144, height: 104 };
+    const writes = await mockTablePlacement(page, [
+      { ...base, id: 't3', name: 'T3', positionX: 252, positionY: 250 },
+      { ...base, id: 't5', name: 'T5', positionX: 252, positionY: 80 },
+    ]);
+
+    await page.goto('/dashboard/floor-plan?view=edit-plan&floorPlanId=e2e-floor-plan');
+    const table = page.getByRole('button', { name: 'T5 · 4 places' });
+    await expect(table).toBeVisible();
+    const box = (await table.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 3;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x, y + (76 * box.width) / 144, { steps: 12 });
+    const message = 'T5 · Chaises proches de T3';
+    const viewport = page.getByRole('region', { name: 'Vue du plan' });
+    await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible();
+    await expect(viewport.getByText(message)).toHaveCount(0);
+    const highlighted = '[data-floor-seat-conflict]';
+    await expect(table.locator(highlighted)).toHaveCount(2);
+    await expect(
+      page.getByRole('button', { name: 'T3 · 4 places' }).locator(highlighted),
+    ).toHaveCount(2);
+    await page.mouse.up();
+    await expect(viewport.locator(highlighted)).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible();
+    await expect
+      .poll(() => writes)
+      .toEqual([expect.objectContaining({ positionX: 252, positionY: 156 })]);
+    await expect(table).toHaveCSS('top', '156px');
+  });
+
+  test('Alt suspend l’alignement et conserve le signal de passage serré', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'Glisser-déposer à la souris.');
+    const base = { ...demoFloorPlan.tables[1], width: 144, height: 104 };
+    const writes = await mockTablePlacement(page, [
+      { ...base, id: 't2', name: 'T2', positionX: 100, positionY: 250 },
+      { ...base, id: 't13', name: 'T13', positionX: 257, positionY: 390 },
+      { ...base, id: 't5', name: 'T5', positionX: 252, positionY: 80 },
+    ]);
+    await page.goto('/dashboard/floor-plan?view=edit-plan&floorPlanId=e2e-floor-plan');
+    const table = page.getByRole('button', { name: 'T5 · 4 places' });
+    await expect(table).toBeVisible();
+    const box = (await table.boundingBox())!;
+    const zoom = box.width / base.width;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 3;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 7 * zoom, y + 177 * zoom, { steps: 12 });
+    await expect(table).toHaveCSS('top', '257px');
+    await expect(table).toHaveCSS('left', '257px');
+    const message = 'T5 · Passage serré près de T2';
+    await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible();
+    await page.keyboard.down('Alt');
+    await expect(table).toHaveCSS('left', '259px');
+    await expect(page.getByRole('status').filter({ hasText: message })).toBeVisible();
+    await page.mouse.up();
+    await page.keyboard.up('Alt');
+    await expect
+      .poll(() => writes)
+      .toEqual([expect.objectContaining({ positionX: 259, positionY: 257 })]);
+    await expect(table).toHaveCSS('left', '259px');
+    await expect(table).toHaveCSS('top', '257px');
+  });
+
+  test('garde le cadrage au bord pendant un glisser et permet de déplacer la vue', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop-1440', 'Déplacement de vue à la souris.');
+    await page.goto('/dashboard/floor-plan?view=edit-plan&floorPlanId=e2e-floor-plan');
+    const viewport = page.getByRole('region', { name: 'Vue du plan' });
+    const table = page.getByRole('button', { name: 'T3 · 4 places' });
+    await expect(table).toBeVisible();
+    await page.getByRole('button', { name: 'T1 · 2 places' }).click();
+    await expect(
+      page.getByText('Plateau', { exact: false }).filter({ hasText: 'm' }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Fermer la fiche' })).toBeVisible();
+    const readScroll = () => viewport.evaluate((element) => element.scrollLeft);
+    await viewport.evaluate((element) => {
+      element.scrollLeft = 140;
+    });
+    const before = await readScroll();
+    expect(before).toBeGreaterThan(40);
+    const view = (await viewport.boundingBox())!;
+    const box = (await table.locator('[data-floor-top]').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(view.x + 18, box.y + box.height / 2, { steps: 10 });
+    await page.waitForTimeout(260);
+    expect(await readScroll()).toBe(before);
+    await expect(page.getByRole('button', { name: 'Fermer la fiche' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+
+    const pan = page.getByRole('button', { name: 'Déplacer la vue' });
+    // Le capteur neutralise encore le clic de fin de glisser pendant 50 ms.
+    await page.waitForTimeout(70);
+    await pan.click();
+    await expect(pan).toHaveAttribute('aria-pressed', 'true');
+    await page.mouse.move(view.x + 280, view.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(view.x + 340, view.y + 120, { steps: 8 });
+    await page.mouse.up();
+    expect(await readScroll()).toBeLessThan(before);
+    await page.keyboard.press('Escape');
+    await expect(pan).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('button', { name: 'Voir toute la salle' }).click();
+    const scale = () =>
+      table.evaluate((node) => {
+        const stage = node.closest('[style*="scale("]')!;
+        return new DOMMatrix(getComputedStyle(stage).transform).a;
+      });
+    const fittedScale = await scale();
+    await page.getByRole('button', { name: 'Zoom arrière' }).click();
+    await expect.poll(scale).toBeLessThan(fittedScale);
+    await page.keyboard.press('f');
+    await expect.poll(scale).toBe(fittedScale);
   });
 
   test('affiche une table ronde et une fiche tactile dans le viewport iPhone', async ({
@@ -478,8 +633,6 @@ test.describe('/dashboard/floor-plan — navigation et données demo', () => {
     await expect(bar.getByLabel('Date du service')).toBeVisible();
     await expect(bar.getByRole('button', { name: "Liste d'attente" })).toBeVisible();
     await expect(plan.getByTestId('floor-plan-live-stage')).toBeVisible();
-
-    await page.getByRole('button', { name: 'Compris', exact: true }).click();
 
     const viewport = page.viewportSize()!;
     const box = (await plan.boundingBox())!;

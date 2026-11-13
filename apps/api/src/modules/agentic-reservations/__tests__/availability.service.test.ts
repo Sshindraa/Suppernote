@@ -190,8 +190,8 @@ describe('AvailabilityService', () => {
     it('recherche un restaurant par nom et conserve sa fiche même sans disponibilité au créneau', async () => {
       const findMany = vi.fn().mockResolvedValue([
         {
-          id: 'r-sokar',
-          name: 'Chez Sokar',
+          id: 'r-demo',
+          name: 'Chez Suppernote',
           slug: 'chez-sokar',
           lat: 45.76,
           lng: 4.83,
@@ -205,7 +205,7 @@ describe('AvailabilityService', () => {
 
       const result = await service.searchAvailableRestaurantsPage({
         city: 'Lyon',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         partySize: 2,
         slotStart: new Date('2026-09-17T17:00:00Z'),
         slotEnd: new Date('2026-09-17T19:00:00Z'),
@@ -213,11 +213,40 @@ describe('AvailabilityService', () => {
       });
 
       expect(findMany.mock.calls[0][0].where.name).toEqual({
-        contains: 'Chez Sokar',
+        contains: 'Chez Suppernote',
         mode: 'insensitive',
       });
       expect(result.results).toEqual([]);
-      expect(result.restaurantMatches).toEqual([{ restaurantId: 'r-sokar', name: 'Chez Sokar' }]);
+      expect(result.restaurantMatches).toEqual([
+        { restaurantId: 'r-demo', name: 'Chez Suppernote' },
+      ]);
+    });
+
+    it('publie le slug canonique dans les résultats MCP pendant la transition', async () => {
+      const findMany = vi.fn().mockResolvedValue([
+        {
+          id: 'r-demo',
+          name: 'Chez Suppernote',
+          slug: 'chez-sokar-demo',
+          formattedAddress: '12 Rue de la République, 69001 Lyon',
+          cuisineType: ['Bistrot'],
+          priceRange: 2,
+          exposureSettings: { maxPartySize: 6 },
+          floorPlans: [{ tables: [{ capacity: 6 }] }],
+        },
+      ]);
+      const service = new AvailabilityService(makeFakePrisma({ findMany }));
+      vi.spyOn(service, 'checkAvailability').mockResolvedValue({ available: true });
+
+      const results = await service.searchAvailableRestaurantsPage({
+        city: 'Lyon',
+        restaurantName: 'Chez Suppernote',
+        partySize: 2,
+        slotStart: new Date('2026-09-17T17:00:00Z'),
+        slotEnd: new Date('2026-09-17T19:00:00Z'),
+        maxResults: 5,
+      });
+      expect(results.results[0].slug).toBe('chez-suppernote-demo');
     });
 
     it('publie le slug canonique dans les résultats MCP pendant la transition', async () => {

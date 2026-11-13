@@ -5,7 +5,7 @@ Aucun entretien constaté par ce lot ; aucun message envoyé. Les coordonnées e
 restent dans l'outil restreint choisi par le responsable commercial.
 
 Ce guide teste un premier pilote Essential ciblé sur les réservations ; il ne définit pas à lui seul
-le périmètre de Sokar. La plateforme couvre aussi l'organisation du service et la relation client ;
+le périmètre de Suppernote. La plateforme couvre aussi l'organisation du service et la relation client ;
 voir la [carte produit](../PROJECT_MAP.md#ce-quest-sokar) pour les capacités développées et leurs
 limites d'activation.
 
@@ -25,7 +25,7 @@ les entretiens, il ne constitue pas une preuve statistique.
 **Cible** : restaurant indépendant établi, un seul site, demandes téléphoniques régulières, réservations
 prises principalement au cahier, au tableur ou à la main. Priorité aux bistrots et brasseries
 avec service à table, une équipe occupée en salle, un besoin de réservation concret et un responsable
-capable de tenir le carnet Sokar comme référence commune. La taille n'est pas un seuil arbitraire :
+capable de tenir le carnet Suppernote comme référence commune. La taille n'est pas un seuil arbitraire :
 qualifier le rythme des services, les couverts et les appels sur un service récent.
 
 **Périmètre géographique décidé par Hamza le 15 octobre : France entière.** La sélection se fait
@@ -78,7 +78,7 @@ Une case « oui » sans preuve reste une estimation. Une case « inconnu » n'es
 
 ## 4. Guide d'entretien (20 minutes)
 
-**Ouverture** : rappeler l'objet de l'échange pour Sokar, comprendre le fonctionnement actuel
+**Ouverture** : rappeler l'objet de l'échange pour Suppernote, comprendre le fonctionnement actuel
 avant toute proposition, demander
 l'accord pour prendre des notes, indiquer qu'aucun enregistrement n'est fait sans accord explicite et
 que le rapport sera anonymisé.
@@ -99,9 +99,9 @@ prochaine action 3 min. Proposer un autre rendez-vous si une démonstration dema
 **Relances utiles** : « Qu'est-ce qui s'est passé ensuite ? », « Combien de fois cela arrive-t-il par
 semaine, à peu près, et comment le savez-vous ? », « Qu'avez-vous fait la dernière fois ? ».
 
-**Présentation de Sokar** (après les questions 1 à 6, adaptée aux besoins exprimés) :
+**Présentation de Suppernote** (après les questions 1 à 6, adaptée aux besoins exprimés) :
 
-> Sokar est une plateforme pour gérer les réservations et préparer le service de votre restaurant.
+> Suppernote est une plateforme pour gérer les réservations et préparer le service de votre restaurant.
 > Elle réunit les réservations prises en salle et en ligne dans un même planning, avec un plan de
 > salle et un fichier client. Elle comprend aussi un assistant vocal conçu pour répondre aux appels
 > transférés et prendre des réservations selon vos disponibilités. Vous gardez votre numéro existant.
@@ -115,7 +115,7 @@ Limites à dire explicitement, sans attendre d'être interrogé :
 - aucune synchronisation avec ZenChef, TheFork ou Lightspeed n'est proposée aujourd'hui ;
 - la démonstration vocale est en cours de qualification avec les fournisseurs réels : les exemples
   montrés sur le site sont illustratifs ;
-- l'installation demande un numéro Sokar attribué et un renvoi d'appel configuré par vos soins ;
+- l'installation demande un numéro Suppernote attribué et un renvoi d'appel configuré par vos soins ;
 - aucun gain chiffré n'est garanti.
 
 **Clôture** : demander l'action concrète acceptée (question 7). Ne pas conclure à la place du
@@ -148,7 +148,7 @@ Conserver aussi les refus et les absences de réponse.
 - **Usage actuel** : aucun quota client de minutes vocales ou de SMS ni facturation automatique
   de dépassement dans l'offre actuelle. Les budgets internes ne sont pas des quotas client. Ne pas
   reformuler cela en garantie de disponibilité ou d'usage « illimité ». Les SMS nécessitent leur
-  configuration ; les éventuels frais de renvoi de l'opérateur sont distincts de Sokar.
+  configuration ; les éventuels frais de renvoi de l'opérateur sont distincts de Suppernote.
 - **Ce que le pilote ne garantit pas** : un gain de réservations, un revenu récupéré, une
   synchronisation avec un autre logiciel, une disponibilité téléphonique continue.
 - **Décision à la fin** : GO, NO-GO ou prolongation sous contrôle, avec la fiche datée du runbook.
@@ -157,7 +157,7 @@ Conserver aussi les refus et les absences de réponse.
 
 **Pitch fondateur, environ 30 secondes** :
 
-> Bonjour, je suis Hamza, le fondateur de Sokar. Nous développons une plateforme pour aider les
+> Bonjour, je suis Hamza, le fondateur de Suppernote. Nous développons une plateforme pour aider les
 > restaurants à gérer leurs réservations, préparer le service et mieux connaître leurs clients.
 > Elle réunit les réservations en salle et en ligne dans un même planning, et comprend un assistant
 > vocal conçu pour prendre les appels transférés. Aujourd'hui, comment vous organisez vos
@@ -165,12 +165,12 @@ Conserver aussi les refus et les absences de réponse.
 
 **Message écrit** :
 
-> Bonjour, je suis Hamza, fondateur de Sokar, une plateforme pour aider les restaurants à gérer
+> Bonjour, je suis Hamza, fondateur de Suppernote, une plateforme pour aider les restaurants à gérer
 > leurs réservations et préparer leur service. Comment votre équipe organise-t-elle les réservations
 > prises en salle, en ligne et par téléphone ? Je cherche à comprendre votre fonctionnement pour voir
-> si Sokar peut vous être utile. Seriez-vous disponible pour un échange de 20 minutes, à votre convenance ?
+> si Suppernote peut vous être utile. Seriez-vous disponible pour un échange de 20 minutes, à votre convenance ?
 > Si le sujet ne vous concerne pas ou si vous préférez ne pas être recontacté, dites-le-moi.
-> Hamza — Sokar
+> Hamza — Suppernote
 
 Le message annonce son objet commercial et exploratoire. Adapter seulement le contexte réellement
 connu ; ne pas inventer un appel manqué ou une recommandation personnelle. Après autorisation d'envoi,
@@ -180,7 +180,7 @@ de séquence automatique ni de relance en cas de refus.
 **Invitation à une démonstration, après intérêt exprimé (non envoyée)** :
 
 > Merci pour votre retour. Nous pouvons regarder comment vos réservations et les appels transférés
-> seraient gérés dans Sokar. L'exemple public est une simulation ; il ne prouve pas le fonctionnement
+> seraient gérés dans Suppernote. L'exemple public est une simulation ; il ne prouve pas le fonctionnement
 > sur votre ligne. Nous vérifierons séparément l'installation et un appel réel avant toute activation
 > client. Quel créneau vous conviendrait pour examiner votre organisation ?
 
@@ -197,7 +197,7 @@ de séquence automatique ni de relance en cas de refus.
 > Nous proposons ensuite une observation accompagnée sur sept jours consécutifs, avec une revue à la
 > fin. Ces sept jours ne constituent pas un essai gratuit et ne changent pas les conditions de
 > l'abonnement. Nous préparons vos horaires et règles de réservation, le carnet commun, le numéro
-> Sokar, le renvoi et le secours humain. L'activation des appels clients attend la recette vocale et
+> Suppernote, le renvoi et le secours humain. L'activation des appels clients attend la recette vocale et
 > la vérification de votre installation. Vous gardez votre numéro de restaurant.
 >
 > L'offre actuelle n'applique pas de quota client de minutes vocales ou de SMS, ni de facturation

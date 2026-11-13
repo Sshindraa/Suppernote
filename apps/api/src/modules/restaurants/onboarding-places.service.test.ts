@@ -36,9 +36,9 @@ describe('onboarding Google Places service', () => {
             {
               placePrediction: {
                 placeId: 'ChIJrestaurant123',
-                text: { text: 'Chez Sokar, Lyon' },
+                text: { text: 'Chez Suppernote, Lyon' },
                 structuredFormat: {
-                  mainText: { text: 'Chez Sokar' },
+                  mainText: { text: 'Chez Suppernote' },
                   secondaryText: { text: 'Lyon, France' },
                 },
               },
@@ -49,13 +49,13 @@ describe('onboarding Google Places service', () => {
       ),
     );
 
-    const suggestions = await searchOnboardingPlaces('Chez Sokar Lyon', 'test');
+    const suggestions = await searchOnboardingPlaces('Chez Suppernote Lyon', 'test');
 
     expect(suggestions).toEqual([
-      { placeId: 'ChIJrestaurant123', mainText: 'Chez Sokar', secondaryText: 'Lyon, France' },
+      { placeId: 'ChIJrestaurant123', mainText: 'Chez Suppernote', secondaryText: 'Lyon, France' },
     ]);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
-      input: 'Chez Sokar Lyon',
+      input: 'Chez Suppernote Lyon',
       sessionToken: 'test',
       languageCode: 'fr',
       includedRegionCodes: ['fr'],
@@ -70,7 +70,7 @@ describe('onboarding Google Places service', () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
-          displayName: { text: 'Chez Sokar' },
+          displayName: { text: 'Chez Suppernote' },
           location: { latitude: 45.76, longitude: 4.83 },
           formattedAddress: '12 Rue de la Paix, 69002 Lyon, France',
           addressComponents: [
@@ -97,7 +97,7 @@ describe('onboarding Google Places service', () => {
 
     expect(details).toMatchObject({
       placeId: 'ChIJrestaurant123',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       lat: 45.76,
       lng: 4.83,
       formattedAddress: '12 Rue de la Paix',

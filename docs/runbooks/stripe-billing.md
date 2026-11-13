@@ -49,12 +49,12 @@ Décision du 16 octobre 2026 : un premier abonnement commence par **14 jours off
 - Sans carte au jour 15, Stripe supprime l'abonnement (`customer.subscription.deleted`) : le compte
   passe `canceled`. **Suspension** : un compte dont l'abonnement a existé puis s'est terminé
   (`canceled`, `incomplete_expired`, `unpaid`) est suspendu. Aucune session vocale : la ligne du
-  restaurant pouvant encore être renvoyée vers Sokar, Sokar décroche, lit « Bonjour, vous êtes bien
+  restaurant pouvant encore être renvoyée vers Suppernote, Suppernote décroche, lit « Bonjour, vous êtes bien
   chez … Nous ne pouvons pas prendre votre appel pour le moment… » puis raccroche
   (`voice/suspended-call.ts`). Le dashboard affiche « Réactiver mon assistant » ; e-mail de coupure,
   dashboard et réglages rappellent de désactiver le renvoi. `past_due` ne suspend pas : Stripe
   retente le paiement.
-- Les comptes qui n'ont jamais eu d'abonnement (pilotes, Chez Sokar, comptes antérieurs à l'essai
+- Les comptes qui n'ont jamais eu d'abonnement (pilotes, Chez Suppernote, comptes antérieurs à l'essai
   direct) ne sont pas suspendus.
 - Réactivation : un nouveau Checkout depuis `/pricing`, sans nouvel essai. Le webhook repasse le
   compte `active` et l'agent décroche à nouveau.

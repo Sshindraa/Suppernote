@@ -29,6 +29,7 @@ export default function PwaInstallBanner() {
     const isStandalone =
       (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
       window.matchMedia('(display-mode: standalone)').matches ||
+      navigator.userAgent.includes('SuppernoteIOS') ||
       navigator.userAgent.includes('SokarIOS');
 
     // Check localStorage to respect dismissal

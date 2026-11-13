@@ -170,7 +170,7 @@ describe('TOOL_LIST ↔ Zod schema consistency', () => {
     expect((answerTool?.outputSchema as { required?: string[] }).required).toEqual(['message']);
     expect(
       AnswerAvailabilityOutputSchema.safeParse({
-        message: 'Oui, une table est disponible au restaurant Chez Sokar à 19 h.',
+        message: 'Oui, une table est disponible au restaurant Chez Suppernote à 19 h.',
       }).success,
     ).toBe(true);
     expect(searchTool?.description).toContain('recherche unique qui commence à 19 h');

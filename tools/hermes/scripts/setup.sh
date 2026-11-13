@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# Setup Hermes Agent pour Sokar
+# Setup Hermes Agent pour Suppernote
 # Usage: zsh tools/hermes/scripts/setup.sh
 
 set -euo pipefail

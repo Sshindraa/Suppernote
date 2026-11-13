@@ -3,12 +3,11 @@ import { closeApp, getApp } from '../../../test/helpers';
 import { db } from '../../../shared/db/client';
 import { getBillingDetails, createBillingPortalSession } from '../billing.service';
 
-const read = (
-  globalThis as unknown as { __sokarStripeRead: Record<string, ReturnType<typeof vi.fn>> }
-).__sokarStripeRead;
+const read = (globalThis as unknown as { __stripeRead: Record<string, ReturnType<typeof vi.fn>> })
+  .__stripeRead;
 const portal = (
-  globalThis as unknown as { __sokarStripeBillingPortalSessionCreate: ReturnType<typeof vi.fn> }
-).__sokarStripeBillingPortalSessionCreate;
+  globalThis as unknown as { __stripeBillingPortalSessionCreate: ReturnType<typeof vi.fn> }
+).__stripeBillingPortalSessionCreate;
 const scope = { restaurantId: 'test-rest-1', accountId: 'test-account-1' };
 
 beforeEach(() => {

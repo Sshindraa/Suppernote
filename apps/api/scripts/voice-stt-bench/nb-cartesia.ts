@@ -73,7 +73,7 @@ async function streamToCartesia(
     sample_rate: String(sampleRate),
     cartesia_version: '2026-08-14',
   });
-  params.append('keyterm', 'Chez Sokar');
+  params.append('keyterm', 'Chez Suppernote');
   const ws = new WebSocket(`wss://api.cartesia.ai/stt/websocket?${params}`, {
     headers: { 'X-API-Key': apiKey, 'Cartesia-Version': '2026-08-14' },
   });

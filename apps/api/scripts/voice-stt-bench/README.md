@@ -84,7 +84,7 @@ pnpm exec tsx scripts/voice-stt-bench/second-opinion-eval.ts \
 
 B : `POST /v1/speech-to-text`, `model_id=scribe_v2` (`BENCH_BATCH_MODEL` pour
 changer), `language_code=fr`, mêmes `keyterms` que la production
-(`buildSttKeyterms('Chez Sokar')`, +20 % sur le prix du batch), WAV PCM 8 kHz.
+(`buildSttKeyterms('Chez Suppernote')`, +20 % sur le prix du batch), WAV PCM 8 kHz.
 L'audio reste sur le serveur, jamais commité.
 
 ## Banc narrowband — ce que coûte G.711 (phase 1)
@@ -254,8 +254,8 @@ L'audio et le JSON du rejeu (transcriptions) restent hors du dépôt. Coût : ~0
 ```zsh
 cd apps/api
 node --env-file=.env --import tsx scripts/voice-stt-bench/call-eot-replay.ts \
-  --audio-dir "$TMPDIR/sokar-call-audio" --out "$TMPDIR/eot-replay.json"
-python3 -I scripts/voice-stt-bench/eot_pauses.py "$TMPDIR/sokar-call-audio" "$TMPDIR/eot-turns.json"
+  --audio-dir "$TMPDIR/suppernote-call-audio" --out "$TMPDIR/eot-replay.json"
+python3 -I scripts/voice-stt-bench/eot_pauses.py "$TMPDIR/suppernote-call-audio" "$TMPDIR/eot-turns.json"
 python3 -I scripts/voice-stt-bench/eot_evaluate.py "$TMPDIR/eot-turns.json" "$TMPDIR/eot-replay.json" "$TMPDIR/eot-stats.json"
 ```
 

@@ -8,7 +8,7 @@
 ## Objectif
 
 Permet aux restaurants d'utiliser leur propre domaine (ex: `reserve.chezmario.fr`)
-pour leur page de réservation Sokar. Cloudflare gère le SSL automatiquement
+pour leur page de réservation Suppernote. Cloudflare gère le SSL automatiquement
 (no certbot) et route le trafic vers l'origin `suppernote.com`.
 
 ## Prérequis
@@ -146,7 +146,7 @@ curl -s http://127.0.0.1:4000/livez | jq .
 
 1. Il clique sur le bouton **X** dans le dashboard
 2. L'API supprime le Custom Hostname sur Cloudflare + clear DB
-3. Le domaine ne pointe plus vers Sokar
+3. Le domaine ne pointe plus vers Suppernote
 
 ## Rollback
 
@@ -164,12 +164,12 @@ Voir https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-s
 
 ## Subdomain gratuit \*.suppernote.com (zero config)
 
-Chaque restaurant qui active Sokar Connect obtient automatiquement un subdomain gratuit
+Chaque restaurant qui active Suppernote Connect obtient automatiquement un subdomain gratuit
 `chezmario.suppernote.com` (basé sur le slug). Zero configuration, instantané.
 
 Le custom domain (`reserve.chezmario.fr`) reste une option premium avec le flux CNAME
 décrit ci-dessus. Le subdomain gratuit est détecté par le middleware Connect **avant**
-le flux custom domain, évitant tout lookup DB sur les sous-domaines Sokar.
+le flux custom domain, évitant tout lookup DB sur les sous-domaines Suppernote.
 
 ### Configuration one-time (Cloudflare)
 
@@ -239,7 +239,7 @@ bloc nginx ci-dessus renverrait `/book/<slug>` vers une page introuvable.
 
 ### Flux restaurateur (zero clic)
 
-1. Le restaurateur active Sokar Connect dans le dashboard
+1. Le restaurateur active Suppernote Connect dans le dashboard
 2. Le subdomain `{slug}.suppernote.com` est immédiatement fonctionnel (détecté par le middleware)
 3. Le dashboard affiche le subdomain dans la carte « Sous-domaine gratuit » avec un bouton copier
 4. Aucune action supplémentaire requise — le SSL est géré par le wildcard Origin CA

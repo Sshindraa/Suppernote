@@ -15,7 +15,7 @@ describe('answer_availability', () => {
     const args = {
       city: 'Lyon',
       partySize: 2,
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       slotStart: '2026-10-01T19:00:00',
       timezone: 'Europe/Paris',
     };
@@ -25,13 +25,13 @@ describe('answer_availability', () => {
         searchOutcome: 'available',
         requestedRestaurant: {
           id: '550e8400-e29b-41d4-a716-446655440000',
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           status: 'available',
         },
         restaurants: [
           {
             id: '550e8400-e29b-41d4-a716-446655440000',
-            name: 'Chez Sokar',
+            name: 'Chez Suppernote',
             slug: 'chez-sokar',
             formattedAddress: 'Lyon',
             cuisineType: [],
@@ -57,7 +57,7 @@ describe('answer_availability', () => {
       ok: true,
       data: {
         message:
-          'Oui, une table est disponible pour 2 personnes au restaurant Chez Sokar le jeudi 1er octobre à 19 h.',
+          'Oui, une table est disponible pour 2 personnes au restaurant Chez Suppernote le jeudi 1er octobre à 19 h.',
       },
     });
   });

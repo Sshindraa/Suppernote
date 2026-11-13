@@ -12,7 +12,7 @@
  * restent hors du dépôt. Coût : ~2 × 5,5 s × tours × 0,0048 $/min.
  *
  *   cd apps/api && node --env-file=.env --import tsx scripts/voice-stt-bench/finalize-probe.ts \
- *     --audio-dir "$TMPDIR/sokar-call-audio" --turns "$TMPDIR/eot-turns.json" --out "$TMPDIR/probe.json" \
+ *     --audio-dir "$TMPDIR/suppernote-call-audio" --turns "$TMPDIR/eot-turns.json" --out "$TMPDIR/probe.json" \
  *     [--finalize-after-ms 500] [--max-speech-ms 1500] [--concurrency 8]
  */
 import { spawnSync } from 'node:child_process';

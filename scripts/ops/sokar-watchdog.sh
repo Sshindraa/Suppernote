@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Watchdog Sokar — exécuté toutes les 5 minutes par cron (/etc/cron.d/sokar-watchdog).
+# Watchdog Suppernote — exécuté toutes les 5 minutes par cron (/etc/cron.d/sokar-watchdog).
 #
 # Détecte ce que le monitoring in-app (worker system-health) ne peut pas voir :
-#   - API, dashboard ou Sokar Connect indisponibles
+#   - API, dashboard ou Suppernote Connect indisponibles
 #   - Redis ou Postgres arrêtés
 #   - sauvegarde quotidienne absente (> 26 h)
 #   - disque ou mémoire critiques
@@ -19,7 +19,7 @@
 # externe (healthchecks.io, Better Stack, Uptime Kuma…), configurer un
 # heartbeat toutes les 10 min : si le VPS est totalement down, l'absence de
 # ping déclenche l'alerte externe. C'est le seul mécanisme qui couvre la
-# panne complète du serveur — Sokar ne peut pas s'auto-alerter dans ce cas.
+# panne complète du serveur — Suppernote ne peut pas s'auto-alerter dans ce cas.
 #
 # Configuration : /etc/sokar/watchdog.env (sourcé si présent) :
 #   ALERT_WEBHOOK="https://hooks.slack.com/..." ou webhook Discord
@@ -89,7 +89,7 @@ fail() {
   fi
   echo "$now" >"$state_file" 2>/dev/null || true
   echo "[watchdog] $check KO — alerte envoyée"
-  notify "🚨 [Sokar $severity] $message"
+  notify "🚨 [Suppernote $severity] $message"
 }
 
 # Marque un check comme rétabli. Usage : ok <check> <label lisible>
@@ -99,7 +99,7 @@ ok() {
   if [ -f "$state_file" ]; then
     rm -f "$state_file"
     echo "[watchdog] $check rétabli — notification envoyée"
-    notify "✅ [Sokar] $label : rétabli."
+    notify "✅ [Suppernote] $label : rétabli."
   fi
 }
 
@@ -201,9 +201,9 @@ check_memory() {
 
 echo "[watchdog] $(date -u '+%Y-%m-%dT%H:%M:%SZ') début des checks"
 
-check_http "api" "API Sokar" "$API_URL" "CRITIQUE"
-check_http "dashboard" "Dashboard Sokar" "$DASHBOARD_URL" "CRITIQUE"
-check_http "connect" "Sokar Connect" "$CONNECT_URL" "WARNING"
+check_http "api" "API Suppernote" "$API_URL" "CRITIQUE"
+check_http "dashboard" "Dashboard Suppernote" "$DASHBOARD_URL" "CRITIQUE"
+check_http "connect" "Suppernote Connect" "$CONNECT_URL" "WARNING"
 check_container "redis" "Redis (BullMQ)" "$REDIS_CONTAINER" redis-cli ping
 check_container "postgres" "Postgres" "$POSTGRES_CONTAINER" pg_isready -U sokar
 check_backup

@@ -1,4 +1,4 @@
-# Hermes × Obsidian — Intégration Sokar
+# Hermes × Obsidian — Intégration Suppernote
 
 > **Dernière mise à jour** : 2026-06-24
 > **Statut** : **fonctionnel** via skill `obsidian` (filesystem-first).
@@ -41,7 +41,7 @@ OBSIDIAN_VAULT_PATH=/Users/hamza/Projects/Sokar/docs/obsidian
 ```
 
 Convention documentée dans la skill `obsidian` (skill Hermes). Si
-unset, fallback `~/Documents/Obsidian Vault` (pas utilisé par Sokar).
+unset, fallback `~/Documents/Obsidian Vault` (pas utilisé par Suppernote).
 
 ## Skill `obsidian-doc` — règle d'or
 
@@ -101,7 +101,7 @@ Configuration type (optionnelle) :
 ## Notes principales du vault
 
 | Note                                | Rôle                                         |
-| ----------------------------------- | -------------------------------------------- |
+| ----------------------------------- | -------------------------------------------- | ----------------------------- |
 | [[Context]]                         | Décisions récentes, TODOs, dernière activité |
 | [[Journal]]                         | Log chronologique des tâches                 |
 | [[Architecture]]                    | Stack globale, monorepo                      |
@@ -109,7 +109,7 @@ Configuration type (optionnelle) :
 | [[Telnyx Pipeline]]                 | ai_config, machine à états, webhooks         |
 | [[Scribe Pipeline Media Stream]]    | Pipeline Scribe + barge-in                   |
 | [[Fillers Audio]]                   | Cache fillers LLM                            |
-| [[Sokar Connect P0]]                | Spec phase 0 + tickets T1-T10                |
+| [[Sokar Connect P0                  | Suppernote Connect P0]]                      | Spec phase 0 + tickets T1-T10 |
 | [[Session Telnyx Debug 2026-06-10]] | Post-mortem Telnyx                           |
 
 Notes legacy (Vapi, Sprint 1, stubs, Git Auto-Commit) : retirées du
@@ -120,13 +120,13 @@ vault lors de la migration Desktop → Projects.
 En 2025, un système d'auto-classification a été décrit dans la
 version originale de cette note :
 
-| Composant                                            | Statut réel                                             |
-| ---------------------------------------------------- | ------------------------------------------------------- |
-| `agent/scripts/mcp_serve.py` (gateway)               | **N'existe plus**                                       |
-| `agent/skills/obsidian/auto_sync.py` (git watcher)   | **N'existe plus**                                       |
-| `agent/skills/obsidian/auto_doc.py` (helpers)        | **N'existe plus**                                       |
-| `agent/skills/obsidian/skill.py` (tools Hermes)      | **Remplacé** par la skill `obsidian` (filesystem-first) |
-| Windsurf Cascade MCP `obsidian-vault`                | **N'utilise plus Windsurf**                             |
+| Composant                                          | Statut réel                                             |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| `agent/scripts/mcp_serve.py` (gateway)             | **N'existe plus**                                       |
+| `agent/skills/obsidian/auto_sync.py` (git watcher) | **N'existe plus**                                       |
+| `agent/skills/obsidian/auto_doc.py` (helpers)      | **N'existe plus**                                       |
+| `agent/skills/obsidian/skill.py` (tools Hermes)    | **Remplacé** par la skill `obsidian` (filesystem-first) |
+| Windsurf Cascade MCP `obsidian-vault`              | **N'utilise plus Windsurf**                             |
 
 Le système "auto-géré" décrit en 2025 n'a jamais été livré en prod.
 La conséquence visible : le [[Journal]] a sauté 5 semaines

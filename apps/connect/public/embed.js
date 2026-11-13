@@ -19,7 +19,7 @@
   // Validate host to prevent XSS via malicious data-host attribute.
   // Only allow HTTPS URLs or localhost (dev). Reject anything else.
   if (!/^https:\/\/[a-zA-Z0-9.-]+$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(rawHost)) {
-    console.error('[sokar-widget] Invalid data-host attribute');
+    console.error('[suppernote-widget] Invalid data-host attribute');
     rawHost = 'https://suppernote.com';
   }
   const host = rawHost;

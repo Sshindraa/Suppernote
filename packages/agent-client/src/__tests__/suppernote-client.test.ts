@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SokarAgentClient } from '../sokar-client.js';
+import { SuppernoteAgentClient } from '../suppernote-client.js';
 
-describe('SokarAgentClient', () => {
+describe('SuppernoteAgentClient', () => {
   const originalFetch = globalThis.fetch;
   let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -25,7 +25,7 @@ describe('SokarAgentClient', () => {
   }
 
   it('getTools fetches tools with default openai format', async () => {
-    const client = new SokarAgentClient({
+    const client = new SuppernoteAgentClient({
       baseUrl: 'https://api-staging.suppernote.com',
       apiKey: 'x',
     });
@@ -42,7 +42,7 @@ describe('SokarAgentClient', () => {
   });
 
   it('executeTool posts tool and returns result', async () => {
-    const client = new SokarAgentClient({
+    const client = new SuppernoteAgentClient({
       baseUrl: 'https://api-staging.suppernote.com',
       apiKey: 'x',
     });
@@ -75,7 +75,7 @@ describe('SokarAgentClient', () => {
   });
 
   it('executeTool throws on error response', async () => {
-    const client = new SokarAgentClient({
+    const client = new SuppernoteAgentClient({
       baseUrl: 'https://api-staging.suppernote.com',
       apiKey: 'x',
     });
@@ -84,6 +84,6 @@ describe('SokarAgentClient', () => {
 
     await expect(
       client.executeTool('get_restaurant_details', { restaurantId: 'missing' }),
-    ).rejects.toThrow('SokarAgentClient');
+    ).rejects.toThrow('SuppernoteAgentClient');
   });
 });

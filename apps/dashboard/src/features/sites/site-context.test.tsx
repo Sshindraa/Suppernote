@@ -84,7 +84,7 @@ it('garde le site actif pendant une actualisation de la même organisation', asy
 
   seen.length = 0;
   await act(async () => {
-    window.dispatchEvent(new Event('sokar:organization-synced'));
+    window.dispatchEvent(new Event('suppernote:organization-synced'));
   });
 
   expect(fetchMock).toHaveBeenCalledTimes(2);

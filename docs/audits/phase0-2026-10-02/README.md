@@ -1,4 +1,4 @@
-# Sokar — référence visuelle phase 0
+# Suppernote — référence visuelle phase 0
 
 Cette série fige l’interface locale **après les corrections de fiabilité de phase 1**, avant les retouches des phases 2 à 5. Elle permet une comparaison visuelle honnête avec ces prochaines phases ; elle ne représente pas l’état antérieur à la phase 1. Les noms, réservations, tables et réponses API sont fictifs. Aucune base ni service client n’a été modifié.
 

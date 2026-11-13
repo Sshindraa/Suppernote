@@ -120,9 +120,9 @@ describe('PwaInstallBanner', () => {
     expect(screen.queryByText('Installer Suppernote AI')).not.toBeInTheDocument();
   });
 
-  it("ne s'affiche pas dans l'appli iOS Suppernote", () => {
+  it.each(['SuppernoteIOS', 'SokarIOS'])("ne s'affiche pas dans l'appli iOS (%s)", (appMarker) => {
     Object.defineProperty(window.navigator, 'userAgent', {
-      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 SokarIOS',
+      value: `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 ${appMarker}`,
       configurable: true,
     });
 

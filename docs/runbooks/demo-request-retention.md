@@ -19,7 +19,7 @@ créée par le formulaire. Cette règle couvre la base et les copies e-mail.
 
 ## Revue manuelle mensuelle avant et après publication
 
-Responsable : responsable de Sokar. Première revue à effectuer avant livraison
+Responsable : responsable de Suppernote. Première revue à effectuer avant livraison
 de la nouvelle politique, puis chaque mois. Aucun effacement n’a été exécuté
 pendant la préparation de ce lot et aucun automatisme n’a été créé.
 

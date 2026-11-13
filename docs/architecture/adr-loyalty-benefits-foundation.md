@@ -2,7 +2,7 @@
 
 - **Date :** 2026-09-14
 - **Statut :** version manuelle ouverte aux offres Pro et Multi-site
-- **Décideurs :** produit Sokar / équipe API
+- **Décideurs :** produit Suppernote / équipe API
 
 ## Contexte
 

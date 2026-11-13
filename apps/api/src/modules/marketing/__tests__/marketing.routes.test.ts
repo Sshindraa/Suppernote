@@ -128,7 +128,7 @@ describe('marketing control plane routes', () => {
     } as never);
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({
       plan: 'PRO',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
     } as never);
     vi.mocked(db.customer.findUnique).mockResolvedValue({ restaurantId: 'test-rest-1' } as never);
     vi.mocked(db.marketingPermission.upsert).mockResolvedValue({
@@ -165,7 +165,7 @@ describe('marketing control plane routes', () => {
     } as never);
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({
       plan: 'PRO',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
     } as never);
     vi.mocked(db.marketingPermission.upsert).mockResolvedValue({ id: 'permission-1' } as never);
     vi.mocked(db.marketingPermissionEvent.create).mockResolvedValue({ id: 'event-1' } as never);
@@ -194,7 +194,7 @@ describe('marketing control plane routes', () => {
     } as never);
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({
       plan: 'PRO',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
     } as never);
     const url = '/crm/customers/customer-1/marketing-permissions';
 
@@ -518,7 +518,7 @@ describe('marketing control plane routes', () => {
       scheduledAt: null,
       timezone: 'Europe/Paris',
       audienceCount: 2,
-      restaurant: { name: 'Chez Sokar' },
+      restaurant: { name: 'Chez Suppernote' },
     } as never);
     vi.mocked(db.campaignAudienceMember.findMany).mockResolvedValue([
       { customerId: 'customer-1' },
@@ -557,7 +557,7 @@ describe('marketing control plane routes', () => {
       scheduledAt: null,
       timezone: 'Europe/Paris',
       audienceCount: 1,
-      restaurant: { name: 'Chez Sokar' },
+      restaurant: { name: 'Chez Suppernote' },
     } as never);
     vi.mocked(db.campaignAudienceMember.findMany).mockResolvedValue([]);
 
@@ -671,7 +671,7 @@ describe('marketing control plane routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/csv');
-    expect(response.headers['content-disposition']).toContain('sokar-campaign-campaign-1.csv');
+    expect(response.headers['content-disposition']).toContain('suppernote-campaign-campaign-1.csv');
     expect(response.body).toContain('"delivery_delivered","1"');
     expect(response.body).not.toContain('c1');
   });
@@ -958,7 +958,7 @@ describe('marketing control plane routes', () => {
       process.env.MARKETING_UNSUBSCRIBE_SECRET = 'u'.repeat(48);
       process.env.MARKETING_OPTOUT_HASH_SECRET = 'o'.repeat(48);
       vi.mocked(db.restaurant.findUnique).mockResolvedValue({
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         plan: 'PRO',
       } as never);
       vi.mocked(db.customer.findFirst).mockResolvedValue({
@@ -1008,7 +1008,7 @@ describe('marketing control plane routes', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain(CHECKBOX);
-      expect(response.body).toContain('les offres et actualités du restaurant Chez Sokar');
+      expect(response.body).toContain('les offres et actualités du restaurant Chez Suppernote');
       expect(db.marketingPermission.upsert).not.toHaveBeenCalled();
     });
 

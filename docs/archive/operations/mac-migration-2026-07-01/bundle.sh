@@ -63,7 +63,7 @@ cp -p ~/.hermes/.env                   "$ROOT/hermes/"
 cp -p ~/.hermes/context_length_cache.yaml "$ROOT/hermes/" 2>/dev/null || true
 # Memories (perso + user)
 [[ -d ~/.hermes/memories ]] && cp -pR ~/.hermes/memories "$ROOT/hermes/"
-# Kanban db (sokar tasks)
+# Kanban db (suppernote tasks)
 cp -p ~/.hermes/kanban.db              "$ROOT/hermes/" 2>/dev/null || true
 # Cron jobs.json (déclencheurs)
 cp -p ~/.hermes/cron/jobs.json         "$ROOT/hermes/cron_jobs.json" 2>/dev/null || true
@@ -109,7 +109,7 @@ done
 chmod 600 "$ROOT/ssh"/* 2>/dev/null || true
 chmod 644 "$ROOT/ssh"/*.pub 2>/dev/null || true
 
-# 2d. Sokar .env (projet)
+# 2d. Suppernote .env (projet)
 mkdir -p "$ROOT/sokar"
 cp -p /Users/hamza/Desktop/Sokar/.env.local            "$ROOT/sokar/" 2>/dev/null || true
 cp -p /Users/hamza/Desktop/Sokar/packages/database/.env "$ROOT/sokar/database.env" 2>/dev/null || true
@@ -190,7 +190,7 @@ rm -rf "$STAGE"
 if [[ "${BUNDLE_PASS_AUTO:-0}" == "1" && -n "${PASS1:-}" ]]; then
   PASS_FILE="$OUT_DIR/PASSPHRASE-$TS.txt"
   {
-    printf "Sokar Mac Migration passphrase\n"
+    printf "Suppernote Mac Migration passphrase\n"
     printf "Date: %s\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     printf "Source: %s\n" "$(hostname)"
     printf "Bundle: %s\n\n" "$(basename "$ENC")"

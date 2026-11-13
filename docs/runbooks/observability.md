@@ -57,9 +57,9 @@ Prometheus conserve 30 jours de séries (`prometheus-data`), Grafana ses dashboa
 (`grafana-data`). Les deux dashboards sont provisionnés depuis `infra/grafana/dashboards/` — ils ne
 s'éditent pas dans l'interface, toute modification passe par le dépôt :
 
-- **Sokar — Voice & SLO** : état des cinq SLO, sessions vocales simultanées (seuil 70), erreurs
+- **Suppernote — Voice & SLO** : état des cinq SLO, sessions vocales simultanées (seuil 70), erreurs
   fournisseurs voice, p95 Connect, TTFT LLM, premier audio TTS ;
-- **Sokar — Files & Alertes** : dead-letter, appels sans transcription, réservations sans SMS, taux
+- **Suppernote — Files & Alertes** : dead-letter, appels sans transcription, réservations sans SMS, taux
   de 5xx, profondeur des files, alertes envoyées par canal.
 
 ## Ajouter ou modifier une alerte

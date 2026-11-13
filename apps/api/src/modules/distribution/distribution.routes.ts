@@ -8,7 +8,7 @@ import {
   DistributionWebhookStatus,
 } from '@prisma/client';
 import { z } from 'zod';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
 import {
   createDistributionSyncRun,
@@ -375,7 +375,7 @@ export async function distributionRoutes(app: FastifyInstance): Promise<void> {
   // operator-only envelope until a provider-specific public contract exists.
   app.post(
     '/api/internal/distribution/webhook-events',
-    { preHandler: [requireSokarOperator()] },
+    { preHandler: [requirePlatformOperator()] },
     async (request, reply) => {
       const body = WebhookBodySchema.parse(request.body);
       try {
@@ -387,7 +387,7 @@ export async function distributionRoutes(app: FastifyInstance): Promise<void> {
   );
   app.post(
     '/api/internal/distribution/webhook-events/:id/finish',
-    { preHandler: [requireSokarOperator()] },
+    { preHandler: [requirePlatformOperator()] },
     async (request, reply) => {
       const { id } = WebhookParamsSchema.parse(request.params);
       const body = FinishWebhookBodySchema.parse(request.body);
@@ -400,7 +400,7 @@ export async function distributionRoutes(app: FastifyInstance): Promise<void> {
   );
   app.post(
     '/api/internal/distribution/sync-runs/:id/finish',
-    { preHandler: [requireSokarOperator()] },
+    { preHandler: [requirePlatformOperator()] },
     async (request, reply) => {
       const { id } = RunParamsSchema.parse(request.params);
       const body = FinishRunBodySchema.parse(request.body);

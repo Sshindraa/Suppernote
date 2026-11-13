@@ -7,7 +7,7 @@ Audit du 17 octobre 2026 (production). Les constats SMS de cette date sont histo
 - Relevé en lecture seule : API et workers en ligne, `/health` et `/livez` verts ;
   `TELNYX_SMS_FROM=SOKAR` et profil de messagerie configurés.
 - `smsConfirmEnabled=false` sur les trois restaurants après désactivation de deux
-  fiches dormantes sans slug public ni réservation ; Chez Sokar démo était déjà
+  fiches dormantes sans slug public ni réservation ; Chez Suppernote démo était déjà
   off. `WHATSAPP_ENABLED=false` et `MARKETING_WHATSAPP_ENABLED=false`.
 - Un seul SMS technique a été envoyé via l’API Telnyx (1 segment), sans
   créer de réservation. Telnyx l’a accepté puis son reçu final a indiqué
@@ -23,15 +23,15 @@ contrôlé et exiger le statut `delivered` ainsi que la réception sur le télé
 
 ## E-mails
 
-| Élément                     | État                                                                                                                           | Action                                                        |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Envoi applicatif            | Resend, `noreply@suppernote.com`, signature DKIM `resend._domainkey` et retour `send.suppernote.com` (SPF Amazon SES) présents | Rien                                                          |
-| Nom affiché                 | Adresse nue, affichée « noreply »                                                                                              | Corrigé : `Sokar <noreply@suppernote.com>` (`emailSender`)    |
-| Réponses                    | Partaient vers `noreply`                                                                                                       | Corrigé : `Reply-To: hello@suppernote.com` (`EMAIL_REPLY_TO`) |
-| Adresse de secours du code  | `noreply@sokar.fr` (domaine non vérifié)                                                                                       | Corrigé                                                       |
-| Clerk (connexion)           | DKIM `clk`/`clk2` et `clkmail` présents                                                                                        | Rien                                                          |
-| Google Workspace (`hello@`) | DKIM `google._domainkey` présent, mais **SPF racine sans Google**                                                              | DNS ci-dessous                                                |
-| DMARC                       | **Absent** (exigé par Gmail et Yahoo pour les envois en volume)                                                                | DNS ci-dessous                                                |
+| Élément                     | État                                                                                                                           | Action                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Envoi applicatif            | Resend, `noreply@suppernote.com`, signature DKIM `resend._domainkey` et retour `send.suppernote.com` (SPF Amazon SES) présents | Rien                                                            |
+| Nom affiché                 | Adresse nue, affichée « noreply »                                                                                              | Corrigé : `Suppernote <noreply@suppernote.com>` (`emailSender`) |
+| Réponses                    | Partaient vers `noreply`                                                                                                       | Corrigé : `Reply-To: hello@suppernote.com` (`EMAIL_REPLY_TO`)   |
+| Adresse de secours du code  | une adresse de secours sur un domaine non vérifié                                                                              | Corrigé                                                         |
+| Clerk (connexion)           | DKIM `clk`/`clk2` et `clkmail` présents                                                                                        | Rien                                                            |
+| Google Workspace (`hello@`) | DKIM `google._domainkey` présent, mais **SPF racine sans Google**                                                              | DNS ci-dessous                                                  |
+| DMARC                       | **Absent** (exigé par Gmail et Yahoo pour les envois en volume)                                                                | DNS ci-dessous                                                  |
 
 ### Enregistrements à poser chez Cloudflare
 

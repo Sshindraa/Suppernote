@@ -11,11 +11,11 @@ import {
 
 describe('marketing consent wording', () => {
   it('names the restaurant and the channel in a short label', () => {
-    expect(buildMarketingConsentLabel('EMAIL', 'Chez Sokar')).toBe(
-      'Recevoir les offres et actualités du restaurant Chez Sokar par e-mail',
+    expect(buildMarketingConsentLabel('EMAIL', 'Chez Suppernote')).toBe(
+      'Recevoir les offres et actualités du restaurant Chez Suppernote par e-mail',
     );
-    expect(buildMarketingConsentLabel('SMS', 'Chez Sokar')).toBe(
-      'Recevoir les offres et actualités du restaurant Chez Sokar par SMS',
+    expect(buildMarketingConsentLabel('SMS', 'Chez Suppernote')).toBe(
+      'Recevoir les offres et actualités du restaurant Chez Suppernote par SMS',
     );
   });
 
@@ -26,17 +26,19 @@ describe('marketing consent wording', () => {
   });
 
   it('builds a proof bound to the version, the channel and the exact sentence', () => {
-    const proof = buildMarketingConsentProof('EMAIL', 'Chez Sokar');
+    const proof = buildMarketingConsentProof('EMAIL', 'Chez Suppernote');
     expect(proof).toBe(
-      `${MARKETING_CONSENT_VERSION}|EMAIL|${buildMarketingConsentLabel('EMAIL', 'Chez Sokar')}`,
+      `${MARKETING_CONSENT_VERSION}|EMAIL|${buildMarketingConsentLabel('EMAIL', 'Chez Suppernote')}`,
     );
-    expect(buildMarketingConsentProof('SMS', 'Chez Sokar')).not.toBe(proof);
+    expect(buildMarketingConsentProof('SMS', 'Chez Suppernote')).not.toBe(proof);
     expect(buildMarketingConsentProof('EMAIL', 'Autre')).not.toBe(proof);
   });
 
   it('never uses informal « tu » wording', () => {
     for (const channel of MARKETING_CONSENT_CHANNELS) {
-      expect(buildMarketingConsentLabel(channel, 'Chez Sokar')).not.toMatch(/\b(tu|ton|ta|tes)\b/i);
+      expect(buildMarketingConsentLabel(channel, 'Chez Suppernote')).not.toMatch(
+        /\b(tu|ton|ta|tes)\b/i,
+      );
     }
     for (const method of MARKETING_CONSENT_COLLECTION_METHODS) {
       expect(MARKETING_CONSENT_COLLECTION_LABELS[method]).not.toMatch(/\b(tu|ton|ta|tes)\b/i);

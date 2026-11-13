@@ -81,7 +81,7 @@ function confirmResponse() {
     json: async () => ({
       reservationId: 'res-123',
       status: 'confirmed' as const,
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       date: '2030-01-15',
       time: '19:00',
       partySize: 2,
@@ -413,7 +413,7 @@ describe('ReservationWidget — étape customer', () => {
       json: async () => ({
         reservationId: 'res-123',
         status: 'confirmed',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         date: '2030-01-15',
         time: '19:00',
         partySize: 2,
@@ -568,7 +568,7 @@ describe('ReservationWidget — écran confirmation', () => {
 
     const status = screen.getByRole('status');
     // Nom du restaurant
-    expect(status).toHaveTextContent('Chez Sokar');
+    expect(status).toHaveTextContent('Chez Suppernote');
     // Heure du créneau (19:00 apparaît dans le label formaté)
     expect(status).toHaveTextContent('19:00');
     // Party size = 2 → "2 personnes"

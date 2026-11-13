@@ -41,20 +41,24 @@ describe('sendEmail : expéditeur et Reply-To explicites', () => {
   it('utilise l’expéditeur et le Reply-To fournis, sans revenir à EMAIL_FROM', async () => {
     await sendEmail({
       ...MESSAGE,
-      from: '"Chez Sokar" <bonjour@news.sokar.test>',
-      replyTo: 'manager@chez-sokar.test',
+      from: '"Chez Suppernote" <bonjour@news.suppernote.test>',
+      replyTo: 'manager@chez-suppernote.test',
     });
 
     expect(sendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: '"Chez Sokar" <bonjour@news.sokar.test>',
-        replyTo: 'manager@chez-sokar.test',
+        from: '"Chez Suppernote" <bonjour@news.suppernote.test>',
+        replyTo: 'manager@chez-suppernote.test',
       }),
     );
   });
 
   it('n’envoie aucun Reply-To quand il est explicitement absent', async () => {
-    await sendEmail({ ...MESSAGE, from: '"Chez Sokar" <bonjour@news.sokar.test>', replyTo: null });
+    await sendEmail({
+      ...MESSAGE,
+      from: '"Chez Suppernote" <bonjour@news.suppernote.test>',
+      replyTo: null,
+    });
 
     expect(sendMock.mock.calls[0]?.[0]).not.toHaveProperty('replyTo');
   });

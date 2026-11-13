@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lightweight structured logging helpers for Sokar deploy/ops scripts.
+# Lightweight structured logging helpers for Suppernote deploy/ops scripts.
 # Sourced by deploy.sh, deploy-common.sh, db-backup.sh, etc.
 #
 # Usage:

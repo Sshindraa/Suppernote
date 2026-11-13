@@ -20,7 +20,7 @@ vi.mock('@sentry/node', () => ({
 vi.mock('../../../src/plugins/clerk', () => ({
   registerClerk: vi.fn().mockResolvedValue(undefined),
   requireOrg: () => async () => undefined,
-  requireSokarOperator: () => async () => undefined,
+  requirePlatformOperator: () => async () => undefined,
   requireAuth: () => async () => undefined,
 }));
 

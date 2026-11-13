@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type {
-  SokarAgentClientConfig,
+  SuppernoteAgentClientConfig,
   ToolName,
   ToolListFormat,
   SearchRestaurantsInput,
@@ -11,13 +11,13 @@ import type {
   GetReservationStatusInput,
 } from './types.js';
 
-export class SokarAgentClient {
+export class SuppernoteAgentClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly toolFormat: ToolListFormat;
   private readonly timeoutMs: number;
 
-  constructor(config: SokarAgentClientConfig) {
+  constructor(config: SuppernoteAgentClientConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, '');
     this.apiKey = config.apiKey;
     this.toolFormat = config.toolFormat ?? 'openai';
@@ -36,7 +36,7 @@ export class SokarAgentClient {
       signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) {
-      throw new Error(`SokarAgentClient.getTools failed: ${res.status} ${await res.text()}`);
+      throw new Error(`SuppernoteAgentClient.getTools failed: ${res.status} ${await res.text()}`);
     }
     const body = (await res.json()) as { tools: unknown[] };
     return body.tools;
@@ -58,7 +58,7 @@ export class SokarAgentClient {
     const body = (await res.json()) as { result?: unknown; error?: string; code?: string };
     if (!res.ok) {
       throw new Error(
-        `SokarAgentClient.executeTool('${tool}') failed: ${res.status} ${body.error ?? body.code ?? 'unknown'}`,
+        `SuppernoteAgentClient.executeTool('${tool}') failed: ${res.status} ${body.error ?? body.code ?? 'unknown'}`,
       );
     }
     return body.result;

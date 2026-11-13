@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { requireSokarOperator } from '../../plugins/clerk';
+import { requirePlatformOperator } from '../../plugins/clerk';
 import { buildRestaurantHealth } from './restaurant-health.service';
 
 /**
@@ -9,7 +9,7 @@ import { buildRestaurantHealth } from './restaurant-health.service';
 export async function restaurantHealthRoutes(app: FastifyInstance) {
   app.get<{ Params: { restaurantId: string } }>(
     '/admin/restaurants/:restaurantId/health',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (req, reply) => {
       const { restaurantId } = req.params;
       try {

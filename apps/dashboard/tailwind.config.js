@@ -80,6 +80,11 @@ module.exports = {
         'floor-table': {
           surface: 'hsl(var(--floor-table-surface))',
           chair: 'hsl(var(--floor-table-chair))',
+          idle: 'hsl(var(--floor-table-idle))',
+          held: 'hsl(var(--floor-table-held))',
+          lit: 'hsl(var(--floor-table-lit))',
+          'lit-text': 'hsl(var(--floor-table-lit-text))',
+          'lit-chair': 'hsl(var(--floor-table-lit-chair))',
           accent: 'hsl(var(--floor-table-accent))',
           text: 'hsl(var(--floor-table-text))',
           muted: 'hsl(var(--floor-table-muted))',

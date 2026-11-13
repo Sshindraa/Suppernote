@@ -41,33 +41,33 @@ export default function LoginCallSimulation() {
 
   return (
     <div
-      className="sokar-login-call"
+      className="suppernote-login-call"
       role="group"
       aria-label="Simulation d’un appel de réservation"
     >
-      <div className="sokar-login-call__header">
-        <span className="sokar-login-call__phone">
+      <div className="suppernote-login-call__header">
+        <span className="suppernote-login-call__phone">
           <PhoneCall size={16} aria-hidden="true" />
         </span>
-        <div className="sokar-login-call__identity">
+        <div className="suppernote-login-call__identity">
           <strong>Assistant Suppernote</strong>
           <span>{confirmed ? 'Réservation confirmée' : 'Appel en cours'}</span>
         </div>
-        <span className="sokar-login-call__badge">Simulation</span>
+        <span className="suppernote-login-call__badge">Simulation</span>
         <button
           type="button"
-          className="sokar-login-call__pause"
+          className="suppernote-login-call__pause"
           aria-label={paused ? 'Reprendre la simulation' : 'Mettre la simulation en pause'}
           onClick={() => setPaused((current) => !current)}
         >
           {paused ? <Play size={13} /> : <Pause size={13} />}
         </button>
       </div>
-      <div className="sokar-login-call__messages" aria-live="off">
+      <div className="suppernote-login-call__messages" aria-live="off">
         {visibleMessages.map((message) => (
           <div
             key={message.text}
-            className="sokar-login-call__message"
+            className="suppernote-login-call__message"
             data-speaker={message.speaker}
           >
             <span>{message.speaker}</span>
@@ -75,24 +75,24 @@ export default function LoginCallSimulation() {
           </div>
         ))}
       </div>
-      <div className="sokar-login-call__result" data-confirmed={confirmed}>
+      <div className="suppernote-login-call__result" data-confirmed={confirmed}>
         {confirmed ? (
           <Check size={16} aria-hidden="true" />
         ) : (
           <CalendarCheck size={16} aria-hidden="true" />
         )}
-        <div className="sokar-login-call__summary">
+        <div className="suppernote-login-call__summary">
           <strong>{confirmed ? '4 personnes · Ce soir à 20 h' : 'Une table se prépare…'}</strong>
           <span>Exemple fictif · aucun appel réel</span>
         </div>
         <div
-          className="sokar-login-call__wave"
+          className="suppernote-login-call__wave"
           aria-hidden="true"
           data-paused={paused || confirmed}
         >
           {[0, 1, 2, 3, 4].map((bar) => (
             <i
-              className="sokar-login-call__bar"
+              className="suppernote-login-call__bar"
               key={bar}
               style={{ animationDelay: `${bar * -0.18}s` }}
             />

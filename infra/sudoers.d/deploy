@@ -1,4 +1,4 @@
-# Sokar deploy user — privileged deployment operations through a fixed wrapper.
+# Suppernote deploy user — privileged deployment operations through a fixed wrapper.
 # The deploy user must not remain in the sudo or docker groups after migration.
 #
 # The wrapper validates the environment and action before performing the

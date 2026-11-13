@@ -6,7 +6,7 @@ Statut : proposé, en attente de relecture de Hamza. Aucun code écrit.
 ## But
 
 Le remplissage d'un service creux (`apps/api/src/modules/marketing/fill-service.service.ts`) repose
-sur trois faiblesses : le gérant doit repérer le creux, Sokar suppose que 20 % des clients contactés
+sur trois faiblesses : le gérant doit repérer le creux, Suppernote suppose que 20 % des clients contactés
 réservent (`TAUX_REPONSE`), et les « places libres » comptent aussi les places qui se seraient
 remplies seules. Ce lot rend le système plus utile dès maintenant et prépare une mesure honnête,
 **sans retirer la validation du gérant** : rien ne part sans lui.
@@ -15,7 +15,7 @@ Réussite :
 
 - Le gérant voit les services qui resteront probablement vides, pas seulement ceux qui le sont
   aujourd'hui.
-- Une audience ne dépasse jamais ce que le budget permet d'envoyer, et Sokar n'écrit pas aux clients
+- Une audience ne dépasse jamais ce que le budget permet d'envoyer, et Suppernote n'écrit pas aux clients
   trop peu susceptibles de venir.
 - Chaque campagne enregistre de quoi répondre plus tard à deux questions : le message a-t-il créé des
   réservations, et a-t-il seulement déplacé des clients ?

@@ -1,5 +1,5 @@
 /* Split composition inspired by https://21st.dev/@efferd/components/auth-page. */
-.sokar-login {
+.suppernote-login {
   min-height: 100svh;
   min-height: 100dvh;
   display: grid;
@@ -11,7 +11,7 @@
   color: hsl(var(--foreground));
 }
 
-.sokar-login__frame {
+.suppernote-login__frame {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   width: 100%;
@@ -21,7 +21,7 @@
   background: hsl(var(--background));
 }
 
-.sokar-login__story {
+.suppernote-login__story {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -34,8 +34,8 @@
   background: linear-gradient(150deg, hsl(var(--secondary)), hsl(var(--background)) 85%);
 }
 
-.sokar-login__brand,
-.sokar-login__mobile-brand {
+.suppernote-login__brand,
+.suppernote-login__mobile-brand {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -46,12 +46,12 @@
   transition: opacity 200ms ease;
 }
 
-.sokar-login__brand:hover,
-.sokar-login__mobile-brand:hover {
+.suppernote-login__brand:hover,
+.suppernote-login__mobile-brand:hover {
   opacity: 0.75;
 }
 
-.sokar-login__paths {
+.suppernote-login__paths {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -61,27 +61,27 @@
   mask-image: linear-gradient(to bottom, transparent 5%, hsl(var(--foreground)) 65%);
 }
 
-.sokar-login__paths svg {
+.suppernote-login__paths svg {
   width: 100%;
   height: 100%;
 }
 
-.sokar-login__path {
+.suppernote-login__path {
   stroke-dasharray: 70 20 350 20;
-  animation: sokar-login-flow 32s linear infinite;
+  animation: suppernote-login-flow 32s linear infinite;
 }
 
-@keyframes sokar-login-flow {
+@keyframes suppernote-login-flow {
   to {
     stroke-dashoffset: -460;
   }
 }
 
-.sokar-login__story-content {
+.suppernote-login__story-content {
   margin-top: auto;
 }
 
-.sokar-login__eyebrow {
+.suppernote-login__eyebrow {
   display: block;
   margin-bottom: 1.5rem;
   color: hsl(var(--metal));
@@ -90,7 +90,7 @@
   letter-spacing: 0.19em;
 }
 
-.sokar-login__story-heading {
+.suppernote-login__story-heading {
   display: flex;
   min-height: 2.2em;
   flex-direction: column;
@@ -101,19 +101,19 @@
   letter-spacing: -0.055em;
 }
 
-.sokar-login__rotating-word {
+.suppernote-login__rotating-word {
   display: block;
   color: hsl(var(--foreground));
   font-weight: 650;
-  animation: sokar-login-word-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: suppernote-login-word-in 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.sokar-login__story-highlight {
+.suppernote-login__story-highlight {
   display: block;
   color: hsl(var(--muted-foreground));
 }
 
-@keyframes sokar-login-word-in {
+@keyframes suppernote-login-word-in {
   from {
     opacity: 0;
     filter: blur(6px);
@@ -127,20 +127,20 @@
   }
 }
 
-.sokar-login__access {
+.suppernote-login__access {
   display: flex;
   flex-direction: column;
   gap: clamp(0.75rem, 2svh, 2rem);
   padding: clamp(1rem, 3svh, 2rem) clamp(1.5rem, 4vw, 4rem);
 }
 
-.sokar-login__header {
+.suppernote-login__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.sokar-login__back {
+.suppernote-login__back {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -150,50 +150,50 @@
   transition: color 200ms ease;
 }
 
-.sokar-login__back:hover {
+.suppernote-login__back:hover {
   color: hsl(var(--foreground));
 }
 
-.sokar-login__mobile-brand {
+.suppernote-login__mobile-brand {
   display: none;
 }
 
-.sokar-login__form {
+.suppernote-login__form {
   width: 100%;
   max-width: 23rem;
   margin: auto;
 }
 
-.sokar-login__intro {
+.suppernote-login__intro {
   margin-bottom: 2rem;
 }
 
-.sokar-login__intro .sokar-login__eyebrow {
+.suppernote-login__intro .suppernote-login__eyebrow {
   margin-bottom: 1rem;
 }
 
-.sokar-login__intro h1 {
+.suppernote-login__intro h1 {
   font-size: clamp(1.75rem, 2.5vw, 2.125rem);
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.045em;
 }
 
-.sokar-login__intro p {
+.suppernote-login__intro p {
   margin-top: 0.75rem;
   color: hsl(var(--muted-foreground));
   font-size: 0.875rem;
   line-height: 1.7;
 }
 
-.sokar-login__signup {
+.suppernote-login__signup {
   margin-top: 1.75rem;
   color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
   line-height: 1.8;
 }
 
-.sokar-login__signup a {
+.suppernote-login__signup a {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
@@ -202,12 +202,12 @@
   transition: opacity 200ms ease;
 }
 
-.sokar-login__signup a:hover {
+.suppernote-login__signup a:hover {
   text-decoration: underline;
   opacity: 0.8;
 }
 
-.sokar-login__footer {
+.suppernote-login__footer {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -216,123 +216,123 @@
   font-size: 0.6875rem;
 }
 
-.sokar-login__footer a {
+.suppernote-login__footer a {
   transition: color 200ms ease;
 }
 
-.sokar-login__footer a:hover {
+.suppernote-login__footer a:hover {
   color: hsl(var(--foreground));
 }
 
-.sokar-login a:focus-visible {
+.suppernote-login a:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 5px;
   border-radius: 0.25rem;
 }
 
 @media (max-width: 767px) {
-  .sokar-login {
+  .suppernote-login {
     display: flex;
     padding: 0;
   }
 
-  .sokar-login__frame {
+  .suppernote-login__frame {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sokar-login__story {
+  .suppernote-login__story {
     display: none;
   }
 
-  .sokar-login__access {
+  .suppernote-login__access {
     gap: clamp(0.75rem, 2svh, 2rem);
     /* globals.css applique déjà les zones de sécurité au body : ne pas les compter deux fois. */
     padding: 1rem 1.5rem;
   }
 
   /* Le formulaire ne se centre pas verticalement : sur mobile, il remonte sous l'en-tête. */
-  .sokar-login__form {
+  .suppernote-login__form {
     margin: 1.5rem auto 0;
   }
 
-  .sokar-login__intro .sokar-login__eyebrow,
-  .sokar-login__intro p {
+  .suppernote-login__intro .suppernote-login__eyebrow,
+  .suppernote-login__intro p {
     display: none;
   }
 
   /* Le libellé « Adresse e-mail » reste au-dessus du champ : le placeholder ne fait que le répéter. */
-  .sokar-login__form input::placeholder {
+  .suppernote-login__form input::placeholder {
     color: transparent;
   }
 
-  .sokar-login__mobile-brand {
+  .suppernote-login__mobile-brand {
     display: inline-flex;
   }
 }
 
 /* Dans l'appli iOS, les liens de découverte (Accueil, Créer votre compte) sont masqués. */
-[data-shell='ios'] .sokar-login__back,
-[data-shell='ios'] .sokar-login__signup {
+[data-shell='ios'] .suppernote-login__back,
+[data-shell='ios'] .suppernote-login__signup {
   display: none;
 }
 
 /* Fit the initial sign-in view on shorter laptop and phone screens by
    reducing decorative space, without clipping authentication controls. */
 @media (max-height: 740px) {
-  .sokar-login__intro {
+  .suppernote-login__intro {
     margin-bottom: 1.25rem;
   }
 
-  .sokar-login__intro .sokar-login__eyebrow {
+  .suppernote-login__intro .suppernote-login__eyebrow {
     margin-bottom: 0.5rem;
   }
 
-  .sokar-login__intro h1 {
+  .suppernote-login__intro h1 {
     font-size: 1.75rem;
   }
 
-  .sokar-login__intro p {
+  .suppernote-login__intro p {
     margin-top: 0.5rem;
   }
 
-  .sokar-login__signup {
+  .suppernote-login__signup {
     margin-top: 1rem;
   }
 
-  .sokar-login__story {
+  .suppernote-login__story {
     padding-block: 1.5rem;
   }
 }
 
 @media (max-height: 600px) {
-  .sokar-login__intro .sokar-login__eyebrow,
-  .sokar-login__intro p,
-  .sokar-login__story-footer {
+  .suppernote-login__intro .suppernote-login__eyebrow,
+  .suppernote-login__intro p,
+  .suppernote-login__story-footer {
     display: none;
   }
 
-  .sokar-login__intro h1 {
+  .suppernote-login__intro h1 {
     font-size: 1.625rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sokar-login__path {
+  .suppernote-login__path {
     animation: none;
   }
 
-  .sokar-login a {
+  .suppernote-login a {
     transition: none;
   }
 }
 
-.sokar-login__brand,
-.sokar-login__story-content {
+.suppernote-login__brand,
+.suppernote-login__story-content {
   position: relative;
   z-index: 1;
 }
 
-.sokar-login-call {
+.suppernote-login-call {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: clamp(15rem, 40svh, 19rem);
@@ -345,7 +345,7 @@
   backdrop-filter: blur(12px);
 }
 
-.sokar-login-call__header {
+.suppernote-login-call__header {
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -353,7 +353,7 @@
   border-bottom: 1px solid hsl(var(--border));
 }
 
-.sokar-login-call__phone {
+.suppernote-login-call__phone {
   display: grid;
   place-items: center;
   width: 2rem;
@@ -364,32 +364,32 @@
   color: hsl(var(--foreground));
 }
 
-.sokar-login-call__identity,
-.sokar-login-call__summary {
+.suppernote-login-call__identity,
+.suppernote-login-call__summary {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.sokar-login-call__identity strong,
-.sokar-login-call__result strong {
+.suppernote-login-call__identity strong,
+.suppernote-login-call__result strong {
   font-size: 0.6875rem;
   font-weight: 500;
 }
 
-.sokar-login-call__identity span,
-.sokar-login-call__result span {
+.suppernote-login-call__identity span,
+.suppernote-login-call__result span {
   font-size: 0.5625rem;
   color: hsl(var(--muted-foreground));
 }
 
-.sokar-login-call__badge {
+.suppernote-login-call__badge {
   margin-left: auto;
   color: hsl(var(--metal));
   font-size: 0.5625rem;
 }
 
-.sokar-login-call__pause {
+.suppernote-login-call__pause {
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -400,17 +400,17 @@
   transition: all 200ms ease;
 }
 
-.sokar-login-call__pause:hover {
+.suppernote-login-call__pause:hover {
   background: hsl(var(--secondary));
   color: hsl(var(--foreground));
 }
 
-.sokar-login-call__pause:focus-visible {
+.suppernote-login-call__pause:focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
 
-.sokar-login-call__messages {
+.suppernote-login-call__messages {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -418,38 +418,38 @@
   padding: 0.875rem;
 }
 
-.sokar-login-call__message {
+.suppernote-login-call__message {
   max-width: 90%;
   align-self: flex-end;
   font-size: 0.6875rem;
   line-height: 1.5;
-  animation: sokar-login-message 240ms ease-out both;
+  animation: suppernote-login-message 240ms ease-out both;
 }
 
-.sokar-login-call__message[data-speaker='Suppernote'] {
+.suppernote-login-call__message[data-speaker='Suppernote'] {
   align-self: flex-start;
 }
 
-.sokar-login-call__message > span {
+.suppernote-login-call__message > span {
   display: block;
   margin-bottom: 0.2rem;
   color: hsl(var(--muted-foreground));
   font-size: 0.5625rem;
 }
 
-.sokar-login-call__message > p {
+.suppernote-login-call__message > p {
   padding: 0.5rem 0.75rem;
   border: 1px solid hsl(var(--border));
   border-radius: 0.75rem;
   background: hsl(var(--secondary) / 0.7);
 }
 
-.sokar-login-call__message[data-speaker='Suppernote'] > p {
+.suppernote-login-call__message[data-speaker='Suppernote'] > p {
   background: hsl(var(--foreground) / 0.09);
   border-color: hsl(var(--foreground) / 0.14);
 }
 
-.sokar-login-call__result {
+.suppernote-login-call__result {
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -458,11 +458,11 @@
   color: hsl(var(--muted-foreground));
 }
 
-.sokar-login-call__result[data-confirmed='true'] {
+.suppernote-login-call__result[data-confirmed='true'] {
   color: hsl(var(--foreground));
 }
 
-.sokar-login-call__result .sokar-login-call__wave {
+.suppernote-login-call__result .suppernote-login-call__wave {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -471,19 +471,19 @@
   margin-left: auto;
 }
 
-.sokar-login-call__bar {
+.suppernote-login-call__bar {
   width: 2px;
   height: 0.75rem;
   border-radius: 999px;
   background: hsl(var(--metal));
-  animation: sokar-login-wave 900ms ease-in-out infinite alternate;
+  animation: suppernote-login-wave 900ms ease-in-out infinite alternate;
 }
 
-.sokar-login-call__wave[data-paused='true'] .sokar-login-call__bar {
+.suppernote-login-call__wave[data-paused='true'] .suppernote-login-call__bar {
   animation-play-state: paused;
 }
 
-@keyframes sokar-login-message {
+@keyframes suppernote-login-message {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -494,7 +494,7 @@
   }
 }
 
-@keyframes sokar-login-wave {
+@keyframes suppernote-login-wave {
   from {
     transform: scaleY(0.3);
   }
@@ -504,24 +504,24 @@
 }
 
 @media (max-height: 600px) {
-  .sokar-login__story-content .sokar-login__eyebrow {
+  .suppernote-login__story-content .suppernote-login__eyebrow {
     margin-bottom: 0.75rem;
   }
 
-  .sokar-login__story-heading {
+  .suppernote-login__story-heading {
     font-size: 1.5rem;
   }
 
-  .sokar-login-call {
+  .suppernote-login-call {
     margin-top: 1rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sokar-login__path,
-  .sokar-login__rotating-word,
-  .sokar-login-call__message,
-  .sokar-login-call__bar {
+  .suppernote-login__path,
+  .suppernote-login__rotating-word,
+  .suppernote-login-call__message,
+  .suppernote-login-call__bar {
     animation: none;
   }
 }

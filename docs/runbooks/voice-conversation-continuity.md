@@ -7,7 +7,7 @@ une explication. ElevenLabs v4 Turbo, Deepgram/Ink et leurs délais restent conf
 avant. Aucun changement d'API publique, de modèle de données ou de fournisseur.
 
 Activation bornée par `VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS`, vide par défaut.
-Les workflows staging et production ne listent que Chez Sokar, restaurant de qualification.
+Les workflows staging et production ne listent que Chez Suppernote, restaurant de qualification.
 Le groupe `scripts/ops/sync-env.sh voice-stt staging|prod` synchronise aussi cette liste.
 Aucun restaurant client n'est ajouté. Ce déploiement permet la recette téléphonique ;
 les tests et les rejeux du modèle ne démontrent pas encore un gain de naturel entendu.
@@ -80,7 +80,7 @@ de dialogue n'est créé pour cet acquiescement.
   la consigne a été précisée et la reprise courte réévaluée. Ces petits essais ne constituent
   pas une mesure de généralisation ni une écoute téléphonique.
 
-## Recette téléphonique sur Chez Sokar
+## Recette téléphonique sur Chez Suppernote
 
 1. Réservation avec parenthèse terrasse, refus de transfert, reprise courte, accord final.
 2. Non au récapitulatif puis correction ; abandon explicite dans un appel distinct.

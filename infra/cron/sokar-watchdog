@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# Watchdog Sokar : toutes les 5 minutes.
+# Watchdog Suppernote : toutes les 5 minutes.
 # API/dashboard/connect, Redis, Postgres, backup quotidien, disque, mémoire.
 # Config des canaux d'alerte : /etc/sokar/watchdog.env
 */5 * * * * root /usr/local/sbin/sokar-watchdog >> /var/log/sokar/watchdog.log 2>&1

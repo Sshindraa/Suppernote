@@ -1,6 +1,6 @@
-# Passage de Sokar à Suppernote
+# Bascule de marque et de domaine
 
-Décision de Hamza du 3 novembre 2026 : la marque Sokar devient Suppernote et `sokar.tech` devient `suppernote.com`.
+Décision de Hamza du 3 novembre 2026 : la marque devient Suppernote et `sokar.tech` devient `suppernote.com`.
 
 **État au 3 novembre 2026 :** bascule faite (PR #640 fusionnée). La production sert `suppernote.com` et `api.suppernote.com` ; `sokar.tech` redirige (301, 308 pour l'API) et relaie les webhooks. Il reste les points de la section « Reste à faire ».
 
@@ -58,7 +58,7 @@ Fait le 3 novembre 2026 : redirections de `sokar.tech` vers `suppernote.com` (30
 
 ## Plan de bascule (exécuté le 3 novembre 2026)
 
-Plan conservé pour mémoire et pour un éventuel retour arrière. Activité en production relevée le 3 novembre 2026 : 84 appels au total, tous de `Chez Sokar`, dernier le 25 octobre ; un seul utilisateur Clerk actif par semaine. La coupure de connexion touchait donc très peu de monde.
+Plan conservé pour mémoire et pour un éventuel retour arrière. Activité en production relevée le 3 novembre 2026 : 84 appels au total, tous de `Chez Suppernote`, dernier le 25 octobre ; un seul utilisateur Clerk actif par semaine. La coupure de connexion touchait donc très peu de monde.
 
 Avant (T-1 h) : CI de la PR verte ; crédit OpenRouter rechargé ; clé Clerk `sk_test` renouvelée ; sauvegardes `.env` (`*.bak-avant-suppernote-*`) et snapshot de release présents ; `pm2 jlist` relevé.
 

@@ -1,4 +1,4 @@
-# Guide intégrateur MCP Sokar
+# Guide intégrateur MCP Suppernote
 
 > **Statut : ACTIF / PRODUCTION — métadonnées et appels de lecture vérifiés le 29 septembre 2026.**
 > Des parcours OAuth et réservation E2E ont été exécutés avec ChatGPT et Claude ; la matrice
@@ -6,7 +6,7 @@
 > Le transport actuel est JSON-RPC 2.0 stateless sur HTTP `POST /mcp`. Voir
 > [`DOCUMENTATION_STATUS.md`](./DOCUMENTATION_STATUS.md).
 
-Sokar expose les restaurants opt-in via un serveur MCP générique. Un agent peut
+Suppernote expose les restaurants opt-in via un serveur MCP générique. Un agent peut
 découvrir un restaurant, vérifier une disponibilité, créer une réservation avec
 consentement explicite, puis relire ou annuler la réservation.
 
@@ -50,7 +50,7 @@ Envoyez un seul message JSON-RPC par requête POST ; les batchs sont refusés.
 
 ## Authentification
 
-Sokar accepte un token OAuth 2.0 ou une API key dans le même header Bearer :
+Suppernote accepte un token OAuth 2.0 ou une API key dans le même header Bearer :
 
 ```http
 Authorization: Bearer sk_sokar_agent_xxx
@@ -81,16 +81,16 @@ PKCE S256 et ne reçoivent pas de secret.
 
 La découverte MCP publie le `resource` canonique et les scopes disponibles. Un client
 qui envoie `resource` à `/oauth/authorize` doit renvoyer exactement la même valeur à
-`/oauth/token`; Sokar lie le jeton à cette audience et la vérifie sur chaque appel MCP.
+`/oauth/token`; Suppernote lie le jeton à cette audience et la vérifie sur chaque appel MCP.
 Les parcours sans paramètre `resource` restent acceptés et les nouveaux jetons sont
-quand même liés à l’issuer Sokar courant. Les refresh tokens conservent cette audience.
+quand même liés à l’issuer Suppernote courant. Les refresh tokens conservent cette audience.
 
-La métadonnée d’autorisation annonce l’identification d’issuer RFC 9207. Sokar renvoie
+La métadonnée d’autorisation annonce l’identification d’issuer RFC 9207. Suppernote renvoie
 `iss` dans les redirections de succès et de refus. Chaque outil MCP déclare aussi son
 scope OAuth dans `securitySchemes`; lorsqu’un appel échoue faute de scope, la réponse
 MCP fournit `_meta["mcp/www_authenticate"]` pour proposer la liaison ou la
 réautorisation. Les outils restent découvrables dans `tools/list`, mais le serveur
-vérifie le scope avant toute exécution. Sokar prend en charge le Dynamic Client
+vérifie le scope avant toute exécution. Suppernote prend en charge le Dynamic Client
 Registration (DCR) ; CIMD n’est pas annoncé.
 
 Le fallback `AGENT_DEV_KEY` n'est accepté que lorsque `ENABLE_DEV_AUTH=true` et que la clé respecte
@@ -203,7 +203,7 @@ d’idempotence, du JSON ou un format de date/téléphone technique.
 Après confirmation et consentement, l’assistant appelle les outils nécessaires,
 en gardant leurs identifiants et résultats techniques internes. Il répond ensuite
 brièvement dans la langue de la personne, par exemple : « C’est confirmé pour deux
-personnes chez Chez Sokar, jeudi 1er octobre à 19 h. » Il ne montre ni UUID, ni
+personnes chez Chez Suppernote, jeudi 1er octobre à 19 h. » Il ne montre ni UUID, ni
 `reused`, ni réponse JSON. En cas d’indisponibilité, il propose uniquement les
 créneaux alternatifs retournés.
 
@@ -230,7 +230,7 @@ restent dans `structuredContent` pour les appels suivants. Le modèle doit
 utiliser cette phrase comme base de réponse et ne pas afficher le JSON structuré
 à la personne. Les erreurs suivent la même règle : `content` décrit simplement
 le problème, tandis que le code de diagnostic reste dans les métadonnées. Pour
-les clients `2025-03-26`, Sokar conserve le texte JSON historique afin de ne pas
+les clients `2025-03-26`, Suppernote conserve le texte JSON historique afin de ne pas
 casser les intégrations qui n’exploitent pas `structuredContent`.
 
 ## Format tools/call
@@ -282,7 +282,7 @@ Erreur métier:
 ```
 
 Le code et le message lisibles par machine sont dans `_meta["com.sokar/error"]`.
-Le bloc texte JSON reste présent pour les anciens clients. Sur un succès, Sokar
+Le bloc texte JSON reste présent pour les anciens clients. Sur un succès, Suppernote
 valide `structuredContent` contre l'`outputSchema` publié avant de répondre.
 
 Les dates invalides ou les plages inversées renvoient le code métier
@@ -312,12 +312,12 @@ structurées de recherche, les identifiants internes ni la borne de fin utilisé
 disponibilité.
 
 Utilisez cet outil pour une question comme « Vous auriez une table pour deux demain vers 19 h au
-restaurant Chez Sokar à Lyon ? ». Utilisez `search_restaurants` si la personne demande une
+restaurant Chez Suppernote à Lyon ? ». Utilisez `search_restaurants` si la personne demande une
 comparaison détaillée ou si le parcours doit réutiliser des données structurées pour une réservation.
 
 Certains clients MCP gardent en cache la liste des outils. Après un déploiement qui ajoute un outil,
 actualisez la liste du connecteur puis ouvrez une nouvelle conversation. Dans Claude, ouvrez
-**Settings → Customize → Connectors → Sokar Staging → More options → Refresh tools list**. Sans
+**Settings → Customize → Connectors → Suppernote Staging → More options → Refresh tools list**. Sans
 cette actualisation, Claude peut continuer à appeler `search_restaurants` et ne pas proposer
 `answer_availability`.
 
@@ -330,7 +330,7 @@ Arguments:
 ```json
 {
   "city": "Lyon",
-  "restaurantName": "Chez Sokar",
+  "restaurantName": "Chez Suppernote",
   "partySize": 2,
   "slotStart": "2026-06-23T17:00:00.000Z",
   "slotEnd": "2026-06-23T19:00:00.000Z",
@@ -346,7 +346,7 @@ Contraintes:
 - `partySize`: entier, 1 à 50
 - `restaurantName`: optionnel; nom fourni par la personne. Lorsqu’elle nomme un restaurant, transmettez-le pour rechercher cette fiche précise.
 - `slotStart`: date-time ISO avec `Z`/offset, ou date/heure locale ISO sans offset
-- `slotEnd`: optionnel; même format que `slotStart`. S’il est omis, Sokar applique une durée de 120 minutes.
+- `slotEnd`: optionnel; même format que `slotStart`. S’il est omis, Suppernote applique une durée de 120 minutes.
 - `timezone`: optionnel pour les valeurs locales (fuseau IANA, par ex. `Europe/Paris`) ; Europe/Paris est utilisé par défaut
 - `cuisineType`: optionnel, maximum 10 valeurs
 - `maxResults`: optionnel, entier 1 à 20, défaut 5
@@ -707,7 +707,7 @@ Le client de test exécute:
 ## Claude Desktop via stdio
 
 Le bridge stdio local expose les mêmes outils et proxy les appels vers
-`POST /mcp`. L'API Sokar doit tourner à côté.
+`POST /mcp`. L'API Suppernote doit tourner à côté.
 
 Commande manuelle:
 

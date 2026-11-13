@@ -1,4 +1,4 @@
-// PM2 ecosystem pour l'environnement de STAGING Sokar.
+// PM2 ecosystem pour l'environnement de STAGING Suppernote.
 //
 // Services séparés de la prod (préfixe sokar-staging-*) sur ports décalés :
 //   API      → 4100 (prod: 4000)

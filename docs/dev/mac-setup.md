@@ -1,4 +1,4 @@
-# Mac dev setup — Sokar
+# Mac dev setup — Suppernote
 
 Configuration recommandée pour le développement local sur macOS, pour
 éviter les `pack-objects died of signal 10` sur les pushes git.

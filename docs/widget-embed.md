@@ -1,12 +1,12 @@
-# Widget embarqué Sokar
+# Widget embarqué Suppernote
 
 > **Statut : ACTIF / LIVRÉ — vérifié le 12 septembre 2026.**
 > `/embed.js`, l'iframe, la personnalisation, le redimensionnement et le contrôle de l'origine des
 > messages sont en place. Voir [`DOCUMENTATION_STATUS.md`](./DOCUMENTATION_STATUS.md).
 
-Le widget de réservation Sokar peut être intégré sur n'importe quel site web
+Le widget de réservation Suppernote peut être intégré sur n'importe quel site web
 via un simple snippet JavaScript. Il s'affiche dans un iframe auto-redimensionné
-et reprend le flow hold/confirm/idempotency déjà utilisé sur Sokar Connect.
+et reprend le flow hold/confirm/idempotency déjà utilisé sur Suppernote Connect.
 
 ## Intégration
 
@@ -24,7 +24,7 @@ HTML de votre site, à l'endroit où vous souhaitez afficher le formulaire :
 
 Seul l'attribut `data-slug` est obligatoire. Les couleurs `data-primary` (texte
 et bordures) et `data-accent` (boutons et focus) sont optionnelles et valent par
-défaut le thème Sokar.
+défaut le thème Suppernote.
 
 ## Hôte personnalisé (local / staging)
 

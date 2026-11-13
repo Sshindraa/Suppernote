@@ -48,7 +48,7 @@ reportHash        9db94f1930d99979ee97fc538cca2d6e96faf4d7641ae41610a0d1ec79f360
 
 Un rapport sans événement n'est classé `MATCH` que lorsque les quantités et
 coûts fournisseur sont explicitement nuls. Cela évite de masquer une facture
-réelle sans événement Sokar.
+réelle sans événement Suppernote.
 
 Ce contrôle valide donc l'absence de consommation sur un mois réel. Un mois
 non nul a ensuite été sondé en mai 2026 ; son résultat et l'écart de
@@ -69,5 +69,5 @@ visualisation des coûts ni le fonctionnement du produit. Le manifeste du
 paquet conserve `READY_FOR_IMPORT` jusqu'au choix ultérieur d'une destination
 comptable.
 
-Les alertes 70/90/100 restent internes à Sokar et aucune donnée de coût,
+Les alertes 70/90/100 restent internes à Suppernote et aucune donnée de coût,
 quota ou facture n'est exposée au dashboard restaurateur.

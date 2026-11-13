@@ -28,7 +28,7 @@ const restaurantFromDb = {
   agenticOptIn: true,
   plan: 'STARTER',
   managerPhone: '+33600000000',
-  managerEmail: 'boss@sokar.test',
+  managerEmail: 'boss@suppernote.test',
   phoneNumber: 'pn-cache',
   openingHours: { mon: { open: '12:00', close: '22:00' } },
   carrier: 'telnyx',

@@ -90,14 +90,14 @@ export const PLANS: PricingPlan[] = [
 
 export const FAQS = [
   {
-    question: "Comment fonctionne l'assistant vocal Suppernote ?",
+    question: 'Comment Suppernote répond-il au téléphone ?',
     answer:
-      'Vous gardez le numéro de votre restaurant et renvoyez les appels choisis vers votre numéro dédié Suppernote. L’assistant consulte les disponibilités du carnet Suppernote et enregistre la réservation avec le créneau et le nombre de couverts. Votre équipe la retrouve dans son tableau de bord.',
+      'Vous gardez le numéro de votre restaurant et renvoyez les appels choisis vers votre numéro dédié Suppernote. Suppernote consulte les disponibilités de son carnet et enregistre la réservation avec le créneau et le nombre de couverts. Votre équipe la retrouve dans son tableau de bord.',
   },
   {
     question: "Avec quels outils Suppernote s'intègre-t-il ?",
     answer:
-      'Les réservations prises par Suppernote sont enregistrées dans son carnet, avec les réservations en ligne et celles saisies par votre équipe. Une synchronisation avec Zenchef, TheFork ou votre caisse n’est pas annoncée comme disponible : vérifiez avec nous votre organisation avant activation.',
+      'Les réservations prises par Suppernote sont enregistrées dans son carnet, avec les réservations en ligne et celles saisies par votre équipe. Une synchronisation avec Zenchef, TheFork et Lightspeed est disponible à partir de la formule Pro.',
   },
   {
     question: 'Quel type de restaurant peut utiliser Suppernote ?',

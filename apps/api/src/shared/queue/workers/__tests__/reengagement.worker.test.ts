@@ -30,7 +30,7 @@ function restaurant(
 ): Awaited<ReturnType<typeof db.restaurant.findUnique>> {
   return {
     id: 'rest-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     managerEmail: 'gerant@example.com',
     phoneNumber: '+33451221999',
     firstCallAt: null,
@@ -58,7 +58,7 @@ describe('processReengagement', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const sent = sendEmail.mock.calls[0][0];
     expect(sent.to).toBe('gerant@example.com');
-    expect(sent.subject).toBe('Chez Sokar : il vous reste deux canaux à activer');
+    expect(sent.subject).toBe('Chez Suppernote : il vous reste deux canaux à activer');
     expect(sent.usage).toMatchObject({
       restaurantId: 'rest-1',
       sourceType: 'onboarding_reengagement',
@@ -89,7 +89,7 @@ describe('processReengagement', () => {
     expect(resolveAccountOwnerEmail).toHaveBeenCalledWith('acc-1');
     expect(sendEmail.mock.calls[0][0].to).toBe('compte@example.com');
     expect(sendEmail.mock.calls[0][0].subject).toBe(
-      'Chez Sokar : terminez la configuration de votre salle',
+      'Chez Suppernote : terminez la configuration de votre salle',
     );
   });
 
@@ -147,7 +147,7 @@ describe('processReengagement', () => {
       'sent',
     );
     const sent = sendEmail.mock.calls[0][0];
-    expect(sent.subject).toBe('Chez Sokar : entendez votre assistant');
+    expect(sent.subject).toBe('Chez Suppernote : entendez votre assistant');
     expect(sent.html).toContain('04 51 22 19 99');
   });
 
@@ -169,7 +169,7 @@ describe('processReengagement', () => {
       'sent',
     );
     expect(sendEmail.mock.calls[0][0].subject).toBe(
-      'Chez Sokar : il vous reste un canal à activer',
+      'Chez Suppernote : il vous reste un canal à activer',
     );
   });
 

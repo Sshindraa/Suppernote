@@ -373,6 +373,8 @@ export interface PlanningReservation {
   customerName: string | null;
   state: string;
   seatedAt: string | null;
+  /** Addition clôturée en caisse depuis l'installation ; la table reste occupée. */
+  paidAt?: string | null;
 }
 
 // ─── ReactivationCampaign ───────────────────────────────────────────────

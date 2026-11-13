@@ -62,7 +62,7 @@ le tampon et l'acheminement Telnyx, ni les interruptions réelles.
 
 ## Recette avant extension
 
-Qualifier d'abord #594 sur Chez Sokar : refus de transfert, reprise de réservation et
+Qualifier d'abord #594 sur Chez Suppernote : refus de transfert, reprise de réservation et
 consentement explicite ; oui d'écoute, correction d'heure, confirmation et épellation.
 La préférence audio est recueillie ci-dessous ; qualifier maintenant la variante retenue au téléphone.
 La cohérence des formulations doit aussi être vérifiée sur des échanges complets : question

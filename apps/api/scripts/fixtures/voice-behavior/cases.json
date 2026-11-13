@@ -1900,7 +1900,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "bonjour je voudrais faire vous êtes ouvert dimanche soir",
@@ -1924,7 +1924,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "euh je voulais je voudrais savoir si vous avez de la place samedi soir",
@@ -1948,7 +1948,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "bonjour alors je pensais enfin est-ce que vous êtes ouverts demain midi",
@@ -1972,7 +1972,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "oui allô je voudrais réser euh vous faites des menus enfants",
@@ -2049,7 +2049,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "il reste de la place demain soir hein vous avez",
@@ -2072,7 +2072,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "vous ferme à quelle heure samedi soir",
@@ -2095,7 +2095,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "dimanche midi vous êtes ouvert ou pas",
@@ -2118,7 +2118,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "est-ce que ça serait possible d'avoir une table pour six personnes samedi soir",
@@ -2680,7 +2680,7 @@
       "history": [
         {
           "role": "assistant",
-          "content": "Bonjour, ici Chez Sokar. Je vous écoute."
+          "content": "Bonjour, ici Chez Suppernote. Je vous écoute."
         }
       ],
       "transcript": "",
@@ -2874,7 +2874,7 @@
   ],
   "profiles": {
     "chez-sokar": {
-      "name": "Chez Sokar",
+      "name": "Chez Suppernote",
       "timezone": "Europe/Paris",
       "maxPartySize": 7,
       "voiceGender": "masculine",
@@ -2904,7 +2904,7 @@
       }
     },
     "midi": {
-      "name": "Chez Sokar — Bouchon Lyonnais",
+      "name": "Chez Suppernote — Bouchon lyonnais",
       "openingHours": {
         "tue": {
           "open": "12:00",

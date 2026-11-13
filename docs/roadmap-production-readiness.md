@@ -1,4 +1,4 @@
-# Roadmap production-readiness — Sokar
+# Roadmap production-readiness — Suppernote
 
 > **Statut : ACTIF — créé le 21 septembre 2026.**
 > Référence dépôt : `main@9d4ead37`.
@@ -28,7 +28,7 @@
 | Cœur réservation (agentic + legacy)                                                     | État, audit, contraintes d'exclusion, idempotence, outbox : solides et testés   | Preuve en charge réelle, convergence des deux chemins de réservation                    |
 | Voice (Telnyx / ElevenLabs / Cartesia)                                                  | Pipeline complet, télémétrie, cache, redaction PII                              | Rejouer la charge avec de vrais fournisseurs en staging et fixer le dimensionnement VPS |
 | Facturation SaaS                                                                        | Code, entitlements, catalogue v2 live et rejeu sandbox prouvés, checkout ouvert | Signer deux pilotes et conserver sept jours de métriques                                |
-| Sokar Connect                                                                           | Pages publiques, JSON-LD, ISR, widget, analytics, e2e CI                        | Pilote réel incomplet (10 restos, sitemap GSC)                                          |
+| Suppernote Connect                                                                      | Pages publiques, JSON-LD, ISR, widget, analytics, e2e CI                        | Pilote réel incomplet (10 restos, sitemap GSC)                                          |
 | CRM / marketing / POS / réputation / fidélité / expériences / événements / distribution | Fondations livrées et testées localement                                        | Preuves externes : provider, identités Clerk réelles, sandbox, pilote                   |
 | Ops                                                                                     | CI sérieuse, backups vérifiés, watchdog, smoke tests, SLO/Prometheus/Grafana    | Mono-VPS, mono-Postgres, DLQ sans consommateur, astreinte à formaliser                  |
 | Observabilité                                                                           | Logs structurés, Sentry, health checks, SLO, Prometheus/Grafana                 | Tracing distribué et astreinte formalisée                                               |
@@ -96,7 +96,7 @@ production ; deux pilotes Essential de sept jours restent la preuve commerciale 
 `LOCAL_ONLY` : code et tests présents, preuve externe absente. C'est une dette de **qualification**,
 pas de développement — mais elle est réelle et bloque le discours commercial. La réputation privée par e-mail est depuis réservée à Pro/Multi-site.
 
-### 1.8 Sokar Connect est livré, pas encore prouvé
+### 1.8 Suppernote Connect est livré, pas encore prouvé
 
 `apps/connect/e2e/` contient des parcours Playwright (booking, gift card, page restaurant). La suite
 est devenue exécutable localement (`pnpm --filter @suppernote/connect test:e2e`, config corrigée le

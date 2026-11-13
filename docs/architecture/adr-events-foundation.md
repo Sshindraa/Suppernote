@@ -151,7 +151,7 @@ Les routes sont enregistrées dans `main.ts` et protégées par `requireOrg`,
 | `POST`         | `/events/:id/sessions/:sessionId/waitlist`           | Staff inclus ; entrée idempotente.                                                               |
 | `POST`         | `/event-waitlist/:id/cancel`                         | Staff inclus ; annulation idempotente.                                                           |
 | `POST`         | `/event-waitlist/:id/promote`                        | Owner/Manager ; création de commande contrôlée par capacité.                                     |
-| `POST`         | `/api/internal/events/sessions/expire`               | Opérateur Sokar, limite bornée pour le scheduler.                                                |
+| `POST`         | `/api/internal/events/sessions/expire`               | Opérateur Suppernote, limite bornée pour le scheduler.                                           |
 
 Les erreurs de validation renvoient `400`, les ressources hors tenant `404`, et les conflits de
 capacité ou d'état `409`. Les réponses de lecture ne contiennent ni code billet brut, ni clé

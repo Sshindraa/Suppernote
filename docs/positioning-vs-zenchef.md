@@ -1,4 +1,4 @@
-# Positionnement Sokar face à Zenchef
+# Positionnement Suppernote face à Zenchef
 
 > **Statut : ACTIF — audit code et marché du 15 septembre 2026.**
 > Cette comparaison distingue la capacité présente dans le dépôt, sa preuve terrain et la cible de
@@ -7,25 +7,25 @@
 > profil de production courant et les portes ouvertes sont récapitulés dans la
 > [réconciliation des audits](./audits/2026-09-15-current-state.md).
 
-> Actualisation du cadrage produit le 29 octobre 2026 : Sokar est une plateforme de réservation,
+> Actualisation du cadrage produit le 29 octobre 2026 : Suppernote est une plateforme de réservation,
 > d'organisation du service et de relation client, dont l'IA vocale est une fonction. La matrice
 > concurrentielle ci-dessous reste un instantané daté, pas une validation actuelle des offres ni
-> des capacités Zenchef. Pour les capacités Sokar développées et leurs limites d'activation, voir
+> des capacités Zenchef. Pour les capacités Suppernote développées et leurs limites d'activation, voir
 > la [carte produit](./PROJECT_MAP.md#ce-quest-sokar) et les portes de release.
 
 ## Lecture commerciale honnête
 
-Sokar a développé des parcours de réservation, de gestion de salle et de relation client, ainsi
+Suppernote a développé des parcours de réservation, de gestion de salle et de relation client, ainsi
 qu'un assistant vocal et des modules complémentaires. Leur disponibilité commerciale et leurs
 preuves terrain varient selon la fonction. La comparaison concurrentielle ci-dessous doit être
 revérifiée avant d'affirmer un écart avec Zenchef.
 
 Le positionnement défendable est :
 
-> Sokar aide les restaurants à gérer leurs réservations, préparer leur service et mieux connaître
+> Suppernote aide les restaurants à gérer leurs réservations, préparer leur service et mieux connaître
 > leurs clients. L'assistant vocal et les parcours en ligne font partie de cette plateforme.
 
-Il ne faut pas vendre Sokar comme un remplacement fonctionnel total de Zenchef tant que les epics
+Il ne faut pas vendre Suppernote comme un remplacement fonctionnel total de Zenchef tant que les epics
 POS, activation fournisseur des campagnes, paiements de réservation, CRM groupe et réputation ne sont pas
 prouvés en conditions réelles. Le moteur de fusion, les automations bornées, le socle de groupes,
 les callbacks signés et l'inbox de réconciliation existent localement, mais cela ne constitue pas
@@ -65,7 +65,7 @@ Légende :
 - `PARTIEL` : un sous-ensemble existe ;
 - `ABSENT` : pas de parcours commercial utilisable.
 
-| Domaine                                  | Sokar au 15/09/2026          | Preuve Sokar                                                                                                                                                                                                                                            | Position Zenchef publique                                                      |
+| Domaine                                  | Suppernote au 15/09/2026     | Preuve Suppernote                                                                                                                                                                                                                                       | Position Zenchef publique                                                      |
 | ---------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Réservation dashboard                    | `LIVRÉ`                      | module `reservations`, pages dashboard                                                                                                                                                                                                                  | Inclus.                                                                        |
 | Widget web                               | `LIVRÉ`                      | `apps/connect`, `apps/widget`, `/embed.js`                                                                                                                                                                                                              | Inclus.                                                                        |
@@ -167,7 +167,7 @@ promettre un ROI sans transactions POS rattachables.
 
 ## Claims autorisés maintenant
 
-- « Sokar prend les réservations par téléphone, sur votre site et via les assistants compatibles. »
+- « Suppernote prend les réservations par téléphone, sur votre site et via les assistants compatibles. »
 - « La disponibilité s'appuie sur votre plan de salle et vos tables. »
 - « Vous gérez les réservations, la liste d'attente et les cartes cadeaux dans le même outil. »
 - « L'assistant vocal est conçu pour les restaurants français et reste configurable. »
@@ -177,7 +177,7 @@ promettre un ROI sans transactions POS rattachables.
 - parité complète avec Zenchef ou SevenRooms ;
 - CRM enrichi automatiquement par la caisse ;
 - attribution exacte du chiffre d'affaires marketing ;
-- réduction chiffrée du no-show sans cohorte Sokar ;
+- réduction chiffrée du no-show sans cohorte Suppernote ;
 - ROI ou gain de temps non mesuré sur de vrais restaurants ;
 - disponibilité sur Google Reserve ou Meta Reserve.
 - distribution partenaire, réservation externe ou synchronisation bidirectionnelle certifiée.

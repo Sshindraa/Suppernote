@@ -11,7 +11,7 @@ function makeJsonLd(overrides: Partial<RestaurantJsonLd> = {}): RestaurantJsonLd
     '@context': 'https://schema.org',
     '@type': 'Restaurant',
     '@id': 'https://suppernote.com/restaurant/chez-sokar',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     url: 'https://suppernote.com/restaurant/chez-sokar',
     telephone: '+33123456789',
     servesCuisine: ['Française'],
@@ -35,10 +35,12 @@ describe('ReservationJsonLd component', () => {
   });
 
   it('injects the JSON-LD content via dangerouslySetInnerHTML', () => {
-    const { container } = render(<ReservationJsonLd jsonLd={makeJsonLd({ name: 'Chez Sokar' })} />);
+    const { container } = render(
+      <ReservationJsonLd jsonLd={makeJsonLd({ name: 'Chez Suppernote' })} />,
+    );
     const script = container.querySelector('script[type="application/ld+json"]');
     expect(script?.textContent).toContain('"@type":"Restaurant"');
-    expect(script?.textContent).toContain('"name":"Chez Sokar"');
+    expect(script?.textContent).toContain('"name":"Chez Suppernote"');
   });
 
   it('does not add a per-request nonce to the data block', () => {

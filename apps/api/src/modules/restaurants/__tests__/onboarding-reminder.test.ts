@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeOnboardingState, type OnboardingTask } from '../onboarding.service';
 import {
   buildReminderEmail,
-  formatSokarNumber,
+  formatFrenchPhoneNumber,
   resolveReminderAction,
 } from '../onboarding-reminder';
 
@@ -17,7 +17,7 @@ function stateWith(completed: OnboardingTask[], phoneNumber = '+33451221999') {
   return {
     phoneNumber,
     state: computeOnboardingState({
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       phoneNumber,
       onboardingTasks,
     }),
@@ -86,19 +86,19 @@ describe('buildReminderEmail', () => {
   const build = (
     kind: 'stalled' | 'inactive',
     action: Parameters<typeof buildReminderEmail>[0]['action'],
-    extra: { restaurantName?: string; sokarNumber?: string | null } = {},
+    extra: { restaurantName?: string; assistantPhoneNumber?: string | null } = {},
   ) =>
     buildReminderEmail({
       kind,
       action,
-      restaurantName: extra.restaurantName ?? 'Chez Sokar',
-      sokarNumber: extra.sokarNumber,
+      restaurantName: extra.restaurantName ?? 'Chez Suppernote',
+      assistantPhoneNumber: extra.assistantPhoneNumber,
       dashboardUrl: URL_BASE,
     });
 
   it('relance de la salle : étape suivante et lien vers la reprise', () => {
     const email = build('stalled', { kind: 'room', step: 'hours' })!;
-    expect(email.subject).toBe('Chez Sokar : terminez la configuration de votre salle');
+    expect(email.subject).toBe('Chez Suppernote : terminez la configuration de votre salle');
     expect(email.html).toContain('vos horaires de réservation');
     expect(email.html).toContain('href="https://suppernote.com/onboarding"');
   });
@@ -109,7 +109,7 @@ describe('buildReminderEmail', () => {
       remaining: ['phone', 'online'],
       step: null,
     })!;
-    expect(email.subject).toBe('Chez Sokar : il vous reste deux canaux à activer');
+    expect(email.subject).toBe('Chez Suppernote : il vous reste deux canaux à activer');
     expect(email.html).toContain('le téléphone et la réservation en ligne');
     expect(email.html).toContain('href="https://suppernote.com/onboarding?step=canaux"');
   });
@@ -120,7 +120,7 @@ describe('buildReminderEmail', () => {
       remaining: ['online'],
       step: 'connect-identity',
     })!;
-    expect(email.subject).toBe('Chez Sokar : il vous reste un canal à activer');
+    expect(email.subject).toBe('Chez Suppernote : il vous reste un canal à activer');
     expect(email.html).toContain('href="https://suppernote.com/onboarding?step=connect-identity"');
     expect(email.html).not.toContain('le téléphone');
   });
@@ -132,8 +132,12 @@ describe('buildReminderEmail', () => {
 
   it('parcours terminé : seule la relance « inactive » part, avec le numéro Suppernote', () => {
     expect(build('stalled', { kind: 'complete' })).toBeNull();
-    const email = build('inactive', { kind: 'complete' }, { sokarNumber: '+33451221999' })!;
-    expect(email.subject).toBe('Chez Sokar : entendez votre assistant');
+    const email = build(
+      'inactive',
+      { kind: 'complete' },
+      { assistantPhoneNumber: '+33451221999' },
+    )!;
+    expect(email.subject).toBe('Chez Suppernote : entendez votre assistant');
     expect(email.html).toContain('04 51 22 19 99');
     expect(email.html).toContain('href="https://suppernote.com/dashboard"');
   });
@@ -142,7 +146,7 @@ describe('buildReminderEmail', () => {
     const emails = [
       build('stalled', { kind: 'room', step: 'floor' }),
       build('stalled', { kind: 'channels', remaining: ['phone'], step: 'knowledge' }),
-      build('inactive', { kind: 'complete' }, { sokarNumber: '+33451221999' }),
+      build('inactive', { kind: 'complete' }, { assistantPhoneNumber: '+33451221999' }),
     ].map((email) => `${email!.subject} ${email!.html}`);
     for (const text of emails) {
       expect(text).not.toMatch(/dans la minute|on vous appelle|agenda|sur 5|\b5 étapes/i);
@@ -161,13 +165,13 @@ describe('buildReminderEmail', () => {
   });
 });
 
-describe('formatSokarNumber', () => {
+describe('formatFrenchPhoneNumber', () => {
   it('met un numéro français au format national', () => {
-    expect(formatSokarNumber('+33451221999')).toBe('04 51 22 19 99');
-    expect(formatSokarNumber('+33102030405')).toBe('01 02 03 04 05');
+    expect(formatFrenchPhoneNumber('+33451221999')).toBe('04 51 22 19 99');
+    expect(formatFrenchPhoneNumber('+33102030405')).toBe('01 02 03 04 05');
   });
 
   it('laisse un autre format tel quel', () => {
-    expect(formatSokarNumber('+4915112345678')).toBe('+4915112345678');
+    expect(formatFrenchPhoneNumber('+4915112345678')).toBe('+4915112345678');
   });
 });

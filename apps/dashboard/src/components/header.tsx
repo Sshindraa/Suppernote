@@ -40,7 +40,7 @@ export default function Header() {
         <div className="flex items-center gap-1 sm:gap-2">
           <Link
             href="/pricing"
-            className="sokar-pill border-transparent bg-transparent px-3 py-2 min-h-[44px] inline-flex items-center justify-center"
+            className="suppernote-pill border-transparent bg-transparent px-3 py-2 min-h-[44px] inline-flex items-center justify-center"
           >
             Tarifs
           </Link>

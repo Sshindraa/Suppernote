@@ -341,16 +341,16 @@ describe('la vraie base de prompt : aucun cas sans buildSystemPrompt', () => {
     }
   });
 
-  it('le profil par défaut est celui de Chez Sokar en base : ses vrais horaires, sans consigne propre', () => {
+  it('le profil par défaut est celui de Chez Suppernote en base : ses vrais horaires, sans consigne propre', () => {
     const profile = file.profiles[file.defaultProfile];
-    expect(profile.name).toBe('Chez Sokar');
+    expect(profile.name).toBe('Chez Suppernote');
     // Comme en production après la correction du réglage : l'identité et le ton viennent de la base du prompt.
     expect(profile.systemPromptExtra ?? '').toBe('');
     expect(profile.openingHours.mon).toBeNull();
     expect(profile.openingHours.sun).toBeNull();
     const withoutProfile = file.cases.find((testCase) => !testCase.profile)!;
     const system = requests.find((entry) => entry.id === withoutProfile.id)!.messages[0].content;
-    expect(system).toContain("Tu es l'assistant vocal chaleureux de Chez Sokar");
+    expect(system).toContain("Tu es l'assistant vocal chaleureux de Chez Suppernote");
   });
 
   it('refuse de construire un cas sans profil de restaurant, ou avec un profil incomplet', () => {

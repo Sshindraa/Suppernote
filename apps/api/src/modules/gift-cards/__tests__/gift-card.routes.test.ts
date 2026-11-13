@@ -688,7 +688,7 @@ describe('gift-card routes', () => {
         expiresAt: null,
       } as unknown as Awaited<ReturnType<typeof db.giftCard.findUnique>>);
       vi.mocked(db.restaurant.findUnique).mockResolvedValue({
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
       } as unknown as Awaited<ReturnType<typeof db.restaurant.findUnique>>);
 
       const app = await getApp();
@@ -702,7 +702,7 @@ describe('gift-card routes', () => {
       const body = res.json();
       expect(body.valid).toBe(true);
       expect(body.giftCard.remainingAmount).toBe(60);
-      expect(body.giftCard.restaurantName).toBe('Chez Sokar');
+      expect(body.giftCard.restaurantName).toBe('Chez Suppernote');
     });
 
     it('retourne une recommandation', async () => {

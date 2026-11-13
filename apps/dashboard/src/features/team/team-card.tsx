@@ -113,7 +113,7 @@ export function TeamCard() {
   }
 
   return (
-    <Card className="sokar-card">
+    <Card className="suppernote-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lg">
           <Users size={18} />

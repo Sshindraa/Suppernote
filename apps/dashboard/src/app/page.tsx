@@ -125,7 +125,7 @@ export default function HomePage() {
           </svg>
           <div className="relative mx-auto flex w-full max-w-[90rem] flex-col items-center">
             <h1 className="max-w-[14em] text-balance font-brand text-[2.625rem] font-medium leading-[1.02] tracking-tight [word-spacing:0] lg:text-[clamp(3.5rem,6.2vw,6.75rem)]">
-              Le chef de rang digital de votre restaurant
+              Le chef de rang numérique de votre restaurant
             </h1>
             <p className="day-hero-muted mt-6 max-w-[34em] leading-relaxed lg:text-lg">
               {BRAND_SLOGAN}

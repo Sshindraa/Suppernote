@@ -1,18 +1,18 @@
 import SwiftUI
 import WebKit
 
-let sokarDashboardURL = URL(string: "https://suppernote.com/dashboard")!
+let suppernoteDashboardURL = URL(string: "https://suppernote.com/dashboard")!
 
 @main
-struct SokarApp: App {
+struct SuppernoteApp: App {
     var body: some Scene {
         WindowGroup {
-            SokarRootView().preferredColorScheme(.dark)
+            SuppernoteRootView().preferredColorScheme(.dark)
         }
     }
 }
 
-struct SokarRootView: View {
+struct SuppernoteRootView: View {
     @State private var attempt = 0
     @State private var failed = false
 
@@ -32,7 +32,7 @@ struct SokarRootView: View {
                 }
             } else {
                 // Changer attempt recrée le WKWebView pour un nouvel essai.
-                SokarWebView(url: sokarDashboardURL, onFailure: { failed = true })
+                SuppernoteWebView(url: suppernoteDashboardURL, onFailure: { failed = true })
                     .id(attempt)
                     .ignoresSafeArea()
             }
@@ -40,7 +40,7 @@ struct SokarRootView: View {
     }
 }
 
-struct SokarWebView: UIViewRepresentable {
+struct SuppernoteWebView: UIViewRepresentable {
     let url: URL
     let onFailure: () -> Void
 
@@ -123,7 +123,7 @@ struct SokarWebView: UIViewRepresentable {
         let configuration = WKWebViewConfiguration()
         // Le dashboard reconnaît la coque (bannière d'installation masquée).
         // Garde le jeton « Mobile/… » par défaut de WebKit, que les sites lisent pour détecter un mobile.
-        configuration.applicationNameForUserAgent = "Mobile/15E148 SokarIOS"
+        configuration.applicationNameForUserAgent = "Mobile/15E148 SuppernoteIOS"
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true

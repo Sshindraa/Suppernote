@@ -93,11 +93,11 @@ describe('proxy framing policy', () => {
     const previousApiUrl = process.env.API_URL;
     const previousPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
     process.env.API_URL = 'http://internal-api:4000';
-    process.env.NEXT_PUBLIC_API_URL = 'https://api.sokar.example';
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.suppernote.example';
 
     try {
       const response = proxy(makeRequest('/widget/chez-sokar-demo'));
-      expect(getCsp(response)).toContain("connect-src 'self' https://api.sokar.example");
+      expect(getCsp(response)).toContain("connect-src 'self' https://api.suppernote.example");
     } finally {
       if (previousApiUrl === undefined) delete process.env.API_URL;
       else process.env.API_URL = previousApiUrl;

@@ -3,7 +3,7 @@
 ## Conclusion
 
 `google/gemini-3.5-flash-lite` est le meilleur challenger mesuré pour le pipeline vocal
-Sokar. Il égale Mistral sur l'exactitude des appels d'outils et réduit surtout la latence de
+Suppernote. Il égale Mistral sur l'exactitude des appels d'outils et réduit surtout la latence de
 queue (p95). Il ne doit toutefois être activé qu'en canary : l'échantillon reste petit et son
 coût observé par scénario est environ 4,3 fois supérieur à celui de Mistral.
 
@@ -15,7 +15,7 @@ coût observé par scénario est environ 4,3 fois supérieur à celui de Mistral
 - Six scénarios fictifs : création, disponibilité, annulation, retard, groupe de neuf personnes
   et carte cadeau.
 - Trois répétitions par scénario et par modèle, soit 108 scénarios évalués.
-- Données et outils assainis : aucun prompt, paramètre restaurant ou client Sokar n'a été envoyé.
+- Données et outils assainis : aucun prompt, paramètre restaurant ou client Suppernote n'a été envoyé.
 - Raisonnement minimal, température 0,2, streaming, limite de 150 tokens.
 - Validation stricte du nom de l'outil, du JSON, des types et de chaque valeur métier.
 - Après un appel valide, résultat d'outil simulé puis second passage LLM afin de mesurer la

@@ -669,7 +669,7 @@ export default function ReservationsPage() {
             </div>
           ) : (
             /* ========== DESKTOP: Reservation Table ========== */
-            <div className="sokar-card overflow-hidden">
+            <div className="suppernote-card overflow-hidden">
               <div className="mobile-table-wrapper">
                 <Table className="[&_th]:px-2 [&_td]:px-2">
                   <TableHeader>
@@ -881,7 +881,7 @@ export default function ReservationsPage() {
               ))}
             </div>
           ) : (
-            <div className="sokar-card overflow-hidden">
+            <div className="suppernote-card overflow-hidden">
               <div className="mobile-table-wrapper">
                 <Table>
                   <TableHeader>

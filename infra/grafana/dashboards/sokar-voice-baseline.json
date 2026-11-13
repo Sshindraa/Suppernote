@@ -1,7 +1,7 @@
 {
   "uid": "sokar-voice-baseline",
-  "title": "Sokar — Référence naturalité voice (Phase 0)",
-  "tags": ["sokar", "voice", "baseline"],
+  "title": "Suppernote — Référence naturalité voice (Phase 0)",
+  "tags": ["suppernote", "voice", "baseline"],
   "timezone": "Europe/Paris",
   "schemaVersion": 39,
   "refresh": "5m",

@@ -8,7 +8,7 @@
 
 Une écriture Postgres suivie directement d'un `queue.add()` peut laisser une réservation,
 une consommation ou une projection sans job si Redis tombe entre les deux opérations. Le
-problème inverse existe aussi : BullMQ peut rejouer un job après un timeout. Sokar a donc besoin
+problème inverse existe aussi : BullMQ peut rejouer un job après un timeout. Suppernote a donc besoin
 d'une intention durable en base et de consommateurs idempotents.
 
 ## Décision

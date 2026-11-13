@@ -2,7 +2,7 @@
 /**
  * Tenant-scoping guard (R0-6).
  *
- * Sokar isolates tenants in application code: every query on a tenant-scoped
+ * Suppernote isolates tenants in application code: every query on a tenant-scoped
  * model must filter by `restaurantId` / `accountId` (or an equivalent relation
  * filter). PostgreSQL has no row-level security yet, so a single forgotten
  * `where` clause leaks another restaurant's data.

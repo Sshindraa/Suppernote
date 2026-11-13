@@ -74,15 +74,15 @@ describe('isValidSlug', () => {
   });
 
   it('rejects uppercase letters', () => {
-    expect(isValidSlug('Chez Sokar')).toBe(false);
+    expect(isValidSlug('Chez Suppernote')).toBe(false);
   });
 
   it('rejects underscores', () => {
-    expect(isValidSlug('chez_sokar')).toBe(false);
+    expect(isValidSlug('chez_suppernote')).toBe(false);
   });
 
   it('rejects slashes', () => {
-    expect(isValidSlug('chez/sokar')).toBe(false);
+    expect(isValidSlug('chez/suppernote')).toBe(false);
   });
 
   it('rejects path traversal attempts', () => {
@@ -90,19 +90,19 @@ describe('isValidSlug', () => {
   });
 
   it('rejects a slug starting with a hyphen', () => {
-    expect(isValidSlug('-chez-sokar')).toBe(false);
+    expect(isValidSlug('-chez-suppernote')).toBe(false);
   });
 
   it('rejects a slug ending with a hyphen', () => {
-    expect(isValidSlug('chez-sokar-')).toBe(false);
+    expect(isValidSlug('chez-suppernote-')).toBe(false);
   });
 
   it('rejects a slug with spaces', () => {
-    expect(isValidSlug('chez sokar')).toBe(false);
+    expect(isValidSlug('chez suppernote')).toBe(false);
   });
 
   it('rejects a slug with special characters', () => {
-    expect(isValidSlug('chez@sokar')).toBe(false);
+    expect(isValidSlug('chez@suppernote')).toBe(false);
   });
 
   it('rejects a slug that is too long (>80 chars)', () => {

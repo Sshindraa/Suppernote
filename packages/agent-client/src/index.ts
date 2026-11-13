@@ -1,5 +1,5 @@
-export { SokarAgentClient } from './sokar-client.js';
-export { SokarAgentRunner } from './runner.js';
+export { SuppernoteAgentClient } from './suppernote-client.js';
+export { SuppernoteAgentRunner } from './runner.js';
 export { OpenAICompatibleAdapter } from './adapters/openai-compatible.js';
 export { GeminiAdapter } from './adapters/gemini.js';
 export {

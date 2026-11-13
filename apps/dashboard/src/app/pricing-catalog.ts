@@ -116,7 +116,7 @@ export const CATALOG_FEATURES: readonly CatalogFeature[] = [
   {
     id: 'pos-sync',
     label: 'Synchronisation ZenChef, TheFork, Lightspeed',
-    status: 'prévu',
+    status: 'disponible',
     introducedIn: 'Pro',
   },
   {

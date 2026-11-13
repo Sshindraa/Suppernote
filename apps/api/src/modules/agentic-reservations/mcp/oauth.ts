@@ -1090,7 +1090,7 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
  * Next.js qui charge normalement ces polices via `next/font`. On reprend donc
  * les mêmes familles ici, avec des fallbacks système si le CDN est bloqué.
  */
-const SOKAR_FONT_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>`;
+const SUPPERNOTE_FONT_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>`;
 
 function renderConsentPage(params: {
   clientName: string;
@@ -1123,14 +1123,14 @@ function renderConsentPage(params: {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Suppernote — Connexion MCP</title>
-  ${SOKAR_FONT_HEAD}
+  ${SUPPERNOTE_FONT_HEAD}
   <style>
-    :root { color-scheme: dark; --sokar-ink: #0f172a; --sokar-blue: #0284c7; }
+    :root { color-scheme: dark; --suppernote-ink: #0f172a; --suppernote-blue: #0284c7; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     button, input { font: inherit; }
     body {
       font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--sokar-ink);
+      background: var(--suppernote-ink);
       background-image: radial-gradient(circle at 15% 10%, rgba(2, 132, 199, 0.15), transparent 34%), radial-gradient(circle at 85% 90%, rgba(2, 132, 199, 0.08), transparent 36%);
       color: #fafafa;
       display: flex;
@@ -1157,7 +1157,7 @@ function renderConsentPage(params: {
       left: 12%;
       right: 12%;
       height: 2px;
-      background: linear-gradient(90deg, transparent, var(--sokar-blue), transparent);
+      background: linear-gradient(90deg, transparent, var(--suppernote-blue), transparent);
     }
     .logo {
       display: inline-flex;
@@ -1206,7 +1206,7 @@ function renderConsentPage(params: {
       white-space: nowrap;
     }
     .provider-dot {
-      background: var(--sokar-blue);
+      background: var(--suppernote-blue);
       border-radius: 50%;
       box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
       flex: 0 0 auto;
@@ -1261,7 +1261,7 @@ function renderConsentPage(params: {
       background: rgba(2, 132, 199, 0.14);
       border: 1px solid rgba(2, 132, 199, 0.28);
       border-radius: 8px;
-      color: var(--sokar-blue);
+      color: var(--suppernote-blue);
       display: inline-flex;
       flex: 0 0 auto;
       font-size: 13px;
@@ -1303,7 +1303,7 @@ function renderConsentPage(params: {
     }
     button:hover { transform: translateY(-1px); }
     .btn-approve {
-      background: var(--sokar-blue);
+      background: var(--suppernote-blue);
       color: #fff;
     }
     .btn-approve:hover { opacity: 0.9; }
@@ -1366,14 +1366,14 @@ function renderError(title: string, message: string): string {
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Suppernote — Erreur</title>
-  ${SOKAR_FONT_HEAD}
+  ${SUPPERNOTE_FONT_HEAD}
   <style>
-    :root { color-scheme: dark; --sokar-ink: #0f172a; --sokar-blue: #0284c7; }
+    :root { color-scheme: dark; --suppernote-ink: #0f172a; --suppernote-blue: #0284c7; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     button, input { font: inherit; }
     body {
       font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--sokar-ink);
+      background: var(--suppernote-ink);
       background-image: radial-gradient(circle at 15% 10%, rgba(2, 132, 199, 0.15), transparent 34%), radial-gradient(circle at 85% 90%, rgba(2, 132, 199, 0.08), transparent 36%);
       color: #fafafa;
       display: flex;
@@ -1400,7 +1400,7 @@ function renderError(title: string, message: string): string {
       left: 12%;
       right: 12%;
       height: 2px;
-      background: linear-gradient(90deg, transparent, var(--sokar-blue), transparent);
+      background: linear-gradient(90deg, transparent, var(--suppernote-blue), transparent);
     }
     .logo {
       display: inline-flex;
@@ -1457,7 +1457,7 @@ function renderError(title: string, message: string): string {
     .actions { display: flex; gap: 12px; }
     .btn {
       align-items: center;
-      background: var(--sokar-blue);
+      background: var(--suppernote-blue);
       border: 0;
       border-radius: 10px;
       color: #fff;

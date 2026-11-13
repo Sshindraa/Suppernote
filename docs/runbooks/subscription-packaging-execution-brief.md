@@ -1,8 +1,8 @@
-# Sokar — Brief de refonte éditoriale des abonnements
+# Suppernote — Brief de refonte éditoriale des abonnements
 
 Date : 13 octobre 2026. Document de travail pour l'agent chargé de la livraison.
 
-> Cadrage produit actualisé le 29 octobre 2026 : Sokar est une plateforme de réservations,
+> Cadrage produit actualisé le 29 octobre 2026 : Suppernote est une plateforme de réservations,
 > d'organisation du service et de relation client ; l'assistant vocal est une de ses fonctions.
 > Les exemples et répartitions ci-dessous restent des cibles éditoriales, pas une preuve
 > d'ouverture commerciale. Voir la [carte produit](../PROJECT_MAP.md#ce-quest-sokar) et les
@@ -12,7 +12,7 @@ Date : 13 octobre 2026. Document de travail pour l'agent chargé de la livraison
 
 Travaillez dans `/Users/hamza/Projects/Sokar`.
 
-Livrez une page Tarifs qui donne envie à un restaurateur de confier à Sokar une partie de son
+Livrez une page Tarifs qui donne envie à un restaurateur de confier à Suppernote une partie de son
 accueil et de son organisation. Elle doit lui permettre de comprendre l'offre, de se reconnaître
 dans une formule et de savoir ce qu'il paiera.
 
@@ -172,7 +172,7 @@ Structure attendue :
 5. Une FAQ courte sur les véritables hésitations avant achat.
 
 Direction possible pour l'introduction : **« L'accueil commence avant le premier couvert. »**
-Le texte qui suit doit expliquer concrètement l'aide apportée par Sokar aux appels, aux réservations
+Le texte qui suit doit expliquer concrètement l'aide apportée par Suppernote aux appels, aux réservations
 et à l'équipe. Évitez d'accumuler plusieurs slogans avant d'arriver aux prix.
 
 La comparaison doit permettre une décision : une inclusion a une signification précise, une

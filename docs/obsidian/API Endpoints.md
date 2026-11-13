@@ -2,7 +2,7 @@
 
 > **Dernière mise à jour** : 2026-09-15
 > **Base URL dev** : `http://localhost:3001` (port configuré dans `apps/api/src/main.ts`)
-> **Auth globale** : Clerk (sauf routes explicitement publiques — MCP, voice webhook, public Sokar Connect, RGPD `request-verification`, `confirm-link`, `privacy-policy`)
+> **Auth globale** : Clerk (sauf routes explicitement publiques — MCP, voice webhook, public Suppernote Connect, RGPD `request-verification`, `confirm-link`, `privacy-policy`)
 > **Génération** : inventaire auto depuis les fichiers `*.routes.ts` / `*.pipeline.ts`
 
 Inventaire de référence des routes Fastify. Le code et les tests de route restent l'autorité lorsque
@@ -29,7 +29,7 @@ Met à jour un restaurant.
 ### GET /restaurants/:id/public
 
 Profil public basique (auth Clerk requise). **Note** : ne pas confondre avec
-les futures routes `/public/r/:slug` de Sokar Connect qui seront **anonymes**.
+les futures routes `/public/r/:slug` de Suppernote Connect qui seront **anonymes**.
 
 ### GET /restaurants/:id/availability
 
@@ -100,7 +100,7 @@ Module : `apps/api/src/modules/reservation-payments/reservation-payment.routes.t
 | GET     | `/reservations/:id/payment`                      | État de la dernière tentative, sans identifiant secret                        |
 | POST    | `/reservations/:id/payment/prepare`              | Préparation idempotente ; `dryRun=true` par défaut, aucun appel Stripe        |
 | POST    | `/reservations/:id/payment/expire`               | Expiration manuelle d'une tentative, Owner/Manager                            |
-| POST    | `/api/internal/reservation-payments/expire`      | Opérateur Sokar, nettoyage borné des échéances                                |
+| POST    | `/api/internal/reservation-payments/expire`      | Opérateur Suppernote, nettoyage borné des échéances                           |
 | POST    | `/reservations/:id/payment/capture`              | Owner/Manager : après `NO_SHOW` ou annulation tardive, 7 j max ; 202          |
 | GET     | `/reservation-guarantee/settings`                | Équipe : réglage d'empreinte en vigueur (ou valeurs proposées)                |
 | PUT     | `/reservation-guarantee/settings`                | Owner/Manager : active, modifie (nouvelle version) ou coupe                   |
@@ -161,7 +161,7 @@ de recharger l’analyse. Le contrôle est refait avant et après les verrous tr
 
 Les recommandations peuvent contenir un `telemetryToken` HMAC émis par le serveur. Il ne permet
 que de déclarer les lectures et ouvertures ; les états appliqué, annulé ou en conflit sont enregistrés
-par les routes serveur de récupération de retard et de rééquilibrage. Les décisions terrain que Sokar
+par les routes serveur de récupération de retard et de rééquilibrage. Les décisions terrain que Suppernote
 ne peut pas vérifier (par exemple l’usage réel d’une table bientôt libre) sont qualifiées après le
 service dans Copilot Qualité, avec traçabilité et sans donnée client. La télémétrie est optionnelle
 hors production et nécessite `SERVICE_COPILOT_TELEMETRY_SECRET` (au moins 32 caractères) en production.
@@ -216,8 +216,8 @@ regular, at_risk, dormant } }`, avec la même `search` et le même périmètre q
 ### Admin : recalcul des chiffres d'un client
 
 `GET /admin/restaurants/:restaurantId/customers/:customerId/projection-repair-preview` et
-`POST …/projection-repair` (en-tête `Idempotency-Key`), opérateurs Sokar uniquement
-(`requireSokarOperator`). Même calcul que `/crm/customers/:id/projection-repair*`, conservées
+`POST …/projection-repair` (en-tête `Idempotency-Key`), opérateurs Suppernote uniquement
+(`requirePlatformOperator`). Même calcul que `/crm/customers/:id/projection-repair*`, conservées
 côté restaurant pour compatibilité mais sans écran ; l'outil vit dans l'admin « Santé du restaurant ».
 
 ### PATCH /customers/:id
@@ -341,7 +341,7 @@ d'événement externe n'est appelé.
 | GET     | `/experience-reservations`                          | Liste les réservations, sans exposer le téléphone complet.                                                     |
 | POST    | `/experiences/:id/sessions/:sessionId/reservations` | Réserve des places avec snapshot de prix, clé `Idempotency-Key` hachée et contrôle de capacité transactionnel. |
 | POST    | `/experience-reservations/:id/cancel`               | Annule une réservation confirmée de façon idempotente et libère ses places.                                    |
-| POST    | `/api/internal/experiences/sessions/expire`         | Opérateur Sokar ; ferme les sessions terminées dans une limite bornée.                                         |
+| POST    | `/api/internal/experiences/sessions/expire`         | Opérateur Suppernote ; ferme les sessions terminées dans une limite bornée.                                    |
 
 La transaction de réservation prend un advisory lock PostgreSQL par session, relit le statut et la
 capacité, puis additionne les quantités `CONFIRMED`. Les fiches non `ACTIVE`, sessions passées ou
@@ -378,7 +378,7 @@ messagerie, widget, voix ou canal de distribution.
 | POST       | `/events/:id/sessions/:sessionId/waitlist` | Ajoute une entrée idempotente.                                                              |
 | POST       | `/event-waitlist/:id/cancel`               | Annule une entrée `WAITING`.                                                                |
 | POST       | `/event-waitlist/:id/promote`              | Promeut une entrée via une commande contrôlée par la capacité.                              |
-| POST       | `/api/internal/events/sessions/expire`     | Opérateur Sokar ; ferme les sessions et expire la liste d'attente.                          |
+| POST       | `/api/internal/events/sessions/expire`     | Opérateur Suppernote ; ferme les sessions et expire la liste d'attente.                     |
 
 La commande prend `pg_advisory_xact_lock` par restaurant/session, additionne les quantités
 `CONFIRMED` et fige `unitPriceCents`, `totalPriceCents` et `currency`. Chaque billet conserve un
@@ -404,7 +404,7 @@ et les webhooks sont rejouables avec une unicité restaurant/fournisseur.
 | POST       | `/distribution/connections`                            | Crée ou met à jour une connexion locale ; Owner/Manager, aucun OAuth.                                            |
 | GET        | `/distribution/connections/:id`                        | Lit une connexion et sa santé locale sans secret.                                                                |
 | POST       | `/distribution/connections/:id/disconnect`             | Déconnecte localement et conserve l'historique.                                                                  |
-| GET / POST | `/distribution/connections/:id/availability`           | Lit ou upsert des snapshots bornés par slot ; la capacité Sokar reste la source de vérité.                       |
+| GET / POST | `/distribution/connections/:id/availability`           | Lit ou upsert des snapshots bornés par slot ; la capacité Suppernote reste la source de vérité.                  |
 | GET        | `/distribution/sync-runs`                              | Liste les runs filtrables par connexion et état.                                                                 |
 | POST       | `/distribution/connections/:id/sync-runs`              | Met un run `QUEUED` en file locale avec `Idempotency-Key` obligatoire ; aucun worker fournisseur ne le consomme. |
 | GET        | `/distribution/reservation-links`                      | Liste les liens externes masqués.                                                                                |
@@ -713,7 +713,7 @@ Modules : `apps/api/src/shared/observability/`
 ### GET /health
 
 Health check agrégé (db, redis, queues, telnyx, elevenlabs, cartesia).
-Pattern multi-check parallèle avec timeout individuel (cf. `sokar-fastify-testing` §health).
+Pattern multi-check parallèle avec timeout individuel (cf. `apps/api/src/shared/health/checks.ts`).
 
 ### GET /metrics
 
@@ -725,7 +725,7 @@ Smoke test Sentry + metrics.
 
 ---
 
-## Sokar Connect (actif — T2-T10 faits le 2026-06-24)
+## Suppernote Connect (actif — T2-T10 faits le 2026-06-24)
 
 Module : `apps/api/src/modules/connect/` (créé en T2, vérifié vert)
 
@@ -738,33 +738,33 @@ Endpoints, **tous publics** (no Clerk) :
 | POST    | `/public/r/:slug/hold`         | Crée hold 5min (TTL)                   |
 | POST    | `/public/r/:slug/confirm`      | Confirme résa (Idempotency-Key requis) |
 
-Voir [[Sokar Connect P0]] et `docs/connect-v1.1.md` pour le détail.
+Voir [[Sokar Connect P0|Suppernote Connect P0]] et `docs/connect-v1.1.md` pour le détail.
 
 ---
 
 ## Récapitulatif par préfixe
 
-| Préfixe                             | # routes        | Auth                           | Module         |
-| ----------------------------------- | --------------- | ------------------------------ | -------------- |
-| `/restaurant*`                      | 4 (×2 préfixes) | Clerk                          | restaurants    |
-| `/restaurants/:id`                  | 3               | Clerk                          | restaurants    |
-| `/reservations`                     | 4               | Clerk                          | reservations   |
-| `/calls`                            | 3               | Clerk                          | calls          |
-| `/customers`                        | 5               | Clerk                          | customers      |
-| `/dashboard`                        | 4               | Clerk                          | dashboard      |
-| `/analytics`                        | 2               | Clerk                          | analytics      |
-| `/voice/*`                          | 2               | Public (Ed25519)               | voice          |
-| `/api/auth/*`                       | 1               | Public                         | auth           |
-| `/api/agentic/*`                    | 7               | Clerk                          | agentic admin  |
-| `/mcp`                              | 1               | OAuth 2.0 / API key            | MCP            |
-| `/v1/*` (OpenAI)                    | 3               | OAuth Apps SDK                 | openai-reserve |
-| `/api/rgpd/*`                       | 7               | Mix (verify public, ops Clerk) | rgpd           |
-| `/integrations/*`                   | 3               | Clerk                          | integrations   |
-| `/admin/flags`                      | 1               | Clerk                          | admin          |
-| `/api/internal/*`                   | 1               | VPN                            | pilot          |
-| `/api/test/*`                       | 5               | Dev only                       | test           |
-| `/health`, `/metrics`               | 3               | Public                         | shared         |
-| `/public/r/:slug/*` (Sokar Connect) | 4               | **Public**                     | connect (T2)   |
+| Préfixe                                  | # routes        | Auth                           | Module         |
+| ---------------------------------------- | --------------- | ------------------------------ | -------------- |
+| `/restaurant*`                           | 4 (×2 préfixes) | Clerk                          | restaurants    |
+| `/restaurants/:id`                       | 3               | Clerk                          | restaurants    |
+| `/reservations`                          | 4               | Clerk                          | reservations   |
+| `/calls`                                 | 3               | Clerk                          | calls          |
+| `/customers`                             | 5               | Clerk                          | customers      |
+| `/dashboard`                             | 4               | Clerk                          | dashboard      |
+| `/analytics`                             | 2               | Clerk                          | analytics      |
+| `/voice/*`                               | 2               | Public (Ed25519)               | voice          |
+| `/api/auth/*`                            | 1               | Public                         | auth           |
+| `/api/agentic/*`                         | 7               | Clerk                          | agentic admin  |
+| `/mcp`                                   | 1               | OAuth 2.0 / API key            | MCP            |
+| `/v1/*` (OpenAI)                         | 3               | OAuth Apps SDK                 | openai-reserve |
+| `/api/rgpd/*`                            | 7               | Mix (verify public, ops Clerk) | rgpd           |
+| `/integrations/*`                        | 3               | Clerk                          | integrations   |
+| `/admin/flags`                           | 1               | Clerk                          | admin          |
+| `/api/internal/*`                        | 1               | VPN                            | pilot          |
+| `/api/test/*`                            | 5               | Dev only                       | test           |
+| `/health`, `/metrics`                    | 3               | Public                         | shared         |
+| `/public/r/:slug/*` (Suppernote Connect) | 4               | **Public**                     | connect (T2)   |
 
 Le décompte historique « ~57 routes + 4 à venir » n'est plus à jour depuis les modules CRM,
 marketing, paiements, POS, groupes, réputation, fidélité et expériences. Au 14 septembre 2026,

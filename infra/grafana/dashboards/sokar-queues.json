@@ -1,7 +1,7 @@
 {
   "uid": "sokar-queues",
-  "title": "Sokar — Files & Alertes",
-  "tags": ["sokar", "queues", "ops"],
+  "title": "Suppernote — Files & Alertes",
+  "tags": ["suppernote", "queues", "ops"],
   "timezone": "browser",
   "schemaVersion": 39,
   "refresh": "30s",

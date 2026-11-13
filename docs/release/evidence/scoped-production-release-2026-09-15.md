@@ -7,7 +7,7 @@ Manifest : [`../product-gates.json`](../product-gates.json)
 ## Décision
 
 La production peut recevoir les fondations déjà livrées : réservations, plan de
-salle, liste d'attente, fichier client opérationnel, espace opérateur Sokar et
+salle, liste d'attente, fichier client opérationnel, espace opérateur Suppernote et
 suivi interne des coûts par établissement. Le gel commercial 199/299 reste
 actif pour les chantiers qui dépendent encore d'un fournisseur, d'un contrat ou
 d'un pilote externe.

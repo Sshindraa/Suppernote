@@ -1,4 +1,4 @@
-# Hermes automation for Sokar
+# Hermes automation for Suppernote
 
 > **Status: PARTIALLY VERIFIED — repository layer checked on 12 September 2026.**
 > Husky hooks, review scripts and `verify:*` commands exist in the repository. Webhook

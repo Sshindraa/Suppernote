@@ -116,7 +116,7 @@ function AdminShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="sokar-page min-h-screen bg-background text-foreground">
+    <div className="suppernote-page min-h-screen bg-background text-foreground">
       <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-[1.4rem] border border-border bg-card/90 p-3 shadow-2xl shadow-background/40 backdrop-blur-xl md:flex">
         <Link
           href="/admin"

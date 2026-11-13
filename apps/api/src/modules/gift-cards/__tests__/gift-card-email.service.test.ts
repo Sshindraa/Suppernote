@@ -56,7 +56,7 @@ const BASE_DATA = {
   code: 'gc_full_long_id_123',
   shortCode: 'SKR-TEST-01',
   amount: 100,
-  restaurantName: 'Chez Sokar',
+  restaurantName: 'Chez Suppernote',
   senderName: 'Alice',
   senderEmail: 'alice@example.com',
   recipientName: 'Bob',
@@ -82,7 +82,7 @@ describe('gift-card-email.service', () => {
         html: string;
       };
       expect(call.to).toBe('alice@example.com');
-      expect(call.subject).toBe('Reçu de votre carte cadeau — Chez Sokar');
+      expect(call.subject).toBe('Reçu de votre carte cadeau — Chez Suppernote');
       expect(call.html).toContain('100€');
       expect(call.html).toContain('Bob');
       expect(call.html).toContain('Anniversaire');
@@ -115,7 +115,7 @@ describe('gift-card-email.service', () => {
         html: string;
       };
       expect(call.to).toBe('bob@example.com');
-      expect(call.subject).toBe('Vous avez reçu une carte cadeau de 100€ — Chez Sokar');
+      expect(call.subject).toBe('Vous avez reçu une carte cadeau de 100€ — Chez Suppernote');
       expect(call.html).toContain('SKR-TEST-01');
       expect(call.html).toContain('gc_full_long_id_123'); // Référence complète
       expect(call.html).toContain('100€');
@@ -145,8 +145,8 @@ describe('gift-card-email.service', () => {
   describe('sendRestaurantSaleNotification', () => {
     it('envoie la notification au restaurateur avec commission + net', async () => {
       await sendRestaurantSaleNotification({
-        restaurantName: 'Chez Sokar',
-        restaurantEmail: 'manager@chezsokar.fr',
+        restaurantName: 'Chez Suppernote',
+        restaurantEmail: 'manager@example.invalid',
         amount: 100,
         commissionAmount: 5,
         senderName: 'Alice',
@@ -158,7 +158,7 @@ describe('gift-card-email.service', () => {
         subject: string;
         html: string;
       };
-      expect(call.to).toBe('manager@chezsokar.fr');
+      expect(call.to).toBe('manager@example.invalid');
       expect(call.subject).toBe('Nouvelle vente de carte cadeau — 100€');
       expect(call.html).toContain('100€');
       expect(call.html).toContain('5€'); // commission
@@ -167,7 +167,7 @@ describe('gift-card-email.service', () => {
 
     it("n'envoie rien si restaurantEmail est null", async () => {
       await sendRestaurantSaleNotification({
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         restaurantEmail: null,
         amount: 100,
         commissionAmount: 5,
@@ -187,7 +187,7 @@ describe('gift-card-email.service', () => {
         amount: 25,
         title: 'Cagnotte Bob',
         recipientName: 'Bob',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         code: 'cg-1',
       });
       const call = mockSendEmail.mock.calls[0]?.[0] as {
@@ -225,7 +225,7 @@ describe('gift-card-email.service', () => {
         amount: 30,
         title: 'Cagnotte Bob',
         recipientName: 'Bob',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         code: 'cg-1',
       });
       const call = mockSendEmail.mock.calls[0]?.[0] as {
@@ -251,7 +251,7 @@ describe('gift-card-email.service', () => {
         finalAmount: 114,
         code: 'cg-full',
         shortCode: 'SKR-TEST-02',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         pdfUrl: 'https://cdn.example.com/cg.pdf',
       });
       const call = mockSendEmail.mock.calls[0]?.[0] as {
@@ -260,7 +260,7 @@ describe('gift-card-email.service', () => {
         html: string;
       };
       expect(call.to).toBe('bob@example.com');
-      expect(call.subject).toBe('Votre cagnotte est prête — 114€ chez Chez Sokar');
+      expect(call.subject).toBe('Votre cagnotte est prête — 114€ chez Chez Suppernote');
       expect(call.html).toContain('120€'); // total
       expect(call.html).toContain('6€'); // commission
       expect(call.html).toContain('114€'); // final

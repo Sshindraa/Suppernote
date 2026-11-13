@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Script de déploiement unifié Sokar (prod + staging).
+# Script de déploiement unifié Suppernote (prod + staging).
 #
 # Usage:
 #   bash scripts/deploy.sh --env prod --confirm-production [branch]
@@ -15,7 +15,7 @@
 # La logique commune est dans scripts/ops/deploy-common.sh.
 #
 # Zero-downtime : les trois services restent en ligne pendant la compilation.
-# Dashboard et Sokar Connect sont construits dans des dossiers .next-deploy-*
+# Dashboard et Suppernote Connect sont construits dans des dossiers .next-deploy-*
 # puis basculés seulement après les validations. Le redémarrage final est
 # limité à quelques secondes.
 #
@@ -130,7 +130,7 @@ fi
 # ══════════════════════════════════════════════════════════
 # Commande DEPLOY
 # ══════════════════════════════════════════════════════════
-log_section "Sokar ${DEPLOY_ENV^} Deploy $DATE"
+log_section "Suppernote ${DEPLOY_ENV^} Deploy $DATE"
 log info "Root: $SOKAR_ROOT"
 log info "Branch: $BRANCH"
 [ "$DRY_RUN" = true ] && log warn "Mode: DRY-RUN (pas de restart ni migrations)"
@@ -448,8 +448,8 @@ if [ "$EXTENDED_HEALTH_CHECKS" = true ]; then
         exit 1
     elif [ "${DEPLOY_HEALTH_OK:-false}" = true ]; then
         log info ""
-        log_ok "Deploy complete — API + dashboard + Sokar Connect + routing OK"
-        notify "✅ Sokar ${DEPLOY_ENV} deploy OK (branch ${BRANCH}, hash $(git rev-parse --short HEAD))"
+        log_ok "Deploy complete — API + dashboard + Suppernote Connect + routing OK"
+        notify "✅ Suppernote ${DEPLOY_ENV} deploy OK (branch ${BRANCH}, hash $(git rev-parse --short HEAD))"
         trap - ERR
 
         # ── Snapshot post-build réussi + cleanup ─────────
@@ -481,7 +481,7 @@ if [ "$EXTENDED_HEALTH_CHECKS" = true ]; then
     else
         log info ""
         log_error "Deploy finished but routing or application checks failed"
-        notify "🔴 Sokar ${DEPLOY_ENV} deploy finished with failed checks (branch ${BRANCH})"
+        notify "🔴 Suppernote ${DEPLOY_ENV} deploy finished with failed checks (branch ${BRANCH})"
         if [ "$DRY_RUN" = false ]; then
             recover_services 1
         fi
@@ -511,7 +511,7 @@ else
         log info "   URLs : https://staging.suppernote.com (dashboard)"
         log info "          https://api-staging.suppernote.com (API)"
         log info "   Rollback : bash scripts/deploy.sh --env staging rollback"
-        notify "✅ Sokar staging deploy OK (branch ${BRANCH}, hash $(git rev-parse --short HEAD))"
+        notify "✅ Suppernote staging deploy OK (branch ${BRANCH}, hash $(git rev-parse --short HEAD))"
         # Sauvegarder le hash pour le prochain déploiement incrémental
         git rev-parse HEAD > "$RELEASES_DIR/.latest-hash"
         trap - ERR

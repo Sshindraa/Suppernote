@@ -47,7 +47,7 @@ it('affiche les icônes en mode replié et permet de déployer le menu', () => {
         <DashboardSidebar
           pathname="/dashboard"
           salleView="service-live"
-          isSokarOperator={false}
+          isPlatformOperator={false}
           onCreateOffer={vi.fn()}
           expanded={false}
           onExpandedChange={change}
@@ -71,7 +71,7 @@ it('ferme le menu latéral au clic extérieur ou avec Échap, sans intercepter l
         <DashboardSidebar
           pathname="/dashboard"
           salleView="service-live"
-          isSokarOperator={false}
+          isPlatformOperator={false}
           onCreateOffer={vi.fn()}
         />
         <button onClick={outside}>Autre action</button>
@@ -101,7 +101,7 @@ it('déplie la section de la page active sans afficher les sections interdites a
         <DashboardSidebar
           pathname="/dashboard/reservations"
           salleView="service-live"
-          isSokarOperator={false}
+          isPlatformOperator={false}
           onCreateOffer={vi.fn()}
         />
       </TooltipProvider>
@@ -120,7 +120,7 @@ it('déplie la section de la page active sans afficher les sections interdites a
         <DashboardSidebar
           pathname="/dashboard/reservations"
           salleView="service-live"
-          isSokarOperator={false}
+          isPlatformOperator={false}
           onCreateOffer={vi.fn()}
         />
       </TooltipProvider>

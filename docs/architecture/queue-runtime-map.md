@@ -209,7 +209,7 @@ certain n'est établi que par une lecture de réconciliation après un
 payload source nécessaire à un rejeu sûr. Un résultat `unknown`, une erreur de
 queue ou une indisponibilité Redis n'autorise jamais un nouvel envoi automatique.
 Les
-metrics `sokar_notification_claim_events_total` exposent seulement des
+metrics `suppernote_notification_claim_events_total` exposent seulement des
 événements à faible cardinalité (`active`, `orphan_recovered`, `manual_review`,
 `raced`, `unknown_requeued`, `queue_unavailable`, `scan_unavailable`,
 `scan_failed`).

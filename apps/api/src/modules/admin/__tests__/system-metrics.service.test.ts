@@ -47,7 +47,7 @@ describe('courbes de supervision', () => {
 
   it('un panneau injoignable est signalé sans faire échouer les autres', async () => {
     const fetcher = vi.fn<Fetcher>().mockImplementation(async (url) => {
-      if (new URL(url).searchParams.get('query')?.includes('sokar_redis_memory_ratio')) {
+      if (new URL(url).searchParams.get('query')?.includes('suppernote_redis_memory_ratio')) {
         throw new Error('timeout');
       }
       return ok([[100, '1']]);

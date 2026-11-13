@@ -141,7 +141,7 @@ export function alertConnect5xxRateHigh(args: { rate5xx: number; windowMin: numb
  * continué en mode dégradé (laisse passer plutôt que de bloquer).
  *
  * Comportement :
- *   - Incrémente le compteur Prometheus sokar_fail_open_total{source}
+ *   - Incrémente le compteur Prometheus suppernote_fail_open_total{source}
  *   - logger.warn avec le détail
  *   - NE PAS appeler captureException à chaque fail-open individuel
  *     (ce serait du bruit Sentry à chaque hoquet Redis). L'alerte Sentry

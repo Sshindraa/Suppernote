@@ -21,9 +21,9 @@ describe('Prometheus metrics', () => {
     piiLeaksTotal.inc({ kind: 'email' });
     piiLeaksTotal.inc({ kind: 'phone' });
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_agentic_pii_leaks_total');
-    expect(payload).toMatch(/sokar_agentic_pii_leaks_total\{[^}]*kind="email"[^}]*\} 2/);
-    expect(payload).toMatch(/sokar_agentic_pii_leaks_total\{[^}]*kind="phone"[^}]*\} 1/);
+    expect(payload).toContain('suppernote_agentic_pii_leaks_total');
+    expect(payload).toMatch(/suppernote_agentic_pii_leaks_total\{[^}]*kind="email"[^}]*\} 2/);
+    expect(payload).toMatch(/suppernote_agentic_pii_leaks_total\{[^}]*kind="phone"[^}]*\} 1/);
   });
 
   it('expose les métriques par défaut nodejs', async () => {
@@ -32,14 +32,18 @@ describe('Prometheus metrics', () => {
     expect(payload).toContain('process_cpu_user_seconds_total');
   });
 
-  it('expose sokar_openai_reserve_feed_requests_total avec labels status', async () => {
+  it('expose suppernote_openai_reserve_feed_requests_total avec labels status', async () => {
     openaiReserveFeedRequestsTotal.inc({ status: '200' });
     openaiReserveFeedRequestsTotal.inc({ status: '200' });
     openaiReserveFeedRequestsTotal.inc({ status: '429' });
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_openai_reserve_feed_requests_total');
-    expect(payload).toMatch(/sokar_openai_reserve_feed_requests_total\{[^}]*status="200"[^}]*\} 2/);
-    expect(payload).toMatch(/sokar_openai_reserve_feed_requests_total\{[^}]*status="429"[^}]*\} 1/);
+    expect(payload).toContain('suppernote_openai_reserve_feed_requests_total');
+    expect(payload).toMatch(
+      /suppernote_openai_reserve_feed_requests_total\{[^}]*status="200"[^}]*\} 2/,
+    );
+    expect(payload).toMatch(
+      /suppernote_openai_reserve_feed_requests_total\{[^}]*status="429"[^}]*\} 1/,
+    );
   });
 
   it('observe les contrats réservation avec des labels bornés et détecte PENDING/CONFIRMED', async () => {
@@ -56,10 +60,10 @@ describe('Prometheus metrics', () => {
 
     const payload = await renderMetrics();
     expect(payload).toMatch(
-      /sokar_reservation_mutations_total\{[^}]*source="connect"[^}]*operation="create"[^}]*\} 1/,
+      /suppernote_reservation_mutations_total\{[^}]*source="connect"[^}]*operation="create"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_reservation_status_state_mismatches_total\{[^}]*source="connect"[^}]*operation="create"[^}]*mismatch_type="status_state_pending_projection"[^}]*\} 1/,
+      /suppernote_reservation_status_state_mismatches_total\{[^}]*source="connect"[^}]*operation="create"[^}]*mismatch_type="status_state_pending_projection"[^}]*\} 1/,
     );
     expect(payload).toContain('mismatch_type="idempotency_keyed"');
     expect(payload).toContain('mismatch_type="audit_written"');
@@ -91,8 +95,12 @@ describe('Prometheus metrics', () => {
     recordNotificationClaimEvent('queue_unavailable');
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_notification_claim_events_total\{event="orphan_recovered"\} 1/);
-    expect(payload).toMatch(/sokar_notification_claim_events_total\{event="queue_unavailable"\} 1/);
+    expect(payload).toMatch(
+      /suppernote_notification_claim_events_total\{event="orphan_recovered"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_notification_claim_events_total\{event="queue_unavailable"\} 1/,
+    );
     expect(payload).not.toContain('reservation-should-not-be-a-label');
   });
 
@@ -104,16 +112,16 @@ describe('Prometheus metrics', () => {
 
     const payload = await renderMetrics();
     expect(payload).toMatch(
-      /sokar_mcp_tool_calls_by_auth_type_total\{[^}]*tool="search_restaurants"[^}]*status="success"[^}]*auth_type="oauth"[^}]*transport="mcp"[^}]*\} 1/,
+      /suppernote_mcp_tool_calls_by_auth_type_total\{[^}]*tool="search_restaurants"[^}]*status="success"[^}]*auth_type="oauth"[^}]*transport="mcp"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_mcp_tool_errors_by_code_total\{[^}]*tool="create_reservation"[^}]*auth_type="api_key"[^}]*error_code="FORBIDDEN"[^}]*transport="generic_agent"[^}]*\} 1/,
+      /suppernote_mcp_tool_errors_by_code_total\{[^}]*tool="create_reservation"[^}]*auth_type="api_key"[^}]*error_code="FORBIDDEN"[^}]*transport="generic_agent"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_mcp_tool_errors_by_code_total\{[^}]*tool="check_availability"[^}]*error_code="INVALID_DATETIME"[^}]*\} 1/,
+      /suppernote_mcp_tool_errors_by_code_total\{[^}]*tool="check_availability"[^}]*error_code="INVALID_DATETIME"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_mcp_tool_errors_by_code_total\{[^}]*tool="unknown"[^}]*auth_type="unknown"[^}]*error_code="OTHER"[^}]*transport="unknown"[^}]*\} 1/,
+      /suppernote_mcp_tool_errors_by_code_total\{[^}]*tool="unknown"[^}]*auth_type="unknown"[^}]*error_code="OTHER"[^}]*transport="unknown"[^}]*\} 1/,
     );
     expect(payload).not.toContain('untrusted-client-tool-name');
     expect(payload).not.toContain('private-id-value');

@@ -41,13 +41,17 @@ describe('voice reservation quality snapshot', () => {
     expect(sqlArgument.values).toEqual([new Date('2026-09-17T12:00:00.000Z'), now, now]);
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_voice_reservations_created_7d 6/);
-    expect(payload).toMatch(/sokar_voice_reservations_changed_after_call_7d\{field="date"\} 1/);
-    expect(payload).toMatch(/sokar_voice_reservations_changed_after_call_7d\{field="time"\} 2/);
+    expect(payload).toMatch(/suppernote_voice_reservations_created_7d 6/);
     expect(payload).toMatch(
-      /sokar_voice_reservations_changed_after_call_7d\{field="party_size"\} 3/,
+      /suppernote_voice_reservations_changed_after_call_7d\{field="date"\} 1/,
     );
-    expect(payload).toMatch(/sokar_voice_reservations_cancelled_after_call_7d 1/);
+    expect(payload).toMatch(
+      /suppernote_voice_reservations_changed_after_call_7d\{field="time"\} 2/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_reservations_changed_after_call_7d\{field="party_size"\} 3/,
+    );
+    expect(payload).toMatch(/suppernote_voice_reservations_cancelled_after_call_7d 1/);
   });
 
   it('publie des zéros si aucune réservation vocale n’est dans la fenêtre', async () => {
@@ -57,7 +61,7 @@ describe('voice reservation quality snapshot', () => {
     await refreshVoiceReservationQualityMetrics(client);
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_voice_reservations_created_7d 0/);
-    expect(payload).toMatch(/sokar_voice_reservations_cancelled_after_call_7d 0/);
+    expect(payload).toMatch(/suppernote_voice_reservations_created_7d 0/);
+    expect(payload).toMatch(/suppernote_voice_reservations_cancelled_after_call_7d 0/);
   });
 });

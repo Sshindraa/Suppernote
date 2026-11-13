@@ -1,5 +1,5 @@
 {
-  "uid": "sokar-voice-quality",
+  "uid": "suppernote-voice-quality",
   "title": "Suppernote — Qualité des réservations vocales",
   "tags": ["suppernote", "voice", "quality"],
   "timezone": "browser",
@@ -31,7 +31,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (kind) (increase(sokar_voice_readback_corrected_total{env=~\"$env\"}[7d])) / clamp_min(sum by (kind) (increase(sokar_voice_readback_total{env=~\"$env\"}[7d])), 1)",
+          "expr": "100 * sum by (kind) (increase(suppernote_voice_readback_corrected_total{env=~\"$env\"}[7d])) / clamp_min(sum by (kind) (increase(suppernote_voice_readback_total{env=~\"$env\"}[7d])), 1)",
           "legendFormat": "{{kind}}"
         }
       ],
@@ -47,7 +47,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (kind, status) (increase(sokar_voice_expected_answer_total{env=~\"$env\"}[7d]))",
+          "expr": "sum by (kind, status) (increase(suppernote_voice_expected_answer_total{env=~\"$env\"}[7d]))",
           "legendFormat": "{{kind}} · {{status}}"
         }
       ],
@@ -63,7 +63,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (kind, outcome) (increase(sokar_voice_choice_answer_total{env=~\"$env\"}[7d]))",
+          "expr": "sum by (kind, outcome) (increase(suppernote_voice_choice_answer_total{env=~\"$env\"}[7d]))",
           "legendFormat": "{{kind}} · {{outcome}}"
         }
       ],
@@ -79,7 +79,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (kind) (increase(sokar_voice_reprompt_total{env=~\"$env\"}[7d])) / clamp_min(sum by (kind) (increase(sokar_voice_question_total{env=~\"$env\"}[7d])), 1)",
+          "expr": "100 * sum by (kind) (increase(suppernote_voice_reprompt_total{env=~\"$env\"}[7d])) / clamp_min(sum by (kind) (increase(suppernote_voice_question_total{env=~\"$env\"}[7d])), 1)",
           "legendFormat": "{{kind}}"
         }
       ],
@@ -95,7 +95,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sokar_voice_reservations_changed_after_call_7d{env=~\"$env\",process=\"workers\"} / clamp_min(sokar_voice_reservations_created_7d{env=~\"$env\",process=\"workers\"}, 1)",
+          "expr": "100 * suppernote_voice_reservations_changed_after_call_7d{env=~\"$env\",process=\"workers\"} / clamp_min(suppernote_voice_reservations_created_7d{env=~\"$env\",process=\"workers\"}, 1)",
           "legendFormat": "{{field}}"
         }
       ],
@@ -111,7 +111,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (cohort) (increase(sokar_voice_reprompt_total{env=~\"$env\"}[7d])) / clamp_min(sum by (cohort) (increase(sokar_voice_question_total{env=~\"$env\"}[7d])), 1)",
+          "expr": "100 * sum by (cohort) (increase(suppernote_voice_reprompt_total{env=~\"$env\"}[7d])) / clamp_min(sum by (cohort) (increase(suppernote_voice_question_total{env=~\"$env\"}[7d])), 1)",
           "legendFormat": "{{cohort}}"
         }
       ],
@@ -127,7 +127,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sokar_elevenlabs_character_count{env=~\"$env\",process=\"workers\"} / clamp_min(sokar_elevenlabs_character_limit{env=~\"$env\",process=\"workers\"}, 1)",
+          "expr": "100 * suppernote_elevenlabs_character_count{env=~\"$env\",process=\"workers\"} / clamp_min(suppernote_elevenlabs_character_limit{env=~\"$env\",process=\"workers\"}, 1)",
           "legendFormat": "{{env}}"
         }
       ],
@@ -143,7 +143,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_voice_reservations_created_7d{env=~\"$env\",process=\"workers\"}",
+          "expr": "suppernote_voice_reservations_created_7d{env=~\"$env\",process=\"workers\"}",
           "instant": true
         }
       ],
@@ -163,7 +163,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_voice_reservations_cancelled_after_call_7d{env=~\"$env\",process=\"workers\"}",
+          "expr": "suppernote_voice_reservations_cancelled_after_call_7d{env=~\"$env\",process=\"workers\"}",
           "instant": true
         }
       ],
@@ -183,7 +183,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (kind, decision) (increase(sokar_voice_slot_confidence_total{env=~\"$env\"}[7d]))",
+          "expr": "sum by (kind, decision) (increase(suppernote_voice_slot_confidence_total{env=~\"$env\"}[7d]))",
           "legendFormat": "{{kind}} · {{decision}}"
         }
       ],

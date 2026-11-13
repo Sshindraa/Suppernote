@@ -8,10 +8,10 @@
 
 Depuis R1-1, deux process publient des métriques, et **Prometheus doit scraper les deux** :
 
-| Process                            | Endpoint                        | Ce qu'il publie                                                                                                                                      |
-| ---------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sokar-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`sokar_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`sokar_voice_active_sessions`) et latences vocales |
-| `sokar-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`sokar_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`sokar_slo_status`, `sokar_slo_value`), alertes envoyées         |
+| Process                            | Endpoint                        | Ce qu'il publie                                                                                                                                                |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sokar-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`suppernote_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`suppernote_voice_active_sessions`) et latences vocales |
+| `sokar-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`suppernote_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`suppernote_slo_status`, `suppernote_slo_value`), alertes envoyées    |
 
 Staging utilise les ports décalés `4100` (API) et `4101` (worker). Les deux environnements tournent
 sur le même VPS, donc un seul Prometheus scrape les quatre cibles et chaque série porte un label
@@ -110,7 +110,7 @@ horodatages sont approximatifs ; la chronologie mesurée fait foi.
 ## Quota ElevenLabs pour le STT
 
 Le worker BullMQ `elevenlabs-subscription` lit `GET /v1/user/subscription` une fois par heure
-et publie `sokar_elevenlabs_character_count` et `sokar_elevenlabs_character_limit`. Il ne
+et publie `suppernote_elevenlabs_character_count` et `suppernote_elevenlabs_character_limit`. Il ne
 transcrit aucun audio et ne journalise jamais la clé. Les dernières jauges restent visibles
 jusqu'au prochain relevé réussi ; les erreurs réseau ou HTTP suivent les retries BullMQ.
 
@@ -140,7 +140,7 @@ cooldown Redis ; aucune charge utile ne contient de donnée d'appel :
 - `voice_llm_circuit_open` (avertissement, 30 min) : le disjoncteur du principal vient de s'ouvrir.
 - `openrouter_credit_low` (avertissement sous 2 $) et `openrouter_credit_critical` (critique
   sous 0,5 $) : le worker `openrouter-credit` lit `GET /credits` chaque heure (à la minute 15),
-  publie `sokar_openrouter_credit_usd` et réarme les seuils après une recharge.
+  publie `suppernote_openrouter_credit_usd` et réarme les seuils après une recharge.
 
 La clé partagée staging/production et les consignes de banc sont documentées dans
 `docs/runbooks/environment.md`.

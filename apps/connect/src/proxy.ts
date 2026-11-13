@@ -159,7 +159,7 @@ export function proxy(request: NextRequest) {
       );
 
       // Forward en fire-and-forget vers l'API analytics pour incrémenter
-      // la métrique Prometheus sokar_connect_ia_bot_hits_total (cf. Phase 1
+      // la métrique Prometheus suppernote_connect_ia_bot_hits_total (cf. Phase 1
       // observabilité). Best-effort : ne bloque pas la réponse.
       const apiUrl = process.env.API_URL;
       if (apiUrl) {

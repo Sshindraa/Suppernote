@@ -261,10 +261,10 @@ describe('voice turn telemetry', () => {
         markVoiceTurnAudioSent(session);
         const metrics = await renderMetrics();
         expect(metrics).toContain(
-          'sokar_voice_end_of_speech_to_first_audio_ms_bucket{le="1250",path="llm",restaurant_id="resto-1"} 1',
+          'suppernote_voice_end_of_speech_to_first_audio_ms_bucket{le="1250",path="llm",restaurant_id="resto-1"} 1',
         );
         expect(metrics).toContain(
-          'sokar_voice_end_of_speech_to_first_audio_ms_bucket{le="1000",path="llm",restaurant_id="resto-1"} 0',
+          'suppernote_voice_end_of_speech_to_first_audio_ms_bucket{le="1000",path="llm",restaurant_id="resto-1"} 0',
         );
       } finally {
         vi.useRealTimers();
@@ -319,10 +319,10 @@ describe('voice turn telemetry', () => {
         );
         const metrics = await renderMetrics();
         expect(metrics).toContain(
-          'sokar_voice_end_of_speech_to_stt_final_ms_bucket{le="100",provider="unknown",final_trigger="speech_final"} 1',
+          'suppernote_voice_end_of_speech_to_stt_final_ms_bucket{le="100",provider="unknown",final_trigger="speech_final"} 1',
         );
         expect(metrics).toContain(
-          'sokar_voice_end_of_speech_to_first_audio_ms_bucket{le="500",path="unknown",restaurant_id="resto-1"} 1',
+          'suppernote_voice_end_of_speech_to_first_audio_ms_bucket{le="500",path="unknown",restaurant_id="resto-1"} 1',
         );
       } finally {
         vi.useRealTimers();
@@ -339,12 +339,14 @@ describe('voice turn telemetry', () => {
       recordVoiceTurnEvent(session, 'filler_interrupted', { purpose: 'thinking' });
       recordVoiceTurnEvent(session, 'turn_plan_shadow', { status: 'speech_missing' });
       const metrics = await renderMetrics();
-      expect(metrics).toContain('sokar_voice_false_end_of_turn_total{restaurant_id="resto-1"} 2');
       expect(metrics).toContain(
-        'sokar_voice_filler_events_total{outcome="interrupted",purpose="thinking",restaurant_id="resto-1"} 1',
+        'suppernote_voice_false_end_of_turn_total{restaurant_id="resto-1"} 2',
       );
       expect(metrics).toContain(
-        'sokar_voice_turn_plan_shadow_by_restaurant_total{status="speech_missing",restaurant_id="resto-1"} 1',
+        'suppernote_voice_filler_events_total{outcome="interrupted",purpose="thinking",restaurant_id="resto-1"} 1',
+      );
+      expect(metrics).toContain(
+        'suppernote_voice_turn_plan_shadow_by_restaurant_total{status="speech_missing",restaurant_id="resto-1"} 1',
       );
     });
   });

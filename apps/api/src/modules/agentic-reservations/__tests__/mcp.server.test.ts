@@ -411,10 +411,10 @@ describe('MCP server', () => {
 
       const metrics = await renderMetrics();
       expect(metrics).toMatch(
-        /sokar_mcp_tool_calls_by_auth_type_total\{tool="search_restaurants",status="error",auth_type="api_key",transport="mcp"\} 1/,
+        /suppernote_mcp_tool_calls_by_auth_type_total\{tool="search_restaurants",status="error",auth_type="api_key",transport="mcp"\} 1/,
       );
       expect(metrics).toMatch(
-        /sokar_mcp_tool_errors_by_code_total\{tool="search_restaurants",auth_type="api_key",error_code="INVALID_INPUT",transport="mcp"\} 1/,
+        /suppernote_mcp_tool_errors_by_code_total\{tool="search_restaurants",auth_type="api_key",error_code="INVALID_INPUT",transport="mcp"\} 1/,
       );
     });
 

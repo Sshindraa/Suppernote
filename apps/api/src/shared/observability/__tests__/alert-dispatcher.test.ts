@@ -91,10 +91,10 @@ describe('dispatchAlert', () => {
       ]);
       const metrics = await renderMetrics();
       expect(metrics).toMatch(
-        /sokar_alerts_sent_total\{[^}]*channel="email"[^}]*result="error"[^}]*\} 1/,
+        /suppernote_alerts_sent_total\{[^}]*channel="email"[^}]*result="error"[^}]*\} 1/,
       );
       expect(metrics).not.toMatch(
-        /sokar_alerts_sent_total\{[^}]*channel="email"[^}]*result="ok"[^}]*\} 1/,
+        /suppernote_alerts_sent_total\{[^}]*channel="email"[^}]*result="ok"[^}]*\} 1/,
       );
     },
   );
@@ -199,7 +199,7 @@ describe('dispatchAlert', () => {
     });
   });
 
-  it('compte les envois dans sokar_alerts_sent_total', async () => {
+  it('compte les envois dans suppernote_alerts_sent_total', async () => {
     process.env.ALERT_EMAIL_TO = 'ops@suppernote.com';
 
     await dispatchAlert({
@@ -211,10 +211,10 @@ describe('dispatchAlert', () => {
 
     const payload = await renderMetrics();
     expect(payload).toMatch(
-      /sokar_alerts_sent_total\{[^}]*channel="email"[^}]*result="ok"[^}]*\} 1/,
+      /suppernote_alerts_sent_total\{[^}]*channel="email"[^}]*result="ok"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_alerts_sent_total\{[^}]*channel="sentry"[^}]*result="ok"[^}]*\} 1/,
+      /suppernote_alerts_sent_total\{[^}]*channel="sentry"[^}]*result="ok"[^}]*\} 1/,
     );
   });
 });

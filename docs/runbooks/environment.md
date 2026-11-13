@@ -354,15 +354,15 @@ VOICE_STRUCTURED_SPECULATION_MS="250"
 # ainsi la réponse est prête pendant l'attente avant le premier son (VOICE_FIRST_AUDIO_SILENCE_MS).
 # 0 : ancien déclenchement (VOICE_STRUCTURED_SPECULATION_MS). Plafond de requêtes spéculatives
 # par tour (~3 k tokens chacune ; la clé Cerebras est limitée à 150 k tokens/minute).
-# Métriques : sokar_voice_structured_speculation_total{outcome=hit|miss_*|none},
-# sokar_voice_structured_speculation_launch_total{result=started|capped}.
+# Métriques : suppernote_voice_structured_speculation_total{outcome=hit|miss_*|none},
+# suppernote_voice_structured_speculation_launch_total{result=started|capped}.
 VOICE_STRUCTURED_SPECULATION_PAUSE_MS="150"
 VOICE_STRUCTURED_SPECULATION_MAX_LAUNCHES="3"
 # Reprise de l'anticipation malgré un écart sans conséquence entre la partielle et la finale (tous les
 # restaurants depuis le 22/10, sans réglage) : ponctuation et casse, « s'il vous plaît » complet en fin de phrase, mot outil répété
 # (« pour pour »). Même état, même historique, même schéma exigés ; tout chiffre, jour, heure, nom, lettre
 # épelée, négation, « euh », « merci » ou question ajoutée refuse la reprise (rejeu GPT-6 Luna du 20/10/2026).
-# Métrique : sokar_voice_structured_speculation_total{outcome=hit_tolerant}.
+# Métrique : suppernote_voice_structured_speculation_total{outcome=hit_tolerant}.
 # Partielle Deepgram figée : Finalize après ce délai (appel 25650799 : 8 s).
 VOICE_DEEPGRAM_STALL_FINALIZE_MS="1200"
 # Même chose pour une partielle d'un ou deux mots (« 4 », « oui », « demain ») :
@@ -378,7 +378,7 @@ VOICE_DEEPGRAM_SILENCE_FLUSH_MS="700"
 # l'audio de l'appelant soit silencieux depuis ce délai, au lieu de tomber pendant qu'il parle
 # (appel 5cebe456 : 11 fins de tour forcées sur 17 tombaient pendant la parole). 0 désactive.
 # Le report cumulé est plafonné (bruit, écho) : au-delà, le comportement d'avant reprend.
-# Métrique : sokar_voice_silence_guard_total{outcome=held|released_after_silence|released_at_cap}.
+# Métrique : suppernote_voice_silence_guard_total{outcome=held|released_after_silence|released_at_cap}.
 VOICE_STT_SILENCE_GUARD_MS="350"
 VOICE_STT_SILENCE_GUARD_MAX_DEFER_MS="1500"
 # Pendant une épellation (nom attendu), la garde est plus longue : les pauses entre deux groupes de lettres
@@ -390,8 +390,8 @@ VOICE_STT_SPELLING_SILENCE_GUARD_MS="1200"
 # l’annulation exige 160 ms de signal continu au seuil adaptatif du détecteur (voix faible incluse).
 # Un bruit bref retarde la lecture jusqu’au silence ou au plafond, sans jeter la réponse.
 # Contextes Cartesia et ElevenLabs (voix de secours HTTP non concernée). 0 désactive. Le plafond évite
-# qu'un bruit continu bloque une réponse. Métriques : sokar_voice_first_audio_hold_total{outcome},
-# sokar_voice_first_audio_hold_ms ; télémétrie de tour : événement first_audio_hold.
+# qu'un bruit continu bloque une réponse. Métriques : suppernote_voice_first_audio_hold_total{outcome},
+# suppernote_voice_first_audio_hold_ms ; télémétrie de tour : événement first_audio_hold.
 VOICE_FIRST_AUDIO_SILENCE_MS="600"
 VOICE_FIRST_AUDIO_HOLD_CAP_MS="1200"
 # Coupure rapide de l'agent : quand la voix de l'appelant (audio entrant) dépasse le niveau RMS
@@ -399,7 +399,7 @@ VOICE_FIRST_AUDIO_HOLD_CAP_MS="1200"
 # (~0,14 s), au lieu d'attendre la première transcription partielle (0,7 à 1,3 s). Comme l'écho de
 # l'agent peut déclencher la détection, on confirme : transcription = barge-in habituel ; sinon, après
 # CONFIRM_MS, appelant encore en train de parler = coupure, silence = la lecture reprend. 0 désactive.
-# Contexte Cartesia seulement. Métrique : sokar_voice_fast_barge_in_total{outcome=paused|escalated|resumed}.
+# Contexte Cartesia seulement. Métrique : suppernote_voice_fast_barge_in_total{outcome=paused|escalated|resumed}.
 VOICE_FAST_BARGE_IN_MS="80"
 VOICE_FAST_BARGE_IN_MIN_RMS="800"
 VOICE_FAST_BARGE_IN_CONFIRM_MS="500"
@@ -410,7 +410,7 @@ VOICE_FAST_BARGE_IN_CONFIRM_MS="500"
 # l'agent à chaque réponse). Ne juge qu'après 500 ms d'audio suivi. La voix d'un tour déjà envoyé à
 # l'agent ne compte pas : il faut de la voix arrivée au-delà de la fin de ses mots (+150 ms ; appel
 # 6a70dff9, « 4 » fantôme 1,3 s après « pour quatre »). "false" ou "0" rétablit l'ancien
-# comportement. Métrique : sokar_voice_no_caller_voice_transcript_total{stage=partial|committed}.
+# comportement. Métrique : suppernote_voice_no_caller_voice_transcript_total{stage=partial|committed}.
 VOICE_REQUIRE_CALLER_VOICE="true"
 # Fin de tour jugée par le modèle (toujours active) : dès que le premier passage spéculatif
 # renvoie turnComplete=true sur une partielle inchangée, on envoie Finalize sans attendre le
@@ -427,8 +427,8 @@ VOICE_INCOMPLETE_TURN_SILENCE_MS="2000"
 # Juge de fin de tour séparé (tous les restaurants depuis le 22/10) : une requête minimale (dernière question de
 # l'agent, parole de l'appelant, sortie {complete}) tourne en parallèle du passage anticipé ; son verdict
 # remplace `turnComplete` pour fermer le tour (clôture sémantique) et pour décider de répondre. Délai dépassé
-# ou erreur : `turnComplete` du modèle, comme sans le juge. Métriques : sokar_voice_turn_judge_total{outcome},
-# sokar_voice_turn_judge_duration_ms. Banc A/B : voir Journal du 2026-10-02. Aucun réglage d'activation.
+# ou erreur : `turnComplete` du modèle, comme sans le juge. Métriques : suppernote_voice_turn_judge_total{outcome},
+# suppernote_voice_turn_judge_duration_ms. Banc A/B : voir Journal du 2026-10-02. Aucun réglage d'activation.
 # Faits pratiques du restaurant (parking, accessibilité, animaux, options alimentaires, menu), saisis à
 # l'étape « Votre restaurant en pratique » de l'onboarding et ajoutés au prompt de l'assistant, pour tous les
 # restaurants depuis le 22/10 (aucun réglage). Sans fait pour une question, l'assistant ne devine pas et propose
@@ -473,7 +473,7 @@ VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS=""
 # déclarer la transcription indisponible, l'appel bascule une fois sur Cartesia Ink-2 en mode tours
 # (`/stt/turns/websocket`, ink-2, français, A-law/µ-law 8 kHz tels quels, `turn_end_timeout_ms=1500`, nom du
 # restaurant en `keyterm`) ; Ink-2 décide alors seul de la fin de phrase. Une seconde panne suit le parcours normal
-# (message d'indisponibilité). Métrique `sokar_voice_provider_errors_total{provider="deepgram_stt",type="fallback_ink"}`.
+# (message d'indisponibilité). Métrique `suppernote_voice_provider_errors_total{provider="deepgram_stt",type="fallback_ink"}`.
 # Fin de phrase sur silence local, adaptée à l'appelant, pour tous les restaurants : une partielle
 # Deepgram attend et l'appelant se tait depuis plus longtemps que ses propres pauses (80e centile de ses pauses
 # observées pendant l'appel + 150 ms, borné entre 350 et 1 100 ms ; `VOICE_DEEPGRAM_LOCAL_SILENCE_FINALIZE_MS`, défaut
@@ -687,12 +687,12 @@ pertinentes — `human_fallback_choice` sous `humanFallback` et
 `proposal_response_choice` sous confirmation. Respan n'accepte que `noul` :
 le client direct ne reçoit pas ces deux questions. La probabilité maximale de
 chaque `choice` alimente l'histogramme
-`sokar_voice_semantic_choice_confidence`, qui surveille la surconfiance du
+`suppernote_voice_semantic_choice_confidence`, qui surveille la surconfiance du
 modèle. `BEHAVIOR_SET_VERSION` vaut `2026-09-28.4-jev`.
 
 Phase 2 (avis) de `needs_clarification`, sans effet sur l'appel : chaque tour noté
 est comparé à ce qu'a fait l'agent (`unclear` = il fait préciser) et compté dans
-`sokar_voice_semantic_advisory_total{behavior="needs_clarification",outcome}` :
+`suppernote_voice_semantic_advisory_total{behavior="needs_clarification",outcome}` :
 `both`, `jev_only` (Jev aurait fait reposer la question alors que l'agent a
 continué : les tours à relire avant toute phase 3), `agent_only`, `neither`. Le
 même classement est écrit dans l'événement de tour `semantic_signals_shadow`
@@ -728,7 +728,7 @@ utilise `VOICE_SEMANTIC_JUDGE_MODEL=xiaomi/mimo-v2.6-pro` et la
 clé secrète `OPENROUTER_API_KEY`. Le job est planifié le lundi à 06:00
 (Europe/Paris), avec une tentative. Les rapports agrégés sont écrits dans
 `apps/api/scratch/semantic-auto-eval/` et publiés via les métriques
-`sokar_voice_semantic_eval_precision`, `..._recall`, `..._examples`,
+`suppernote_voice_semantic_eval_precision`, `..._recall`, `..._examples`,
 `..._last_run_timestamp_seconds` et `..._judge_status_total`. Le résumé
 opérationnel ne contient ni transcription ni raisonnement du juge. Le juge
 MiMo v2.6 Pro coûte environ 0,0005 $ par tour. Sur 6 cas difficiles (28/09/2026), il a
@@ -775,7 +775,7 @@ avec 30 jours de rétention Prometheus. Prometheus ne dépend pas du secret Graf
 Le workflow provisionne `GRAFANA_ADMIN_PASSWORD` depuis l'environnement GitHub
 `production` dans `/etc/sokar/grafana.env` (droits `0600`, root uniquement, hors du checkout).
 
-L'accord est aussi compté par dimension (`sokar_voice_turn_plan_shadow_dimension_total`,
+L'accord est aussi compté par dimension (`suppernote_voice_turn_plan_shadow_dimension_total`,
 labels `dimension` = `intent` | `slots` | `interaction` | `assistant_interaction`) : un
 taux global masque qu'une seule dimension diverge.
 
@@ -791,7 +791,7 @@ l'inférence regex sur la phrase générée, sauf pour `confirmation`, `humanFal
 `partySizeConfirmation`, qui ouvrent une autorisation ou exigent des métadonnées et
 restent sur l'inférence texte. Aucun tool ni confirmation ne dépend du plan. Le shadow
 continue de comparer le plan à l'état déterministe seul. Décisions comptées par
-`sokar_voice_turn_plan_authority_total{field,outcome}`. N'activer qu'après lecture de
+`suppernote_voice_turn_plan_authority_total{field,outcome}`. N'activer qu'après lecture de
 l'accord par dimension sur des appels réels.
 
 Le **tour structuré** est le seul parcours de dialogue vocal : le mode à outils (appel de
@@ -811,7 +811,7 @@ depuis `apps/api`.
 
 Un tour de contenu que les extracteurs n'ont pas compris est confié au modèle au lieu
 d'une relance mécanique. Son résultat est compté par
-`sokar_voice_turn_plan_deferred_total{outcome}` : `fact_applied`, `no_fact`,
+`suppernote_voice_turn_plan_deferred_total{outcome}` : `fact_applied`, `no_fact`,
 `plan_rejected`, `plan_unavailable`, ou `stall_handoff`. Le garde-fou anti-boucle
 s'applique aussi à ces tours : si le modèle repose la même question sans nouveau fait, la
 relance est comptée ; après deux relances, le tour suivant revient au déterministe, qui
@@ -834,7 +834,7 @@ après la fin de phrase, l'API ajoute une attente selon la phrase : 0 ms si elle
 suspens (« demain à », « au nom de », « je suis »), 600 ms pour une correction commencée
 (« non, plutôt… »), 400 ms sans ponctuation. Si le client reprend pendant l'attente, la
 suite est fusionnée dans le même tour. Comparer avant/après avec
-`sokar_voice_end_of_speech_to_first_audio_ms` et `sokar_voice_false_end_of_turn_total`.
+`suppernote_voice_end_of_speech_to_first_audio_ms` et `suppernote_voice_false_end_of_turn_total`.
 
 `VOICE_STT_CHUNK_MS` (défaut `20`) règle le regroupement des trames audio avant envoi au
 fournisseur de reconnaissance. `20` conserve le comportement historique : chaque trame Telnyx de 20 ms part dans
@@ -847,8 +847,8 @@ reconnexion de la session, et la fin d'appel ; un timer de sécurité (`valeur +
 un tampon partiel si le flux s'interrompt. Un couple de trames est donc retardé d'au plus la
 valeur configurée, uniquement à l'intérieur d'un tour (fin de parole → commit). Toute autre
 valeur fait échouer le démarrage (validation Zod). Suivre
-`sokar_voice_stt_provider_audio_messages_total{provider,chunk_ms}` et
-`sokar_voice_stt_provider_chunk_bytes{provider}`.
+`suppernote_voice_stt_provider_audio_messages_total{provider,chunk_ms}` et
+`suppernote_voice_stt_provider_chunk_bytes{provider}`.
 
 Retirés avec le code Scribe (ElevenLabs Scribe Realtime, plus utilisé en production) :
 `VOICE_STT_FILTER_BACKGROUND`, `VOICE_STT_LANGUAGE_LOCK` (verrou français, sans effet réel avec Deepgram
@@ -870,7 +870,7 @@ puis relancées naturellement si aucune suite n'arrive.
 `VOICE_TELNYX_CODEC` (défaut `PCMA`, valeurs `PCMA` ou `L16`) sélectionne le codec
 entrant et sortant du Media Stream Telnyx. Avec `L16`, demander 16 kHz dans les deux
 sens, envoyer le PCM16 au fournisseur de reconnaissance (Deepgram `linear16`, 16 kHz), et générer le TTS Cartesia en PCM16 16 kHz.
-Le cache TTS est séparé par codec. `sokar_voice_wideband_detected_total{detected,codec}`
+Le cache TTS est séparé par codec. `suppernote_voice_wideband_detected_total{detected,codec}`
 indique la présence d'énergie au-dessus de 4 kHz au début de chaque appel L16. Avant
 activation, vérifier en staging par un appel réel que l'endianness du payload WebSocket
 est bien big-endian (convention RTP L16) et que le retour TTS est audible. Le log
@@ -926,7 +926,7 @@ un fait `confirmation` ni un fait d'origine inconnue ou périmée. Un fait `user
 jamais enregistré ; `clear` n'est pas encore pris en charge. Un remplacement invalide l'accord
 de réservation et la disponibilité. La provenance est stockée dans
 `conversation.slotProvenance`, liée à la valeur qu'elle décrit. Résultats ajoutés à
-`sokar_voice_turn_plan_authority_total` : `replaced`, `protected`, `tentative`, `unsupported`.
+`suppernote_voice_turn_plan_authority_total` : `replaced`, `protected`, `tentative`, `unsupported`.
 Grafana donne un accès anonyme en lecture seule, sans inscription, et s'ouvre
 uniquement par tunnel SSH ; ne publiez pas son port.
 
@@ -968,8 +968,8 @@ au banc.
 Les tours incluent maintenant `endOfSpeechToSttFinalMs`, `holdMs`,
 `endOfSpeechToFirstAudioMs`, `firstAudioIsFiller` et `speechEndAt` lorsque mesurables.
 La migration `voice_turn_end_of_speech_latency` n'ajoute que des colonnes nullables et doit
-passer par le déploiement normal. Les métriques `sokar_voice_end_of_speech_to_stt_final_ms` (étiquetée `final_trigger` depuis le 22/10/2026)
-et `sokar_voice_stt_provider_audio_messages_total` sont additives.
+passer par le déploiement normal. Les métriques `suppernote_voice_end_of_speech_to_stt_final_ms` (étiquetée `final_trigger` depuis le 22/10/2026)
+et `suppernote_voice_stt_provider_audio_messages_total` sont additives.
 
 ### ElevenLabs : clé et quota (historique, état du 24/09/2026)
 
@@ -984,7 +984,7 @@ compte payant avec une clé distincte par environnement.
 L'API et le worker utilisent **ELEVENLABS_API_KEY**, conservée uniquement dans le
 gestionnaire de secrets de chaque environnement. Le worker interroge
 GET https://api.elevenlabs.io/v1/user/subscription une fois par heure et publie
-**sokar_elevenlabs_character_count** et **sokar_elevenlabs_character_limit**. Le worker
+**suppernote_elevenlabs_character_count** et **suppernote_elevenlabs_character_limit**. Le worker
 envoie les seuils 80 % (avertissement), 95 % et 100 % (critique) via `dispatchAlert()`.
 Prometheus garde un miroir consultable ; aucun Alertmanager n'est configuré. Chaque seuil
 dispose d'un latch Redis par période de facturation, réarmé si la consommation repasse dessous.

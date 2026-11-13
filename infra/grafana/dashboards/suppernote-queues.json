@@ -1,5 +1,5 @@
 {
-  "uid": "sokar-queues",
+  "uid": "suppernote-queues",
   "title": "Suppernote — Files & Alertes",
   "tags": ["suppernote", "queues", "ops"],
   "timezone": "browser",
@@ -30,7 +30,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_queue_jobs{env=~\"$env\", queue=\"dead-letter\", state=\"waiting\"}",
+          "expr": "suppernote_queue_jobs{env=~\"$env\", queue=\"dead-letter\", state=\"waiting\"}",
           "instant": true
         }
       ],
@@ -58,7 +58,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_calls_missing_transcript_24h{env=~\"$env\"}",
+          "expr": "suppernote_calls_missing_transcript_24h{env=~\"$env\"}",
           "instant": true
         }
       ],
@@ -86,7 +86,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_reservations_missing_confirmation_sms_24h{env=~\"$env\"}",
+          "expr": "suppernote_reservations_missing_confirmation_sms_24h{env=~\"$env\"}",
           "instant": true
         }
       ],
@@ -114,7 +114,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(sokar_http_requests_total{env=~\"$env\", status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(sokar_http_requests_total{env=~\"$env\"}[5m])), 1e-9)",
+          "expr": "sum(rate(suppernote_http_requests_total{env=~\"$env\", status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(suppernote_http_requests_total{env=~\"$env\"}[5m])), 1e-9)",
           "legendFormat": "5xx"
         }
       ],
@@ -141,7 +141,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_queue_jobs{env=~\"$env\", state=~\"waiting|active|delayed\"}",
+          "expr": "suppernote_queue_jobs{env=~\"$env\", state=~\"waiting|active|delayed\"}",
           "legendFormat": "{{queue}} · {{state}}"
         }
       ],
@@ -156,7 +156,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (kind, channel, result) (rate(sokar_alerts_sent_total{env=~\"$env\"}[15m]))",
+          "expr": "sum by (kind, channel, result) (rate(suppernote_alerts_sent_total{env=~\"$env\"}[15m]))",
           "legendFormat": "{{kind}} · {{channel}} · {{result}}"
         }
       ],

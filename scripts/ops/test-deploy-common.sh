@@ -185,16 +185,16 @@ voice_metrics=""
 curl() { printf '.' >> "$VOICE_POLLS"; printf '%s\n' "$voice_metrics"; }
 log_warn() { echo "WARN $*" >&2; }
 PORT_API=4100 VOICE_DRAIN_POLL_SECONDS=0
-voice_metrics='sokar_voice_active_sessions 0'
+voice_metrics='suppernote_voice_active_sessions 0'
 : > "$VOICE_POLLS"; wait_for_voice_idle >/dev/null
 test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
 voice_metrics=''
 : > "$VOICE_POLLS"; wait_for_voice_idle >/dev/null
 test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
-voice_metrics='sokar_voice_active_sessions 3'
+voice_metrics='suppernote_voice_active_sessions 3'
 : > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=0 wait_for_voice_idle >/dev/null 2>&1
 test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
-voice_metrics='sokar_voice_active_sessions 3'
+voice_metrics='suppernote_voice_active_sessions 3'
 : > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=2 VOICE_DRAIN_POLL_SECONDS=1 wait_for_voice_idle >/dev/null 2>&1
 test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 3
 unset -f curl

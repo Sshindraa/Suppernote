@@ -1,7 +1,7 @@
 apiVersion: 1
 
 providers:
-  - name: sokar
+  - name: suppernote
     orgId: 1
     folder: Suppernote
     type: file

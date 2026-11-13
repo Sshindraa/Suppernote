@@ -33,8 +33,8 @@
 #
 # Les règles Prometheus ci-dessous reflètent les seuils actifs in-app dès que
 # Prometheus scrape /metrics (les gauges
-# sokar_queue_jobs, sokar_calls_missing_transcript_24h et
-# sokar_reservations_missing_confirmation_sms_24h sont publiées à chaque tick
+# suppernote_queue_jobs, suppernote_calls_missing_transcript_24h et
+# suppernote_reservations_missing_confirmation_sms_24h sont publiées à chaque tick
 # du worker system-health). Elles servent aussi de documentation des seuils.
 #
 # Chargement actuel : `infra/prometheus/prometheus.yml` référence déjà
@@ -44,143 +44,143 @@
 
 groups:
   # ── Alertes pilote (miroir des checks in-app actifs) ──────────────────────
-  - name: sokar-pilot-ops
+  - name: suppernote-pilot-ops
     interval: 5m
     rules:
       # Webhook Telnyx en erreur : signature rejetée ou handler 5xx.
       # Indicatif seulement : le vrai contrôle (system-health) compare la fenêtre au taux habituel de la semaine,
       # compté dans Redis (webhook-health.ts), et non à un nombre fixe.
       - alert: TelnyxWebhookErrors
-        expr: increase(sokar_telnyx_webhook_events_total{result=~"error|rejected"}[15m]) > 5
+        expr: increase(suppernote_telnyx_webhook_events_total{result=~"error|rejected"}[15m]) > 5
         for: 5m
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Webhooks Telnyx en erreur ({{ $value }} en 15 min)'
           description: "Plus de 5 webhooks Telnyx rejetés (signature) ou en erreur 5xx sur 15 min. Les appels entrants ne sont peut-être plus traités. Vérifier les logs API (grep 'telnyx-guard' et 'voice/telnyx') et la file telnyx-webhooks."
 
       # Capacité vocale (R1-3) : la mesure locale du 21/09/2026 place la
       # saturation CPU vers ~100 sessions simultanées, avec ~2,3 Mo de RSS par
-      # session. L'alerte part à 50 % du seuil courant (sokar_voice_capacity_limit) : le seuil se relève
+      # session. L'alerte part à 50 % du seuil courant (suppernote_voice_capacity_limit) : le seuil se relève
       # avant d'être atteint ; l'alerte d'usage sur 7 jours est émise par le job voice-capacity-check.
       # Réévaluer sur le VPS : voir docs/audits/2026-09-21-voice-load-report.md.
       - alert: VoiceSessionsHigh
-        expr: sokar_voice_capacity_limit > 0 and sokar_voice_active_sessions / sokar_voice_capacity_limit > 0.5
+        expr: suppernote_voice_capacity_limit > 0 and suppernote_voice_active_sessions / suppernote_voice_capacity_limit > 0.5
         for: 2m
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: '{{ $value }} appels vocaux simultanés'
-          description: 'Le process API tient plus de la moitié de son seuil actuel de sessions simultanées (sokar_voice_capacity_limit, calculé sur les mesures réelles). Anticiper la hausse de capacité. La saturation CPU a été mesurée vers 100 sessions ; au-delà, la latence vocale se dégrade avant la panne. Vérifier le CPU (top, pm2 monit) et envisager un second process voice.'
+          description: 'Le process API tient plus de la moitié de son seuil actuel de sessions simultanées (suppernote_voice_capacity_limit, calculé sur les mesures réelles). Anticiper la hausse de capacité. La saturation CPU a été mesurée vers 100 sessions ; au-delà, la latence vocale se dégrade avant la panne. Vérifier le CPU (top, pm2 monit) et envisager un second process voice.'
 
       # Jobs en échec : une file dépasse le seuil in-app (5 failed).
       - alert: QueueFailedJobs
-        expr: sokar_queue_jobs{state="failed",queue!="dead-letter"} >= 5
+        expr: suppernote_queue_jobs{state="failed",queue!="dead-letter"} >= 5
         for: 10m
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'File « {{ $labels.queue }} » : {{ $value }} jobs en échec'
           description: "La file BullMQ {{ $labels.queue }} cumule les jobs failed. Vérifier les logs API (grep 'job failed') et la dead-letter."
 
       # Dead-letter non vide : jobs définitivement perdus sans replay auto.
       - alert: DeadLetterBacklog
-        expr: sokar_queue_jobs{queue="dead-letter",state="waiting"} > 0
+        expr: suppernote_queue_jobs{queue="dead-letter",state="waiting"} > 0
         for: 5m
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: '{{ $value }} job(s) en dead-letter'
           description: 'Des jobs ont épuisé toutes leurs tentatives et ne seront jamais rejoués automatiquement. Investigation manuelle requise.'
 
       # Backlog : la file n'absorbe plus le travail (worker arrêté ou lent).
       - alert: QueueBacklog
-        expr: sokar_queue_jobs{state="waiting",queue!="dead-letter"} >= 100
+        expr: suppernote_queue_jobs{state="waiting",queue!="dead-letter"} >= 100
         for: 10m
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Backlog de {{ $value }} jobs dans « {{ $labels.queue }} »'
           description: 'La file {{ $labels.queue }} accumule : worker arrêté, Redis lent ou pic de trafic.'
 
       # Appels sans transcription / sans réponse (gauche du check in-app 24h).
       - alert: CallsMissingTranscript
-        expr: sokar_calls_missing_transcript_24h > 0
+        expr: suppernote_calls_missing_transcript_24h > 0
         for: 15m
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: '{{ $value }} appel(s) sans transcription ou sans outcome sur 24h'
           description: 'Pipeline voix potentiellement cassé (ElevenLabs STT, stream WebSocket, webhook /voice/telnyx/end). Vérifier les logs API et passer un appel test.'
 
       # Réservations créées sans SMS de confirmation tracé.
       - alert: ReservationsMissingConfirmationSms
-        expr: sokar_reservations_missing_confirmation_sms_24h > 0
+        expr: suppernote_reservations_missing_confirmation_sms_24h > 0
         for: 15m
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: '{{ $value }} réservation(s) sans SMS de confirmation sur 24h'
           description: "Des réservations avec téléphone client n'ont pas de trace d'envoi du SMS de confirmation. Vérifier la file sms-client, les logs outbound-confirm et le solde Telnyx."
 
       # Canal d'alerte cassé : des erreurs d'envoi s'accumulent.
       - alert: AlertDeliveryFailing
-        expr: increase(sokar_alerts_sent_total{result="error"}[1h]) > 0
+        expr: increase(suppernote_alerts_sent_total{result="error"}[1h]) > 0
         for: 5m
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: "Échec d'envoi d'alerte sur le canal {{ $labels.channel }}"
           description: "Le dispatcher d'alertes n'arrive plus à envoyer sur {{ $labels.channel }}. Vérifier ALERT_EMAIL_TO / ALERT_WEBHOOK_URL / ALERT_SMS_TO et les logs API."
 
   # ── Observabilité Connect + MCP (Phase 1) ────────────────────────────────
-  - name: sokar-connect-observability
+  - name: suppernote-connect-observability
     interval: 5m
     rules:
       # MCP : si aucun tool MCP n'est appelé pendant 72h après déploiement,
       # c'est que le serveur MCP n'est pas découvert/utilisé par les clients.
       - alert: McpToolCallsStale
-        expr: increase(sokar_mcp_tool_calls_total[72h]) == 0
+        expr: increase(suppernote_mcp_tool_calls_total[72h]) == 0
         for: 72h
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Aucun appel MCP tool depuis 72h'
-          description: "sokar_mcp_tool_calls_total n'a pas augmenté pendant 72h. Le serveur MCP n'est peut-être pas découvert par les clients MCP (Claude Desktop, Cursor), ou l'auth/API key n'est pas configurée."
+          description: "suppernote_mcp_tool_calls_total n'a pas augmenté pendant 72h. Le serveur MCP n'est peut-être pas découvert par les clients MCP (Claude Desktop, Cursor), ou l'auth/API key n'est pas configurée."
 
       # IA crawl : si aucun bot IA ne crawl les pages publiques pendant 72h,
       # c'est que le crawl IA ne se produit pas (robots.txt bloquant, DNS, ou
       # les bots n'ont pas encore découvert le site).
       - alert: IaBotHitsStale
-        expr: increase(sokar_connect_ia_bot_hits_total[72h]) == 0
+        expr: increase(suppernote_connect_ia_bot_hits_total[72h]) == 0
         for: 72h
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Aucun hit bot IA depuis 72h'
-          description: "sokar_connect_ia_bot_hits_total n'a pas augmenté pendant 72h. Les bots IA (GPTBot, ClaudeBot, OAI-SearchBot...) ne crawlent pas Suppernote. Vérifier robots.txt, le sitemap, et que les pages sont indexables."
+          description: "suppernote_connect_ia_bot_hits_total n'a pas augmenté pendant 72h. Les bots IA (GPTBot, ClaudeBot, OAI-SearchBot...) ne crawlent pas Suppernote. Vérifier robots.txt, le sitemap, et que les pages sont indexables."
 
       # MCP error rate : si >10% des appels MCP sont en erreur sur 1h.
       - alert: McpToolErrorRateHigh
         expr: |
-          sum(rate(sokar_mcp_tool_calls_total{status="error"}[1h]))
+          sum(rate(suppernote_mcp_tool_calls_total{status="error"}[1h]))
           /
-          clamp_min(sum(rate(sokar_mcp_tool_calls_total[1h])), 0.001)
+          clamp_min(sum(rate(suppernote_mcp_tool_calls_total[1h])), 0.001)
           > 0.10
         for: 1h
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: "Taux d'erreur MCP > 10% sur 1h"
           description: "Plus de 10% des appels MCP tool échouent. Vérifier les logs API et l'état des services dépendants (DB, Redis, Telnyx)."
@@ -191,26 +191,26 @@ groups:
       # Seuil de 10/5min = évite le bruit d'un hoquet isolé, détecte un down
       # réel (Redis down → chaque requête rate-limit/cache fail-open).
       - alert: FailOpenBurst
-        expr: increase(sokar_fail_open_total[5m]) > 10
+        expr: increase(suppernote_fail_open_total[5m]) > 10
         for: 5m
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Fail-open Redis/cache en rafale ({{ $value }} en 5min)'
-          description: "sokar_fail_open_total a augmenté de plus de 10 sur 5 minutes. Un service Redis/cache (rate limiter MCP, connect rate limit, cache OpenAI Reserve, idempotency) est probablement down. Vérifier l'état Redis et les logs API (grep 'fail_open')."
+          description: "suppernote_fail_open_total a augmenté de plus de 10 sur 5 minutes. Un service Redis/cache (rate limiter MCP, connect rate limit, cache OpenAI Reserve, idempotency) est probablement down. Vérifier l'état Redis et les logs API (grep 'fail_open')."
 
-  - name: sokar-voice-providers
+  - name: suppernote-voice-providers
     interval: 15s
     rules:
       # Un seul échec d'authentification, de quota ou de conditions suffit à
       # rendre les nouvelles transcriptions indisponibles.
       - alert: SttTerminalProviderError
-        expr: increase(sokar_voice_provider_errors_total{provider=~"deepgram_stt|cartesia_stt",type=~"quota|auth|terms"}[5m]) > 0
+        expr: increase(suppernote_voice_provider_errors_total{provider=~"deepgram_stt|cartesia_stt",type=~"quota|auth|terms"}[5m]) > 0
         for: 0s
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: '{{ $labels.provider }} refuse la transcription ({{ $labels.type }})'
           description: 'Au moins une erreur terminale STT a été observée en 5 minutes. Vérifier le compte fournisseur, les conditions acceptées et la clé sans l’afficher dans les logs.'
@@ -218,41 +218,41 @@ groups:
       # Plus de cinq appels distincts touchés sur 10 minutes déclenche l'alerte
       # dispatchée par stream/stt-alerts.ts (fenêtre Redis de 10 minutes).
       - alert: SttAffectedCalls
-        expr: increase(sokar_voice_provider_errors_total{provider=~"deepgram_stt|cartesia_stt",type="connection_unavailable"}[10m]) > 5
+        expr: increase(suppernote_voice_provider_errors_total{provider=~"deepgram_stt|cartesia_stt",type="connection_unavailable"}[10m]) > 5
         for: 0s
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Plus de cinq appels touchés par une indisponibilité STT'
           description: 'Plus de cinq appels distincts ont épuisé leurs tentatives de connexion STT en 10 minutes. Vérifier la connectivité, le statut des fournisseurs et les logs API.'
 
       - alert: ElevenLabsCharacterUsage80Percent
-        expr: sokar_elevenlabs_character_limit > 0 and sokar_elevenlabs_character_count / sokar_elevenlabs_character_limit >= 0.80
+        expr: suppernote_elevenlabs_character_limit > 0 and suppernote_elevenlabs_character_count / suppernote_elevenlabs_character_limit >= 0.80
         for: 0s
         labels:
           severity: warning
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Compte ElevenLabs à {{ $value | humanizePercentage }}'
           description: 'Le compte ElevenLabs a consommé au moins 80 % de sa limite de caractères. Vérifier le solde et arrêter les benchmarks.'
 
       - alert: ElevenLabsCharacterUsage95Percent
-        expr: sokar_elevenlabs_character_limit > 0 and sokar_elevenlabs_character_count / sokar_elevenlabs_character_limit >= 0.95
+        expr: suppernote_elevenlabs_character_limit > 0 and suppernote_elevenlabs_character_count / suppernote_elevenlabs_character_limit >= 0.95
         for: 0s
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Compte ElevenLabs presque épuisé ({{ $value | humanizePercentage }})'
           description: 'Le compte ElevenLabs a consommé au moins 95 % de sa limite de caractères. Traiter le quota avant toute nouvelle campagne de benchmarks.'
 
       - alert: ElevenLabsCharacterUsage100Percent
-        expr: sokar_elevenlabs_character_limit > 0 and sokar_elevenlabs_character_count / sokar_elevenlabs_character_limit >= 1
+        expr: suppernote_elevenlabs_character_limit > 0 and suppernote_elevenlabs_character_count / suppernote_elevenlabs_character_limit >= 1
         for: 0s
         labels:
           severity: critical
-          team: sokar
+          team: suppernote
         annotations:
           summary: 'Limite de caractères ElevenLabs atteinte'
           description: 'Le compte ElevenLabs a atteint ou dépassé sa limite de caractères.'

@@ -1,5 +1,5 @@
 {
-  "uid": "sokar-voice-slo",
+  "uid": "suppernote-voice-slo",
   "title": "Suppernote — Voice & SLO",
   "tags": ["suppernote", "voice", "slo"],
   "timezone": "browser",
@@ -30,7 +30,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_slo_status{env=~\"$env\"}",
+          "expr": "suppernote_slo_status{env=~\"$env\"}",
           "legendFormat": "{{slo}}",
           "instant": true
         }
@@ -61,7 +61,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sokar_voice_active_sessions{env=~\"$env\"}",
+          "expr": "suppernote_voice_active_sessions{env=~\"$env\"}",
           "legendFormat": "{{env}}"
         }
       ],
@@ -94,7 +94,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (provider, type) (rate(sokar_voice_provider_errors_total{env=~\"$env\"}[5m]))",
+          "expr": "sum by (provider, type) (rate(suppernote_voice_provider_errors_total{env=~\"$env\"}[5m]))",
           "legendFormat": "{{provider}} · {{type}}"
         }
       ],
@@ -109,7 +109,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(sokar_connect_request_duration_ms_bucket{env=~\"$env\", status=\"2xx\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(suppernote_connect_request_duration_ms_bucket{env=~\"$env\", status=\"2xx\"}[5m])))",
           "legendFormat": "p95 Connect"
         }
       ],
@@ -124,7 +124,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(sokar_voice_llm_first_token_ms_bucket{env=~\"$env\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(suppernote_voice_llm_first_token_ms_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p95 TTFT"
         }
       ],
@@ -139,7 +139,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(sokar_voice_tts_first_audio_ms_bucket{env=~\"$env\"}[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(suppernote_voice_tts_first_audio_ms_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p95 premier audio"
         }
       ],
@@ -154,7 +154,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[24h]))",
+          "expr": "sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[24h]))",
           "instant": true
         }
       ],
@@ -175,7 +175,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\",status=\"valid\"}[24h])) / (sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[24h])) > 0)",
+          "expr": "100 * sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\",status=\"valid\"}[24h])) / (sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[24h])) > 0)",
           "instant": true
         }
       ],
@@ -199,7 +199,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\",policy_outcome=\"accepted\"}[24h])) / (sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\",policy_outcome=~\"accepted|rejected\"}[24h])) > 0)",
+          "expr": "100 * sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\",policy_outcome=\"accepted\"}[24h])) / (sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\",policy_outcome=~\"accepted|rejected\"}[24h])) > 0)",
           "instant": true
         }
       ],
@@ -223,7 +223,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\",agreement=\"agree\"}[24h])) / (sum(increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\",agreement=~\"agree|disagree\"}[24h])) > 0)",
+          "expr": "100 * sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\",agreement=\"agree\"}[24h])) / (sum(increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\",agreement=~\"agree|disagree\"}[24h])) > 0)",
           "instant": true
         }
       ],
@@ -247,7 +247,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (increase(sokar_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[1h]))",
+          "expr": "sum by (status) (increase(suppernote_voice_turn_plan_shadow_observations_total{env=~\"$env\"}[1h]))",
           "legendFormat": "{{status}}"
         }
       ],
@@ -268,7 +268,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "100 * sum by (dimension, path) (increase(sokar_voice_turn_plan_shadow_dimension_total{env=~\"$env\",agreement=\"agree\"}[24h])) / (sum by (dimension, path) (increase(sokar_voice_turn_plan_shadow_dimension_total{env=~\"$env\"}[24h])) > 0)",
+          "expr": "100 * sum by (dimension, path) (increase(suppernote_voice_turn_plan_shadow_dimension_total{env=~\"$env\",agreement=\"agree\"}[24h])) / (sum by (dimension, path) (increase(suppernote_voice_turn_plan_shadow_dimension_total{env=~\"$env\"}[24h])) > 0)",
           "instant": true,
           "legendFormat": "{{dimension}} · {{path}}"
         }
@@ -299,7 +299,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (field, outcome) (increase(sokar_voice_turn_plan_authority_total{env=~\"$env\"}[1h]))",
+          "expr": "sum by (field, outcome) (increase(suppernote_voice_turn_plan_authority_total{env=~\"$env\"}[1h]))",
           "legendFormat": "{{field}} · {{outcome}}"
         }
       ],
@@ -320,7 +320,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (outcome) (increase(sokar_voice_turn_plan_deferred_total{env=~\"$env\"}[1h]))",
+          "expr": "sum by (outcome) (increase(suppernote_voice_turn_plan_deferred_total{env=~\"$env\"}[1h]))",
           "legendFormat": "{{outcome}}"
         }
       ],

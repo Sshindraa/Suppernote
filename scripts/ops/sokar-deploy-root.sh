@@ -250,7 +250,7 @@ apply_redis_config() {
 
     local sessions
     sessions="$(curl -fsS --max-time 3 http://127.0.0.1:4000/metrics 2>/dev/null \
-        | awk '/^sokar_voice_active_sessions /{print $2; exit}' || true)"
+        | awk '/^suppernote_voice_active_sessions /{print $2; exit}' || true)"
     case "$sessions" in
         0|0.0) ;;
         *)

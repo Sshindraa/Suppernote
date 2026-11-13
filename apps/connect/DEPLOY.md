@@ -128,8 +128,8 @@ curl -s http://127.0.0.1:3001/metrics | grep sokar_connect
 
 ## Métriques à surveiller
 
-- `sokar_connect_events_total{event, source}` — taux d'events par source
-- `sokar_connect_reservations_confirmed_total{source, city}` — conversion
+- `suppernote_connect_events_total{event, source}` — taux d'events par source
+- `suppernote_connect_reservations_confirmed_total{source, city}` — conversion
 - `pm2 monit` — RAM, CPU, restarts du process
 - Nginx access log — 4xx/5xx sur `/r/*` et `/restaurants/*`
 

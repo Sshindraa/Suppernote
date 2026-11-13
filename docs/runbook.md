@@ -30,12 +30,12 @@
 
 ## Health SLO summary
 
-| KPI                                                | Target  | Action si breach                            |
-| -------------------------------------------------- | ------- | ------------------------------------------- |
-| `sokar_agentic_double_booking_attempts_total`      | = 0     | Investigate immédiat (cf. §Double booking)  |
-| `sokar_agentic_pii_leaks_total`                    | = 0     | Investigate immédiat (cf. §PII leak)        |
-| `sokar_agentic_check_availability_duration_ms` p95 | < 800ms | Check Telnyx, ElevenLabs, Prisma, Redis     |
-| 5xx rate                                           | < 1%    | Check providers externes + dernière release |
+| KPI                                                     | Target  | Action si breach                            |
+| ------------------------------------------------------- | ------- | ------------------------------------------- |
+| `suppernote_agentic_double_booking_attempts_total`      | = 0     | Investigate immédiat (cf. §Double booking)  |
+| `suppernote_agentic_pii_leaks_total`                    | = 0     | Investigate immédiat (cf. §PII leak)        |
+| `suppernote_agentic_check_availability_duration_ms` p95 | < 800ms | Check Telnyx, ElevenLabs, Prisma, Redis     |
+| 5xx rate                                                | < 1%    | Check providers externes + dernière release |
 
 Source : `GET /metrics` (scrape Prometheus) ou endpoint interne
 `/api/internal/pilot-kpis` quand l'auth VPN sera en place.
@@ -47,7 +47,7 @@ Source : `GET /metrics` (scrape Prometheus) ou endpoint interne
 ### P1 — Double booking détecté
 
 **Symptôme** : Sentry alert `double_booking`, compteur
-`sokar_agentic_double_booking_attempts_total` > 0.
+`suppernote_agentic_double_booking_attempts_total` > 0.
 
 **Diagnostic** :
 
@@ -80,7 +80,7 @@ Source : `GET /metrics` (scrape Prometheus) ou endpoint interne
 ### P1 — PII leak détecté
 
 **Symptôme** : Sentry alert `pii_leak`, compteur
-`sokar_agentic_pii_leaks_total{kind="phone|email|hex"}` > 0.
+`suppernote_agentic_pii_leaks_total{kind="phone|email|hex"}` > 0.
 
 **Diagnostic** :
 

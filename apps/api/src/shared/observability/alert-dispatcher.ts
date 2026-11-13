@@ -10,7 +10,7 @@
  * Garanties :
  *   - Ne throw jamais : un canal en panne ne doit pas casser le worker de
  *     monitoring (chaque envoi est isolé dans son try/catch).
- *   - Chaque tentative est comptée dans sokar_alerts_sent_total{kind,channel,result}
+ *   - Chaque tentative est comptée dans suppernote_alerts_sent_total{kind,channel,result}
  *     pour détecter un canal silencieusement cassé.
  */
 

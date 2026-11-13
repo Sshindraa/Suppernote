@@ -18,8 +18,8 @@ describe('startMetricsServer', () => {
 
     const body = await response.text();
     // Les métriques publiées par le process worker doivent être visibles.
-    expect(body).toContain('sokar_slo_status');
-    expect(body).toContain('sokar_queue_jobs');
+    expect(body).toContain('suppernote_slo_status');
+    expect(body).toContain('suppernote_queue_jobs');
   });
 
   it('ne sert que /metrics', async () => {

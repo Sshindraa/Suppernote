@@ -23,7 +23,7 @@ const REQUIRED_CHECKS = [
   'Secret Scanning',
   'API',
   'Dashboard',
-  'Sokar Connect',
+  'Suppernote Connect',
   'Packages (shared / config / database)',
   'Semgrep',
 ];
@@ -55,7 +55,7 @@ test('evaluateChecks accepte success, skipped et neutral', () => {
   const result = evaluateChecks(
     requiredRuns({
       Dashboard: check('Dashboard', 'completed', 'skipped'),
-      'Sokar Connect': check('Sokar Connect', 'completed', 'neutral'),
+      'Suppernote Connect': check('Suppernote Connect', 'completed', 'neutral'),
     }),
   );
   assert.equal(result.state, 'ok');

@@ -115,6 +115,8 @@ export function ReservationCardGuarantee({
   const [action, setAction] = useState<'capture' | 'refund' | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+  const [available, setAvailable] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -122,6 +124,7 @@ export function ReservationCardGuarantee({
         `reservations/${reservation.id}/payment`,
       );
       setPayment(data);
+      setAvailable(true);
     } catch (err) {
       // Fonction coupée ou formule sans paiement : rien à montrer.
       if (!(err instanceof ApiError && [403, 503].includes(err.status))) {
@@ -134,7 +137,36 @@ export function ReservationCardGuarantee({
     if (allowed) void load();
   }, [allowed, load]);
 
-  if (!allowed || (!payment && !error)) return null;
+  const upcoming = new Date(reservation.reservedAt).getTime() > Date.now();
+  const canRequest =
+    available &&
+    upcoming &&
+    ['CONFIRMED', 'PENDING'].includes(reservation.state) &&
+    (!payment || ['CANCELLED', 'EXPIRED'].includes(payment.status));
+  const canResend =
+    payment?.status === 'REQUIRES_PAYMENT_METHOD' &&
+    !!payment.expiresAt &&
+    new Date(payment.expiresAt).getTime() > Date.now();
+
+  if (!allowed || (!payment && !error && !canRequest)) return null;
+
+  async function sendLink(kind: 'request' | 'resend') {
+    setSending(true);
+    setError('');
+    try {
+      await post(`reservations/${reservation.id}/payment/${kind}`);
+      toast.success('Le lien d’empreinte bancaire part par SMS au client.');
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status === 404
+          ? 'Activez d’abord l’empreinte bancaire dans les réglages.'
+          : getErrorMessage(err, 'Le lien n’a pas pu être envoyé.'),
+      );
+    } finally {
+      setSending(false);
+    }
+  }
 
   const withinWindow = Date.now() <= new Date(reservation.reservedAt).getTime() + CAPTURE_WINDOW_MS;
   const capturable =
@@ -198,6 +230,24 @@ export function ReservationCardGuarantee({
         <p className="text-destructive">
           Litige ouvert par le client : répondez-y depuis votre tableau de bord Stripe.
         </p>
+      )}
+      {!payment && canRequest && (
+        <p className="text-muted-foreground">
+          Le client reçoit par SMS un lien pour enregistrer sa carte. La réservation reste
+          confirmée.
+        </p>
+      )}
+      {(canRequest || canResend) && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={sending}
+          onClick={() => void sendLink(canResend ? 'resend' : 'request')}
+          className="transition-all duration-200"
+        >
+          {sending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+          {canResend ? 'Renvoyer le lien par SMS' : 'Demander une empreinte par SMS'}
+        </Button>
       )}
       {(capturable || refundable) && (
         <div className="flex items-end gap-2">

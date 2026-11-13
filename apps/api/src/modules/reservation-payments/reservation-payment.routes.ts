@@ -21,6 +21,10 @@ import {
   transitionReservationPayment,
 } from './reservation-payment.service';
 import {
+  requestCardGuaranteeByStaff,
+  resendCardGuaranteeLink,
+} from './reservation-guarantee.staff';
+import {
   CardGuaranteeSettingsSchema,
   getCardGuaranteeSettings,
   saveCardGuaranteeSettings,
@@ -241,6 +245,37 @@ export async function reservationPaymentRoutes(app: FastifyInstance): Promise<vo
         return reply.status(503).send({ error: 'RESERVATION_PAYMENTS_DISABLED' });
       }
       return reply.send({ expiredCount: await expireReservationPayments() });
+    },
+  );
+
+  app.post(
+    '/reservations/:id/payment/request',
+    { preHandler: paymentWrite },
+    async (request, reply) => {
+      const { id } = ReservationParamsSchema.parse(request.params);
+      try {
+        const result = await requestCardGuaranteeByStaff({
+          restaurantId: request.restaurantId,
+          reservationId: id,
+        });
+        return reply.status(201).send({ data: result });
+      } catch (error) {
+        return sendPaymentError(error, reply) ?? Promise.reject(error);
+      }
+    },
+  );
+
+  app.post(
+    '/reservations/:id/payment/resend',
+    { preHandler: paymentWrite },
+    async (request, reply) => {
+      const { id } = ReservationParamsSchema.parse(request.params);
+      try {
+        await resendCardGuaranteeLink({ restaurantId: request.restaurantId, reservationId: id });
+        return reply.status(202).send({ data: { queued: true } });
+      } catch (error) {
+        return sendPaymentError(error, reply) ?? Promise.reject(error);
+      }
     },
   );
 

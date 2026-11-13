@@ -46,6 +46,11 @@ function signature(paymentId: string, restaurantId: string, key: Buffer): Buffer
     .digest();
 }
 
+/** Les liens d'empreinte se signent et pointent vers une page HTTPS. */
+export function cardGuaranteeLinksConfigured(): boolean {
+  return Boolean(linkKey() && dashboardUrl());
+}
+
 export function cardGuaranteeToken(payment: { id: string; restaurantId: string }): string | null {
   const key = linkKey();
   if (!key || !UUID.test(payment.id)) return null;

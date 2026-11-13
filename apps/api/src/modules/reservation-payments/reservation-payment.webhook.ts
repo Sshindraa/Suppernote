@@ -13,6 +13,7 @@ import {
   applyReservationPaymentProviderEvent,
   type ReservationPaymentProviderEventResult,
 } from './reservation-payment.service';
+import { enqueueConfirmationAfterCardGuarantee } from './reservation-guarantee.sms';
 
 const MetadataSchema = z.object({
   type: z.literal(RESERVATION_GUARANTEE_METADATA_TYPE),
@@ -128,6 +129,21 @@ export async function handleReservationPaymentStripeEvent(
         ? { disputeStatus: stringValue(object.status) }
         : {}),
     });
+    if (result.reservationConfirmed && result.reservationId) {
+      // Hors de la transaction : un échec de mise en file ne doit pas faire rejouer l'événement.
+      await enqueueConfirmationAfterCardGuarantee(db, {
+        id: result.reservationId,
+        restaurantId: target.restaurantId,
+      }).catch((error: unknown) =>
+        logger.warn(
+          {
+            paymentId: target.paymentId,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'reservation guarantee: confirmation SMS not queued',
+        ),
+      );
+    }
     return { handled: true, ...result };
   } catch (error) {
     if (

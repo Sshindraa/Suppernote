@@ -11,6 +11,9 @@
  *   6. log un audit event
  */
 
+import { env } from '../../../../env';
+import { utcToZonedParts } from '../../../../shared/timezone/restaurant-time';
+import { findCardGuaranteeTerms } from '../../../reservation-payments/reservation-guarantee.public';
 import type { PrismaClient } from '@prisma/client';
 import { canonicalDemoSlug } from '@suppernote/shared';
 import { logger } from '../../../../shared/logger/pino';
@@ -567,6 +570,24 @@ export class McpToolRegistry {
         endsAt,
       });
       if (violation) return violation;
+
+      // Empreinte bancaire (spec v1) : jamais de carte via un assistant ; la réservation se
+      // termine sur la page du restaurant.
+      const guarantee = await findCardGuaranteeTerms({
+        restaurantId: input.restaurantId,
+        partySize: input.partySize,
+        localDate: utcToZonedParts(startsAt, exposure.settings.timezone).date,
+      });
+      if (guarantee) {
+        const restaurant = await this.prisma.restaurant.findUnique({
+          where: { id: input.restaurantId },
+          select: { slug: true },
+        });
+        return toolError(
+          `Ce restaurant demande une empreinte bancaire pour cette réservation : elle se termine sur sa page de réservation${restaurant?.slug ? ` (${env.SITE_URL}/book/${restaurant.slug})` : ''}.`,
+          'CARD_GUARANTEE_REQUIRED',
+        );
+      }
 
       const { policy } = await this.availabilityService.getPolicyFor(input.restaurantId);
 

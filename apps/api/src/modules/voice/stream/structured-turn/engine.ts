@@ -185,6 +185,7 @@ interface PassResult {
  * ~2,2 s) ; réglable sans déploiement par VOICE_INCOMPLETE_TURN_SILENCE_MS.
  */
 import { currentInkDisagreementNote } from '../stt-ink-parallel';
+import { cardGuaranteeAvailabilityFact, voiceCardGuaranteeTerms } from '../../card-guarantee-facts';
 
 export const INCOMPLETE_TURN_SILENCE_MS = 2_000;
 
@@ -1019,6 +1020,13 @@ export async function runStructuredTurn(
     recordDebugTool(session, 'checkAvailability');
     recordVoiceTurnEvent(session, 'availability_started', {});
     const availabilityStartedAt = Date.now();
+    // Lu en parallèle de la disponibilité : aucun délai ajouté au tour.
+    const guaranteeTerms = voiceCardGuaranteeTerms({
+      restaurantId: session.restaurantId,
+      date,
+      partySize,
+      demo: Boolean(session.demo),
+    }).catch(() => null);
     try {
       const result = await mgr.getAvailability(session, date, partySize);
       state.availability = { date, partySize, slots: result.slots };
@@ -1033,7 +1041,8 @@ export async function runStructuredTurn(
           : ` ${time} n'est pas disponible.`
         : '';
       if (result.slots.length) {
-        return `Disponibilité réelle le ${date} pour ${partySize} personne(s) : créneaux libres ${offered.join(', ')}.${requested} Ne propose que ces horaires.`;
+        const guarantee = await guaranteeTerms;
+        return `Disponibilité réelle le ${date} pour ${partySize} personne(s) : créneaux libres ${offered.join(', ')}.${requested} Ne propose que ces horaires.${guarantee ? cardGuaranteeAvailabilityFact(guarantee) : ''}`;
       }
       const day = spokenDay(date);
       if (result.allSlots.length === 0) {

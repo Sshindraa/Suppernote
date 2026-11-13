@@ -47,6 +47,7 @@ import {
   ACTIVE_RESERVATION_STATES,
   reservationOverlapWhere,
 } from '../../../shared/reservations/capacity.js';
+import { isReservationOverlapViolation } from '../../../shared/reservations/overlap-violation';
 import { resolveServiceDurationMinutes } from '../../floor-plan/floor-plan.types';
 import {
   creationProjection,
@@ -627,6 +628,13 @@ export class ReservationService {
       }, DEFAULT_TRANSACTION_OPTIONS);
     } catch (err) {
       await this.idempotency.fail({ scope: idempotency.scope, key: idempotency.key });
+      if (isReservationOverlapViolation(err)) {
+        throw new ReservationSlotUnavailableError(
+          input.restaurantId,
+          input.startsAt,
+          input.partySize,
+        );
+      }
       throw err;
     }
 

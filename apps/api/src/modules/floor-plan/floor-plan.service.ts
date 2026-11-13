@@ -12,9 +12,10 @@ import {
   zonedTimeToUtc,
 } from './availability-capacity-aware.service.js';
 import { resolveServiceDurationMinutes } from './floor-plan.types.js';
-import { TableAllocationService } from './table-allocation.service.js';
+import { TableAllocationError, TableAllocationService } from './table-allocation.service.js';
 import { observeReservationMutation } from '../../shared/observability/reservation-contract';
 import { creationProjection } from '../../shared/reservations/reservation-state';
+import { isReservationOverlapViolation } from '../../shared/reservations/overlap-violation';
 
 /** Capacité minimale par défaut d'une table (1 personne) */
 const DEFAULT_TABLE_MIN_CAPACITY = 1;
@@ -706,6 +707,12 @@ export class FloorPlanService {
             replayed = true;
             return { id: existing.id };
           }
+        }
+        if (isReservationOverlapViolation(err)) {
+          throw new TableAllocationError(
+            'TABLE_NOT_AVAILABLE',
+            'Table non disponible sur ce créneau',
+          );
         }
         throw err;
       }

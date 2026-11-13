@@ -1,4 +1,5 @@
 import { snapshotCancellationPolicy } from '../../shared/reservations/cancellation-policy';
+import { isReservationOverlapViolation } from '../../shared/reservations/overlap-violation';
 import { db } from '../../shared/db/client';
 import {
   Prisma,
@@ -380,6 +381,7 @@ export class ReservationService {
         // gère l'erreur gracieusement (transfert gérant). Le premier create a
         // réussi, la réservation existe ; le retry suivant la trouvera via le
         // check externe.
+        if (isReservationOverlapViolation(err)) throw new Error('SLOT_NOT_AVAILABLE');
         throw err;
       }
     });

@@ -102,7 +102,7 @@ function makeIdempotencyStore(): IdempotencyStore {
   };
 }
 
-function makeFakes(hasTables = true, tableCapacities: number[] = [10]) {
+function makeFakes(hasTables = true, tableCapacities: number[] = [10], overlapOnCreate = false) {
   const holds = new Map<string, HoldRow>();
   const reservations = new Map<string, ReservationRow>();
   const audits: Record<string, unknown>[] = [];
@@ -244,6 +244,11 @@ function makeFakes(hasTables = true, tableCapacities: number[] = [10]) {
     },
     reservation: {
       create: async ({ data }: { data: Record<string, unknown> }) => {
+        if (overlapOnCreate) {
+          throw new Error(
+            'conflicting key violates exclusion constraint "reservations_no_overlap_active"',
+          );
+        }
         createdReservationData.push(data);
         const id = `reservation-${reservations.size + 1}`;
         const row: ReservationRow = {
@@ -900,6 +905,33 @@ describe('reservation.service', () => {
           scope: 'scope-global-block',
           key: 'key-global-block',
           payloadHash: hashPayload({ global: true }),
+          ttlSeconds: 300,
+        },
+      ),
+    ).rejects.toBeInstanceOf(ReservationSlotUnavailableError);
+  });
+
+  it('chevauchement sur la table au create (23P01) → ReservationSlotUnavailableError', async () => {
+    const fakes = makeFakes(true, [10], true);
+    const startsAt = new Date(Date.now() + 3_600_000);
+
+    await expect(
+      fakes.reservationsService.createReservation(
+        {
+          restaurantId: 'r-1',
+          partySize: 2,
+          startsAt,
+          endsAt: new Date(startsAt.getTime() + 90 * 60_000),
+          customerName: 'Overlap client',
+          customerPhone: '+33600000000',
+          channel: 'MCP',
+          policy,
+          actor: 'agent:test',
+        },
+        {
+          scope: 'scope-overlap-23p01',
+          key: 'key-overlap-23p01',
+          payloadHash: hashPayload({ overlap: true }),
           ttlSeconds: 300,
         },
       ),

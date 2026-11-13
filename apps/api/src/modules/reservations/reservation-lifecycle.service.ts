@@ -104,6 +104,11 @@ export class ReservationLifecycleService {
     tx: Prisma.TransactionClient,
     args: ReservationLifecycleTransitionInput,
   ): Promise<ReservationLifecycleResult> {
+    // SEATED vérifie la capacité du restaurant : son verrou doit précéder le verrou de ligne,
+    // comme dans les autres chemins, sinon interblocage avec la promotion Service Copilot.
+    if (args.toState === 'SEATED') {
+      await this.tableAllocation.lockRestaurantCapacity(tx, args.restaurantId);
+    }
     // Serialize lifecycle decisions for one tenant/row. The fallback keeps
     // lightweight compatibility fakes usable in unit tests; real Prisma
     // clients always expose `$queryRaw`.

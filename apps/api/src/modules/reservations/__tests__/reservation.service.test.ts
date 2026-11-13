@@ -315,6 +315,23 @@ describe('ReservationService.create - replay-safe (idempotent on callId)', () =>
     expect(db.reservation.create).toHaveBeenCalled();
   });
 
+  it('create : chevauchement sur la table (23P01) → SLOT_NOT_AVAILABLE, pas d’erreur générique', async () => {
+    vi.mocked(db.restaurant.findUniqueOrThrow).mockResolvedValue(
+      mockRestaurant as unknown as Awaited<ReturnType<typeof db.restaurant.findUniqueOrThrow>>,
+    );
+    vi.mocked(db.reservation.findUnique).mockResolvedValue(null);
+    vi.mocked(db.reservation.create).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError(
+        'conflicting key violates exclusion constraint "reservations_no_overlap_active"',
+        { code: 'P2010', clientVersion: 'test', meta: { code: '23P01' } },
+      ),
+    );
+
+    await expect(ReservationService.create(makeInput({ callId: 'leg-overlap' }))).rejects.toThrow(
+      'SLOT_NOT_AVAILABLE',
+    );
+  });
+
   it('create : double-check in transaction trouve existing → skip table allocation', async () => {
     const existing = {
       id: 'res-dbl',

@@ -239,6 +239,8 @@ export class ServiceCopilotDelayRecoveryService {
     }
 
     const result: DelayRecoveryResult = await this.prisma.$transaction(async (tx) => {
+      // Verrou restaurant avant les verrous de ligne, dans le même ordre que les autres chemins.
+      await this.allocation.lockRestaurantCapacity(tx, args.restaurantId);
       await tx.$queryRaw(
         Prisma.sql`SELECT id FROM reservations WHERE id = ${args.reservationId} FOR UPDATE`,
       );
@@ -341,6 +343,22 @@ export class ServiceCopilotDelayRecoveryService {
         ),
       ]);
       if (!alternativeIsFree || !originalIsFree) {
+        throw new DelayRecoveryConflictError('Un conflit est apparu pendant la confirmation.');
+      }
+      // Capacité virtuelle : une réservation sans table ne doit pas être évincée par la promotion.
+      if (
+        await this.allocation.hasGlobalCapacityConflict(
+          {
+            restaurantId: args.restaurantId,
+            partySize: entry.partySize,
+            startsAt: promotedStartsAt,
+            endsAt: promotedEndsAt,
+            tableId: originalTable.id,
+            excludeReservationId: reservation.id,
+          },
+          tx,
+        )
+      ) {
         throw new DelayRecoveryConflictError('Un conflit est apparu pendant la confirmation.');
       }
 
@@ -511,6 +529,7 @@ export class ServiceCopilotDelayRecoveryService {
 
     let lifecycleResult: ReservationLifecycleResult | null = null;
     const result: DelayRecoveryRevertResult = await this.prisma.$transaction(async (tx) => {
+      await this.allocation.lockRestaurantCapacity(tx, args.restaurantId);
       for (const reservationId of [args.reservationId, snapshot.promotedReservationId].sort()) {
         await tx.$queryRaw(
           Prisma.sql`SELECT id FROM reservations WHERE id = ${reservationId} FOR UPDATE`,
@@ -612,6 +631,25 @@ export class ServiceCopilotDelayRecoveryService {
         // snapshot keeps the small recovery fakes compatible with the helper.
         snapshot: promoted as Reservation,
       });
+      // La promotion est annulée (hors conflit) : la capacité initiale doit être libre pour le retour.
+      if (
+        await this.allocation.hasGlobalCapacityConflict(
+          {
+            restaurantId: args.restaurantId,
+            partySize: delayed.partySize,
+            startsAt: snapshot.originalStartsAt,
+            endsAt: snapshot.originalEndsAt,
+            tableId: snapshot.originalTableId,
+            excludeReservationId: delayed.id,
+          },
+          tx,
+        )
+      ) {
+        throw new DelayRecoveryConflictError(
+          'La capacité initiale est désormais prise. Le plan ne peut pas être annulé automatiquement.',
+        );
+      }
+
       // Release the promoted booking first: PostgreSQL enforces active table overlap
       // immediately, even inside this transaction. Both mutations remain atomic.
       await tx.reservation.update({

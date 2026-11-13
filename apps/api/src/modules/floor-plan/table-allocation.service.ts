@@ -530,7 +530,7 @@ export class TableAllocationService {
    * Conflit de placement pour un groupe sans table fixée : même verdict que la création et la
    * disponibilité (voir unassigned-seating.ts).
    */
-  private async hasGlobalCapacityConflict(
+  async hasGlobalCapacityConflict(
     input: AllocateTableInput & { tableId?: string | null },
     tx?: Prisma.TransactionClient,
     excludeHoldId?: string,

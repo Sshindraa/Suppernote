@@ -50,6 +50,9 @@ const preflight = {
 describe('ServiceCopilotDelayRecoveryService', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(TableAllocationService.prototype, 'hasGlobalCapacityConflict').mockResolvedValue(
+      false,
+    );
   });
 
   it('applique les deux mutations seulement après revalidation sous verrou', async () => {
@@ -97,7 +100,8 @@ describe('ServiceCopilotDelayRecoveryService', () => {
       promotedReservationId: 'promoted-1',
       operationId: 'delay-recovery:reservation-1:20:table-7:waiting-1',
     });
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(4);
+    // 1 verrou restaurant (advisory) + 2 verrous de ligne + 2 verrous de table.
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(5);
     expect(tx.reservation.update).toHaveBeenCalledWith({
       where: { id: 'reservation-1' },
       data: {
@@ -133,6 +137,48 @@ describe('ServiceCopilotDelayRecoveryService', () => {
         }),
       }),
     );
+  });
+
+  it('refuse la promotion si elle prendrait la capacité d’une réservation sans table', async () => {
+    const { prisma, tx } = makePrismaMock();
+    const service = new ServiceCopilotDelayRecoveryService(prisma);
+    vi.spyOn(ServiceCopilotDelayImpactService.prototype, 'simulate').mockResolvedValue(preflight);
+    vi.spyOn(TableAllocationService.prototype, 'isTableAvailable').mockResolvedValue(true);
+    vi.spyOn(TableAllocationService.prototype, 'hasGlobalCapacityConflict').mockResolvedValue(true);
+    tx.reservation.findFirst.mockResolvedValue({
+      id: 'reservation-1',
+      restaurantId: 'rest-1',
+      partySize: 2,
+      tableId: 'table-12',
+      startsAt: new Date('2026-07-21T17:30:00.000Z'),
+      endsAt: new Date('2026-07-21T19:00:00.000Z'),
+    });
+    tx.waitingListEntry.findFirst.mockResolvedValue({
+      id: 'waiting-1',
+      restaurantId: 'rest-1',
+      partySize: 2,
+      customerFirstName: 'Lina',
+      customerLastName: 'Dupont',
+      customerPhone: '+33600000000',
+      customerEmail: null,
+    });
+    tx.table.findFirst
+      .mockResolvedValueOnce({ id: 'table-12', capacity: 2, minCapacity: 1 })
+      .mockResolvedValueOnce({ id: 'table-7', capacity: 2, minCapacity: 1 });
+
+    await expect(
+      service.apply({
+        restaurantId: 'rest-1',
+        reservationId: 'reservation-1',
+        delayMinutes: 20,
+        alternativeTableId: 'table-7',
+        waitingListEntryId: 'waiting-1',
+        actor: 'manager-1',
+        waitingListAcceptanceConfirmed: true,
+      }),
+    ).rejects.toBeInstanceOf(DelayRecoveryConflictError);
+    expect(tx.reservation.create).not.toHaveBeenCalled();
+    expect(tx.reservation.update).not.toHaveBeenCalled();
   });
 
   it('n’écrit rien si le plan à confirmer ne correspond plus au préflight', async () => {
@@ -316,7 +362,7 @@ describe('ServiceCopilotDelayRecoveryService', () => {
         idempotencyKey: 'same-action-key',
       }),
     ).rejects.toThrow('déjà été utilisée pour un autre plan');
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(3);
     expect(tx.reservation.update).not.toHaveBeenCalled();
     expect(tx.reservation.create).not.toHaveBeenCalled();
   });
@@ -409,7 +455,7 @@ describe('ServiceCopilotDelayRecoveryService', () => {
       waitingListEntryId: 'waiting-1',
       operationId: 'delay-report-1',
     });
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(6);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(7);
     expect(tx.reservation.update).toHaveBeenNthCalledWith(2, {
       where: { id: 'reservation-1' },
       data: {

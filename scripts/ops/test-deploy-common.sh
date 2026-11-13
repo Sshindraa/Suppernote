@@ -197,6 +197,10 @@ test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 1
 voice_metrics='suppernote_voice_active_sessions 3'
 : > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=2 VOICE_DRAIN_POLL_SECONDS=1 wait_for_voice_idle >/dev/null 2>&1
 test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 3
+# API encore sur l'ancien nom pendant le déploiement du renommage : on attend aussi.
+voice_metrics='sokar_voice_active_sessions 3'
+: > "$VOICE_POLLS"; VOICE_DRAIN_MAX_SECONDS=2 VOICE_DRAIN_POLL_SECONDS=1 wait_for_voice_idle >/dev/null 2>&1
+test "$(wc -c < "$VOICE_POLLS" | tr -d ' ')" = 3
 unset -f curl
 unset PORT_API VOICE_DRAIN_POLL_SECONDS
 

@@ -38,7 +38,7 @@ describe('mcp auth', () => {
       });
     });
 
-    it('rejette une clé sans préfixe sk_sokar_agent_', () => {
+    it('rejette une clé sans préfixe sk_suppernote_agent_', () => {
       expect(validateDevApiKey('plain-key')).toBeNull();
     });
 

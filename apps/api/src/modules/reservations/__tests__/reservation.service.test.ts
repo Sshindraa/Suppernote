@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { db } from '../../../shared/db/client';
 import { queues } from '../../../shared/queue/queues';
 import { ReservationService, RESERVATION_REPLAY_SCOPE_MISMATCH } from '../reservation.service';
+import { CapacityAwareAvailabilityService } from '../../floor-plan/availability-capacity-aware.service';
 
 vi.mock('../../../shared/db/client', () => {
   const mockDb = {
@@ -222,6 +223,40 @@ describe('ReservationService.create - replay-safe (idempotent on callId)', () =>
       });
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('create : vérifie le créneau dans le fuseau du restaurant, pas celui du process', async () => {
+    // 20:00 à Paris (18:00 UTC). Le process tourne en UTC : sans le fuseau du restaurant, 18:00 ne correspond à aucun créneau.
+    const previousTz = process.env.TZ;
+    process.env.TZ = 'UTC';
+    const getAvailability = vi
+      .spyOn(CapacityAwareAvailabilityService.prototype, 'getAvailability')
+      .mockResolvedValue({
+        slots: [{ time: '20:00', available: true }],
+      } as unknown as Awaited<ReturnType<CapacityAwareAvailabilityService['getAvailability']>>);
+    try {
+      vi.mocked(db.restaurant.findUniqueOrThrow).mockResolvedValue(
+        mockRestaurant as unknown as Awaited<ReturnType<typeof db.restaurant.findUniqueOrThrow>>,
+      );
+      vi.mocked(db.reservation.create).mockResolvedValue({
+        id: 'res-paris',
+        restaurantId: 'rest-123',
+        reservedAt: new Date('2099-06-05T18:00:00.000Z'),
+        partySize: 4,
+        customerName: 'Alice',
+        customerPhone: '+33612345678',
+      } as unknown as Awaited<ReturnType<typeof db.reservation.create>>);
+
+      const result = await ReservationService.create(
+        makeInput({ callId: undefined, reservedAt: new Date('2099-06-05T18:00:00.000Z') }),
+      );
+
+      expect(result.id).toBe('res-paris');
+      expect(getAvailability).toHaveBeenCalledWith(expect.objectContaining({ date: '2099-06-05' }));
+    } finally {
+      getAvailability.mockRestore();
+      process.env.TZ = previousTz;
     }
   });
 

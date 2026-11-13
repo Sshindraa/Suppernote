@@ -10,7 +10,11 @@ import {
 } from '@prisma/client';
 import { queues } from '../../shared/queue/queues';
 import { logger } from '../../shared/logger/pino';
-import { CapacityAwareAvailabilityService } from '../floor-plan/availability-capacity-aware.service';
+import {
+  CapacityAwareAvailabilityService,
+  DEFAULT_RESTAURANT_TIMEZONE,
+  utcToZonedParts,
+} from '../floor-plan/availability-capacity-aware.service';
 import {
   TableAllocationService,
   TableAllocationError,
@@ -64,17 +68,6 @@ export interface AvailabilityResult {
   partySize: number;
   slots: string[];
   allSlots: AvailabilitySlot[];
-}
-
-function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function timeKey(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 function reservationLifecycleEvent(
@@ -1069,7 +1062,7 @@ export class ReservationService {
   }
 
   private static async checkSlotAvailability(
-    restaurant: Pick<Restaurant, 'id'>,
+    restaurant: Pick<Restaurant, 'id' | 'timezone'>,
     startTime: Date,
     partySize: number,
   ): Promise<{ available: boolean; reason?: AvailabilitySlot['reason'] }> {
@@ -1082,15 +1075,15 @@ export class ReservationService {
       return { available: false, reason: 'past' };
     }
 
-    const date = dateKey(startTime);
+    // Les clés de créneaux sont en heure locale du restaurant, pas en heure du process.
+    const zoned = utcToZonedParts(startTime, restaurant.timezone ?? DEFAULT_RESTAURANT_TIMEZONE);
     const dto = await availability.getAvailability({
       restaurantId: restaurant.id,
-      date,
+      date: zoned.date,
       partySize,
     });
 
-    const time = timeKey(startTime);
-    const slot = dto.slots.find((s) => s.time === time);
+    const slot = dto.slots.find((s) => s.time === zoned.time);
     if (!slot) {
       return { available: false, reason: 'closed' };
     }

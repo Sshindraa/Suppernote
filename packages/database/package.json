@@ -13,6 +13,7 @@
     "push": "node ../../scripts/quality/check-db-push-target.mjs && prisma db push",
     "seed": "prisma db seed",
     "seed:companion": "tsx --env-file=../../apps/api/.env prisma/seed-companion.ts",
+    "seed:demo-service": "tsx --env-file=../../apps/api/.env prisma/seed-demo-service.ts",
     "backfill:restaurant-accounts": "tsx prisma/scripts/backfill-restaurant-accounts.ts",
     "seed:floor-plan": "tsx scripts/migrate-floor-plan.ts",
     "mcp:sandbox": "tsx prisma/scripts/mcp-sandbox.ts",

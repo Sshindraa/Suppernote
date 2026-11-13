@@ -25,7 +25,7 @@ ne peut pas recevoir ce débit. La liste propose au maximum les 50 dernières r�
 associées non débitées ; l’API accepte aussi un identifiant de réservation du même établissement.
 
 Vérifier le montant pris sur la carte et le complément, puis confirmer. Le reçu indique
-le solde restant et le complément à **encaisser dans la caisse** : Sokar n’encaisse pas
+le solde restant et le complément à **encaisser dans la caisse** : Suppernote n’encaisse pas
 ce complément. L’opération utilise le minimum entre l’addition et le solde disponible.
 Les cartes expirées, gelées, épuisées et les cagnottes encore ouvertes sont refusées.
 Ce parcours accepte les cartes en euros.

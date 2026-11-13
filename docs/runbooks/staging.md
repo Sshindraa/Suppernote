@@ -60,5 +60,5 @@ ssh deploy@sokar "pm2 logs sokar-staging-api"        # API logs
 
 ## Notes
 
-- TLS certificate: `/etc/letsencrypt/live/suppernote.com/`, the Cloudflare Origin certificate for `*.suppernote.com` shared with prod (valid until 2041, no renewal). Since 2026-10-22, staging no longer uses the Let's Encrypt certificate `staging.sokar.tech` (old domain): certbot renewal had been failing since July, and the certificate expired that day (Cloudflare 526). Both hosts must stay proxied by Cloudflare: an Origin certificate is only trusted through Cloudflare.
+- TLS certificate: `/etc/letsencrypt/live/suppernote.com/`, the Cloudflare Origin certificate for `*.suppernote.com` shared with prod (valid until 2041, no renewal). Depuis le 22 octobre 2026, staging n'utilise plus son ancien certificat Let's Encrypt : son renouvellement échouait depuis juillet et il a expiré ce jour-là (Cloudflare 526). Both hosts must stay proxied by Cloudflare: an Origin certificate is only trusted through Cloudflare.
 - Connect page `/restaurant/[slug]` is rendered dynamically (`force-dynamic`) in staging to avoid `DYNAMIC_SERVER_USAGE` during VPS build. In prod it stays ISR.

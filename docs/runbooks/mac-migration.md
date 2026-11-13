@@ -4,7 +4,7 @@
 > active. Il ne s'utilise qu'avec un bundle daté réellement présent sous
 > `docs/archive/operations/`. Voir [`../DOCUMENTATION_STATUS.md`](../DOCUMENTATION_STATUS.md).
 
-One-off procedure to clone the Sokar environment from one Mac to another (Hermes config + profiles, SSH keys, `.env` Sokar, `.zshrc` aliases). Not for daily use.
+One-off procedure to clone the Suppernote environment from one Mac to another (Hermes config + profiles, SSH keys, `.env` Suppernote, `.zshrc` aliases). Not for daily use.
 
 ## Source Mac
 

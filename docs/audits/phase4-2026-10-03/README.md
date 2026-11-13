@@ -1,4 +1,4 @@
-# Sokar — phase 4, finition de Réservations
+# Suppernote — phase 4, finition de Réservations
 
 Les vues gardent les onglets, le tableau desktop et les cartes mobiles. La lecture commence maintenant par l’heure, puis le client, les couverts, le statut et la table. Le téléphone reste sous le nom ; le revenu est qualifié d’« estimé » et sort du tableau quand la largeur manque.
 

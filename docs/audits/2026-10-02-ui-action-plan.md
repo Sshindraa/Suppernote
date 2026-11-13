@@ -1,4 +1,4 @@
-# Sokar — plan d’action UI, première passe
+# Suppernote — plan d’action UI, première passe
 
 Date : 2 octobre 2026. Statut : phases 0 à 4 réalisées ; les retouches visuelles de phase 5 ont été annulées à la demande de l’utilisateur et le widget a retrouvé l’apparence de phase 2. Vérifications locales phase 6 terminées ; PR et staging en attente d’un lot isolé.
 
@@ -18,7 +18,7 @@ Référence : [audit UI et produit](/Users/hamza/Projects/Sokar/docs/audits/2026
 
 ## Objectif et périmètre
 
-Conserver l’identité de Sokar et rendre trois parcours existants plus fiables et plus lisibles : Salle, Réservations et widget canonique du dashboard. Chaque phase produit un résultat visible ou vérifiable avant la suivante.
+Conserver l’identité de Suppernote et rendre trois parcours existants plus fiables et plus lisibles : Salle, Réservations et widget canonique du dashboard. Chaque phase produit un résultat visible ou vérifiable avant la suivante.
 
 Conserver palette ivoire/charbon/champagne, polices, verre, capsules, shell, navigation Copilot/Salle, plan et formes des tables, tableau et cartes mobiles, widget à deux étapes. La finition suit trois rôles : **navigation expressive, cartes de lecture calmes, sélection nette**. La densité reste propre à chaque usage.
 
@@ -221,7 +221,7 @@ La généralisation de nouveaux dosages de verre ou d’espacement aux styles co
 - Chaque action existante proposée respecte l’état et aboutit à un résultat visible ou à une erreur explicite.
 - Même capacité essentielle sur desktop, iPad et téléphone.
 - Moins de concurrence visuelle, espace utile augmenté là où mesuré, informations métier mieux repérables.
-- Identité Sokar et navigation immédiatement reconnaissables.
+- Identité Suppernote et navigation immédiatement reconnaissables.
 - Les gains de vitesse et d’hésitation sont mesurés lors de sessions utilisateurs ; ils ne sont pas déduits seulement de captures plus propres.
 
 ## Vérifications techniques prévues

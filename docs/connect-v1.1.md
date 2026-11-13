@@ -1,4 +1,4 @@
-# Sokar Connect — Agent-Ready Pages (Spec d'implémentation v1.1)
+# Suppernote Connect — Agent-Ready Pages (Spec d'implémentation v1.1)
 
 > **Statut : LIVRÉ / DOCUMENT DE RÉFÉRENCE — vérifié le 12 septembre 2026.**
 > L'app Connect, les routes publiques, la réservation hold/confirm idempotente, les pages
@@ -12,8 +12,8 @@
 > audit-first, transports séparés du métier.
 
 - Auteur: Hermes (review Hamza)
-- Cible Sokar: monorepo Fastify 5 + Prisma 6 + Next.js 15 (Next.js 14 à la rédaction)
-- Domaine public: `suppernote.com` (anciennement `sokar.tech`, avant le passage à Suppernote du 3 novembre 2026 ; corrigé depuis `sokar.app` du brief)
+- Cible Suppernote: monorepo Fastify 5 + Prisma 6 + Next.js 15 (Next.js 14 à la rédaction)
+- Domaine public: `suppernote.com` (canonique depuis le 3 novembre 2026)
 - v1 → v1.1 corrections: cf. §15 (changelog)
 - Décisions v1.1: `apps/connect` Next standalone · `agentic_reuse` · `suppernote.com` · `phase_1_seed_puis_attendre` · `redis_prometheus` · `optin_double_volet` corrigé · VPS + Nginx + Cloudflare proxy cache
 
@@ -21,10 +21,10 @@
 
 ## 1. Résumé exécutif + architecture en couches
 
-**Thèse.** Sokar doit être un réseau public de restaurants réservables par
+**Thèse.** Suppernote doit être un réseau public de restaurants réservables par
 IA. Le client final n'installe rien. Google, ChatGPT Search, Perplexity et
 les crawlers OpenAI découvrent le resto, lisent la page, et envoient
-l'utilisateur vers un lien Sokar prérempli pour confirmer.
+l'utilisateur vers un lien Suppernote prérempli pour confirmer.
 
 **Anti-harde.** Pas de revendication "ChatGPT réserve chez vous". Le claim
 est: "votre restaurant devient lisible et réservable depuis les moteurs
@@ -72,7 +72,7 @@ structurées et au fonctionnement réel d'OAI-SearchBot.
 
 **Pourquoi 3 couches** : la couche publique ne doit jamais connaître
 Clerk, l'API ne doit jamais servir de HTML indexable (perf, séparation
-des caches), les données portent déjà la vérité du métier. Sokar Connect
+des caches), les données portent déjà la vérité du métier. Suppernote Connect
 **consomme** les services agentic existants, **ne les duplique pas**.
 
 ### Pourquoi Next standalone (et pas static export)
@@ -158,7 +158,7 @@ pour le gating est `RestaurantExposureSettings.connectPublished`. Voir
 | `connectPublishedAt` | DateTime? | —       | date de première publication (audit)                                                            |
 | `connectDescription` | String?   | —       | override éditorial de la description publique                                                   |
 
-**Source de vérité unique** : tous les flags de gating Sokar Connect vivent
+**Source de vérité unique** : tous les flags de gating Suppernote Connect vivent
 ici. Pas de duplication sur `Restaurant`.
 
 ### 2.4 Tables à créer (P0)
@@ -202,7 +202,7 @@ Additive, 3 fichiers SQL:
    coverImageUrl, publishedAt) + colonnes sur
    `restaurant_exposure_settings` (connectPublished, connectAgentic,
    connectPublishedAt, connectDescription)
-2. `20260624000002_connect_backfill` — backfill `Chez Sokar` (Lyon,
+2. `20260624000002_connect_backfill` — backfill `Chez Suppernote` (Lyon,
    69001, FR, description courte)
 3. `20260624000003_connect_restaurant_images` — nouvelle table
 
@@ -211,7 +211,7 @@ Pas de colonne NOT NULL forcée tant que <100% des restos ont la valeur.
 ### 2.6 État API actuelle
 
 - `restaurant.routes.ts` a `GET /restaurants/:id/public` (auth Clerk).
-  **Pas utilisable** pour Sokar Connect (auth + retourne l'ID pas le slug).
+  **Pas utilisable** pour Suppernote Connect (auth + retourne l'ID pas le slug).
 - Pas de route `bySlug`.
 - Pas de route `/public/availability` exposée.
 - L'agentic-reservations a déjà `hold.service.ts` et
@@ -342,7 +342,7 @@ module.exports = nextConfig;
 
 La configuration canonique est `infra/nginx/sokar.conf` :
 
-- `/r/*`, `/restaurants/*`, `/sitemap.xml`, `/robots.txt` → Sokar Connect `:4002`
+- `/r/*`, `/restaurants/*`, `/sitemap.xml`, `/robots.txt` → Suppernote Connect `:4002`
 - `/api/proxy/*`, `/api/auth/sync` → route handlers Next.js `:3000`
 - `/api/*` et `api.suppernote.com/*` → Fastify `:4000`
 - `/widget/*` → dashboard `:3000` avec politique iframe dédiée
@@ -431,16 +431,16 @@ Tout à `false` en P0. Le restaurateur active depuis son dashboard
 pour les features transactionnelles — règle de la skill
 `feature-spec-strict` § hard limits.
 
-### 4.4 Sortie de `agenticOptIn` du gating Sokar Connect
+### 4.4 Sortie de `agenticOptIn` du gating Suppernote Connect
 
 `agenticOptIn` reste sur `Restaurant` comme flag **legacy** (utilisé
-par l'agentic-reservations MCP pour la première vague). Sokar Connect ne
+par l'agentic-reservations MCP pour la première vague). Suppernote Connect ne
 l'utilise **pas** comme prédicat. Si Hamza veut aligner les deux
-plus tard, c'est une migration dédiée, pas un hack dans Sokar Connect.
+plus tard, c'est une migration dédiée, pas un hack dans Suppernote Connect.
 
 `acceptsReservations` est la propriété publique sémantique. Elle est
 déjà sur `Restaurant` (champ `agenticOptIn` — **renommage à
-discuter en P2** pour clarifier, mais hors scope Sokar Connect).
+discuter en P2** pour clarifier, mais hors scope Suppernote Connect).
 
 ### 4.5 API publiques — auth
 
@@ -468,13 +468,13 @@ Le moteur agentic distingue déjà `QUOTE` (TTL court, pas de lock) et
 ### 5.2 State machine (déjà en place)
 
 `ReservationState` = PENDING → CONFIRMED → SEATED → HONORED (ou
-CANCELLED/NO_SHOW/FAILED/EXPIRED). Pour Sokar Connect, on entre par
+CANCELLED/NO_SHOW/FAILED/EXPIRED). Pour Suppernote Connect, on entre par
 `state=PENDING` quand le user clique "Confirmer" et que la
 confirmation SMS/email n'est pas faite, puis on bascule en
 `CONFIRMED` immédiatement (comme l'agentic) ou en `PENDING` si on
 attend une vérif OTP (à ajouter si Phase 2).
 
-> Pour Sokar Connect MVP, on **ne demande pas d'OTP** (phone déjà collecté
+> Pour Suppernote Connect MVP, on **ne demande pas d'OTP** (phone déjà collecté
 >
 > - email en option). Le client est `CONFIRMED` direct. RGPD: le
 >   `CustomerConsent` est créé en `web_booking_intent` avec
@@ -482,7 +482,7 @@ attend une vérif OTP (à ajouter si Phase 2).
 
 ### 5.3 Idempotency (déjà en place)
 
-`IdempotencyRecord` avec clé composite `(scope, key)`. Pour Sokar Connect:
+`IdempotencyRecord` avec clé composite `(scope, key)`. Pour Suppernote Connect:
 `scope = "web:{restaurantId}:{clientFingerprint}"` où `clientFingerprint`
 est un cookie first-party posé au premier GET. Si le user reclique
 "Confirmer", même clé, même réponse.
@@ -495,7 +495,7 @@ On la **garde** pour les réservations web, pas de lock séparé.
 ### 5.5 Data confidence
 
 Le champ `attributeConfidence` existe déjà sur `Restaurant` (Json).
-Pour Sokar Connect, on consomme cette confidence pour décider quoi exposer:
+Pour Suppernote Connect, on consomme cette confidence pour décider quoi exposer:
 
 | Attribut       | Confidence min pour exposer                |
 | -------------- | ------------------------------------------ |
@@ -513,11 +513,11 @@ trompeurs (cf. Google `sd-policies` sur aggregateRating inventé).
 ### 5.6 Policies versioning (déjà en place)
 
 `policyVersion` snapshot au moment du hold. Pas de changement pour
-Sokar Connect.
+Suppernote Connect.
 
 ### 5.7 Channel = WEB
 
-Toute réservation créée via Sokar Connect porte `ReservationChannel.WEB`.
+Toute réservation créée via Suppernote Connect porte `ReservationChannel.WEB`.
 L'audit log et le dashboard distinguent déjà `PHONE`, `MCP`,
 `OPENAI_RESERVE`, `ADMIN`, `API`. On ajoute `WEB` à l'enum (additif,
 pas breaking).
@@ -686,7 +686,7 @@ Sinon, retourne 200 mais avec `<meta name="robots" content="noindex,follow">`.
 
 - H1: `Restaurants réservables à {city}`
 - Texte SEO court (généré, pas inventé): "{n} restaurants à {city}
-  réservables en ligne via Sokar."
+  réservables en ligne via Suppernote."
 - Grid de cartes (cover, nom, cuisine, quartier, prix, CTA)
 - Sections internes: "Cuisines populaires", "Avec terrasse", "Pour groupes"
   (chacune calculée à partir des `Restaurant.*` fields, max 6 items)
@@ -702,7 +702,7 @@ Sinon noindex.
 **H1** : `Restaurants {cuisine} réservables à {city}`
 
 **Texte** : "Découvrez des restaurants {cuisine} à {city} réservables
-en ligne via Sokar. Consultez les horaires, adresses et disponibilités
+en ligne via Suppernote. Consultez les horaires, adresses et disponibilités
 avant de réserver votre table."
 
 ### 7.5 `/sitemap.xml` (route handler Next.js)
@@ -745,7 +745,7 @@ Sitemap: https://suppernote.com/sitemap.xml
 
 ### 7.7 `/llms.txt` (Phase 5)
 
-Fichier texte décrivant le réseau Sokar en langage naturel pour les
+Fichier texte décrivant le réseau Suppernote en langage naturel pour les
 LLMs qui le liraient. Phase 5 — pas en P0.
 
 ---
@@ -754,7 +754,7 @@ LLMs qui le liraient. Phase 5 — pas en P0.
 
 ### 8.1 Auth model (3 niveaux)
 
-- **Routes publiques Sokar Connect**: aucune auth. Rate limit par IP.
+- **Routes publiques Suppernote Connect**: aucune auth. Rate limit par IP.
 - **Routes back-office restaurateur**: Clerk + `requireOrg` (existant).
 - **Routes agent (MCP, OpenAI Reserve)**: OAuth 2.0 + API key (existant).
 
@@ -777,7 +777,7 @@ LLMs qui le liraient. Phase 5 — pas en P0.
 | `POST confirm`        | 5 req/phone/heure, 1 req/IP/sec  |
 
 Implémentation: Redis `INCR` + `EXPIRE` (même pattern que les autres
-rate limits Sokar). Pas de Redis Cluster pour P0.
+rate limits Suppernote). Pas de Redis Cluster pour P0.
 
 ### 8.4 Idempotency obligation
 
@@ -854,7 +854,7 @@ Les logs API ne doivent pas log les `holdToken` ou `customer.phone`.
 
 ### 9.1 Structured consents (déjà en place)
 
-`CustomerConsent` est déjà structuré. Pour Sokar Connect:
+`CustomerConsent` est déjà structuré. Pour Suppernote Connect:
 
 ```ts
 await db.customerConsent.create({
@@ -908,14 +908,14 @@ ses données contacte `dpo@suppernote.com`.
 
 ### 9.6 Sous-traitants
 
-| Sous-traitant            | Finalité                                                    | DPA                     |
-| ------------------------ | ----------------------------------------------------------- | ----------------------- |
-| Telnyx (carrier voix)    | Pas utilisé par Sokar Connect direct, mais SMS confirmation | À formaliser            |
-| Twilio / autre SMS       | SMS confirmation (futur)                                    | À formaliser            |
-| Cloudflare (CDN + proxy) | Servir `apps/connect` static + edge cache                   | DPA Cloudflare standard |
-| VPS hébergeur            | Host Next standalone                                        | DPA VPS                 |
+| Sous-traitant            | Finalité                                                         | DPA                     |
+| ------------------------ | ---------------------------------------------------------------- | ----------------------- |
+| Telnyx (carrier voix)    | Pas utilisé par Suppernote Connect direct, mais SMS confirmation | À formaliser            |
+| Twilio / autre SMS       | SMS confirmation (futur)                                         | À formaliser            |
+| Cloudflare (CDN + proxy) | Servir `apps/connect` static + edge cache                        | DPA Cloudflare standard |
+| VPS hébergeur            | Host Next standalone                                             | DPA VPS                 |
 
-> Le brief a noté "DPA sous-traitants à formaliser". Sokar Connect n'ajoute
+> Le brief a noté "DPA sous-traitants à formaliser". Suppernote Connect n'ajoute
 > pas de nouveau sous-traitant par rapport à l'existant. À cocher
 > dans la checklist RGPD globale.
 
@@ -928,7 +928,7 @@ ses données contacte `dpo@suppernote.com`.
 
 10 tickets. Phasage en §11.
 
-### Ticket 1 — Migration DB Sokar Connect (P0)
+### Ticket 1 — Migration DB Suppernote Connect (P0)
 
 **Scope** :
 
@@ -938,7 +938,7 @@ ses données contacte `dpo@suppernote.com`.
     `publishedAt` sur `restaurants` ; `connectPublished`,
     `connectAgentic`, `connectPublishedAt`, `connectDescription` sur
     `restaurant_exposure_settings`
-  - `20260624000002_connect_backfill` — backfill `Chez Sokar` (Lyon,
+  - `20260624000002_connect_backfill` — backfill `Chez Suppernote` (Lyon,
     69001, FR, description courte)
   - `20260624000003_connect_restaurant_images` — table
 - Modifier `schema.prisma` (additif)
@@ -962,7 +962,7 @@ ses données contacte `dpo@suppernote.com`.
 - [ ] Seed tourne toujours (avec backfill Lyon/69001)
 - [ ] `_prisma_migrations` à jour
 
-### Ticket 2 — API publique Sokar Connect (P0)
+### Ticket 2 — API publique Suppernote Connect (P0)
 
 **Scope** :
 
@@ -1152,7 +1152,7 @@ ses données contacte `dpo@suppernote.com`.
 - [ ] `GET /robots.txt` retourne `User-agent: *` + `Allow: /` + sitemap
 - [ ] `User-agent: OAI-SearchBot` présent
 
-### Ticket 9 — Tracking Sokar Connect (P0)
+### Ticket 9 — Tracking Suppernote Connect (P0)
 
 **Scope** :
 
@@ -1228,8 +1228,8 @@ Le seed `packages/database/prisma/seed.ts` check `process.env.NODE_ENV` :
 
 - `development` ou `staging` : seed 5 restos Lyon avec `connectPublished=true`,
   `connectAgentic=false`, dans le sitemap
-- `production` : seed le seul "Chez Sokar" canonique (backfill), les
-  4 restos "Chez Sokar 2-5" sont **skippés** (commentaire
+- `production` : seed le seul "Chez Suppernote" canonique (backfill), les
+  4 restos "Chez Suppernote 2-5" sont **skippés** (commentaire
   `// skipped in production: avoid polluting public index`)
 
 Le dashboard P2 permet à un restaurateur d'activer `connectAgentic=true`
@@ -1252,7 +1252,7 @@ en production. Le seed ne le fait jamais.
 
 - Pages locales indexées (Lyon, Paris si ≥5)
 - Premium subdomain (`reserve.chezmario.fr`)
-- Dashboard Sokar Connect dans `apps/dashboard/dashboard/connect`
+- Dashboard Suppernote Connect dans `apps/dashboard/dashboard/connect`
 - Plus d'intent pages (`/terrasse`, `/groupe`, `/vegetarien`)
 
 ### 11.4 P5 (post-P2)
@@ -1283,19 +1283,19 @@ en production. Le seed ne le fait jamais.
 
 ### 12.2 Risques × Impact × Mitigation
 
-| Risque                                                       | Impact                    | Mitigation                                                                                 |
-| ------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------------------------------------ |
-| Google ne crawl/indexe pas `/r/[slug]`                       | Aucun trafic              | Soumission sitemap, backlinks depuis `apps/dashboard`, demander indexation manuelle 5 URLs |
-| ChatGPT search n'utilise pas OAI-SearchBot sur notre domaine | Pas d'acquisition agent   | Étude P5, test avec 5 URLs dans Perplexity/ChatGPT manuellement                            |
-| Restaurateur publie infos fausses (adresse, horaires)        | Réputation, SEO négatif   | Backoffice: validation manuelle avant `connectPublished=true`, signalement utilisateur     |
-| Spam de réservations                                         | Capacity épuisée, no-show | Rate limit phone, honeypot, blocage si >3 echec/heure                                      |
-| Double booking (race condition hold→confirm)                 | UX dégradée               | Contrainte partielle SQL existe déjà                                                       |
-| `attributeConfidence` < 0.5 partout                          | Pages maigres             | Onboarding force la saisie; minimum 4 champs requis pour publier                           |
-| Drain SEO par pages locales pauvres                          | Pénalité Google           | `noindex` strict si <seuil; pas d'URLs en double                                           |
-| Faux restos seed en prod                                     | Pollution index           | `NODE_ENV=production` skip le seed 5 restos Lyon (§11.1)                                   |
-| VPS down                                                     | Tout Sokar Connect down   | On est sur `suppernote.com` qui est déjà monitoré                                          |
-| Vitest suite timeout sur 10 fichiers                         | CI rouge                  | Background + notify_on_complete pattern (cf. skill)                                        |
-| `aggregateRating` inventé par erreur                         | Pénalité Google           | Test unitaire strict, lint custom qui refuse le mot `aggregateRating` hors contexte        |
+| Risque                                                       | Impact                       | Mitigation                                                                                 |
+| ------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------ |
+| Google ne crawl/indexe pas `/r/[slug]`                       | Aucun trafic                 | Soumission sitemap, backlinks depuis `apps/dashboard`, demander indexation manuelle 5 URLs |
+| ChatGPT search n'utilise pas OAI-SearchBot sur notre domaine | Pas d'acquisition agent      | Étude P5, test avec 5 URLs dans Perplexity/ChatGPT manuellement                            |
+| Restaurateur publie infos fausses (adresse, horaires)        | Réputation, SEO négatif      | Backoffice: validation manuelle avant `connectPublished=true`, signalement utilisateur     |
+| Spam de réservations                                         | Capacity épuisée, no-show    | Rate limit phone, honeypot, blocage si >3 echec/heure                                      |
+| Double booking (race condition hold→confirm)                 | UX dégradée                  | Contrainte partielle SQL existe déjà                                                       |
+| `attributeConfidence` < 0.5 partout                          | Pages maigres                | Onboarding force la saisie; minimum 4 champs requis pour publier                           |
+| Drain SEO par pages locales pauvres                          | Pénalité Google              | `noindex` strict si <seuil; pas d'URLs en double                                           |
+| Faux restos seed en prod                                     | Pollution index              | `NODE_ENV=production` skip le seed 5 restos Lyon (§11.1)                                   |
+| VPS down                                                     | Tout Suppernote Connect down | On est sur `suppernote.com` qui est déjà monitoré                                          |
+| Vitest suite timeout sur 10 fichiers                         | CI rouge                     | Background + notify_on_complete pattern (cf. skill)                                        |
+| `aggregateRating` inventé par erreur                         | Pénalité Google              | Test unitaire strict, lint custom qui refuse le mot `aggregateRating` hors contexte        |
 
 ---
 
@@ -1303,7 +1303,7 @@ en production. Le seed ne le fait jamais.
 
 1. **Domaine final**: `suppernote.com` confirmé.
    - Action: mettre à jour `openai-reserve.service.ts` ligne 172
-     (`https://app.sokar.com/r/${slug}` → `https://suppernote.com/r/${slug}`)
+     (ancien domaine public → `https://suppernote.com/r/${slug}`)
    - Action: Nginx `suppernote.com` avec HSTS et certificat d'origine
    - **Mon avis**: cleanup, pas une nouvelle décision.
 
@@ -1315,7 +1315,7 @@ en production. Le seed ne le fait jamais.
 3. **Reverse proxy**: Nginx est la source canonique et le seul proxy actif.
 
 4. **Tracking event durée de vie Redis**: 30 jours rolling.
-   - **Mon avis**: OK, conforme aux autres analytics Sokar.
+   - **Mon avis**: OK, conforme aux autres analytics Suppernote.
 
 5. **Opt-in UI côté dashboard**: nouvelle page
    `apps/dashboard/src/app/dashboard/connect/page.tsx` dans la nav
@@ -1329,7 +1329,7 @@ en production. Le seed ne le fait jamais.
      sous-sitemaps en P2 si >5000 URLs.
 
 7. **Renommage `agenticOptIn` → `acceptsReservations`**: hors scope
-   Sokar Connect, à faire en P5 dans une migration dédiée. Pour l'instant
+   Suppernote Connect, à faire en P5 dans une migration dédiée. Pour l'instant
    on lit `agenticOptIn` comme sémantique legacy.
 
 ---
@@ -1376,8 +1376,8 @@ archivée dans `connect-v1.md.archived`.
    réservation web. `connectAgentic` autorise exposition agentic
    avancée (JSON-LD `ReserveAction`, OAI-SearchBot, deep-link
    tracking `source=`). `/book` ne dépend plus de `connectAgentic`.
-   `agenticOptIn` sorti du gating Sokar Connect (legacy).
-5. **Source de vérité unique** : tous les flags de gating Sokar Connect
+   `agenticOptIn` sorti du gating Suppernote Connect (legacy).
+5. **Source de vérité unique** : tous les flags de gating Suppernote Connect
    sont sur `RestaurantExposureSettings`. Pas de duplication
    `Restaurant.connectPublished` (supprimé).
 6. **Seed local/staging uniquement** : `NODE_ENV=production`

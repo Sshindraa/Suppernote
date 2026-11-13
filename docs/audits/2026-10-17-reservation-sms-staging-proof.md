@@ -12,7 +12,7 @@ Resultat : **validee en staging**, avec reception et actions confirmees par l’
 
 ## Reservation et preuve d’un seul SMS
 
-- Restaurant de demonstration existant « Chez Sokar », staging uniquement ; mardi 20 octobre 2026, 19:30 Europe/Paris, 2 personnes.
+- Restaurant de demonstration existant « Chez Suppernote », staging uniquement ; mardi 20 octobre 2026, 19:30 Europe/Paris, 2 personnes.
 - Reservation `dd54be0d-96e3-4375-915f-43641d4cb155`, creee une seule fois par le service de reservation existant, HTTP 201. Canal historique `PHONE` : ce test ne prouve pas encore les notifications de la chaine Connect WEB/outbox locale.
 - Expediteur alphanumerique `SOKAR` deja configure ; numero voix et profil Telnyx partages inchanges.
 - Premier passage : arret local avant appel fournisseur (`TELNYX_API_KEY is required`). Une valeur vide heritee dans PM2 workers masquait la cle du fichier `.env` malgre `--env-file`. Reglages fournisseurs/gestion recharges explicitement dans les seuls processus staging puis sauvegardes avec PM2. Le meme job de recette a ete repris, sans nouvelle reservation ; aucune tentative fournisseur anterieure a rejouer.
@@ -24,8 +24,8 @@ Resultat : **validee en staging**, avec reception et actions confirmees par l’
 
 ## Ouverture et actions
 
-- L’utilisateur confirme : **un seul SMS recu sur iPhone**, ouverture du lien Safari, carton Chez Sokar/date/heure/couverts corrects, ajout au calendrier et itineraire fonctionnels.
-- Controle automatise sur la vraie reservation staging (sans mock des donnees) : desktop et emulation iPhone, consultation/rechargement reussis, aucun pageerror, export ICS telecharge, `DTSTART:20261020T173000Z`, adresse presente et destination Maps Chez Sokar renseignee. Le controle automatise ne remplace pas le test physique, ici confirme par l’utilisateur.
+- L’utilisateur confirme : **un seul SMS recu sur iPhone**, ouverture du lien Safari, carton Chez Suppernote/date/heure/couverts corrects, ajout au calendrier et itineraire fonctionnels.
+- Controle automatise sur la vraie reservation staging (sans mock des donnees) : desktop et emulation iPhone, consultation/rechargement reussis, aucun pageerror, export ICS telecharge, `DTSTART:20261020T173000Z`, adresse presente et destination Maps Chez Suppernote renseignee. Le controle automatise ne remplace pas le test physique, ici confirme par l’utilisateur.
 - Les captures de preuve ont ete conservees parmi les artefacts locaux, sans URL porteuse dans la capture.
 
 ## Nettoyage et suites

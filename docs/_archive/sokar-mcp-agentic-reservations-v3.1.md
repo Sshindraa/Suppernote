@@ -1,4 +1,4 @@
-# Sokar Agentic Reservations Layer — Spec v3.1 (prêt Phase 0)
+# Suppernote Agentic Reservations Layer — Spec v3.1 (prêt Phase 0)
 
 > **Positionnement**: infrastructure qui rend les restaurants indépendants
 > réservables par ChatGPT, Claude et les futurs agents, avec disponibilité
@@ -15,7 +15,7 @@
 
 ## 0. Fondements architecturaux
 
-### 0.1 Stack actuelle Sokar (confirmée dans le repo)
+### 0.1 Stack actuelle Suppernote (confirmée dans le repo)
 
 | Service                                | Fichier                                  | État                    |
 | -------------------------------------- | ---------------------------------------- | ----------------------- |

@@ -1,6 +1,6 @@
 # Git Auto-Commit System
 
-Système de commits automatiques pour le monorepo Sokar.
+Système de commits automatiques pour le monorepo Suppernote.
 
 ## Usage Rapide
 
@@ -22,15 +22,15 @@ sokar-commit "fix: corrige le bug voice" --push
 
 Le script `agent/scripts/auto-commit.sh` analyse les fichiers modifiés et génère un message de commit au format [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Détection | Type | Scope | Exemple |
-|-----------|------|-------|---------|
-| Fichiers dans `apps/api` | `feat` ou `fix` | `api` | `feat(api): update 3 file(s)` |
-| Fichiers dans `apps/dashboard` | `feat` | `dashboard` | `feat(dashboard): update 2 file(s)` |
-| Fichiers dans `packages/database` | `feat` | `database` | `feat(database): update 1 file(s)` |
-| Fichiers dans `agent/` | `feat` | `agent` | `feat(agent): update 4 file(s)` |
-| Fichiers dans `docs/` | `docs` | `docs` | `docs(docs): update 5 file(s)` |
-| Fichiers de config | `chore` | `config` | `chore(config): update 2 file(s)` |
-| Fichiers avec "test" | `test` | module | `test(api): update 3 file(s)` |
+| Détection                         | Type            | Scope       | Exemple                             |
+| --------------------------------- | --------------- | ----------- | ----------------------------------- |
+| Fichiers dans `apps/api`          | `feat` ou `fix` | `api`       | `feat(api): update 3 file(s)`       |
+| Fichiers dans `apps/dashboard`    | `feat`          | `dashboard` | `feat(dashboard): update 2 file(s)` |
+| Fichiers dans `packages/database` | `feat`          | `database`  | `feat(database): update 1 file(s)`  |
+| Fichiers dans `agent/`            | `feat`          | `agent`     | `feat(agent): update 4 file(s)`     |
+| Fichiers dans `docs/`             | `docs`          | `docs`      | `docs(docs): update 5 file(s)`      |
+| Fichiers de config                | `chore`         | `config`    | `chore(config): update 2 file(s)`   |
+| Fichiers avec "test"              | `test`          | module      | `test(api): update 3 file(s)`       |
 
 ## Alias
 
@@ -72,6 +72,7 @@ crontab -l | grep sokar
 ```
 
 Tu dois voir :
+
 ```
 */15 * * * * /bin/zsh /Users/hamza/Desktop/Sokar/agent/scripts/auto-commit-daemon.sh
 ```

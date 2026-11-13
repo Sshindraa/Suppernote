@@ -40,7 +40,7 @@ PUBLIC_URL="https://api.sokar.fr"
 1. Créer un compte sur [vapi.ai](https://vapi.ai)
 2. Créditer le compte (tu as 10 crédits)
 3. Créer un **Assistant** :
-   - Name: `Sokar Assistant`
+   - Name: `Suppernote Assistant`
    - First message: `"Bonjour, je suis l'assistant virtuel de votre restaurant..."`
    - Model: `gpt-4o`
    - Voice: `11labs` → `Adam` (français)

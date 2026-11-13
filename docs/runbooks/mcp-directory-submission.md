@@ -13,7 +13,7 @@ de l'annuaire Claude : OAuth 2.0 avec enregistrement dynamique et PKCE S256, 401
 | Politique de confidentialité | `https://suppernote.com/privacy`                                                     |
 | Support                      | `hello@suppernote.com`                                                               |
 | Authentification             | OAuth, enregistrement dynamique (DCR)                                                |
-| Données                      | API propre à Sokar ; nom et téléphone transmis au seul restaurant choisi             |
+| Données                      | API propre à Suppernote ; nom et téléphone transmis au seul restaurant choisi        |
 
 ## Parcours de test pour les relecteurs
 
@@ -22,12 +22,12 @@ qu'aucun vrai client ne se voie proposer un faux restaurant. Ils restent accessi
 nomme exactement. Instructions à donner aux relecteurs :
 
 1. Ajouter le connecteur avec l'URL ci-dessus et accepter l'autorisation (lecture, réservation,
-   annulation). Aucun compte Sokar n'est nécessaire.
-2. Demander : « Cherche le restaurant Chez Sokar à Lyon pour 2 personnes demain à 19 h 30. »
+   annulation). Aucun compte Suppernote n'est nécessaire.
+2. Demander : « Cherche le restaurant Chez Suppernote à Lyon pour 2 personnes demain à 19 h 30. »
 3. Vérifier la disponibilité, réserver avec le nom `Review Test` et le téléphone `+33612345600`.
 4. Relire, modifier puis annuler la réservation avec ce même téléphone.
 
-Chez Sokar est un établissement de démonstration : ses réservations n'atteignent aucun vrai
+Chez Suppernote est un établissement de démonstration : ses réservations n'atteignent aucun vrai
 restaurant. Nettoyer les réservations de test après la revue.
 
 ## Restant hors code

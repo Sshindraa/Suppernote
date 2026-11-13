@@ -1,8 +1,8 @@
-# Audit UI et produit Sokar — 2 octobre 2026
+# Audit UI et produit Suppernote — 2 octobre 2026
 
 ## Diagnostic
 
-Sokar possède déjà une identité identifiable : palette ivoire/charbon/champagne, verre, capsules, navigation compacte, cartes arrondies et séparation Copilot/Salle. L’impression d’interface générée vient surtout de la répétition des traitements, d’une hiérarchie parfois trop uniforme, de textes génériques et de finitions fonctionnelles inégales.
+Suppernote possède déjà une identité identifiable : palette ivoire/charbon/champagne, verre, capsules, navigation compacte, cartes arrondies et séparation Copilot/Salle. L’impression d’interface générée vient surtout de la répétition des traitements, d’une hiérarchie parfois trop uniforme, de textes génériques et de finitions fonctionnelles inégales.
 
 **Périmètre corrigé à la demande de l’utilisateur : conserver l’UI actuelle et l’améliorer.** Garder son identité, son shell, ses espaces, ses composants et ses habitudes d’interaction. Les recommandations portent sur le dosage des effets, la lisibilité, la cohérence, les actions et la fiabilité des écrans existants.
 
@@ -62,7 +62,7 @@ Le hero « L’IA devient le nouveau levier de la restauration » exprime une te
 
 **Modifier :** montrer un scénario vérifiable : appel reçu pendant le service → réservation créée → demande particulière transmise → équipe prête à accueillir. Une voix doit s’écouter ; la démonstration doit indiquer clairement ce qui est enregistré, simulé ou réellement interactif.
 
-Proposition de titre : **« Vos appels pris en charge. Votre service sous contrôle. »** Sous-titre : « Sokar réunit les réservations, les demandes téléphoniques et le contexte client pour préparer chaque accueil. » À ajuster au périmètre effectivement disponible.
+Proposition de titre : **« Vos appels pris en charge. Votre service sous contrôle. »** Sous-titre : « Suppernote réunit les réservations, les demandes téléphoniques et le contexte client pour préparer chaque accueil. » À ajuster au périmètre effectivement disponible.
 
 Le bouton « Réserver une démo » pointe vers l’inscription : aligner la destination et la promesse. Les liens Confidentialité et Mentions légales du footer pointent vers `#` : leur donner de vraies destinations. Il s’agit ici d’un constat de navigation, pas d’une qualification juridique.
 
@@ -152,9 +152,9 @@ Preuves : [actions Live](/Users/hamza/Projects/Sokar/apps/dashboard/src/app/dash
 
 SevenRooms met l’accent sur le contexte client et le lien entre opérations et relation ; Zenchef organise son produit autour de la réservation, du paiement, de la communication, de la promotion et de l’analyse ; OpenTable propose des outils de service et un accès à son réseau de clients. Leurs surfaces publiques montrent ces capacités, sans démontrer ici leur fiabilité ou leur rapidité réelle. Sources : [SevenRooms CRM](https://sevenrooms.com/platform/crm/), [organisation Zenchef](https://blog.zenchef.com/blog-post/new-zenchef-five-products), [OpenTable Table Management](https://www.opentable.com/restaurant-solutions/products/table-management/).
 
-Zenchef a lui-même expliqué sa nouvelle organisation en cinq produits par les difficultés de repérage et les clics remontés par les utilisateurs. Pour cet audit, la leçon à retenir est de mesurer le repérage et les gestes dans la navigation Sokar existante. [Annonce Zenchef du 15 septembre 2026](https://blog.zenchef.com/blog-post/new-zenchef-five-products).
+Zenchef a lui-même expliqué sa nouvelle organisation en cinq produits par les difficultés de repérage et les clics remontés par les utilisateurs. Pour cet audit, la leçon à retenir est de mesurer le repérage et les gestes dans la navigation Suppernote existante. [Annonce Zenchef du 15 septembre 2026](https://blog.zenchef.com/blog-post/new-zenchef-five-products).
 
-L’ambition crédible pour Sokar : gagner d’abord sur **la vitesse, la continuité et la confiance dans un service réel en français**. Un meilleur écran ne remplace pas le réseau de clients d’OpenTable, ni la profondeur CRM de SevenRooms. Ces dimensions demandent un travail produit et commercial distinct.
+L’ambition crédible pour Suppernote : gagner d’abord sur **la vitesse, la continuité et la confiance dans un service réel en français**. Un meilleur écran ne remplace pas le réseau de clients d’OpenTable, ni la profondeur CRM de SevenRooms. Ces dimensions demandent un travail produit et commercial distinct.
 
 ## Ordre de travail recommandé
 
@@ -183,4 +183,4 @@ Rejouer chaque scénario à **1440 × 1000 (desktop), 1024 × 768 (iPad paysage)
 
 Les cas de règles métier nécessitent des vérifications ciblées ; les corrections visuelles se jugent sur les captures et les parcours. Consigner pour chaque scénario : résultat avant, résultat après, anomalie restante et liens vers les captures. Ne pas confondre une capture correcte avec une action réellement achevée.
 
-Après cette vérification, une séance avec cinq personnes peut comparer les mêmes tâches dans l’interface actuelle et sa version affinée. Mesurer temps médian, erreurs, hésitations et capacité à reprendre après interruption. Le critère est de **reconnaître immédiatement Sokar, lire plus vite, hésiter moins et voir chaque action aboutir**. Les gains restent à mesurer.
+Après cette vérification, une séance avec cinq personnes peut comparer les mêmes tâches dans l’interface actuelle et sa version affinée. Mesurer temps médian, erreurs, hésitations et capacité à reprendre après interruption. Le critère est de **reconnaître immédiatement Suppernote, lire plus vite, hésiter moins et voir chaque action aboutir**. Les gains restent à mesurer.

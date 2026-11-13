@@ -36,7 +36,7 @@ médianes. Certaines transcriptions non vides sont incorrectes, notamment les he
 L’écart médian de 36 ms ne suffit pas à choisir un fournisseur : seulement quatre
 phrases distinctes dans les huit paires complètes, audio synthétique propre,
 origine réseau locale et deux mécanismes de clôture différents. Ce test mesure la
-réponse STT ; il ne reproduit pas le VAD Sokar, ses Finalize locaux, le dialogue,
+réponse STT ; il ne reproduit pas le VAD Suppernote, ses Finalize locaux, le dialogue,
 le réseau du VPS ni la latence de réponse vocale complète. Pas de p95 représentatif
 ni de mesure de précision sur ce petit échantillon.
 

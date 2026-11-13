@@ -1,4 +1,4 @@
-# Sokar Agentic Reservations Layer — Spec v3.2
+# Suppernote Agentic Reservations Layer — Spec v3.2
 
 > **Statut : LIVRÉ / DOCUMENT DE RÉFÉRENCE — vérifié le 12 septembre 2026.**
 > Le serveur MCP Streamable HTTP, OAuth, les outils de disponibilité/hold/confirmation/annulation,

@@ -6,7 +6,7 @@ Portée commerciale : Pro et Multi-site (`experiences.manage`)
 
 ## Décision
 
-Sokar possède un catalogue d'expériences provider-neutral et des sessions à capacité contrôlée.
+Suppernote possède un catalogue d'expériences provider-neutral et des sessions à capacité contrôlée.
 Une expérience décrit le produit vendu (nom, durée, prix EUR, capacité par défaut) ; une session
 décrit une occurrence datée ; une réservation de session conserve la quantité et le prix au moment
 de la réservation. Le socle est exploitable depuis le dashboard et l'API interne, mais il ne prend
@@ -44,7 +44,7 @@ qui ne sont pas ACTIVE.
 
 Les routes sont protégées par `requireOrg`, `experiences.manage` et `EXPERIENCES_ENABLED`.
 Owner/Manager peuvent créer ou modifier les fiches et sessions. Owner/Manager/Staff peuvent lire,
-réserver et annuler pendant le service. L'opérateur Sokar dispose uniquement de l'endpoint interne
+réserver et annuler pendant le service. L'opérateur Suppernote dispose uniquement de l'endpoint interne
 d'expiration du worker.
 
 Routes livrées :

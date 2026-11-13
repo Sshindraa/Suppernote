@@ -121,7 +121,7 @@ Le fichier `<export>.manifest.json` est généré automatiquement. Il contient l
 la période, la métrique, la devise et les métadonnées de facture ; le lien signé de téléchargement
 est explicitement marqué comme non stocké. Si `--invoice-file` est utilisé, le manifeste ajoute le
 chemin local, la taille, le type MIME et le SHA-256 du fichier, jamais son URL signée. La commande
-exige EUR, car le ledger Sokar refuse les
+exige EUR, car le ledger Suppernote refuse les
 montants non convertis. Si Telnyx renvoie USD ou plusieurs devises, l'export échoue et aucune ligne
 ne doit être rapprochée sans une conversion documentée par la comptabilité. Pour couvrir une facture
 qui contient à la fois messagerie et voix, répéter `--product` (chaque produit est appelé séparément
@@ -147,7 +147,7 @@ dans leur devise d'origine (MRC Telnyx en USD) :
 ```zsh
 pnpm --filter @suppernote/api usage:accounting:package -- \
   --month 2026-08 \
-  --usage-csv ./private/sokar-usage-accounting-2026-08.csv \
+  --usage-csv ./private/suppernote-usage-accounting-2026-08.csv \
   --invoice ./private/telnyx-invoice-2026-08.json \
   --invoice-pdf ./private/telnyx-invoice-2026-08.pdf \
   --reconciliation ./private/telnyx-reconciliation-2026-08.json \
@@ -548,7 +548,7 @@ VBE_SUITE=perturb VBE_JSON_OUT=/chemin/absolu/hors/depot/perturb.json scripts/op
   pas une hypothèse, qui chiffrent le rejeu suivant. `VBE_PROVIDER_ORDER=DeepInfra` fixe l'hébergeur OpenRouter
   (sans repli : une quantification d'un bout à l'autre) et `VBE_REASONING_OFF=1` coupe le raisonnement.
 - **Vraie base de prompt, toujours.** Chaque requête passe par `buildSystemPrompt(…, structuredTurn: true)` avec la
-  fiche d'un restaurant : le profil par défaut du fichier (`defaultProfile`) est Chez Sokar tel qu'en base de
+  fiche d'un restaurant : le profil par défaut du fichier (`defaultProfile`) est Chez Suppernote tel qu'en base de
   production (nom, horaires réels, fuseau, taille de groupe, `systemPromptExtra`, genre de la voix). Il n'existe plus
   de consigne « minimale » : un cas sans profil de restaurant ne se construit pas (test). Un profil de démonstration
   (`midi`) reste possible pour mesurer un autre restaurant.

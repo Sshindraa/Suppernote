@@ -1,4 +1,4 @@
-# Sokar — comparaison après phase 2
+# Suppernote — comparaison après phase 2
 
 Ces captures reprennent les scénarios fictifs, l’horloge et les trois dimensions de la [référence phase 0](/Users/hamza/Projects/Sokar/docs/audits/phase0-2026-10-02/README.md). Elles montrent la première passe sur les **actions et états** ; les finitions visuelles Salle, Réservations et widget restent prévues en phases 3, 4 et 5. [Manifeste des 22 captures](/Users/hamza/Projects/Sokar/docs/audits/phase2-2026-10-03/manifest.json).
 

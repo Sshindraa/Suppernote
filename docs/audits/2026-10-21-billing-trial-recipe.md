@@ -1,4 +1,4 @@
-# Recette Sokar — inscription technique, essai et paiement Stripe test
+# Recette Suppernote — inscription technique, essai et paiement Stripe test
 
 Date : 21 octobre 2026, Europe/Paris.
 
@@ -27,13 +27,13 @@ Date : 21 octobre 2026, Europe/Paris.
 | Portail de facturation                                      | URL générée par la route métier ; interface sandbox ouverte                                                                  | Capture de l’essai                      |
 | Ajout d’une carte dans le portail                           | Carte fictive Visa 4242 enregistrée via l’interface Stripe                                                                   | Navigateur intégré, aucune carte réelle |
 | Fin normale des 14 jours, avec carte                        | Paiement fictif 199,00 EUR, facture `paid`, Stripe `active`, projections restaurant **et compte** `active`                   | Horloge Stripe, webhooks naturels       |
-| Fin normale des 14 jours, sans carte                        | Annulation automatique, aucune facture positive ; Sokar `canceled` et `suspended=true`                                       | Deuxième horloge Stripe, webhook traité |
-| Fin anticipée de l’essai avec carte                         | Paiement fictif réussi, **mais Sokar reste `trialing`**                                                                      | Défaut reproduit ci-dessous             |
+| Fin normale des 14 jours, sans carte                        | Annulation automatique, aucune facture positive ; Suppernote `canceled` et `suspended=true`                                  | Deuxième horloge Stripe, webhook traité |
+| Fin anticipée de l’essai avec carte                         | Paiement fictif réussi, **mais Suppernote reste `trialing`**                                                                 | Défaut reproduit ci-dessous             |
 | Rejeu du webhook d’activation déjà traité                   | Deux HTTP 200 ; pas de double écriture, mais l’état erroné reste inchangé                                                    | Rejeu signé du vrai événement test      |
 | Signature de webhook invalide                               | HTTP 400                                                                                                                     | Aucun changement d’état                 |
 | Nettoyage                                                   | Trois abonnements annulés, trois restaurants archivés, trois sessions Clerk révoquées ; planifications des rapports retirées | Résultats de nettoyage                  |
 
-La fin normale a été simulée avec des horloges Stripe : passage à J+11 pour le rappel, puis après J+14 et le délai de finalisation de facture. Aucun changement manuel de statut de facturation Sokar n’a servi à faire réussir la recette. Pour ce scénario, le client Stripe lié à l’horloge a été précréé et associé au dossier de recette avant l’appel métier de début d’essai ; la création automatique d’un client Stripe sans horloge a été vérifiée séparément dans le premier dossier.
+La fin normale a été simulée avec des horloges Stripe : passage à J+11 pour le rappel, puis après J+14 et le délai de finalisation de facture. Aucun changement manuel de statut de facturation Suppernote n’a servi à faire réussir la recette. Pour ce scénario, le client Stripe lié à l’horloge a été précréé et associé au dossier de recette avant l’appel métier de début d’essai ; la création automatique d’un client Stripe sans horloge a été vérifiée séparément dans le premier dossier.
 
 ## Défaut bloquant reproduit
 
@@ -51,7 +51,7 @@ Ces événements partagent tous `created=1792614589` :
 | Facture payée              | `evt_1UT68wHCZZuqZF0hGTmkp9go` | 19 900 centimes payés        |
 | Rappel de fin d’essai      | `evt_1UT68wHCZZuqZF0hKxDl5v5o` | Ancien instantané `trialing` |
 
-Les quatre événements ont été reçus et marqués `processed`. Le checkpoint final de Sokar désigne le rappel, et les projections du compte comme du restaurant restent `trialing`, avec l’ancienne échéance d’essai.
+Les quatre événements ont été reçus et marqués `processed`. Le checkpoint final de Suppernote désigne le rappel, et les projections du compte comme du restaurant restent `trialing`, avec l’ancienne échéance d’essai.
 
 Le code `isStaleStripeEvent` dans `apps/api/src/modules/billing/billing.service.ts` compare l’horodatage, puis l’identifiant d’événement dans l’ordre lexicographique lorsque l’horodatage est égal. Le rappel a un identifiant supérieur à ceux de l’activation et des factures. De plus, `handleSubscriptionEvent` applique l’instantané du rappel aux projections de facturation comme s’il s’agissait d’un changement d’abonnement. Ces deux comportements expliquent l’état final observé ; il ne s’agit pas d’un webhook manquant.
 

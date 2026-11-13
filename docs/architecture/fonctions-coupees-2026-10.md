@@ -5,7 +5,7 @@ Date : 23 octobre 2026.
 
 ## Pourquoi ce document
 
-Règle posée le 23/10/2026 : Sokar est un SaaS qui doit tout activer ; une fonction coupée ne sert à rien,
+Règle posée le 23/10/2026 : Suppernote est un SaaS qui doit tout activer ; une fonction coupée ne sert à rien,
 autant l'enlever. Quatorze fonctions sont aujourd'hui coupées en production par un drapeau. Pour chacune,
 il faut choisir entre **finir et activer** et **supprimer le code**. Ce document donne les faits pour
 décider ; la dernière colonne de chaque fiche est une recommandation, pas une décision.
@@ -102,7 +102,7 @@ sont des estimations d'ordre de grandeur, pas des engagements.
 ### 2. Alertes d'usage internes : `USAGE_ALERTS_ENABLED`
 
 - **Ce que la fonction fait.** Un worker horaire compare l'usage du mois (minutes de voix, segments SMS) à
-  des budgets internes et envoie une alerte aux opérateurs Sokar quand un seuil est franchi. Elle ne
+  des budgets internes et envoie une alerte aux opérateurs Suppernote quand un seuil est franchi. Elle ne
   contacte jamais le restaurant et ne bloque jamais un appel (suivi des coûts, pas un quota client).
 - **Où elle vit.** `apps/api/src/shared/queue/workers/usage-alerts.worker.ts`,
   `apps/api/src/modules/usage/usage-alerts.service.ts`, `usage-alert-budget.service.ts`, planification dans
@@ -189,9 +189,9 @@ sont des estimations d'ordre de grandeur, pas des engagements.
 
 ### 6. Réservation publique d'expériences : `EXPERIENCE_BOOKING_ENABLED`
 
-- **Ce que la fonction fait.** Un client réserve et paie une expérience en ligne depuis la page Sokar
+- **Ce que la fonction fait.** Un client réserve et paie une expérience en ligne depuis la page Suppernote
   Connect du restaurant (`/restaurant/<slug>/experiences`), par Stripe Checkout sur le compte Connect du
-  restaurant, avec commission Sokar fixée par l'opérateur.
+  restaurant, avec commission Suppernote fixée par l'opérateur.
 - **Où elle vit.** API : routes publiques `/public/r/:slug/experiences*`, route interne
   `/api/internal/experiences/payment-config`. Connect : `experience-booking.tsx` (374 lignes), page, client
   API (523 lignes au total). Webhook Connect sur `POST /webhooks/stripe`.

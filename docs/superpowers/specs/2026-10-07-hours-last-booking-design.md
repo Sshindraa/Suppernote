@@ -80,7 +80,7 @@ minuit appartient à la période du lendemain créée par `normalizePeriod`).
   affiche une liste par service, des heures valides seulement, impossible de saisir une valeur hors
   grille. Replié par défaut ; une phrase sous la grille explique où la trouver.
   Le bouton est une pastille avec un point quand l'heure diffère de la valeur par défaut. Le
-  panneau explique l'effet (« Après cette heure, Sokar ne propose plus de créneau ») et propose
+  panneau explique l'effet (« Après cette heure, Suppernote ne propose plus de créneau ») et propose
   « Appliquer aux autres jours » (jours ouverts de même rythme, annulable).
 - Préréglages : midi 14:00, soir 22:00, continu 21:30. L'import Google Maps pré-remplit
   la valeur par défaut.

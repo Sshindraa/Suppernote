@@ -23,7 +23,7 @@
 ## Critères de sélection (par resto)
 
 - [ ] Lyon intramuros (1er, 2e, 6e arrondissements prioritaires)
-- [ ] Plan PRO ou PREMIUM (Sokar actif)
+- [ ] Plan PRO ou PREMIUM (Suppernote actif)
 - [ ] Lat/lng + formattedAddress + phoneE164 + websiteUrl renseignés
       dans le dashboard
 - [ ] Gérent joignable pour formation 1h
@@ -44,7 +44,7 @@
 - [ ] Démo live : "Réserve chez Le Bistrot samedi 20h 2 personnes"
 - [ ] Démo live : annulation d'une résa
 - [ ] Démo dashboard : toggles opt-in, exposure settings
-- [ ] FAQ : "qui paie les commissions ?", "mes clients voient Sokar ?",
+- [ ] FAQ : "qui paie les commissions ?", "mes clients voient Suppernote ?",
       "je peux bloquer un client ?"
 
 ### 3. Opt-in progressif (J+0 → J+3)

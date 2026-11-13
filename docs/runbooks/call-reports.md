@@ -160,7 +160,7 @@ facture). Mesuré sur 4 appels de 47 à 96 s : **0,0097 à 0,0208 $ par appel, 0
 
 ## Validation du 03/10/2026
 
-Rapport généré sur les appels déjà enregistrés (tous Chez Sokar), journaux reliés par l'heure.
+Rapport généré sur les appels déjà enregistrés (tous Chez Suppernote), journaux reliés par l'heure.
 
 | Appel    | Défaut connu                                                    | Résultat                                                                                                                                                                                    |
 | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

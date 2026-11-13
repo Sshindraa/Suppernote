@@ -76,10 +76,10 @@ jobs:
           STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY: ${{ vars.STRIPE_PRODUCTION_MULTI_SITE_ADDON_MONTHLY }}
           STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL: ${{ vars.STRIPE_PRODUCTION_MULTI_SITE_ADDON_ANNUAL }}
           SOKAR_OPERATOR_USER_IDS: ${{ vars.SOKAR_OPERATOR_USER_IDS }}
-          # Chez Sokar : Ink-2 fournit le texte, Deepgram décide la fin de phrase.
+          # Chez Suppernote : Ink-2 fournit le texte, Deepgram décide la fin de phrase.
           VOICE_STT_INK_RESTAURANT_IDS: 710309f4-d699-472d-a1db-f22d527fc4d0
           VOICE_STT_INK_REPLACE_RESTAURANT_IDS: 710309f4-d699-472d-a1db-f22d527fc4d0
-          # Phase 1 naturel : qualification Chez Sokar, aucun restaurant client.
+          # Phase 1 naturel : qualification Chez Suppernote, aucun restaurant client.
           VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS: 710309f4-d699-472d-a1db-f22d527fc4d0
           DEPLOY_EVENT: ${{ github.event_name }}
           TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}

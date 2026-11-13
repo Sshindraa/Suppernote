@@ -45,7 +45,7 @@ plan DB → override ConfigCat → plan commercial → entitlement → flag/runt
 Les champs de minutes voix et de SMS restent `null` parce que la promesse Essential/Pro est sans
 quota client. Ils ne bloquent ni appel, ni message, ni réservation. Le ledger et le cockpit
 `/admin/margin` mesurent séparément le coût opérationnel par restaurant pour l'équipe
-Sokar. Un éventuel budget interne ou seuil d'alerte doit vivre dans ce périmètre opérateur et ne
+Suppernote. Un éventuel budget interne ou seuil d'alerte doit vivre dans ce périmètre opérateur et ne
 doit jamais devenir un entitlement client.
 
 Les capabilities CRM avancé, campagnes, attribution et réputation sont maintenant présentes dans la

@@ -1,4 +1,4 @@
-# Plan de lancement commercial Sokar — 10 premiers restaurants
+# Plan de lancement commercial Suppernote — 10 premiers restaurants
 
 Date du plan initial : 6 septembre 2026
 Statut : **HISTORIQUE — réconcilié le 15 septembre 2026**
@@ -43,7 +43,7 @@ Ces modules ne sont donc plus hors argumentaire : ils font partie du catalogue c
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Multi-site                         | modèle établissement/organisation, rôles, isolation des données, numéros et quotas par site, tableau consolidé                      | deux sites d’un même compte + deux comptes distincts testés ; facture et droits corrects |
 | ChatGPT/Claude                     | parcours public, authentification/consentement, outils idempotents, limitation de débit, refus inter-restaurant et transfert humain | réservation de bout en bout depuis chaque canal, avec rejeu et incident provider         |
-| Domaine personnalisé               | DNS guidé, certificat TLS, renouvellement, suppression et fallback du domaine Sokar                                                 | domaine de test servi en HTTPS, renouvellement/erreur documentés                         |
+| Domaine personnalisé               | DNS guidé, certificat TLS, renouvellement, suppression et fallback du domaine Suppernote                                            | domaine de test servi en HTTPS, renouvellement/erreur documentés                         |
 | Cartes cadeaux                     | ledger immuable, paiement, émission, utilisation partielle, expiration, remboursement et rapprochement                              | émission → utilisation → remboursement rejoués en mode test puis contrôlés en live       |
 | Prédictif avancé                   | données minimales, consentement, explicabilité, seuil de confiance, fallback manuel et mesure de précision                          | rapport sur un jeu tenu à part ; aucune décision irréversible sans validation humaine    |
 | Facturation annuelle               | prix total, TVA/HT-TTC, prorata, renouvellement, annulation, facture et webhook idempotent                                          | cycle Stripe test complet, puis activation live sur un restaurant pilote                 |
@@ -111,8 +111,8 @@ Garantir qu’un utilisateur, une route publique ou un job ne peut ni lire ni mo
 
 ### Travaux
 
-- définir le modèle d’autorisation : opérateur Sokar global, propriétaire du restaurant, employé et lecture seule ;
-- vérifier l’appartenance Clerk de toute identité ajoutée par l’administration avant de créer ou modifier une membership Sokar ;
+- définir le modèle d’autorisation : opérateur Suppernote global, propriétaire du restaurant, employé et lecture seule ;
+- vérifier l’appartenance Clerk de toute identité ajoutée par l’administration avant de créer ou modifier une membership Suppernote ;
 - ajouter une autorisation serveur explicite sur provisioning, santé, restaurants, réservations, appels, floor plan, exports et endpoints admin ; ne jamais considérer l’identifiant d’URL comme preuve d’appartenance ;
 - retirer `plan` des mutations accessibles au client et faire des droits une projection serveur de l’abonnement Stripe ;
 - rendre la création publique de réservation liée à un contexte vérifiable (restaurant, jeton public ou session) et à une clé d’idempotence ; vérifier l’appartenance du `callId` avant tout rejeu ;
@@ -152,7 +152,7 @@ Transformer chaque promesse commerciale en parcours produit testable, observable
 
 - **Multi-site :** modéliser organisation → établissements, droits par site, numéros et horaires propres, vue consolidée, quotas et facturation ; tester l’ajout, la suspension, le transfert du principal et la suppression d’un site sans fuite de données.
 - **ChatGPT/Claude :** stabiliser le contrat de réservation, l’authentification et le consentement, les outils idempotents, le rate limiting, les erreurs de provider et le transfert humain ; rejouer une réservation depuis chaque canal.
-- **Domaine personnalisé :** automatiser la vérification DNS, le certificat TLS, le renouvellement, la suppression et le fallback vers le domaine Sokar ; mesurer le délai de mise en service et les erreurs de configuration.
+- **Domaine personnalisé :** automatiser la vérification DNS, le certificat TLS, le renouvellement, la suppression et le fallback vers le domaine Suppernote ; mesurer le délai de mise en service et les erreurs de configuration.
 - **Cartes cadeaux :** finaliser le ledger immuable, les états émis/partiellement utilisés/épuisés/expirés, le paiement, le remboursement, les emails/SMS et le rapprochement comptable ; interdire les doubles utilisations concurrentes.
 - **Prédictif avancé :** définir les sorties réellement utiles (prévision de no-show, charge ou créneau), les données minimales, le consentement, l’explication et le seuil de confiance ; garder une décision manuelle lorsque le modèle est incertain.
 - **Facturation annuelle :** les quatre prix Stripe sont actifs en live et en test et Checkout sélectionne le prix annuel avec la bonne cadence ; il reste à rejouer le cycle complet avec facture, taxes, prorata, renouvellement, annulation, échec de paiement et webhooks dans le même modèle idempotent que le mensuel.
@@ -245,7 +245,7 @@ Observer le produit avec de vrais appels et un support rapproché avant de multi
 
 ### Travaux
 
-- faire tourner Chez Sokar et un restaurant interne pendant au moins cinq jours ouvrés ;
+- faire tourner Chez Suppernote et un restaurant interne pendant au moins cinq jours ouvrés ;
 - utiliser un script d’onboarding identique, enregistrer les incidents et faire une revue quotidienne des appels ;
 - onboarder deux restaurants pilotes avec accord explicite, prix pilote et canal d’escalade ;
 - recueillir les réservations manquées, corrections de nom, délais, SMS, transferts et compréhension du dashboard ;

@@ -1,4 +1,4 @@
-# Archives du pilote Sokar
+# Archives du pilote Suppernote
 
 > **Statut : HISTORIQUE — réconcilié le 15 septembre 2026.**
 

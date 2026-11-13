@@ -3,7 +3,7 @@
 ## Activation
 
 Ce lot poursuit les runbooks `gift-card-financial-safety.md` et `gift-card-operations.md`.
-Ce lot est intégré à la branche `codex/gift-card-operations` pour publication dans Sokar
+Ce lot est intégré à la branche `codex/gift-card-operations` pour publication dans Suppernote
 via PR vers main, avec les lots financiers et encaissement en salle.
 
 Appliquer `20260930220000_gift_card_delivery` après les migrations financières et de caisse,

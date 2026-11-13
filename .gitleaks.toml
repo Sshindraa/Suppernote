@@ -1,4 +1,4 @@
-title = "Sokar gitleaks configuration"
+title = "Suppernote gitleaks configuration"
 
 [extend]
 useDefault = true

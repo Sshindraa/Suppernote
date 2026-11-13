@@ -1,4 +1,4 @@
-# Spec — Gestion de salle (Floor Plan) dans Sokar
+# Spec — Gestion de salle (Floor Plan) dans Suppernote
 
 > **Statut : LIVRÉ / DOCUMENT DE RÉFÉRENCE — vérifié le 12 septembre 2026.**
 > Les modèles salle/section/table, l'allocation atomique, la disponibilité capacitaire, le

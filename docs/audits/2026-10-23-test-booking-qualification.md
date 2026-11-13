@@ -1,7 +1,7 @@
 # Qualification de la réservation test — 23 octobre 2026
 
 Statut : recette staging validée le 24 octobre 2026 ; mode test activé en production après CI, staging et smoke production verts. Correctifs livrés par la PR #573 (`90f941362`).
-Périmètre : Chez Sokar de staging uniquement, destinataire de test fourni par Hamza (non conservé ici).
+Périmètre : Chez Suppernote de staging uniquement, destinataire de test fourni par Hamza (non conservé ici).
 
 ## Défaut découvert par la recette navigateur
 

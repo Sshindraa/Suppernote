@@ -214,7 +214,7 @@ de Stripe démontre l'encaissement technique, pas le versement correct à chaque
 
 **Décision requise :** modèle marchand, titulaire de l'encaissement, frais, responsabilité des
 remboursements/litiges et circuit de versement. Pour un SaaS multi-restaurants, qualifier une
-solution où le restaurant encaisse et Sokar perçoit sa commission. Reprendre les décisions
+solution où le restaurant encaisse et Suppernote perçoit sa commission. Reprendre les décisions
 et conventions de `docs/architecture/adr-reservation-payments-foundation.md`, qui indique
 déjà que le modèle marchand reste à décider ; ne pas activer son provider par cet audit.
 
@@ -431,7 +431,7 @@ Voir `docs/runbooks/gift-card-delivery.md`. Qualification providers/Stripe du pi
 édition des contacts et rapprochement financier restent à effectuer ; aucun déploiement
 n’a été réalisé par cette intervention.
 
-## Intégration autorisée dans Sokar
+## Intégration autorisée dans Suppernote
 
 Les lots financiers, caisse et livraison sont repris sur main dans la branche
 `codex/gift-card-operations`, sans les changements voix étrangers à ce périmètre.

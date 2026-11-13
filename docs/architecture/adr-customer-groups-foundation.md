@@ -2,7 +2,7 @@
 
 - **Date :** 2026-09-14
 - **Statut :** livré localement, activation bloquée
-- **Décideurs :** produit Sokar / équipe API
+- **Décideurs :** produit Suppernote / équipe API
 
 ## Contexte
 

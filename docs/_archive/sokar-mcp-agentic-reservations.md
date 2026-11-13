@@ -1,4 +1,4 @@
-# Sokar Agentic Reservations Layer — Spec v2
+# Suppernote Agentic Reservations Layer — Spec v2
 
 > **Positionnement**: l'infrastructure qui rend les restaurants indépendants
 > réservables par ChatGPT, Claude et les futurs agents, avec disponibilité

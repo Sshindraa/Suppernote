@@ -1,10 +1,10 @@
-# Audit de lancement Sokar — 10 premiers restaurants
+# Audit de lancement Suppernote — 10 premiers restaurants
 
 Date du snapshot : 6 septembre 2026. Version examinée : `b7d14da15777e8aab074859b519387bffdc32687`, identique sur GitHub `main` et le VPS de production à cette date. Constats réalisés vers 23 h, heure de Paris.
 
 > **Document historique — ne pas utiliser comme état courant.** Ce fichier conserve le verdict, les compteurs et les reproductions observés le 06/09. La réconciliation du 15/09, qui distingue les correctifs promus, le profil scoped en production et les portes encore ouvertes, est la référence actuelle : [état courant des audits](./2026-09-15-current-state.md).
 
-**Verdict du snapshot : NO-GO pour une ouverture commerciale payante dans l’état observé le 06/09.** Sokar disposait déjà d’un socle de SaaS : application déployée, authentification, réservations transactionnelles, files de tâches, paiement hébergé, tests et sauvegardes restaurées. Les défauts et lacunes décrits ci-dessous sont ceux de cette version figée ; ils ne doivent pas être reportés automatiquement sur la release actuelle.
+**Verdict du snapshot : NO-GO pour une ouverture commerciale payante dans l’état observé le 06/09.** Suppernote disposait déjà d’un socle de SaaS : application déployée, authentification, réservations transactionnelles, files de tâches, paiement hébergé, tests et sauvegardes restaurées. Les défauts et lacunes décrits ci-dessous sont ceux de cette version figée ; ils ne doivent pas être reportés automatiquement sur la release actuelle.
 
 La suite pertinente est un lancement accompagné : correction des blocages, validation complète sur un établissement de test, puis deux restaurants réels, puis dix après observation. La prospection et les démonstrations accompagnées peuvent avancer pendant ce travail ; la promesse d’un service autonome et fiable doit attendre les critères de sortie ci-dessous.
 
@@ -39,13 +39,13 @@ Ce socle justifie de durcir l’existant. L’audit n’apporte aucun motif pour
 
 ### P0-01 — Un restaurant peut utiliser l’administration d’un autre
 
-**Preuve :** `requireOrg()` vérifie l’existence d’une organisation Clerk, sans rôle opérateur Sokar. Les routes de provisioning utilisent ensuite le `restaurantId` de l’URL sans le comparer à l’organisation authentifiée. La liste admin parcourt tous les restaurants. Le même défaut existe sur la route de santé d’un restaurant.
+**Preuve :** `requireOrg()` vérifie l’existence d’une organisation Clerk, sans rôle opérateur Suppernote. Les routes de provisioning utilisent ensuite le `restaurantId` de l’URL sans le comparer à l’organisation authentifiée. La liste admin parcourt tous les restaurants. Le même défaut existe sur la route de santé d’un restaurant.
 
 Deux reproductions locales passent : un utilisateur rattaché à A peut demander l’attribution d’un numéro à B ; il peut aussi marquer B `ACTIVE`, avec `testCallValidatedAt` renseigné, sans appel validé. Les services externes sont simulés dans ces preuves.
 
 **Impact :** accès aux informations d’autres restaurants, modification de leur téléphonie et activation indue. C’est bloquant avant le premier client externe, même avec seulement deux établissements.
 
-**À faire :** autorisation serveur spécifique aux opérateurs Sokar pour l’administration globale ; contrôle d’appartenance sur chaque ressource tenant ; séparation propriétaire/employé pour les opérations sensibles. Ne pas se limiter à masquer les pages du dashboard.
+**À faire :** autorisation serveur spécifique aux opérateurs Suppernote pour l’administration globale ; contrôle d’appartenance sur chaque ressource tenant ; séparation propriétaire/employé pour les opérations sensibles. Ne pas se limiter à masquer les pages du dashboard.
 
 **Critère de sortie :** matrice anonyme / membre A / propriétaire A / propriétaire B / opérateur. Toute lecture ou mutation interdite doit être rejetée, sans effet DB ou Telnyx. Ajouter ces scénarios à la CI.
 

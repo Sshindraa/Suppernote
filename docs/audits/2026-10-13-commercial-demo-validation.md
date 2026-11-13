@@ -58,13 +58,13 @@ L'appel ne démarre que lorsque les conditions suivantes sont réunies :
 
 1. Appeler le numéro de test : `[numéro vérifié — à fournir]`.
 2. Dire : « Bonjour, je voudrais réserver une table pour deux personnes demain à vingt heures, au nom
-   de Test Sokar. »
+   de Test Suppernote. »
 3. Répondre aux questions de l'assistant avec les mêmes éléments, sans en ajouter.
 4. Confirmer le créneau proposé, puis raccrocher.
 
 **Résultat attendu**, vérifié dans le dashboard du restaurant de test :
 
-- une réservation pour le lendemain, à vingt heures, pour deux personnes, au nom « Test Sokar » ;
+- une réservation pour le lendemain, à vingt heures, pour deux personnes, au nom « Test Suppernote » ;
 - statut confirmé, et une seule réservation créée ;
 - l'heure de l'appel et la réservation concordent dans les traces métier autorisées.
 

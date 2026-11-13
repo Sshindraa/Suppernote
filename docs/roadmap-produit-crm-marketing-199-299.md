@@ -1,4 +1,4 @@
-# Plan de bataille Sokar — offres 199/299 € et trajectoire CRM/marketing
+# Plan de bataille Suppernote — offres 199/299 € et trajectoire CRM/marketing
 
 Date de référence : 15 septembre 2026
 Statut : plan directeur, blueprint technique et registre d'exécution local
@@ -34,12 +34,12 @@ Hypothèse de capacité : un développeur principal à temps plein, Hamza dispon
 
 ## 1. Décision produit
 
-Actualisation du 29 octobre 2026 : Sokar est une plateforme de réservations, d'organisation du
+Actualisation du 29 octobre 2026 : Suppernote est une plateforme de réservations, d'organisation du
 service et de relation client. Les objectifs ci-dessous décrivent des chaînes de valeur à qualifier,
 pas une garantie de résultat. La [carte produit](./PROJECT_MAP.md#ce-quest-sokar) distingue les
 capacités déjà développées de leur ouverture effective.
 
-Sokar ne doit pas attendre d'égaler SevenRooms pour facturer 199 ou 299 € par mois. Le prix doit être justifié par deux résultats simples et mesurables :
+Suppernote ne doit pas attendre d'égaler SevenRooms pour facturer 199 ou 299 € par mois. Le prix doit être justifié par deux résultats simples et mesurables :
 
 - **Essential — 199 € HT/mois/établissement** : réunir les réservations dans un planning commun et aider l'équipe à préparer le service, avec un assistant vocal pour les appels transférés après qualification.
 - **Pro — 299 € HT/mois/établissement** : développer une connaissance client exploitable, des relances ciblées et leur suivi, sous réserve d'activation et de qualification des parcours.
@@ -76,7 +76,7 @@ visite → ticket de caisse → dépense client → segment de valeur → campag
 | Consentement | Opt-in marketing, retrait, export et effacement RGPD                                                                 | `apps/api/src/modules/rgpd/` et modèle `CustomerConsent`                                                                    |
 | Analyse      | Appels, réservations, couverts, revenu estimé, latence, économie de commission estimée                               | `apps/api/src/modules/analytics/`                                                                                           |
 | Multi-site   | Compte, établissements, rôles, sélection de site, quantité facturée                                                  | modèles `RestaurantAccount*` et routes associées                                                                            |
-| Paiement     | Stripe Billing pour Sokar et Stripe pour les cartes cadeaux                                                          | `apps/api/src/modules/billing/`, `apps/api/src/modules/gift-cards/`                                                         |
+| Paiement     | Stripe Billing pour Suppernote et Stripe pour les cartes cadeaux                                                     | `apps/api/src/modules/billing/`, `apps/api/src/modules/gift-cards/`                                                         |
 
 ### 2.2 Limites à ne pas masquer commercialement
 
@@ -296,7 +296,7 @@ Le test doit vérifier la base, la capacité, l'audit, la notification et la ré
 ### P1-02 — Filet de sécurité téléphonique
 
 - Définir un renvoi de secours par établissement.
-- Déclencher le transfert quand Sokar ne comprend pas après un nombre borné de tentatives.
+- Déclencher le transfert quand Suppernote ne comprend pas après un nombre borné de tentatives.
 - Afficher les appels échoués et l'action requise.
 - Ajouter une alerte fournisseur et une procédure d'incident.
 - Préserver la réservation confirmée même si l'envoi de confirmation échoue.
@@ -935,7 +935,7 @@ Exemples : coupe offerte pour anniversaire, priorité liste d'attente, attention
 
 ## 15. Phase 9 — Expériences, événements et écosystème
 
-Cette phase rapproche Sokar de la largeur de SevenRooms, mais elle ne justifie pas à elle seule 199/299 €.
+Cette phase rapproche Suppernote de la largeur de SevenRooms, mais elle ne justifie pas à elle seule 199/299 €.
 
 ### P9-01 — Expériences et suppléments
 
@@ -985,7 +985,7 @@ activé.** Le module `apps/api/src/modules/distribution/` et la page
   fenêtre bornée, curseurs, compteurs, hash d'acteur et idempotence scoped incluant le curseur
   source ;
 - `DistributionAvailabilitySnapshot` upserté par slot, borné et explicitement non autoritaire
-  pour la capacité Sokar ;
+  pour la capacité Suppernote ;
 - `DistributionReservationLink` uniquement après fourniture explicite d'une réservation existante,
   avec unicité du hash externe et de la réservation ;
 - `DistributionWebhookEvent` haché avec anti-rejeu tenant/fournisseur, inbox et transition finale
@@ -1161,9 +1161,9 @@ Hypothèse : sprints de deux semaines. Le contenu sera ajusté selon les inciden
 | Dette créée par le legacy                    | Migrations additives, adaptateurs et plan de retrait après observation                          |
 | Support ingérable                            | Onboarding bloquant, outils de diagnostic, runbooks et limites claires                          |
 
-## 22. Définition de “Sokar offre tout ce qui compte face à SevenRooms”
+## 22. Définition de “Suppernote offre tout ce qui compte face à SevenRooms”
 
-Le but ne doit pas être une égalité de cases marketing. Pour la cible des restaurants indépendants français, Sokar atteint une position compétitive lorsque :
+Le but ne doit pas être une égalité de cases marketing. Pour la cible des restaurants indépendants français, Suppernote atteint une position compétitive lorsque :
 
 - les réservations voix, web et assistants sont unifiées ;
 - la salle et la liste d'attente sont fiables en service ;
@@ -1176,7 +1176,7 @@ Le but ne doit pas être une égalité de cases marketing. Pour la cible des res
 - les coûts, marges et résultats sont visibles ;
 - l'installation et le support restent nettement plus simples que ceux d'une suite enterprise.
 
-Les intégrations nombreuses, la billetterie avancée et les fonctions spécialisées pour hôtels, clubs ou stades ne deviennent prioritaires que si Sokar choisit ces marchés.
+Les intégrations nombreuses, la billetterie avancée et les fonctions spécialisées pour hôtels, clubs ou stades ne deviennent prioritaires que si Suppernote choisit ces marchés.
 
 ## 23. Prochaine action concrète
 
@@ -1622,15 +1622,15 @@ Si la facture fournisseur n'expose pas le coût immédiatement, `estimatedCost` 
 
 ### 28.3 Endpoints
 
-| Méthode | Route                                                  | Capacité        | Réponse                                    |
-| ------- | ------------------------------------------------------ | --------------- | ------------------------------------------ |
-| GET     | `/usage/current`                                       | tout plan       | consommation, inclus, reste, période       |
-| GET     | `/usage/history?from=&to=`                             | tout plan       | agrégats mensuels                          |
-| GET     | `/internal/margins?month=`                             | admin interne   | MRR, coûts et marge par site               |
-| POST    | `/internal/usage/reconcile`                            | admin interne   | déclenche un rapprochement borné           |
-| GET     | `/admin/usage/reconciliation-adjustments`              | opérateur Sokar | file des corrections avec preuve et statut |
-| POST    | `/admin/usage/reconciliation-adjustments`              | opérateur Sokar | crée une correction idempotente en `OPEN`  |
-| POST    | `/admin/usage/reconciliation-adjustments/:id/decision` | opérateur Sokar | approuve ou rejette depuis `OPEN`          |
+| Méthode | Route                                                  | Capacité             | Réponse                                    |
+| ------- | ------------------------------------------------------ | -------------------- | ------------------------------------------ |
+| GET     | `/usage/current`                                       | tout plan            | consommation, inclus, reste, période       |
+| GET     | `/usage/history?from=&to=`                             | tout plan            | agrégats mensuels                          |
+| GET     | `/internal/margins?month=`                             | admin interne        | MRR, coûts et marge par site               |
+| POST    | `/internal/usage/reconcile`                            | admin interne        | déclenche un rapprochement borné           |
+| GET     | `/admin/usage/reconciliation-adjustments`              | opérateur Suppernote | file des corrections avec preuve et statut |
+| POST    | `/admin/usage/reconciliation-adjustments`              | opérateur Suppernote | crée une correction idempotente en `OPEN`  |
+| POST    | `/admin/usage/reconciliation-adjustments/:id/decision` | opérateur Suppernote | approuve ou rejette depuis `OPEN`          |
 
 Les coûts internes ne sont jamais retournés par `/usage/*`.
 

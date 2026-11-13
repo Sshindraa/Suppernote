@@ -131,7 +131,7 @@ au pire.
 - **429 `concurrency_limited`** : Cartesia limite à ~9 requêtes SSE
   simultanées. Code actuel : `CONCURRENCY = 4` avec batches.
 - **`FILLER_CACHE_TTL_SECONDS` undefined au runtime** : le package
-  `@sokar/config/dist/constants.js` doit être rebuildé après chaque modif
+  `@suppernote/config/dist/constants.js` doit être rebuildé après chaque modif
   de `packages/config/src/constants.ts`. Le deploy-vps.sh ne le fait pas
   automatiquement — toujours vérifier.
 - **Multi-IDE git hang** : Kilo + Codex + Antigravity ouvrent des handles

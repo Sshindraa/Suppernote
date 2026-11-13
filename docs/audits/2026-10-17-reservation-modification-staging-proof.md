@@ -25,7 +25,7 @@ et le même lien affichent les détails actualisés.
 ## Recette réelle via le proxy public
 
 `https://staging.sokar.tech/api/reservation-management` → API → PostgreSQL.
-Tenant de démonstration contrôlé Chez Sokar ; réservation technique
+Tenant de démonstration contrôlé Chez Suppernote ; réservation technique
 `556e8072-f6eb-48c6-9184-e277e7e11bd1`. Aucun numéro réel ni lien porteur consigné.
 
 1. Réservation initiale : **20 octobre, 19 h 30, 2 personnes**, table de deux

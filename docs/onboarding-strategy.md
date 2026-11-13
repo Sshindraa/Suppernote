@@ -1,4 +1,4 @@
-# Stratégie d'onboarding Sokar
+# Stratégie d'onboarding Suppernote
 
 > **Statut : LIVRÉ / DOCUMENT DE RÉFÉRENCE — vérifié dans le code le 12 septembre 2026.**
 > Les cinq actions proposées par la version initiale sont implémentées. Le travail restant porte
@@ -43,7 +43,7 @@ RestaurantStep
        -> lien public et code du widget après publication
 ```
 
-Après les appels, le parcours passe directement à Sokar Connect : cinq étapes vocales, puis quatre
+Après les appels, le parcours passe directement à Suppernote Connect : cinq étapes vocales, puis quatre
 étapes Connect. La finalisation est la dernière étape (`ConnectActivationStep`), avec aperçu et
 publication explicite. La clé historique `channels` reste dans le contrat API et est acquise lorsque
 le socle de réservation est prêt ; elle ne correspond plus à une page visible. Ses anciennes URL
@@ -116,13 +116,13 @@ Le parcours est commercialement validé lorsque :
 1. la télémétrie ne perd pas d'événements entre dashboard et API ;
 2. un utilisateur peut reprendre chaque étape après fermeture du navigateur ;
 3. l'indisponibilité Cartesia conserve le transcript et n'empêche pas la suite ;
-4. l'absence de numéro Telnyx produit une action claire pour l'équipe Sokar ;
+4. l'absence de numéro Telnyx produit une action claire pour l'équipe Suppernote ;
 5. les métriques de cohorte permettent d'identifier précisément l'étape d'abandon ;
 6. au moins une cohorte de vrais restaurants termine le parcours et réalise un appel réel.
 
 ## Décisions produit conservées
 
-- L'utilisateur doit entendre ou lire le comportement de Sokar avant le test téléphonique réel.
+- L'utilisateur doit entendre ou lire le comportement de Suppernote avant le test téléphonique réel.
 - Le champ de consignes libres reste avancé et optionnel.
 - Le renvoi d'appel est précédé d'une explication concrète et réversible.
 - Le message du fondateur apparaît après une action de valeur.

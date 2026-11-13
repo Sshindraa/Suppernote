@@ -26,7 +26,7 @@ CI de la PR et CI finale main vertes. Déploiement staging et smoke tests verts
 
 ## Périmètre de la recette staging
 
-Chez Sokar (tenant de démonstration explicitement contrôlé), réservation
+Chez Suppernote (tenant de démonstration explicitement contrôlé), réservation
 technique synthétique et condition figée de 24 heures. Pas de modification
 durable des réglages restaurant, aucun SMS ni paiement appelé par cette recette.
 Le restaurant démo n’a actuellement pas de condition d’annulation enregistrée ;

@@ -74,7 +74,7 @@ queue de retry ni payload parallèle n'est créée dans cette phase. Le dead-let
 existant reçoit le job après épuisement de sa borne, avec les données nettoyées
 par le listener commun. Un `unknown` ne libère jamais la claim et ne crée
 jamais ce retry certain. Cette stratégie garantit un retry borné et
-déterministe côté Sokar, sans prétendre à l'exactly-once chez le provider.
+déterministe côté Suppernote, sans prétendre à l'exactly-once chez le provider.
 
 ### D3E-4 — Contrat provider
 

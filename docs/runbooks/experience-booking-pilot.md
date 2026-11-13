@@ -10,7 +10,7 @@ Le pilote public reste fermé par défaut.
   module interne est activé.
 - Le checkout est refusé si le restaurant n'est pas publié, si Stripe n'autorise pas les charges
   et versements, ou si le taux de commission n'est pas configuré.
-- La commission est une fraction : `0.05` signifie 5 %. Seul un opérateur Sokar peut la régler via
+- La commission est une fraction : `0.05` signifie 5 %. Seul un opérateur Suppernote peut la régler via
   `PATCH /api/internal/experiences/payment-config` avec `{ "restaurantId": "…", "commissionRate": 0.05 }`.
   Envoyer `commissionRate: null` retire la configuration.
 - Le compte Stripe Connect est le compte du restaurant déjà configuré dans les réglages Stripe des
@@ -19,7 +19,7 @@ Le pilote public reste fermé par défaut.
 
 ## Contrat du parcours
 
-1. Sokar Connect ne publie que les expériences actives et les dates futures ouvertes. Le client
+1. Suppernote Connect ne publie que les expériences actives et les dates futures ouvertes. Le client
    choisit une date et une quantité.
 2. L'API réserve les places sous verrou PostgreSQL, fige le prix et la commission, puis crée un
    Checkout Session Stripe idempotent. Le lien expire après 35 minutes.
@@ -56,7 +56,7 @@ connectés et ajouter son secret à `STRIPE_WEBHOOK_SECRET` sans l'écrire ici.
 ## Conditions restant à qualifier avant ouverture commerciale
 
 - Conditions de vente et politique d'annulation/remboursement visibles avant paiement.
-- Traitement TVA, justificatif/facture et responsabilités comptables du restaurant et de Sokar.
+- Traitement TVA, justificatif/facture et responsabilités comptables du restaurant et de Suppernote.
 - Emails de confirmation client et notification restaurateur, plus procédure de support si un
   remboursement échoue.
 - Rapprochement régulier Stripe ↔ réservations et alertes sur les statuts `REFUND_FAILED`.

@@ -1,4 +1,4 @@
-# Sokar — phase 3, finition de la Salle
+# Suppernote — phase 3, finition de la Salle
 
 La Salle conserve son plan, ses tables, son verre et ses commandes. Les recommandations prennent moins de place et la table sélectionnée se distingue de son statut. Captures prises à horloge et données fictives fixes, avec la même taille que la [phase 2](/Users/hamza/Projects/Sokar/docs/audits/phase2-2026-10-03/README.md). [Manifeste des captures](manifest.json).
 

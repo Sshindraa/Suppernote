@@ -58,7 +58,7 @@ basculer sur Slack.
 ## Script de setup Discord (rapide)
 
 ```bash
-# 1. Créer un serveur Discord "Sokar Pilot Lyon"
+# 1. Créer un serveur Discord "Suppernote Pilot Lyon"
 # 2. Créer les channels ci-dessus
 # 3. Créer un webhook pour #sokar-pilot-incidents
 #    → Server Settings → Integrations → Webhooks → New Webhook

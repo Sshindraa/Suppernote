@@ -8,10 +8,10 @@
 
 ## Thèse
 
-Transformer Sokar en **réseau public de restaurants réservables par IA**.
+Transformer Suppernote en **réseau public de restaurants réservables par IA**.
 Le client final n'installe rien. Google, ChatGPT Search, Perplexity et
 les crawlers OpenAI découvrent le resto, lisent la page, et envoient
-l'utilisateur vers un lien Sokar prérempli pour confirmer.
+l'utilisateur vers un lien Suppernote prérempli pour confirmer.
 
 **Anti-hype** : on ne prétend pas que ChatGPT réserve tout seul. On dit
 "votre restaurant devient lisible et réservable depuis les moteurs et
@@ -79,7 +79,7 @@ devant. **Pas de static export** (incompatible avec ISR/SSR).
 3 migrations additives écrites (2026-06-24) :
 
 1. `20260624000001_canal_a_columns_restaurant` — colonnes nullable
-2. `20260624000002_canal_a_backfill` — Chez Sokar → Lyon/69001/FR
+2. `20260624000002_canal_a_backfill` — Chez Suppernote → Lyon/69001/FR
 3. `20260624000003_canal_a_restaurant_images` — table `RestaurantImage`
 
 **Schéma `prisma` étendu** :

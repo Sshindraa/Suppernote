@@ -84,7 +84,7 @@ Sources : [migration Next 16](https://nextjs.org/docs/app/guides/upgrading/versi
 - Connexion Google réelle réussie avec le compte existant : établissement de test retrouvé,
   reprise de l’onboarding existant, persistance après rechargement et dans un second onglet.
   Le proxy `/api/auth/sync` a répondu 200. L’accès opérateur fonctionne également.
-- Déconnexion via le menu Sokar réussie : retour `/login`, puis accès `/admin` refusé dans
+- Déconnexion via le menu Suppernote réussie : retour `/login`, puis accès `/admin` refusé dans
   le second onglet après rechargement.
 - Reconnexion non validée : chargement bloqué sur `/login/sso-callback` et erreurs répétées
   Cloudflare Turnstile `300030` dans les logs navigateur. Les URLs Clerk de staging ont été

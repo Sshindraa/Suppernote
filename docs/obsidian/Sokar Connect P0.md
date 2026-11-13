@@ -1,6 +1,6 @@
-# Sokar Connect — Agent-Ready Pages (Phase 0)
+# Suppernote Connect — Agent-Ready Pages (Phase 0)
 
-> **Statut** : Phase 0 en cours (2026-06-24). Spec validée v1.1, T1 **déployé** (`migrate deploy` + backfillChez Sokar → Lyon/69001/FR, vérifié vert le 2026-06-24). T1-T10 écrits, testés et **déployés en prod** (cf. Journal). T4 app + Nginx déployé en prod (vérifié 2026-07-27 : PM2 sokar-connect online, endpoints 200, HSTS, JSON-LD, CSP). Reste : P1 pilote fermé (10 restos réels, sitemap GSC, monitoring).
+> **Statut** : Phase 0 en cours (2026-06-24). Spec validée v1.1, T1 **déployé** (`migrate deploy` + backfill Chez Suppernote → Lyon/69001/FR, vérifié vert le 2026-06-24). T1-T10 écrits, testés et **déployés en prod** (cf. Journal). T4 app + Nginx déployé en prod (vérifié 2026-07-27 : PM2 sokar-connect online, endpoints 200, HSTS, JSON-LD, CSP). Reste : P1 pilote fermé (10 restos réels, sitemap GSC, monitoring).
 > **Spec complète** : `docs/connect-v1.1.md` (60 KB)
 > **v1 archivée** : `docs/connect-v1.md.archived` (45 KB)
 > **Module API** : `apps/api/src/modules/connect/` (à créer en T2)
@@ -8,10 +8,10 @@
 
 ## Thèse
 
-Transformer Sokar en **réseau public de restaurants réservables par IA**.
+Transformer Suppernote en **réseau public de restaurants réservables par IA**.
 Le client final n'installe rien. Google, ChatGPT Search, Perplexity et
 les crawlers OpenAI découvrent le resto, lisent la page, et envoient
-l'utilisateur vers un lien Sokar prérempli pour confirmer.
+l'utilisateur vers un lien Suppernote prérempli pour confirmer.
 
 **Anti-hype** : on ne prétend pas que ChatGPT réserve tout seul. On dit
 "votre restaurant devient lisible et réservable depuis les moteurs et
@@ -91,7 +91,7 @@ devant. **Pas de static export** (incompatible avec ISR/SSR).
 3 migrations additives écrites (2026-06-24) :
 
 1. `20260624000001_connect_columns_restaurant` — colonnes nullable
-2. `20260624000002_connect_backfill` — Chez Sokar → Lyon/69001/FR
+2. `20260624000002_connect_backfill` — Chez Suppernote → Lyon/69001/FR
 3. `20260624000003_connect_restaurant_images` — table `RestaurantImage`
 
 **Schéma `prisma` étendu** :
@@ -108,7 +108,7 @@ devant. **Pas de static export** (incompatible avec ISR/SSR).
 - `prisma generate` ✅ (exit 0)
 - `pnpm typecheck` global ✅ (api, dashboard, widget, database, types, shared)
 
-**État** : `migrate deploy` **effectué le 2026-06-24** (4 migrations appliquées : 3 Sokar Connect + `20260623225209_add_customer_call_activity_fields`). Backfill Chez Sokar → Lyon/69001/FR OK. `prisma generate` + `typecheck` API + `prisma db seed` verts (cf. Journal 2026-06-24 17:01).
+**État** : `migrate deploy` **effectué le 2026-06-24** (4 migrations appliquées : 3 Suppernote Connect + `20260623225209_add_customer_call_activity_fields`). Backfill Chez Suppernote → Lyon/69001/FR OK. `prisma generate` + `typecheck` API + `prisma db seed` verts (cf. Journal 2026-06-24 17:01).
 
 ## Anti-patterns rappelés
 

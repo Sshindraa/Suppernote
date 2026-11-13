@@ -22,7 +22,7 @@
       "id": 1,
       "type": "stat",
       "title": "Réservations confirmées (total)",
-      "description": "Nombre total de réservations confirmées via Sokar Connect.",
+      "description": "Nombre total de réservations confirmées via Suppernote Connect.",
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -154,7 +154,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "Hits bots IA par user-agent (rate/s)",
-      "description": "Taux de crawl par bot IA sur les pages publiques Connect (restaurant, llms.txt, sitemap, robots, well-known). Permet de mesurer quels bots crawlent réellement Sokar.",
+      "description": "Taux de crawl par bot IA sur les pages publiques Connect (restaurant, llms.txt, sitemap, robots, well-known). Permet de mesurer quels bots crawlent réellement Suppernote.",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
@@ -196,12 +196,12 @@
     }
   ],
   "schemaVersion": 39,
-  "tags": ["sokar", "connect"],
+  "tags": ["suppernote", "connect"],
   "templating": { "list": [] },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Sokar Connect — Pilot Dashboard",
+  "title": "Suppernote Connect — Pilot Dashboard",
   "uid": "sokar-connect-pilot",
   "version": 2,
   "weekStart": ""

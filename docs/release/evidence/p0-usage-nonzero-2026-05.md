@@ -23,7 +23,7 @@ Le snapshot normalisé sans données d'identification est conservé dans
 `private/telnyx-may-provider-evidence.json`, SHA-256
 `8267b8db996e9fde6c9e672b39edfe44abf5e54b3a3f47e2a7c63c9e08b5f5eb`.
 
-## Comparaison au ledger Sokar
+## Comparaison au ledger Suppernote
 
 La requête Prisma sur `usage_events` de production pour la même fenêtre renvoie
 `0` événement. La table `calls` contient `26` appels Telnyx pour `269` secondes
@@ -37,8 +37,8 @@ une ligne `INVOICE_ONLY` pour le contrôle de clôture ; aucune correction n'a �
 créée automatiquement.
 
 Les unités ne sont pas interchangeables : `billed_sec` Telnyx est en USD, alors
-que le ledger Sokar et l'export comptable d'usage sont en EUR. Une prochaine
-étape doit relier les identifiants d'appel aux événements Sokar, puis documenter
+que le ledger Suppernote et l'export comptable d'usage sont en EUR. Une prochaine
+étape doit relier les identifiants d'appel aux événements Suppernote, puis documenter
 le taux de change et la date de conversion avant toute écriture comptable.
 
 ## Conséquence pour P0

@@ -1,4 +1,4 @@
-# Sokar — Plan d'exécution commercial et SEO pour l'agent
+# Suppernote — Plan d'exécution commercial et SEO pour l'agent
 
 Date initiale : **13 octobre 2026 — Europe/Paris**. Dépendances révisées le **15 octobre 2026**.
 
@@ -8,7 +8,7 @@ ni la réalisation des pilotes, ni l'efficacité du canal SEO.
 
 ## 1. Mission et résultat attendu
 
-Faire progresser Sokar vers des clients restaurateurs qui paient, utilisent réellement le produit
+Faire progresser Suppernote vers des clients restaurateurs qui paient, utilisent réellement le produit
 et renouvellent. Développer en parallèle une acquisition organique fondée sur une description
 exacte du produit ; réserver les témoignages et gains chiffrés aux résultats prouvés.
 
@@ -120,7 +120,7 @@ d'appels/jour ne constitue une validation : mesurer la fréquence, la nature des
 
 ### 3.2 Offre et message provisoires
 
-La plateforme Sokar couvre les réservations, l'organisation du service et la relation client ;
+La plateforme Suppernote couvre les réservations, l'organisation du service et la relation client ;
 l'assistant vocal en est une fonction. Le message ci-dessous est une hypothèse pour un premier
 pilote Essential, pas la définition de tout le produit. Voir la
 [carte produit](../PROJECT_MAP.md#ce-quest-sokar) pour les modules développés et leurs limites.
@@ -128,7 +128,7 @@ pilote Essential, pas la définition de tout le produit. Voir la
 **Essential**, sur la base historique de **199 € HT/mois**, avec périmètre et limites à revérifier
 dans le catalogue actif, les entitlements, le site et Stripe avant toute proposition ferme.
 
-> Sokar aide les restaurants à réunir leurs réservations et à préparer leur service dans un même
+> Suppernote aide les restaurants à réunir leurs réservations et à préparer leur service dans un même
 > outil. Un assistant vocal est conçu pour traiter les appels transférés lorsque l'équipe est occupée.
 
 Premier usage : remplacer un processus manuel de réservation. Ne pas promettre la parité complète
@@ -469,7 +469,7 @@ Le premier pilote peut commencer dès que ses propres conditions sont satisfaite
 
 ### Avant démarrage
 
-- Responsable restaurant et responsable Sokar identifiés ; dates, accord et modalités conservés
+- Responsable restaurant et responsable Suppernote identifiés ; dates, accord et modalités conservés
   dans un système restreint. Pilotes sous Essential payant selon le runbook actuel.
 - Prix, facture, plan et cadence vérifiés ; ne pas prendre un Checkout créé pour une facture payée.
 - Onboarding normal terminé, numéro/renvoi/appel qualifiés, disponibilité et secours opérationnels.
@@ -503,10 +503,10 @@ ni rentabilité durable ; ces conclusions relèvent de la phase 7 et du temps d'
 
 **Restaurant** : interruptions évitées ou temps gagné observables, fiabilité, réservations utiles,
 travail supplémentaire de saisie/formation et prix réellement payé. Une réservation traitée par
-Sokar n'est pas automatiquement une réservation supplémentaire ; un appel manqué n'est pas une
+Suppernote n'est pas automatiquement une réservation supplémentaire ; un appel manqué n'est pas une
 vente perdue. Aucun revenu récupéré sans méthode d'attribution explicite.
 
-**Sokar** : recettes HT nettes des remises/remboursements, coûts voix/opérateurs/STT/TTS/LLM,
+**Suppernote** : recettes HT nettes des remises/remboursements, coûts voix/opérateurs/STT/TTS/LLM,
 SMS, paiement et infrastructure imputable, support récurrent, temps initial d'installation et vente.
 
 Calculs à présenter avec hypothèses et périmètre :
@@ -530,7 +530,7 @@ constitue pas un LTV robuste.
 
 ### Critère de passage vers extension
 
-- Les clients utilisent le produit sans une intervention permanente exceptionnelle de l'équipe Sokar.
+- Les clients utilisent le produit sans une intervention permanente exceptionnelle de l'équipe Suppernote.
 - Une décision explicite de continuer et la preuve de paiement correspondante sont disponibles.
 - La contribution et le coût d'installation sont connus assez précisément pour arbitrer l'extension.
 - Les limites acceptables sont définies **avant la revue**, avec Hamza : support récurrent,
@@ -712,7 +712,7 @@ publication d'un comparatif ou arbitrage dépendant d'une offre actuelle.
 
 - [Zenchef — tarifs, options et quotas](https://www.zenchef.com/fr/formules) : prix total à comparer
   avec les limites, options et conditions, pas seulement le prix de base.
-- [Zenchef — AI Concierge](https://help.zenchef.com/hc/fr/articles/32270919614493-AI-Concierge-de-Zenchef-Aper%C3%A7u-et-configuration) : fonctions annoncées ; pas une preuve de qualité comparative avec Sokar.
+- [Zenchef — AI Concierge](https://help.zenchef.com/hc/fr/articles/32270919614493-AI-Concierge-de-Zenchef-Aper%C3%A7u-et-configuration) : fonctions annoncées ; pas une preuve de qualité comparative avec Suppernote.
 - [TheFork Manager — offre](https://www.theforkmanager.com/fr/logiciel-restauration-prix) : automatisation
   téléphonique annoncée ; disponibilité et périmètre exacts à vérifier avant comparaison détaillée.
 - [Google — sitemaps](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap).

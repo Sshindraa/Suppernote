@@ -35,7 +35,7 @@ exigeait des conditions supplementaires qui n'ont pas ete acceptees.
 
 ### Releve Meta du 17 octobre 2026
 
-Apres authentification du proprietaire, Meta affiche le WABA Sokar approuve,
+Apres authentification du proprietaire, Meta affiche le WABA Suppernote approuve,
 entreprise non verifiee, devise USD, un numero connecte. Cela ne remplace pas
 le statut INACTIVE retourne precedemment par Telnyx ; aucun envoi n'est qualifie.
 

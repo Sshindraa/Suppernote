@@ -1,4 +1,4 @@
-# Spec — Cartes cadeaux dans Sokar
+# Spec — Cartes cadeaux dans Suppernote
 
 > **Statut : LIVRÉ / DOCUMENT DE RÉFÉRENCE — vérifié le 12 septembre 2026.**
 > Packs, montant libre, cagnotte, widget, dashboard, codes courts, Stripe, remboursements et
@@ -6,7 +6,7 @@
 > appartiennent au plan initial. Restent l'unicité DB stricte du PaymentIntent après audit des
 > doublons et la qualification du cycle financier complet en environnement réel. Voir
 > [`DOCUMENTATION_STATUS.md`](./DOCUMENTATION_STATUS.md).
-> But : permettre aux restaurateurs Sokar de vendre des cartes cadeaux digitales, intégrées nativement au parcours de réservation, avec packs expérience, option "réserver maintenant" et cagnotte collective.
+> But : permettre aux restaurateurs Suppernote de vendre des cartes cadeaux digitales, intégrées nativement au parcours de réservation, avec packs expérience, option "réserver maintenant" et cagnotte collective.
 
 ---
 
@@ -14,23 +14,23 @@
 
 ### État au moment de la rédaction (historique)
 
-- Sokar gère les réservations via `hold` / `confirm` (Connect, widget, voice, MCP).
+- Suppernote gère les réservations via `hold` / `confirm` (Connect, widget, voice, MCP).
 - Le CRM `Customer` existe avec historique, VIP, consentements.
 - Le modèle `GiftCard`, `GiftCardRedemption` et `GiftCardContribution` a été créé en P1.
 - Aucun flux de paiement réel n’existe aujourd’hui (P1 = mode test / marquage manuel).
 
 ### Objectifs
 
-1. Permettre à un client d’acheter une carte cadeau pour un restaurant Sokar (montant libre ou pack expérience).
+1. Permettre à un client d’acheter une carte cadeau pour un restaurant Suppernote (montant libre ou pack expérience).
 2. Permettre au bénéficiaire de l’utiliser automatiquement au moment de la réservation.
 3. Proposer une option "réserver maintenant" : l’expéditeur offre directement un créneau au bénéficiaire.
-4. Différencier Sokar via le concierge IA (recommandation de montant, message, créneaux).
+4. Différencier Suppernote via le concierge IA (recommandation de montant, message, créneaux).
 5. Offrir au restaurateur un dashboard de création, suivi et statistiques par type de cadeau.
 6. Garder le système compatible avec un futur paiement Stripe (P2) et marketplace (P3). La cagnotte groupe est désormais incluse dans le P1.
 
-### Différenciation Sokar vs Zenchef / OpenTable
+### Différenciation Suppernote vs Zenchef / OpenTable
 
-| Zenchef classique      | Sokar next level                                                |
+| Zenchef classique      | Suppernote next level                                           |
 | ---------------------- | --------------------------------------------------------------- |
 | Achat web uniquement   | Achat web + widget + voice (P1.5)                               |
 | Code générique         | Code personnalisé avec message texte généré par IA              |

@@ -374,6 +374,22 @@ describe('FloorPlanService', () => {
       expect(mocks.reservation.create).toHaveBeenCalledTimes(1);
     });
 
+    it('chevauchement sur la table (23P01) → TABLE_NOT_AVAILABLE, pas une erreur générique', async () => {
+      mocks.table.findFirst.mockResolvedValue({ id: 't1' });
+      mocks.reservation.create.mockRejectedValueOnce(
+        new Error('conflicting key violates exclusion constraint "reservations_no_overlap_active"'),
+      );
+
+      await expect(
+        svc.createWalkIn({
+          restaurantId: 'rest-1',
+          tableId: 't1',
+          partySize: 2,
+          idempotencyKey: 'k-overlap',
+        }),
+      ).rejects.toMatchObject({ name: 'TableAllocationError', code: 'TABLE_NOT_AVAILABLE' });
+    });
+
     it('relance une erreur non-P2002', async () => {
       mocks.table.findFirst.mockResolvedValue({ id: 't1' });
       mocks.reservation.create.mockRejectedValueOnce(new Error('DB down'));

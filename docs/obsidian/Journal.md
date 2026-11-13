@@ -4065,3 +4065,11 @@ Le dispatch production 43131027474 a passé le déploiement et les smoke tests, 
 ## 2026-11-12 — Canonisation du slug de démo en production
 
 Après la fusion de la correction #703, la promotion staging 43132671403 et la promotion production 43133095038 ont réussi avec leurs smoke tests. Le dispatch explicite 43133246782 a ensuite ciblé la base `sokar` sur loopback, appliqué le SQL transactionnel avec succès et vérifié six routes en HTTP 200 : page Connect, widget et packs de cartes cadeaux pour `chez-suppernote-demo` et l’alias `chez-sokar-demo`. La base de production ne conserve désormais que le slug canonique ; le premier dispatch 43131027474 avait été refusé par la garde avant SQL et n’avait modifié aucune donnée.
+
+## 2026-11-13 — Verrou et capacité sur la promotion Service Copilot, 23P01 traduit (PR #706)
+
+Audit des réservations : la récupération de retard (promotion et retour arrière) prenait des verrous de ligne sans verrou restaurant et sans contrôle de capacité sans table. Elle prend désormais le verrou restaurant en premier et refuse si une réservation sans table occupe la capacité. La transition lifecycle `SEATED` prend aussi le verrou restaurant avant le verrou de ligne, pour éviter un interblocage avec la promotion.
+
+L'exclusion `reservations_no_overlap_active` (23P01) est traduite en créneau indisponible dans la création agentique, la réservation legacy et le walk-in. Helper partagé : `apps/api/src/shared/reservations/overlap-violation.ts`. Forme réelle vérifiée sur une base jetable : `PrismaClientKnownRequestError`, code `P2010`, `meta.code = '23P01'`, nom de contrainte dans le message.
+
+Fichiers clés : `floor-plan/service-copilot-delay-recovery.service.ts`, `reservations/reservation-lifecycle.service.ts`, `shared/reservations/overlap-violation.ts`.

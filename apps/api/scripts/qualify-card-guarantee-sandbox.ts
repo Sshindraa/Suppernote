@@ -201,7 +201,7 @@ async function main() {
   check(
     'Page Stripe d’enregistrement',
     'session Checkout `setup`, ouverte, compte du restaurant',
-    `${short(session.id)} mode=${session.mode} statut=${session.status} url=${opened.url.startsWith('https://checkout.stripe.com') ? 'checkout.stripe.com' : 'autre'}`,
+    `${short(session.id)} mode=${session.mode} statut=${session.status} url=${new URL(opened.url).hostname === 'checkout.stripe.com' ? 'checkout.stripe.com' : 'autre'}`,
     session.mode === 'setup' &&
       session.status === 'open' &&
       afterOpen.stripeAccountId === accountId,

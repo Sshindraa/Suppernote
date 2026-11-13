@@ -296,7 +296,7 @@ describe('billing.routes - checkout, portail et statut', () => {
     };
     stripe.__stripeRead.customer.mockResolvedValueOnce({
       id: 'cus_test',
-      email: 'demo@sokar.com',
+      email: 'demo@suppernote.com',
     });
     stripe.__stripeCustomerUpdate.mockResolvedValueOnce({
       id: 'cus_test',

@@ -546,7 +546,7 @@ const QUESTIONS: Question[] = [
   },
   {
     n: 11,
-    text: "Combien Sokar m'a fait économiser en commissions TheFork le mois dernier ?",
+    text: "Combien Suppernote m'a fait économiser en commissions TheFork le mois dernier ?",
     expected: async (id) => ({
       kind: 'amount',
       value: (await computeRoi(id, previousMonth())).theforkSavings,

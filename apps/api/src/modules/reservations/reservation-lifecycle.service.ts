@@ -25,6 +25,11 @@ import { DEFAULT_TRANSACTION_OPTIONS } from '../../shared/db/transaction-options
 import { enqueueReservationConfirmation } from '../../shared/outbox/reservation-confirmation';
 import { enqueue } from '../../shared/outbox/outbox.service';
 
+import {
+  cleanUpCancelledCardGuarantee,
+  releaseCardGuaranteeOnCancel,
+} from '../reservation-payments/reservation-guarantee.release';
+
 export class ReservationNotFoundError extends Error {
   constructor(public readonly id: string) {
     super(`Reservation not found: id=${id}`);
@@ -216,6 +221,10 @@ export class ReservationLifecycleService {
       await enqueueReservationConfirmation(tx, reservation);
     }
 
+    if (!sameState && args.toState === 'CANCELLED') {
+      await releaseCardGuaranteeOnCancel(tx, reservation);
+    }
+
     if (
       !sameState &&
       args.toState === 'HONORED' &&
@@ -300,6 +309,9 @@ export class ReservationLifecycleService {
     args: ReservationLifecycleTransitionInput,
     result: ReservationLifecycleResult,
   ): Promise<void> {
+    if (result.mutated && args.toState === 'CANCELLED') {
+      await cleanUpCancelledCardGuarantee(args.restaurantId, args.reservationId);
+    }
     if (result.capacity !== 'unchanged') {
       await CapacityAwareAvailabilityService.invalidateAvailability(args.restaurantId);
     }

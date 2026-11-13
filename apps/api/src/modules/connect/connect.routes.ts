@@ -16,7 +16,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import type { Table } from '@prisma/client';
+import type { Prisma, Table } from '@prisma/client';
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import {
@@ -84,6 +84,8 @@ import {
 } from '../agentic-reservations/core/idempotency.service';
 import {
   AvailabilityQuerySchema,
+  CardGuaranteeCheckoutSchema,
+  CardGuaranteeTokenParamSchema,
   ConfirmInputSchema,
   HoldInputSchema,
   DISCOVERABLE_CONNECT_WHERE,
@@ -92,6 +94,17 @@ import {
   type Source,
 } from './connect.types';
 import { emitConnectEvent } from './connect-analytics';
+import { createCardGuaranteePaymentInTransaction } from '../reservation-payments/reservation-payment.service';
+import {
+  WEB_CARD_GUARANTEE_HOLD_MS,
+  cardGuaranteePageUrl,
+  cardGuaranteeToken,
+  findCardGuaranteeTerms,
+  openCardGuaranteeCheckout,
+  publicCardGuaranteeStatus,
+  verifyCardGuaranteeToken,
+  type CardGuaranteeTerms,
+} from '../reservation-payments/reservation-guarantee.public';
 import { ConnectKpiService } from './connect-kpis.service';
 import { recordBookingMarketingConsent } from '../marketing/marketing-consent.service';
 import { canConfirm, recordFailedConfirm } from './connect-rate-limit';
@@ -155,6 +168,57 @@ function statusClass(code: number): string {
   if (code < 400) return '2xx';
   if (code < 500) return '4xx';
   return '5xx';
+}
+
+/** Conditions d'empreinte exposées au client, sans identifiant interne. */
+function publicTerms(terms: CardGuaranteeTerms) {
+  return {
+    amountPerPerson: terms.amountPerPerson,
+    totalAmount: terms.totalAmount,
+    currency: terms.currency,
+    cancellationHours: terms.cancellationHours,
+  };
+}
+
+/**
+ * Ouvre la page Stripe juste après la création. Un échec Stripe ne perd rien : la réservation
+ * reste tenue et la page Suppernote propose de réessayer jusqu'à l'expiration.
+ */
+async function openGuaranteeAfterBooking(input: {
+  paymentId: string;
+  restaurantId: string;
+  slug: string;
+  restaurantName: string;
+  terms: CardGuaranteeTerms;
+}) {
+  const payment = await db.reservationPayment.findFirst({
+    where: { id: input.paymentId, restaurantId: input.restaurantId },
+    select: { id: true, restaurantId: true, amount: true, expiresAt: true },
+  });
+  const token = payment ? cardGuaranteeToken(payment) : null;
+  if (!payment || !token) return null;
+  let checkoutUrl: string | null = null;
+  try {
+    ({ url: checkoutUrl } = await openCardGuaranteeCheckout({
+      payment,
+      slug: input.slug,
+      restaurantName: input.restaurantName,
+      cancellationHours: input.terms.cancellationHours,
+      termsAcceptedAt: new Date(),
+    }));
+  } catch (error) {
+    logger.warn(
+      { paymentId: payment.id, err: error instanceof Error ? error.message : String(error) },
+      'connect card guarantee checkout not opened',
+    );
+  }
+  return {
+    checkoutUrl,
+    pageUrl: cardGuaranteePageUrl(input.slug, token),
+    expiresAt: payment.expiresAt?.toISOString() ?? null,
+    totalAmount: payment.amount.toFixed(2),
+    cancellationHours: input.terms.cancellationHours,
+  };
 }
 
 export async function connectRoutes(app: FastifyInstance): Promise<void> {
@@ -783,6 +847,18 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
           },
         });
         if (!existing) return reply.status(409).send({ error: 'Confirmation cannot be replayed' });
+        const pendingGuarantee =
+          existing.state === 'PENDING'
+            ? await db.reservationPayment.findFirst({
+                where: {
+                  restaurantId: restaurant.id,
+                  reservationId: existing.id,
+                  status: 'REQUIRES_PAYMENT_METHOD',
+                },
+                select: { id: true, restaurantId: true, expiresAt: true, amount: true },
+              })
+            : null;
+        const pendingToken = pendingGuarantee ? cardGuaranteeToken(pendingGuarantee) : null;
         // tenant-scoping: global — table Restaurant, id déjà résolu.
         const restaurantTz = await db.restaurant.findUnique({
           where: { id: restaurant.id },
@@ -797,7 +873,17 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
           ...(isReservationManagementEnabled()
             ? { managementUrl: reservationManagementUrl(existing) }
             : {}),
-          status: 'confirmed',
+          status: pendingToken ? 'awaiting_card_guarantee' : 'confirmed',
+          ...(pendingGuarantee && pendingToken
+            ? {
+                cardGuarantee: {
+                  checkoutUrl: null,
+                  pageUrl: cardGuaranteePageUrl(restaurant.slug, pendingToken),
+                  expiresAt: pendingGuarantee.expiresAt?.toISOString() ?? null,
+                  totalAmount: pendingGuarantee.amount.toFixed(2),
+                },
+              }
+            : {}),
           state: existing.state,
           reused: true,
           restaurantName: restaurant.name,
@@ -883,6 +969,26 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
         restaurantTz?.timezone ?? DEFAULT_RESTAURANT_TIMEZONE,
       );
 
+      // Empreinte bancaire : le serveur décide ; le client doit avoir accepté le montant affiché.
+      const guaranteeTerms: CardGuaranteeTerms | null = isTest
+        ? null
+        : await findCardGuaranteeTerms({
+            restaurantId: restaurant.id,
+            partySize: hold.partySize,
+            localDate,
+          });
+      if (
+        guaranteeTerms &&
+        bodyParse.data.cardGuarantee?.totalAmount !== guaranteeTerms.totalAmount
+      ) {
+        return reply.status(409).send({
+          error: 'card_guarantee_required',
+          cardGuarantee: publicTerms(guaranteeTerms),
+          bookingUrl: restaurant.reservationUrl,
+        });
+      }
+      let guaranteePaymentId: string | null = null;
+
       // RGPD consent (channel=WEB, context=web_booking_intent)
       const ipHash = req.ip ? hashIp(req.ip) : undefined;
       const whatsappConsent = createWhatsAppReminderConsent(
@@ -942,6 +1048,22 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
             holdToken: bodyParse.data.holdToken,
             specialRequests: bodyParse.data.specialRequests,
             tableId: table.id,
+            ...(guaranteeTerms
+              ? {
+                  awaitingCardGuarantee: async (
+                    tx: Prisma.TransactionClient,
+                    reservationId: string,
+                  ) => {
+                    guaranteePaymentId = await createCardGuaranteePaymentInTransaction(tx, {
+                      restaurantId: restaurant.id,
+                      reservationId,
+                      policyId: guaranteeTerms.policyId,
+                      partySize: hold.partySize,
+                      expiresAt: new Date(Date.now() + WEB_CARD_GUARANTEE_HOLD_MS),
+                    });
+                  },
+                }
+              : {}),
             ...(isTest
               ? { isTest: true }
               : {
@@ -1031,10 +1153,21 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
               where: { id: result.reservationId, restaurantId: restaurant.id },
             })
           : null;
+        const cardGuarantee =
+          guaranteePaymentId && guaranteeTerms
+            ? await openGuaranteeAfterBooking({
+                paymentId: guaranteePaymentId,
+                restaurantId: restaurant.id,
+                slug: restaurant.slug,
+                restaurantName: restaurant.name,
+                terms: guaranteeTerms,
+              })
+            : null;
         return reply.send({
           reservationId: result.reservationId,
           ...(managed ? { managementUrl: reservationManagementUrl(managed) } : {}),
-          status: 'confirmed',
+          status: cardGuarantee ? 'awaiting_card_guarantee' : 'confirmed',
+          ...(cardGuarantee ? { cardGuarantee } : {}),
           state: result.state,
           reused: result.reused,
           restaurantName: restaurant.name,
@@ -1076,6 +1209,140 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
           return reply.status(410).send({ error: message });
         }
         return reply.status(500).send({ error: message });
+      }
+    },
+  );
+
+  // ─── Empreinte bancaire ─────────────────────────────────────
+  // Conditions pour une table (affichées avant la saisie des coordonnées), puis page d'une
+  // empreinte en attente, accessible par un jeton signé (retour Stripe, lien SMS).
+
+  app.get(
+    '/public/r/:slug/card-guarantee',
+    {
+      config: {
+        rateLimit: { max: publicReadMax(RATE_LIMIT_AVAILABILITY_MAX), timeWindow: '1 minute' },
+      },
+    },
+    async (req, reply) => {
+      const slugParse = SlugParamSchema.safeParse(req.params);
+      const queryParse = AvailabilityQuerySchema.safeParse(req.query);
+      if (!slugParse.success || !queryParse.success) {
+        return reply.status(400).send({ error: 'Invalid request' });
+      }
+      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug);
+      if (!restaurant) {
+        return reply.status(404).send({ error: 'Restaurant not found or not published' });
+      }
+      const terms = await findCardGuaranteeTerms({
+        restaurantId: restaurant.id,
+        partySize: queryParse.data.partySize,
+        localDate: queryParse.data.date,
+      });
+      return reply.send({
+        cardGuarantee: terms ? publicTerms(terms) : null,
+        // Les assistants (ChatGPT) renvoient vers la page du restaurant pour l'empreinte (spec v1).
+        bookingUrl: restaurant.reservationUrl,
+      });
+    },
+  );
+
+  async function loadGuaranteeByToken(params: unknown) {
+    const parsed = CardGuaranteeTokenParamSchema.safeParse(params);
+    if (!parsed.success) return null;
+    const restaurant = await canal.getPublishedBySlug(parsed.data.slug);
+    if (!restaurant) return null;
+    const paymentId = verifyCardGuaranteeToken(parsed.data.token, restaurant.id);
+    if (!paymentId) return null;
+    const payment = await db.reservationPayment.findFirst({
+      where: { id: paymentId, restaurantId: restaurant.id },
+      select: {
+        id: true,
+        restaurantId: true,
+        status: true,
+        amount: true,
+        expiresAt: true,
+        policySnapshot: true,
+        reservation: { select: { partySize: true, startsAt: true, reservedAt: true } },
+      },
+    });
+    if (!payment) return null;
+    const snapshot = (payment.policySnapshot ?? {}) as { cancellationHours?: unknown };
+    const cancellationHours =
+      typeof snapshot.cancellationHours === 'number' ? snapshot.cancellationHours : 24;
+    return { restaurant, payment, cancellationHours };
+  }
+
+  app.get(
+    '/public/r/:slug/card-guarantee/:token',
+    {
+      config: {
+        rateLimit: { max: publicReadMax(RATE_LIMIT_AVAILABILITY_MAX), timeWindow: '1 minute' },
+      },
+    },
+    async (req, reply) => {
+      const found = await loadGuaranteeByToken(req.params);
+      if (!found) return reply.status(404).send({ error: 'card_guarantee_not_found' });
+      const { restaurant, payment, cancellationHours } = found;
+      const startsAt = payment.reservation.startsAt ?? payment.reservation.reservedAt;
+      // tenant-scoping: global — table Restaurant, id déjà résolu par le slug public.
+      const restaurantTz = await db.restaurant.findUnique({
+        where: { id: restaurant.id },
+        select: { timezone: true },
+      });
+      const local = utcToZonedParts(
+        startsAt,
+        restaurantTz?.timezone ?? DEFAULT_RESTAURANT_TIMEZONE,
+      );
+      return reply.send({
+        status: publicCardGuaranteeStatus(payment.status, payment.expiresAt),
+        restaurantName: restaurant.name,
+        date: local.date,
+        time: local.time,
+        partySize: payment.reservation.partySize,
+        amountPerPerson: payment.amount.div(payment.reservation.partySize).toFixed(2),
+        totalAmount: payment.amount.toFixed(2),
+        cancellationHours,
+        freeCancellationUntil: new Date(
+          startsAt.getTime() - cancellationHours * 3_600_000,
+        ).toISOString(),
+        expiresAt: payment.expiresAt?.toISOString() ?? null,
+      });
+    },
+  );
+
+  app.post(
+    '/public/r/:slug/card-guarantee/:token/checkout',
+    { config: { rateLimit: { max: RATE_LIMIT_CONFIRM_MAX, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      if (!CardGuaranteeCheckoutSchema.safeParse(req.body).success) {
+        return reply.status(400).send({ error: 'card_guarantee_terms_required' });
+      }
+      const found = await loadGuaranteeByToken(req.params);
+      if (!found) return reply.status(404).send({ error: 'card_guarantee_not_found' });
+      if (
+        publicCardGuaranteeStatus(found.payment.status, found.payment.expiresAt) !== 'awaiting_card'
+      ) {
+        return reply.status(409).send({ error: 'card_guarantee_closed' });
+      }
+      try {
+        const { url } = await openCardGuaranteeCheckout({
+          payment: found.payment,
+          slug: found.restaurant.slug,
+          restaurantName: found.restaurant.name,
+          cancellationHours: found.cancellationHours,
+          termsAcceptedAt: new Date(),
+        });
+        return reply.send({ checkoutUrl: url });
+      } catch (error) {
+        logger.warn(
+          {
+            paymentId: found.payment.id,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'connect card guarantee checkout failed',
+        );
+        return reply.status(503).send({ error: 'card_guarantee_unavailable' });
       }
     },
   );

@@ -1049,6 +1049,44 @@ const GUARANTEE_SELECT = {
   },
 } as const;
 
+/**
+ * Écrit l'empreinte d'une réservation qui vient d'être créée `PENDING`, dans la transaction de
+ * création. Le montant et le délai annoncés au client sont figés dans le snapshot.
+ */
+export async function createCardGuaranteePaymentInTransaction(
+  tx: Prisma.TransactionClient,
+  input: {
+    restaurantId: string;
+    reservationId: string;
+    policyId: string;
+    partySize: number;
+    expiresAt: Date;
+  },
+): Promise<string> {
+  const policy = await tx.reservationPaymentPolicy.findFirst({
+    where: { id: input.policyId, restaurantId: input.restaurantId },
+    select: POLICY_SELECT,
+  });
+  if (!policy || policy.type !== ReservationPaymentType.CARD_GUARANTEE) {
+    throw new ReservationPaymentPolicyNotFoundError();
+  }
+  const row = await tx.reservationPayment.create({
+    data: {
+      restaurantId: input.restaurantId,
+      reservationId: input.reservationId,
+      policyId: policy.id,
+      status: ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD,
+      amount: computeReservationPaymentAmount(policy, input.partySize),
+      currency: 'EUR',
+      idempotencyKey: `card-guarantee:${input.reservationId}`,
+      policySnapshot: policySnapshot(policy),
+      expiresAt: input.expiresAt,
+    },
+    select: { id: true },
+  });
+  return row.id;
+}
+
 async function findGuarantee(
   restaurantId: string,
   target: { id: string } | { reservationId: string },
@@ -1152,13 +1190,14 @@ export async function captureCardGuarantee(input: {
   const now = input.now ?? new Date();
   const payment = await findGuarantee(input.restaurantId, { reservationId: input.reservationId });
   const reservationAt = payment.reservation.startsAt ?? payment.reservation.reservedAt;
-  // shortcut: absence seulement ; l'annulation tardive arrive avec le parcours d'annulation (PR 2).
+  // Une annulation dans le délai gratuit ferme l'empreinte (`CANCELLED`) : une réservation annulée
+  // dont l'empreinte est encore `AUTHORIZED` a donc été annulée trop tard.
   if (
     payment.status !== ReservationPaymentStatus.AUTHORIZED ||
     !payment.stripeAccountId ||
     !payment.stripeCustomerId ||
     !payment.stripePaymentMethodId ||
-    payment.reservation.status !== 'NO_SHOW' ||
+    (payment.reservation.status !== 'NO_SHOW' && payment.reservation.status !== 'CANCELLED') ||
     now.getTime() > reservationAt.getTime() + GUARANTEE_CAPTURE_WINDOW_MS
   ) {
     throw new ReservationPaymentStateError('PAYMENT_CAPTURE_NOT_ALLOWED');

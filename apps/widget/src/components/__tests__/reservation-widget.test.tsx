@@ -12,11 +12,15 @@ interface WindowWithOpenAI extends Window {
   };
 }
 
-vi.mock('@suppernote/shared', () => ({
-  fetchWithTimeout: vi.fn(),
+// Les conditions d'empreinte ont leur propre double : la file des autres appels reste inchangée.
+const network = vi.hoisted(() => ({ fetch: vi.fn(), guarantee: vi.fn() }));
+vi.mock('@suppernote/shared', async (importOriginal) => ({
+  ...((await importOriginal()) as Record<string, unknown>),
+  fetchWithTimeout: (url: string, init?: RequestInit) =>
+    url.includes('/card-guarantee') ? network.guarantee(url, init) : network.fetch(url, init),
 }));
 
-const mockFetch = vi.mocked(fetchWithTimeout);
+const mockFetch = vi.mocked(network.fetch as unknown as typeof fetchWithTimeout);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -91,6 +95,11 @@ function confirmResponse() {
 
 beforeEach(() => {
   mockFetch.mockReset();
+  network.guarantee.mockReset().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ cardGuarantee: null, bookingUrl: 'https://suppernote.test/book/demo' }),
+  });
   restoreLocation();
   delete (window as unknown as WindowWithOpenAI).openai;
 });
@@ -314,6 +323,38 @@ describe('ReservationWidget — étape customer', () => {
     await screen.findByRole('form', { name: 'Vos coordonnées' });
     return utils;
   }
+
+  it('renvoie vers la page du restaurant quand une empreinte bancaire est demandée', async () => {
+    network.guarantee.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        cardGuarantee: {
+          amountPerPerson: '20.00',
+          totalAmount: '40.00',
+          currency: 'EUR',
+          cancellationHours: 24,
+        },
+        bookingUrl: 'https://suppernote.test/book/chez-suppernote-demo',
+      }),
+    });
+    mockFetch.mockResolvedValueOnce(availabilityResponse());
+    render(<ReservationWidget />);
+    await screen.findByRole('form', { name: 'Détails de la réservation' });
+    fireEvent.change(screen.getByLabelText(/Choisissez une date/), {
+      target: { value: '2030-01-15' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Voir les créneaux' }));
+    fireEvent.click(await screen.findByRole('button', { name: '19:00' }));
+
+    const link = await screen.findByRole('link', { name: 'Terminer sur la page du restaurant' });
+    expect(link).toHaveAttribute(
+      'href',
+      'https://suppernote.test/book/chez-suppernote-demo?date=2030-01-15&partySize=2&time=19%3A00',
+    );
+    expect(screen.getByText(/Aucun montant n’est débité aujourd’hui/)).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Vos coordonnées' })).not.toBeInTheDocument();
+  });
 
   it('affiche les champs firstName (requis), phone (requis), email, specialRequests', async () => {
     await goToCustomerStep();

@@ -65,7 +65,7 @@ describe('usage accounting export', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'restaurant-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'restaurant-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
 
     const rows = await getUsageAccountingExport({ monthKey: '2026-09' });
@@ -86,7 +86,7 @@ describe('usage accounting export', () => {
     expect(rows[2]).toMatchObject({
       rowType: 'USAGE',
       restaurantId: 'restaurant-1',
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       category: 'SMS_SEGMENTS',
       quantity: '3.000000',
       costEur: '0.015000',

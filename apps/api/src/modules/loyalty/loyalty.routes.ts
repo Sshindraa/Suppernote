@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { LoyaltyBenefitStatus, LoyaltyGrantStatus } from '@prisma/client';
 import { z } from 'zod';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
 import {
   createLoyaltyBenefit,
@@ -239,7 +239,7 @@ export async function loyaltyRoutes(app: FastifyInstance): Promise<void> {
 
   app.post(
     '/api/internal/loyalty/grants/expire',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_request, reply) => {
       return reply.send({ expiredCount: await expireLoyaltyGrants() });
     },

@@ -42,7 +42,7 @@ const REMINDER_DATA = {
   shortCode: 'SKR-TEST-01',
   amount: 100,
   remainingAmount: 75,
-  restaurantName: 'Chez Sokar',
+  restaurantName: 'Chez Suppernote',
   recipientName: 'Bob',
   recipientEmail: 'bob@example.com',
   expiresAt: new Date('2026-12-31'),
@@ -63,10 +63,10 @@ describe('gift-card-reminder: sendExpirationReminder', () => {
       html: string;
     };
     expect(call.to).toBe('bob@example.com');
-    expect(call.subject).toBe('Votre carte cadeau Chez Sokar expire bientôt');
+    expect(call.subject).toBe('Votre carte cadeau Chez Suppernote expire bientôt');
     expect(call.html).toContain('75€');
     expect(call.html).toContain('SKR-TEST-01');
-    expect(call.html).toContain('Chez Sokar');
+    expect(call.html).toContain('Chez Suppernote');
     expect(call.html).toContain('Bob');
   });
 
@@ -95,10 +95,10 @@ describe('gift-card-reminder: refund notifications', () => {
     shortCode: 'SKR-TEST-01',
     code: 'gc_full_long_id_123',
     refundAmount: 50,
-    restaurantName: 'Chez Sokar',
+    restaurantName: 'Chez Suppernote',
     senderName: 'Alice',
     senderEmail: 'alice@example.com',
-    restaurantEmail: 'manager@chezsokar.fr',
+    restaurantEmail: 'manager@example.invalid',
   };
 
   beforeEach(() => {
@@ -115,7 +115,7 @@ describe('gift-card-reminder: refund notifications', () => {
       html: string;
     };
     expect(call.to).toBe('alice@example.com');
-    expect(call.subject).toBe('Remboursement carte cadeau Chez Sokar');
+    expect(call.subject).toBe('Remboursement carte cadeau Chez Suppernote');
     expect(call.html).toContain('50€');
     expect(call.html).toContain('SKR-TEST-01');
     expect(call.html).toContain('Alice');
@@ -134,8 +134,8 @@ describe('gift-card-reminder: refund notifications', () => {
       subject: string;
       html: string;
     };
-    expect(call.to).toBe('manager@chezsokar.fr');
-    expect(call.subject).toBe('Carte cadeau annulée — Chez Sokar');
+    expect(call.to).toBe('manager@example.invalid');
+    expect(call.subject).toBe('Carte cadeau annulée — Chez Suppernote');
     expect(call.html).toContain('50€');
     expect(call.html).toContain('SKR-TEST-01');
   });

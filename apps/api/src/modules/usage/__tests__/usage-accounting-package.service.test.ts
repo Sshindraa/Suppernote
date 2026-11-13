@@ -64,13 +64,13 @@ describe('usage accounting package', () => {
       '"schema_version","month","row_type","restaurant_id","restaurant_name","plan","category","provider","unit","period_start","period_end","quantity","cost_eur","currency","cost_status","event_count","source","report_hash","adjustment_id","adjustment_status","reason"\n';
     expect(() => assertUsageAccountingCsv(usageHeader)).not.toThrow();
     const manifest = buildAccountingPackageManifest(input, {
-      usageExportFile: 'sokar-usage-accounting-2026-08.csv',
-      vendorInvoiceFile: 'sokar-vendor-invoices-2026-08.csv',
-      reconciliationFile: 'sokar-reconciliation-2026-08.json',
+      usageExportFile: 'suppernote-usage-accounting-2026-08.csv',
+      vendorInvoiceFile: 'suppernote-vendor-invoices-2026-08.csv',
+      reconciliationFile: 'suppernote-reconciliation-2026-08.json',
       invoiceDocumentFile: 'telnyx-invoice-2026-08.pdf',
     });
     expect(manifest.packageId).toMatch(/^sokar-accounting-2026-08-[a-f0-9]{16}$/);
     expect(manifest.vendorInvoice.mrc).toEqual({ amount: '1.00', currency: 'USD', unit: 'month' });
-    expect(sha256Hex('sokar')).toHaveLength(64);
+    expect(sha256Hex('suppernote')).toHaveLength(64);
   });
 });

@@ -3,7 +3,7 @@ import { buildSystemPrompt, type OpeningHours } from '../prompts';
 
 const hours: OpeningHours = { tue: { open: '12:00', close: '22:00' } } as unknown as OpeningHours;
 const now = new Date('2026-10-07T10:00:00Z');
-const base = { name: 'Chez Sokar', openingHours: hours };
+const base = { name: 'Chez Suppernote', openingHours: hours };
 
 describe('bloc « ce que tu sais du restaurant »', () => {
   it('est absent sans faits : le prompt reste identique', () => {

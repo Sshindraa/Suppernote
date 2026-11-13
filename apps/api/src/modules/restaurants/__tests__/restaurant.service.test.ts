@@ -46,11 +46,11 @@ import { RestaurantService, invalidateRestaurantContextCache } from '../restaura
 
 const FULL_RESTAURANT = {
   id: 'rest-1',
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   slug: 'chez-sokar',
   plan: 'STARTER',
   managerPhone: '+336****0000',
-  managerEmail: 'boss@sokar.test',
+  managerEmail: 'boss@suppernote.test',
   phoneNumber: 'pn-1234',
   timezone: 'Europe/Paris',
   formattedAddress: '42 rue Exemple, Lyon',
@@ -138,11 +138,11 @@ describe('RestaurantService.loadContext', () => {
     });
     expect(setCachedContext).toHaveBeenCalledWith(
       'phone:pn-1234',
-      expect.objectContaining({ id: 'rest-1', name: 'Chez Sokar' }),
+      expect.objectContaining({ id: 'rest-1', name: 'Chez Suppernote' }),
       REDIS_CTX_TTL_SECONDS,
     );
     expect(result.id).toBe('rest-1');
-    expect(result.name).toBe('Chez Sokar');
+    expect(result.name).toBe('Chez Suppernote');
     expect(result.providerConfig.sttProvider).toBe('deepgram');
     expect(result.providerConfig.ttsProvider).toBe('cartesia');
   });

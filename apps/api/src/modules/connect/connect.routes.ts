@@ -76,7 +76,7 @@ import {
   WaitingListSlotFullError,
 } from '../agentic-reservations/core/waiting-list.errors';
 import { ConsentService } from '../rgpd/consent.service';
-import { requireSokarOperator } from '../../plugins/clerk';
+import { requirePlatformOperator } from '../../plugins/clerk';
 import { publicReadMax } from '../../plugins/rate-limit';
 import {
   computeIdempotencyScope,
@@ -1602,7 +1602,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
 
   app.get(
     '/api/internal/connect-kpis',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_req, reply) => {
       try {
         const kpis = await connectKpis.getKpis();

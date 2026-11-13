@@ -9,7 +9,7 @@
  * Example:
  *   pnpm --filter @suppernote/api usage:accounting:package -- \
  *     --month 2026-08 \
- *     --usage-csv ./private/sokar-usage-accounting-2026-08.csv \
+ *     --usage-csv ./private/suppernote-usage-accounting-2026-08.csv \
  *     --invoice ./private/telnyx-invoice-2026-08.json \
  *     --invoice-pdf ./private/telnyx-invoice-2026-08.pdf \
  *     --reconciliation ./private/telnyx-reconciliation-2026-08.json \
@@ -190,14 +190,14 @@ async function main(): Promise<void> {
   }
 
   await mkdir(outputDir, { recursive: true });
-  const usageOutput = join(outputDir, `sokar-usage-accounting-${args.month}.csv`);
-  const vendorOutput = join(outputDir, `sokar-vendor-invoices-${args.month}.csv`);
-  const reconciliationOutput = join(outputDir, `sokar-reconciliation-${args.month}.json`);
+  const usageOutput = join(outputDir, `suppernote-usage-accounting-${args.month}.csv`);
+  const vendorOutput = join(outputDir, `suppernote-vendor-invoices-${args.month}.csv`);
+  const reconciliationOutput = join(outputDir, `suppernote-reconciliation-${args.month}.json`);
   const invoiceDocumentOutput = join(
     outputDir,
     `telnyx-invoice-${args.month}${extname(invoicePdfPath).toLowerCase() || '.pdf'}`,
   );
-  const manifestOutput = join(outputDir, `sokar-accounting-package-${args.month}.json`);
+  const manifestOutput = join(outputDir, `suppernote-accounting-package-${args.month}.json`);
 
   await writeFile(usageOutput, usageCsv, 'utf8');
   await writeFile(reconciliationOutput, `${JSON.stringify(reconciliation, null, 2)}\n`, 'utf8');

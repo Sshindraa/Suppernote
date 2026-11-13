@@ -36,7 +36,7 @@ vi.mock('../../../shared/logger/pino', () => ({
 
 const base = {
   restaurantId: 'restaurant-1',
-  restaurantName: 'Chez Sokar',
+  restaurantName: 'Chez Suppernote',
   customerId: 'customer-1',
   source: 'CONNECT' as const,
 };
@@ -91,7 +91,7 @@ describe('recordBookingMarketingConsent', () => {
       source: 'CONNECT',
       liftsOpposition: true,
       proofVersion: MARKETING_CONSENT_VERSION,
-      proof: buildMarketingConsentProof('EMAIL', 'Chez Sokar'),
+      proof: buildMarketingConsentProof('EMAIL', 'Chez Suppernote'),
       occurredAt: OCCURRED_AT,
     });
   });
@@ -221,7 +221,7 @@ describe('recordStaffMarketingConsent', () => {
     vi.mocked(db.customer.findFirst).mockResolvedValue({
       emailNormalized: 'client@example.com',
     } as never);
-    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Sokar' } as never);
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Suppernote' } as never);
     vi.mocked(upsertMarketingPermission).mockResolvedValue({ id: 'permission-1' } as never);
   });
 
@@ -237,7 +237,7 @@ describe('recordStaffMarketingConsent', () => {
         status: MarketingPermissionStatus.OPTED_IN,
         source: 'DASHBOARD_IN_PERSON',
         proofVersion: MARKETING_CONSENT_VERSION,
-        proof: `${buildMarketingConsentProof('EMAIL', 'Chez Sokar')}|IN_PERSON`,
+        proof: `${buildMarketingConsentProof('EMAIL', 'Chez Suppernote')}|IN_PERSON`,
       }),
     );
   });
@@ -276,8 +276,8 @@ describe('recordStaffMarketingConsent', () => {
 
 describe('marketing consent wording', () => {
   it('names the restaurant and the channel', () => {
-    expect(buildMarketingConsentLabel('EMAIL', 'Chez Sokar')).toBe(
-      'Recevoir les offres et actualités du restaurant Chez Sokar par e-mail',
+    expect(buildMarketingConsentLabel('EMAIL', 'Chez Suppernote')).toBe(
+      'Recevoir les offres et actualités du restaurant Chez Suppernote par e-mail',
     );
     expect(buildMarketingConsentLabel('SMS', '  ')).toContain('ce restaurant');
   });
@@ -295,7 +295,7 @@ describe('ligne « recevoir les offres » de l’e-mail de confirmation', () => 
       emailNormalized: address,
     } as never);
     vi.mocked(db.reservation.findFirst).mockResolvedValue({ customerEmail: address } as never);
-    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Sokar' } as never);
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Suppernote' } as never);
     vi.mocked(db.marketingPermission.findFirst).mockResolvedValue(null);
     vi.mocked(db.marketingOptOut.findMany).mockResolvedValue([]);
     vi.mocked(upsertMarketingPermission).mockResolvedValue({} as never);
@@ -344,7 +344,7 @@ describe('ligne « recevoir les offres » de l’e-mail de confirmation', () => 
         status: MarketingPermissionStatus.OPTED_IN,
         source: 'CONFIRMATION_EMAIL',
         proofVersion: MARKETING_CONSENT_VERSION,
-        proof: buildMarketingConsentProof('EMAIL', 'Chez Sokar'),
+        proof: buildMarketingConsentProof('EMAIL', 'Chez Suppernote'),
       }),
     );
 

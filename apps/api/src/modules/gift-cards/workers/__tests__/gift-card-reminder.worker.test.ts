@@ -90,7 +90,7 @@ const card = {
   recipientName: 'Bob',
   recipientEmail: 'bob@example.com',
   expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-  restaurant: { id: 'rest-1', name: 'Chez Sokar' },
+  restaurant: { id: 'rest-1', name: 'Chez Suppernote' },
 };
 
 function makeJob(): Job<GiftCardReminderJobData> {

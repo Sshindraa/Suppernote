@@ -175,7 +175,7 @@ export interface BehaviorCase {
 export interface BehaviorCasesFile {
   version: number;
   today: string;
-  /** Profil des cas qui n'en nomment pas : Chez Sokar, relevé en base de production. */
+  /** Profil des cas qui n'en nomment pas : Chez Suppernote, relevé en base de production. */
   defaultProfile: string;
   histories?: Record<string, BehaviorMessage[]>;
   profiles: Record<string, BehaviorProfile>;

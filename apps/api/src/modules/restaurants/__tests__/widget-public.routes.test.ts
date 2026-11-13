@@ -18,11 +18,11 @@ describe('GET /public/widget/:slug', () => {
     await closeApp();
   });
 
-  it('renvoie 200 + restaurant quand le slug existe (peu importe connectPublished)', async () => {
+  it('résout le nouveau slug sur la fiche legacy avant la migration des données', async () => {
     const app = await getApp();
     const fakeRestaurant = {
       id: 'rest-uuid-123',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       slug: 'chez-sokar-demo',
       openingHours: { mon: { open: '12:00', close: '14:30' } },
       phoneNumber: '+33123456789',

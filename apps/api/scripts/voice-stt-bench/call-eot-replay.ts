@@ -11,7 +11,7 @@
  * Coût : durée des pistes × (0,0048 $/min Nova-3 + 0,0078 $/min Flux multilingue).
  *
  *   cd apps/api && node --env-file=.env --import tsx scripts/voice-stt-bench/call-eot-replay.ts \
- *     --audio-dir "$TMPDIR/sokar-call-audio" --out "$TMPDIR/eot-replay.json" [--concurrency 6] [--only 28511b65,...]
+ *     --audio-dir "$TMPDIR/suppernote-call-audio" --out "$TMPDIR/eot-replay.json" [--concurrency 6] [--only 28511b65,...]
  *   Options Flux : --eot-threshold 0.7 --eager-eot-threshold 0.5 --eot-timeout-ms 1000 --models nova-3,flux-general-multi
  */
 import { spawnSync } from 'node:child_process';

@@ -84,7 +84,7 @@ function makeJob(): Job<OutboundConfirmJobData> {
       reservationId: 'res-1',
       customerPhone: '+33612345678',
       customerName: 'Alice',
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       date: '5 juin 2099',
       time: '19:00',
       partySize: 2,
@@ -109,7 +109,11 @@ function makeDependencies(
               reservedAt: new Date('2099-06-05T17:00:00.000Z'),
               startsAt: null,
               partySize: 2,
-              restaurant: { name: 'Chez Sokar', timezone: 'Europe/Paris', smsConfirmEnabled: true },
+              restaurant: {
+                name: 'Chez Suppernote',
+                timezone: 'Europe/Paris',
+                smsConfirmEnabled: true,
+              },
               ...reservation,
             }
           : null,
@@ -202,7 +206,7 @@ describe('outbound-confirm.worker', () => {
   it.each([
     { customerPhone: null },
     { reservedAt: new Date('2000-01-01T00:00:00.000Z') },
-    { restaurant: { name: 'Chez Sokar', timezone: 'Europe/Paris', smsConfirmEnabled: false } },
+    { restaurant: { name: 'Chez Suppernote', timezone: 'Europe/Paris', smsConfirmEnabled: false } },
   ])('ignore une confirmation devenue ineligible sans prendre de claim (%j)', async (changes) => {
     const { deps, db, set } = makeDependencies();
     const current = await db.reservation.findUnique();

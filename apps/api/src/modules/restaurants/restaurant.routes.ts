@@ -9,7 +9,7 @@ import {
   isOfficialDemoSlug,
   normalizePhone,
 } from '@suppernote/shared';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { publicReadMax } from '../../plugins/rate-limit';
 import { trackOnboardingEvent, type OnboardingAnalyticsEvent } from '../analytics/events.service';
 import { placeOutboundCall } from '../../shared/telnyx/client';
@@ -492,7 +492,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
 
   // Création directe d'un restaurant avec son numéro : réservée aux opérateurs Suppernote. Les
   // restaurateurs passent par l'inscription (POST /api/auth/sync), qui pose un numéro provisoire.
-  app.post('/restaurants', { preHandler: requireSokarOperator() }, async (req, reply) => {
+  app.post('/restaurants', { preHandler: requirePlatformOperator() }, async (req, reply) => {
     const body = CreateRestaurantSchema.parse(req.body);
     try {
       const restaurant = await app.db.restaurant.create({

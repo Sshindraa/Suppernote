@@ -613,9 +613,6 @@ const notificationProviderMocks = vi.hoisted(() => ({
   telnyxCreate: vi.fn().mockResolvedValue({}),
   telnyxRetrieve: vi.fn().mockResolvedValue({}),
 }));
-(globalThis as Record<string, unknown>).__sokarNotificationProviderMocks =
-  notificationProviderMocks;
-
 // ── Mock Resend (HTTP API email, remplace nodemailer) ──
 vi.mock('../shared/email/rate-limit', () => ({
   waitForResendSlot: vi.fn().mockResolvedValue(undefined),
@@ -676,24 +673,22 @@ const stripeMocks = vi.hoisted(() => ({
     .fn()
     .mockResolvedValue({ url: 'https://billing.stripe.test/portal' }),
 }));
-(globalThis as Record<string, unknown>).__sokarStripeCheckoutSessionCreate =
+(globalThis as Record<string, unknown>).__stripeCheckoutSessionCreate =
   stripeMocks.checkoutSessionCreate;
-(globalThis as Record<string, unknown>).__sokarStripeBillingPortalSessionCreate =
+(globalThis as Record<string, unknown>).__stripeBillingPortalSessionCreate =
   stripeMocks.billingPortalSessionCreate;
-(globalThis as Record<string, unknown>).__sokarStripeCustomerCreate = stripeMocks.customerCreate;
-(globalThis as Record<string, unknown>).__sokarStripeCustomerUpdate = stripeMocks.customerUpdate;
-(globalThis as Record<string, unknown>).__sokarStripeSubscriptionCreate =
-  stripeMocks.subscriptionCreate;
-(globalThis as Record<string, unknown>).__sokarStripeSubscriptionRetrieve =
+(globalThis as Record<string, unknown>).__stripeCustomerCreate = stripeMocks.customerCreate;
+(globalThis as Record<string, unknown>).__stripeCustomerUpdate = stripeMocks.customerUpdate;
+(globalThis as Record<string, unknown>).__stripeSubscriptionCreate = stripeMocks.subscriptionCreate;
+(globalThis as Record<string, unknown>).__stripeSubscriptionRetrieve =
   stripeMocks.subscriptionRetrieve;
-(globalThis as Record<string, unknown>).__sokarStripeSubscriptionList =
-  stripeMocks.subscriptionList;
-(globalThis as Record<string, unknown>).__sokarStripeCheckoutSessionList =
+(globalThis as Record<string, unknown>).__stripeSubscriptionList = stripeMocks.subscriptionList;
+(globalThis as Record<string, unknown>).__stripeCheckoutSessionList =
   stripeMocks.checkoutSessionList;
-(globalThis as Record<string, unknown>).__sokarStripeCheckoutSessionExpire =
+(globalThis as Record<string, unknown>).__stripeCheckoutSessionExpire =
   stripeMocks.checkoutSessionExpire;
 
-(globalThis as Record<string, unknown>).__sokarStripeRead = {
+(globalThis as Record<string, unknown>).__stripeRead = {
   customer: stripeMocks.customerRetrieve,
   subscription: stripeMocks.subscriptionRetrieve,
   invoices: stripeMocks.invoiceList,
@@ -865,6 +860,6 @@ process.env.CARTESIA_API_KEY = 'test-cartesia-key';
 process.env.STRIPE_SECRET_KEY = 'sk_test';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_t';
 process.env.RESEND_API_KEY ??= 're_test';
-process.env.EMAIL_FROM ??= 'noreply@test.sokar.fr';
+process.env.EMAIL_FROM ??= 'noreply@example.invalid';
 // Active explicitement les routes /api/test dans les tests (SEC-005).
 process.env.ENABLE_TEST_ROUTES = 'true';

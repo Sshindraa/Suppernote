@@ -26,13 +26,13 @@ describe('internal usage summary', () => {
       },
     ] as never);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'rest-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'rest-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
 
     await expect(getInternalUsageSummary({ monthKey: '2026-09' })).resolves.toEqual([
       {
         restaurantId: 'rest-1',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         plan: 'PRO',
         category: 'SMS_SEGMENTS',
         quantity: '3.000000',

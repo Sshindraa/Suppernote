@@ -113,7 +113,7 @@ export const CONDITIONS: Record<Condition, ConditionSpec> = {
 function scribeUrl(spec: ConditionSpec): string {
   const model = process.env.BENCH_STT_MODEL;
   const base = buildSttUrl(model, 'PCMA', undefined, {
-    restaurantName: 'Chez Sokar',
+    restaurantName: 'Chez Suppernote',
     // `languages: []` supprime toutes les `secondary_languages` : sans liste,
     // Scribe ne peut pas dériver vers une autre langue que `language_code`.
     ...(spec.language ? { languages: spec.language.secondaries } : {}),

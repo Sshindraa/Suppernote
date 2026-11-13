@@ -393,13 +393,13 @@ describe('removeMember', () => {
       order.push('clerk');
     });
     vi.mocked(db.restaurantAccountMembership.deleteMany).mockImplementation((async () => {
-      order.push('sokar');
+      order.push('database');
       return { count: 1 };
     }) as never);
 
     await removeMember(input);
 
-    expect(order).toEqual(['clerk', 'sokar']);
+    expect(order).toEqual(['clerk', 'database']);
     expect(clerk.deleteOrganizationMembership).toHaveBeenCalledWith({
       organizationId: 'org_1',
       userId: 'user_staff',

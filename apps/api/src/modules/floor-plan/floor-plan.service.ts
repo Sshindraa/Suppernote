@@ -97,7 +97,21 @@ export type PlanningReservation = {
   customerName: string | null;
   state: string;
   seatedAt: Date | null;
+  /** Addition clôturée en caisse depuis l'installation. Un fait affiché, jamais une libération. */
+  paidAt: Date | null;
 };
+
+/**
+ * Rapproche la table d'une addition de caisse et une table du plan.
+ * shortcut: compare le nom, puis le seul numéro (« T4 » = « 4 » = « Table 4 », mais aussi « B4 ») ;
+ * passer à une correspondance enregistrée par table quand une vraie caisse sera branchée.
+ */
+export function isSamePosTable(tableReference: string, tableName: string): boolean {
+  const clean = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const digits = (value: string) => value.replace(/\D/g, '');
+  if (clean(tableReference) === clean(tableName)) return true;
+  return digits(tableReference) !== '' && digits(tableReference) === digits(tableName);
+}
 
 export type CreateSectionInput = {
   name: string;
@@ -607,6 +621,34 @@ export class FloorPlanService {
       }
     }
 
+    const paidAtByReservation = new Map<string, Date>();
+    const seated = reservations.flatMap((r) => {
+      // Sans trace d'installation (réservation ancienne ou importée), l'heure réservée sert de borne.
+      const seatedAt = seatedAtByReservation.get(r.id) ?? r.startsAt;
+      const tableName = r.tableId ? tableMap.get(r.tableId)?.name : undefined;
+      return r.state === 'SEATED' && seatedAt && tableName
+        ? [{ id: r.id, seatedAt, tableName }]
+        : [];
+    });
+    if (seated.length > 0) {
+      const earliestSeatedAt = new Date(Math.min(...seated.map((s) => s.seatedAt.getTime())));
+      const closedChecks = await this.prisma.posCheck.findMany({
+        where: { restaurantId, closedAt: { gte: earliestSeatedAt }, tableReference: { not: null } },
+        select: { closedAt: true, tableReference: true },
+        orderBy: { closedAt: 'asc' },
+      });
+      for (const s of seated) {
+        const check = closedChecks.find(
+          (c) =>
+            c.closedAt !== null &&
+            c.tableReference !== null &&
+            c.closedAt >= s.seatedAt &&
+            isSamePosTable(c.tableReference, s.tableName),
+        );
+        if (check?.closedAt) paidAtByReservation.set(s.id, check.closedAt);
+      }
+    }
+
     return reservations.map((r) => {
       const table = r.tableId ? (tableMap.get(r.tableId) ?? null) : null;
       const section = table?.sectionId ? (sectionMap.get(table.sectionId) ?? null) : null;
@@ -621,6 +663,7 @@ export class FloorPlanService {
         customerName: r.customerName,
         state: r.state,
         seatedAt: seatedAtByReservation.get(r.id) ?? null,
+        paidAt: paidAtByReservation.get(r.id) ?? null,
       };
     });
   }

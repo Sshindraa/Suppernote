@@ -1,10 +1,10 @@
 // ESLint 9 flat config for @suppernote/api
 // Shared/base rules live in @suppernote/config; this file adds API-specific type-aware rules
 // and per-file overrides.
-import sokarBase, { prettier } from '@suppernote/config/eslint.config.mjs';
+import sharedBase, { prettier } from '@suppernote/config/eslint.config.mjs';
 
 export default [
-  ...sokarBase,
+  ...sharedBase,
 
   // Local bench outputs (gitignored): never in CI, so they must not fail the pre-push lint.
   { ignores: ['scripts/voice-stt-bench/.data/'] },

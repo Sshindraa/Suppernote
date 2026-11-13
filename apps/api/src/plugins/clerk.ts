@@ -235,7 +235,7 @@ export function requireAuth(options: { allowDemo?: boolean } = {}) {
  * the server environment so a restaurant member can never grant themselves
  * operator access through a request body or a Clerk organization role.
  */
-export function requireSokarOperator() {
+export function requirePlatformOperator() {
   // Les opérations globales exigent une vraie session en staging/production.
   // Le compte démo reste réservé à la prévisualisation locale.
   const authenticate = requireAuth({

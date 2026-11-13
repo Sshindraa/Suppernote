@@ -76,7 +76,7 @@ function makeReconciliationQueue() {
 
 const params = {
   to: '+33612345678',
-  restaurantName: 'Chez Sokar',
+  restaurantName: 'Chez Suppernote',
   restaurantId: 'rest-1',
   reservationId: 'res-1',
   customerId: 'customer-1',

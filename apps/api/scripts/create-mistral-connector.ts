@@ -9,7 +9,7 @@ function log(message: string) {
   console.log(message);
 }
 
-function generateSokarAgentKey(): string {
+function generateAgentKey(): string {
   const prefix = 'sk_sokar_agent_';
   const random = randomBytes(32).toString('hex');
   return prefix + random;
@@ -31,7 +31,7 @@ async function createMistralConnector(key: string) {
   }
 
   const serverUrl = process.env.SOKAR_MCP_SERVER_URL ?? 'https://api-staging.suppernote.com/mcp';
-  const name = process.env.MISTRAL_CONNECTOR_NAME ?? 'sokar-mistral';
+  const name = process.env.MISTRAL_CONNECTOR_NAME ?? 'suppernote-mistral';
 
   const visibility =
     (process.env.MISTRAL_CONNECTOR_VISIBILITY as 'private' | 'shared_workspace' | 'shared_org') ??
@@ -66,8 +66,7 @@ async function createMistralConnector(key: string) {
 
 async function main() {
   const providedKey = process.env.MISTRAL_CONNECTOR_KEY;
-  const key =
-    providedKey && validateApiKeyFormat(providedKey) ? providedKey : generateSokarAgentKey();
+  const key = providedKey && validateApiKeyFormat(providedKey) ? providedKey : generateAgentKey();
   if (!validateApiKeyFormat(key)) {
     throw new Error('Clé générée invalide');
   }

@@ -2874,7 +2874,7 @@
   ],
   "profiles": {
     "chez-sokar": {
-      "name": "Chez Sokar",
+      "name": "Chez Suppernote",
       "timezone": "Europe/Paris",
       "maxPartySize": 7,
       "voiceGender": "masculine",
@@ -2904,7 +2904,7 @@
       }
     },
     "midi": {
-      "name": "Chez Sokar — Bouchon Lyonnais",
+      "name": "Chez Suppernote — Bouchon lyonnais",
       "openingHours": {
         "tue": {
           "open": "12:00",

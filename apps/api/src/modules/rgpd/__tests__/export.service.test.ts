@@ -82,7 +82,7 @@ describe('ExportService.exportSubject', () => {
         customerPhone: '+336****1111',
         specialRequests: 'Allergie gluten',
         createdAt: new Date('2026-07-01T10:00:00Z'),
-        restaurant: { name: 'Chez Sokar' },
+        restaurant: { name: 'Chez Suppernote' },
       },
     ]);
     (prisma.customerConsent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
@@ -92,7 +92,7 @@ describe('ExportService.exportSubject', () => {
     expect(result.reservations).toHaveLength(1);
     expect(result.reservations[0]).toMatchObject({
       id: 'res-1',
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       partySize: 4,
       customerName: 'Alice',
     });

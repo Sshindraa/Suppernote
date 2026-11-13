@@ -14,8 +14,8 @@ describe('mcpDocumentationUrl', () => {
   it('respecte une adresse configurée', () => {
     expect(
       mcpDocumentationUrl('https://api.suppernote.com', {
-        MCP_DOCUMENTATION_URL: 'https://docs.example.test/sokar',
+        MCP_DOCUMENTATION_URL: 'https://docs.example.test/suppernote',
       }),
-    ).toBe('https://docs.example.test/sokar');
+    ).toBe('https://docs.example.test/suppernote');
   });
 });

@@ -21,7 +21,7 @@ const BASE_CARD = {
   shortCode: 'SKR-TEST-01',
   amount: { toNumber: () => 100 } as never,
   customImageUrl: null,
-  restaurant: { name: 'Chez Sokar' },
+  restaurant: { name: 'Chez Suppernote' },
   pack: { name: 'Menu dégustation' },
 } as unknown as GiftCard & {
   restaurant?: { name: string };

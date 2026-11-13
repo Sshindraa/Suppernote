@@ -288,7 +288,7 @@ describe('restaurant.routes - onboarding', () => {
       const res = await app.inject({
         method: 'GET',
         url: '/restaurants/check-slug',
-        query: { slug: 'Bistrot_Sokar' },
+        query: { slug: 'Bistrot_Suppernote' },
         headers: { authorization: 'Bearer test' },
       });
       expect(res.statusCode).toBe(400);

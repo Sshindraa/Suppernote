@@ -128,7 +128,7 @@ describe('ProvisioningService.listAvailableNumbers', () => {
 describe('ProvisioningService.assignPhoneNumber : lien avec l’application voix', () => {
   const restaurant = {
     id: 'rest-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     phoneNumber: '+000rest-1',
     provisioningStatus: 'PENDING',
     telnyxPhoneNumberId: null,
@@ -207,7 +207,7 @@ describe('ProvisioningService.assignPhoneNumber : lien avec l’application voix
 describe('ProvisioningService.getProvisioningStatus : état du lien', () => {
   const base = {
     id: 'rest-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     city: null,
     phoneNumber: '+33451221999',
     provisioningStatus: 'PHONE_ASSIGNED',

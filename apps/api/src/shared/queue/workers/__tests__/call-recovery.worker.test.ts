@@ -41,7 +41,7 @@ function makeJob(data: Partial<CallRecoveryJobData>) {
       restaurantId: 'rest-1',
       customerPhone: '+33612345678',
       customerName: null,
-      restaurantName: 'Chez Sokar',
+      restaurantName: 'Chez Suppernote',
       restaurantSlug: 'chez-sokar-demo',
       restaurantPhone: '+33123456789',
       reason: 'no_action_with_intent' as const,
@@ -101,7 +101,7 @@ describe('call-recovery.worker', () => {
     const [to, text] = vi.mocked(sendSms).mock.calls[0] as [string, string];
     expect(to).toBe('+33612345678');
     expect(text).toContain('Bonjour Jean');
-    expect(text).toContain('Chez Sokar');
+    expect(text).toContain('Chez Suppernote');
   });
 
   it('envoie un SMS générique quand customerName est null', async () => {

@@ -83,7 +83,7 @@ const reservation = {
   state: 'CONFIRMED',
   confirmationStatus: 'NOT_REQUIRED',
   confirmationSentAt: null as Date | null,
-  restaurant: { id: 'rest-1', name: 'Chez Sokar', timezone: 'Europe/Paris' },
+  restaurant: { id: 'rest-1', name: 'Chez Suppernote', timezone: 'Europe/Paris' },
   consents: { transactionalWhatsapp: true } as Record<string, unknown>,
   channel: 'WEB',
 };

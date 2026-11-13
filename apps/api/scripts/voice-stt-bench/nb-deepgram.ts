@@ -66,7 +66,7 @@ function deepgramUrl(model: Model, formatMode: FormatMode): string {
   if (model === 'flux') {
     params.set('model', 'flux-general-multi');
     params.append('language_hint', 'fr');
-    params.append('keyterm', 'Chez Sokar');
+    params.append('keyterm', 'Chez Suppernote');
     return `wss://api.deepgram.com/v2/listen?${params}`;
   }
   params.set('model', 'nova-3');
@@ -77,7 +77,7 @@ function deepgramUrl(model: Model, formatMode: FormatMode): string {
   const { buildSttKeyterms } = require('../../dist/modules/voice/stream/stt-bridge.js') as {
     buildSttKeyterms: (restaurantName?: string) => string[];
   };
-  for (const keyterm of buildSttKeyterms('Chez Sokar')) params.append('keyterm', keyterm);
+  for (const keyterm of buildSttKeyterms('Chez Suppernote')) params.append('keyterm', keyterm);
   return `wss://api.deepgram.com/v1/listen?${params}`;
 }
 

@@ -46,7 +46,7 @@ async function transcribeBatch(pcm, elevenLabsBenchKey) {
   form.append('language_code', 'fr');
   form.append('timestamps_granularity', 'word');
   form.append('tag_audio_events', 'false');
-  for (const keyterm of buildSttKeyterms('Chez Sokar')) form.append('keyterms', keyterm);
+  for (const keyterm of buildSttKeyterms('Chez Suppernote')) form.append('keyterms', keyterm);
   form.append('file', new Blob([toWav(pcm)], { type: 'audio/wav' }), 'phrase.wav');
   const host = process.env.ELEVENLABS_STT_HOST ?? 'api.elevenlabs.io';
   const started = Date.now();

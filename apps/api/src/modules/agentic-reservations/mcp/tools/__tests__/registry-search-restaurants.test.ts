@@ -31,7 +31,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
       findCapacityLimits: vi.fn().mockResolvedValue([
         {
           restaurantId: '550e8400-e29b-41d4-a716-446655440003',
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           slug: 'chez-sokar',
           formattedAddress: '12 Rue de la République, 69001 Lyon',
           cuisineType: ['Bistrot', 'Française'],
@@ -66,7 +66,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
         capacityLimits: [
           {
             id: '550e8400-e29b-41d4-a716-446655440003',
-            name: 'Chez Sokar',
+            name: 'Chez Suppernote',
             slug: 'chez-sokar',
             formattedAddress: '12 Rue de la République, 69001 Lyon',
             cuisineType: ['Bistrot', 'Française'],
@@ -132,7 +132,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
     const availabilityService = {
       searchAvailableRestaurantsPage: vi.fn().mockResolvedValue({
         results: [],
-        restaurantMatches: [{ restaurantId, name: 'Chez Sokar' }],
+        restaurantMatches: [{ restaurantId, name: 'Chez Suppernote' }],
       }),
       findCapacityLimits: vi.fn().mockResolvedValue([]),
     };
@@ -141,7 +141,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
     const result = await registry.searchRestaurants(
       {
         city: 'Lyon',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         partySize: 2,
         slotStart: '2026-09-17T19:00:00+02:00',
       },
@@ -160,14 +160,14 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
         searchOutcome: 'no_exact_slot_available',
         requestedRestaurant: {
           id: restaurantId,
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           status: 'unavailable',
         },
         restaurants: [],
       },
     });
     expect(availabilityService.searchAvailableRestaurantsPage).toHaveBeenCalledWith(
-      expect.objectContaining({ city: 'Lyon', restaurantName: 'Chez Sokar' }),
+      expect.objectContaining({ city: 'Lyon', restaurantName: 'Chez Suppernote' }),
     );
     if (result.ok) expect(SearchRestaurantsOutputSchema.safeParse(result.data).success).toBe(true);
   });
@@ -185,7 +185,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
     const result = await registry.searchRestaurants(
       {
         city: 'Lyon',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         partySize: 2,
         slotStart: '2026-09-17T19:00:00+02:00',
       },
@@ -201,7 +201,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
     expect(result).toMatchObject({
       ok: true,
       data: {
-        requestedRestaurant: { name: 'Chez Sokar', status: 'not_found' },
+        requestedRestaurant: { name: 'Chez Suppernote', status: 'not_found' },
       },
     });
     if (result.ok) expect(SearchRestaurantsOutputSchema.safeParse(result.data).success).toBe(true);
@@ -229,7 +229,7 @@ describe('McpToolRegistry.searchRestaurants capacity guidance', () => {
           results: [
             {
               restaurantId,
-              name: 'Chez Sokar',
+              name: 'Chez Suppernote',
               slug: 'chez-sokar',
               formattedAddress: '12 Rue de la République, 69001 Lyon',
               cuisineType: ['Bistrot', 'Française'],

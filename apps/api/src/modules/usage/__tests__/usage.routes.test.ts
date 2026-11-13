@@ -248,7 +248,7 @@ describe('usage routes', () => {
     ] as never);
     vi.mocked(db.usageReconciliationAdjustment.findMany).mockResolvedValue([]);
     vi.mocked(db.restaurant.findMany).mockResolvedValue([
-      { id: 'rest-1', name: 'Chez Sokar', plan: 'PRO' },
+      { id: 'rest-1', name: 'Chez Suppernote', plan: 'PRO' },
     ] as never);
 
     const app = await getApp();
@@ -265,10 +265,12 @@ describe('usage routes', () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/csv');
-    expect(response.headers['content-disposition']).toContain('sokar-usage-accounting-2026-09.csv');
+    expect(response.headers['content-disposition']).toContain(
+      'suppernote-usage-accounting-2026-09.csv',
+    );
     expect(response.body).toContain('"row_type"');
     expect(response.body).toContain('"USAGE"');
-    expect(response.body).toContain('"Chez Sokar"');
+    expect(response.body).toContain('"Chez Suppernote"');
   });
 
   it('enregistre une correction de rapprochement sans exposer l identité opérateur', async () => {

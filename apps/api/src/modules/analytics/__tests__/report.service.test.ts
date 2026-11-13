@@ -11,7 +11,7 @@ import { buildReportEmail, type ReportData } from '../report.service';
 
 function makeBase(overrides: Partial<ReportData> = {}): ReportData {
   return {
-    restaurantName: 'Chez Sokar',
+    restaurantName: 'Chez Suppernote',
     totalCalls: 12,
     reserved: 8,
     cancelled: 1,

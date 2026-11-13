@@ -30,6 +30,7 @@ function makePrismaMock() {
     update: vi.fn(),
   };
   const reservationAuditLog = { findMany: vi.fn(), create: vi.fn() };
+  const posCheck = { findMany: vi.fn().mockResolvedValue([]) };
   const restaurant = { findUnique: vi.fn() };
   const floorPlan = {
     findFirst: vi.fn().mockResolvedValue({ id: 'fp-1', tables: [], sections: [], walls: [] }),
@@ -47,6 +48,7 @@ function makePrismaMock() {
     floorPlanZone,
     reservation,
     reservationAuditLog,
+    posCheck,
     restaurant,
     floorPlan,
     $transaction: vi.fn(async (fn: any) =>
@@ -194,6 +196,41 @@ describe('FloorPlanService', () => {
 
       expect(out).toHaveLength(1);
       expect(out[0].seatedAt?.toISOString()).toBe(seatedAt.toISOString());
+    });
+
+    it('renvoie paidAt quand une addition est clôturée sur la table après linstallation', async () => {
+      const seatedAt = new Date('2026-07-17T22:55:00Z');
+      const paidAt = new Date('2026-07-17T23:40:00Z');
+      mocks.floorPlan.findFirst.mockResolvedValueOnce({
+        id: 'fp-1',
+        tables: [{ id: 't4', name: 'T4', sectionId: null }],
+        sections: [],
+        walls: [],
+      });
+      mocks.reservation.findMany.mockResolvedValue([
+        {
+          id: 'res-1',
+          state: 'SEATED',
+          tableId: 't4',
+          partySize: 2,
+          startsAt: new Date('2026-07-17T22:30:00Z'),
+          endsAt: new Date('2026-07-18T00:30:00Z'),
+          customerName: 'Jean',
+        },
+      ]);
+      mocks.reservationAuditLog.findMany.mockResolvedValue([
+        { reservationId: 'res-1', event: 'reservation_seated', createdAt: seatedAt },
+      ]);
+      mocks.prisma.posCheck.findMany.mockResolvedValueOnce([
+        // Addition des clients précédents, clôturée avant l'installation : ignorée.
+        { closedAt: new Date('2026-07-17T22:00:00Z'), tableReference: '4' },
+        { closedAt: paidAt, tableReference: 'Table 12' },
+        { closedAt: paidAt, tableReference: '4' },
+      ]);
+
+      const out = await svc.getPlanning('rest-1', '2026-07-18');
+
+      expect(out[0].paidAt?.toISOString()).toBe(paidAt.toISOString());
     });
 
     it('laisse seatedAt null sil y a aucun event seated', async () => {

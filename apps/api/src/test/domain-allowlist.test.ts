@@ -1,9 +1,9 @@
 /**
  * Test anti-régression : domaines hors allowlist.
  *
- * Scanne récursivement apps/api/src, apps/connect/src, apps/widget/src
- * (exclut __tests__, node_modules, .next, dist, out) et vérifie qu'aucune
- * occurrence de `sokar.com` ou `sokar.app` n'apparaît dans le code source.
+ * Scanne récursivement apps/api/src, apps/connect/src, apps/widget/src et
+ * packages/database/prisma/seed.ts (exclut __tests__, node_modules, .next,
+ * dist, out) et vérifie qu'aucun domaine interdit n'apparaît dans le code.
  *
  * `suppernote.com` est le domaine canonique de production. `sokar.app` était
  * l'ancien nom du brief initial (cf. docs/connect-v1.1.md ligne 8).
@@ -16,8 +16,6 @@
  *
  * Faux positifs connus (exclus du scan) :
  * - docs/ — documentation historique qui explique les changements de domaine
- * - packages/database/prisma/seed.ts — donnée de démo (managerEmail) à
- *   faible priorité, catégorisée comme tel dans la session précédente
  * - apps/widget/README.md — documente explicitement que le widget est un
  *   prototype non fonctionnel et mentionne les anciens domaines à corriger
  *
@@ -115,13 +113,14 @@ describe('domain-allowlist — anti-régression sokar.com / sokar.app', () => {
     for (const root of rootsToScan) {
       scanDirectory(root, violations);
     }
+    scanFile(path.resolve(__dirname, '../../../../packages/database/prisma/seed.ts'), violations);
 
     if (violations.length > 0) {
       const formatted = violations.map((v) => `  ${v.file}:${v.line} → ${v.content}`).join('\n');
       expect.fail(
         `Domaines interdits (sokar.com / sokar.app) trouvés dans le code source.\n` +
           `Remplacer par suppernote.com (ou un sous-domaine : api.suppernote.com, app.suppernote.com, widget.suppernote.com).\n` +
-          `Faux positifs connus : docs/, seed.ts, apps/widget/README.md (déjà dans l'allowlist).\n\n` +
+          `Faux positifs connus : docs/ et apps/widget/README.md.\n\n` +
           `Occurrences trouvées :\n${formatted}`,
       );
     }

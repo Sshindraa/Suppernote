@@ -732,7 +732,7 @@ export async function marketingRoutes(app: FastifyInstance) {
         });
         return reply
           .type('text/csv; charset=utf-8')
-          .header('Content-Disposition', `attachment; filename="sokar-campaign-${id}.csv"`)
+          .header('Content-Disposition', `attachment; filename="suppernote-campaign-${id}.csv"`)
           .send(marketingCampaignReportToCsv(report));
       } catch (error) {
         if (error instanceof Error && error.message === 'CAMPAIGN_NOT_FOUND') {

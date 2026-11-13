@@ -16,7 +16,7 @@
  */
 
 import { FastifyInstance } from 'fastify';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { db } from '../../shared/db/client';
 import {
   aggregateOnboardingCohort,
@@ -45,7 +45,7 @@ export async function onboardingFunnelRoutes(app: FastifyInstance) {
    */
   app.get(
     '/admin/onboarding-funnel/cohort',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (req, reply) => {
       try {
         // tenant-scoping: global — funnel opérateur agrégé, pas une lecture tenant.

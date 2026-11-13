@@ -6,7 +6,7 @@ import {
   UsageCategory,
   type UsageReconciliationAdjustment,
 } from '@prisma/client';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { db } from '../../shared/db/client';
 import {
   currentMonthKey,
@@ -200,31 +200,35 @@ export async function usageRoutes(app: FastifyInstance) {
    * allowlist. Non-operators are rejected by the same guard as every other
    * internal route.
    */
-  app.get('/admin/access', { preHandler: requireSokarOperator() }, async (_request, reply) => {
+  app.get('/admin/access', { preHandler: requirePlatformOperator() }, async (_request, reply) => {
     return reply.send({ allowed: true });
   });
 
   /** Operator dashboard projection. Never exposed through the org-scoped client route. */
-  app.get('/admin/usage/margin', { preHandler: requireSokarOperator() }, async (request, reply) => {
-    const query = InternalUsageQuerySchema.parse(request.query);
-    try {
-      const month = query.month ?? currentMonthKey();
-      return reply.send({
-        month,
-        priceSource: 'LOCAL_CATALOG',
-        revenueStatus: 'NOT_STRIPE_RECONCILED',
-        rows: await getInternalMarginReport({
-          monthKey: month,
-          restaurantId: query.restaurantId,
-        }),
-      });
-    } catch (error) {
-      if (error instanceof UsageInputError) {
-        return reply.status(400).send({ error: error.code, message: error.message });
+  app.get(
+    '/admin/usage/margin',
+    { preHandler: requirePlatformOperator() },
+    async (request, reply) => {
+      const query = InternalUsageQuerySchema.parse(request.query);
+      try {
+        const month = query.month ?? currentMonthKey();
+        return reply.send({
+          month,
+          priceSource: 'LOCAL_CATALOG',
+          revenueStatus: 'NOT_STRIPE_RECONCILED',
+          rows: await getInternalMarginReport({
+            monthKey: month,
+            restaurantId: query.restaurantId,
+          }),
+        });
+      } catch (error) {
+        if (error instanceof UsageInputError) {
+          return reply.status(400).send({ error: error.code, message: error.message });
+        }
+        throw error;
       }
-      throw error;
-    }
-  });
+    },
+  );
 
   /**
    * Operator-only, month-bounded accounting feed. Usage rows remain immutable
@@ -233,7 +237,7 @@ export async function usageRoutes(app: FastifyInstance) {
    */
   app.get(
     '/admin/usage/accounting-export.csv',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const query = InternalUsageQuerySchema.parse(request.query);
       const month = query.month ?? currentMonthKey();
@@ -243,7 +247,10 @@ export async function usageRoutes(app: FastifyInstance) {
       });
       return reply
         .header('content-type', 'text/csv; charset=utf-8')
-        .header('content-disposition', `attachment; filename="sokar-usage-accounting-${month}.csv"`)
+        .header(
+          'content-disposition',
+          `attachment; filename="suppernote-usage-accounting-${month}.csv"`,
+        )
         .send(usageAccountingExportToCsv({ rows }));
     },
   );
@@ -254,7 +261,7 @@ export async function usageRoutes(app: FastifyInstance) {
    */
   app.get(
     '/admin/usage/reconciliation-adjustments',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const query = AdjustmentQuerySchema.parse(request.query);
       const adjustments = await db.usageReconciliationAdjustment.findMany({
@@ -278,7 +285,7 @@ export async function usageRoutes(app: FastifyInstance) {
 
   app.post(
     '/admin/usage/reconciliation-adjustments',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const body = AdjustmentCreateSchema.parse(request.body ?? {});
       try {
@@ -305,7 +312,7 @@ export async function usageRoutes(app: FastifyInstance) {
 
   app.post(
     '/admin/usage/reconciliation-adjustments/:id/decision',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const { id } = AdjustmentIdParamsSchema.parse(request.params);
       const body = AdjustmentDecisionSchema.parse(request.body ?? {});

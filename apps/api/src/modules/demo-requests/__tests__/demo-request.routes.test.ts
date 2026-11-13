@@ -137,7 +137,7 @@ describe('demo-request.routes', () => {
     });
 
     it('notifie chaque destinataire configuré et marque la notification comme envoyée', async () => {
-      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@sokar.test, sales@sokar.test';
+      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@suppernote.test, sales@suppernote.test';
       const app = await getApp();
       vi.mocked(db.demoRequest.create).mockResolvedValue(demoRequest() as never);
       vi.mocked(sendEmail).mockResolvedValue({
@@ -156,8 +156,8 @@ describe('demo-request.routes', () => {
       expect(res.statusCode).toBe(201);
       expect(sendEmail).toHaveBeenCalledTimes(2);
       expect(vi.mocked(sendEmail).mock.calls.map(([opts]) => opts.to)).toEqual([
-        'ops@sokar.test',
-        'sales@sokar.test',
+        'ops@suppernote.test',
+        'sales@suppernote.test',
       ]);
       expect(db.demoRequest.update).toHaveBeenCalledWith({
         where: { id: 'dr_1' },
@@ -166,7 +166,7 @@ describe('demo-request.routes', () => {
     });
 
     it("ne marque pas la notification quand l'envoi est refusé, et garde la demande", async () => {
-      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@sokar.test';
+      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@suppernote.test';
       const app = await getApp();
       vi.mocked(db.demoRequest.create).mockResolvedValue(demoRequest() as never);
       vi.mocked(sendEmail).mockResolvedValue({
@@ -187,7 +187,7 @@ describe('demo-request.routes', () => {
     });
 
     it("garde la demande même si l'envoi de notification échoue, sans marquer l'envoi", async () => {
-      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@sokar.test';
+      process.env.DEMO_REQUEST_NOTIFY_TO = 'ops@suppernote.test';
       const app = await getApp();
       vi.mocked(db.demoRequest.create).mockResolvedValue(demoRequest() as never);
       vi.mocked(sendEmail).mockRejectedValue(new Error('provider down'));

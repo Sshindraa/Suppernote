@@ -65,7 +65,7 @@ describe('admin provisioning routes', () => {
   it('GET /admin/provisioning/:restaurantId retourne le statut de provisioning', async () => {
     const mockRestaurant = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'PHONE_ASSIGNED',
       telnyxPhoneNumberId: 'tnx-123',
@@ -204,7 +204,7 @@ describe('admin provisioning routes', () => {
   it('POST /admin/provisioning/:restaurantId/assign-phone attribue un numéro et met à jour le statut', async () => {
     const mockRestaurant = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+000test-rest-1',
       provisioningStatus: 'PENDING',
       telnyxPhoneNumberId: null,
@@ -251,7 +251,7 @@ describe('admin provisioning routes', () => {
   it('POST /admin/provisioning/:restaurantId/verify-webhook valide le webhook', async () => {
     const mockRestaurant = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'PHONE_ASSIGNED',
       telnyxPhoneNumberId: 'tnx-999',
@@ -301,7 +301,7 @@ describe('admin provisioning routes', () => {
   it('POST /admin/provisioning/:restaurantId/mark-forwarding enregistre l’attestation opérateur', async () => {
     const mockRestaurant = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'WEBHOOK_READY',
       telnyxPhoneNumberId: 'tnx-999',
@@ -349,7 +349,7 @@ describe('admin provisioning routes', () => {
   it('POST /admin/provisioning/:restaurantId/test-call déclenche un appel test', async () => {
     const mockRestaurant = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       managerPhone: '+33612345678',
       provisioningStatus: 'WEBHOOK_READY',
@@ -411,7 +411,7 @@ describe('admin provisioning routes', () => {
   it('POST /admin/provisioning/:restaurantId/validate-test-call confirme uniquement le dernier appel', async () => {
     const requested = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'TEST_CALL_PENDING',
       telnyxPhoneNumberId: 'tnx-999',
@@ -472,7 +472,7 @@ describe('admin provisioning routes', () => {
   it('refuse de confirmer un appel test dont l’identifiant ne correspond pas', async () => {
     vi.mocked(db.restaurant.findUniqueOrThrow).mockResolvedValueOnce({
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'TEST_CALL_PENDING',
       telnyxPhoneNumberId: 'tnx-999',
@@ -500,7 +500,7 @@ describe('admin provisioning routes', () => {
   it('refuse de finaliser un provisioning sans preuve d’appel test', async () => {
     const incomplete = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'WEBHOOK_READY',
       telnyxPhoneNumberId: 'tnx-999',
@@ -533,7 +533,7 @@ describe('admin provisioning routes', () => {
   it('finalise un provisioning dont les preuves sont présentes sans les fabriquer', async () => {
     const ready = {
       id: 'test-rest-1',
-      name: 'Chez Sokar Test',
+      name: 'Chez Suppernote Test',
       phoneNumber: '+33451221528',
       provisioningStatus: 'ACTIVE',
       telnyxPhoneNumberId: 'tnx-999',

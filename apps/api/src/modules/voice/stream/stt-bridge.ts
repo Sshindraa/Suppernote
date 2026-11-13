@@ -1494,7 +1494,7 @@ export function deepgramSilenceGuardMaxDeferMs(env: NodeJS.ProcessEnv = process.
 
 /**
  * Relève au silence, pour tous les restaurants. Appel du 21/10
- * sur Chez Sokar : « midi 30 » n'est arrivé en partielle que 2,1 s après le dernier mot, sans speech_final ;
+ * sur Chez Suppernote : « midi 30 » n'est arrivé en partielle que 2,1 s après le dernier mot, sans speech_final ;
  * la partielle figée n'a pu partir que 500 ms plus tard (2,6 s de silence). Nova-3 retient souvent un
  * énoncé court isolé ; un `Finalize` le rend en ~40 ms (sonde sur 94 tours courts enregistrés).
  */

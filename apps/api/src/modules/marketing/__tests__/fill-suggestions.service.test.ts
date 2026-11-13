@@ -118,7 +118,7 @@ describe('suggestions de services creux', () => {
         ({ emptyPlaces: args.freePlaces, lateArrivals: 0, forecastSource: 'simple' }) as never,
     );
     vi.mocked(loadServiceFillContext).mockResolvedValue({ members: [] } as never);
-    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Sokar' } as never);
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({ name: 'Chez Suppernote' } as never);
     vi.mocked(estimateFillCost).mockResolvedValue({ amount: '1.50', status: 'PRICED' } as never);
     mockPlans();
     vi.stubEnv('MARKETING_SENDS_ENABLED', 'true');
@@ -368,7 +368,7 @@ describe('suggestions de services creux', () => {
         canPrepare: true,
       });
       expect(estimateFillCost).toHaveBeenCalledWith({
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         channel: 'EMAIL',
         sends: 18,
         now: NOW,

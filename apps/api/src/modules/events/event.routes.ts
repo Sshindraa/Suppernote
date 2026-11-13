@@ -8,7 +8,7 @@ import {
   EventWaitlistStatus,
 } from '@prisma/client';
 import { z } from 'zod';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
 import {
   cancelEventOrder,
@@ -546,7 +546,7 @@ export async function eventRoutes(app: FastifyInstance): Promise<void> {
   });
   app.post(
     '/api/internal/events/sessions/expire',
-    { preHandler: [requireSokarOperator()] },
+    { preHandler: [requirePlatformOperator()] },
     async (request, reply) => {
       const limit = z
         .object({ limit: z.coerce.number().int().min(1).max(1_000).default(1_000) })

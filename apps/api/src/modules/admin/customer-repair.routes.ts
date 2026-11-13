@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { requireSokarOperator } from '../../plugins/clerk';
+import { requirePlatformOperator } from '../../plugins/clerk';
 import {
   previewCustomerMetricSnapshotRepair,
   repairCustomerMetricSnapshot,
@@ -19,7 +19,7 @@ const ParamsSchema = z.object({
 export async function adminCustomerRepairRoutes(app: FastifyInstance) {
   app.get(
     '/admin/restaurants/:restaurantId/customers/:customerId/projection-repair-preview',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (req, reply) => {
       const { restaurantId, customerId } = ParamsSchema.parse(req.params);
       try {
@@ -36,7 +36,7 @@ export async function adminCustomerRepairRoutes(app: FastifyInstance) {
 
   app.post(
     '/admin/restaurants/:restaurantId/customers/:customerId/projection-repair',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (req, reply) => {
       const { restaurantId, customerId } = ParamsSchema.parse(req.params);
       const header = req.headers['idempotency-key'];

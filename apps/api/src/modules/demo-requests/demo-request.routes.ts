@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { requireSokarOperator } from '../../plugins/clerk';
+import { requirePlatformOperator } from '../../plugins/clerk';
 import { RATE_LIMIT_PUBLIC_WRITE } from '../../plugins/rate-limit.policy';
 import {
   createDemoRequest,
@@ -139,7 +139,7 @@ export async function demoRequestRoutes(app: FastifyInstance) {
   // Suivi opérateur : liste et statut, réservés aux opérateurs Suppernote (SOKAR_OPERATOR_USER_IDS).
   app.get(
     '/admin/demo-requests',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const query = OperatorListQuery.safeParse(request.query);
       if (!query.success) {
@@ -152,7 +152,7 @@ export async function demoRequestRoutes(app: FastifyInstance) {
 
   app.get(
     '/admin/demo-requests/summary',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_request, reply) => {
       return reply.send(await getDemoRequestSummary());
     },
@@ -160,7 +160,7 @@ export async function demoRequestRoutes(app: FastifyInstance) {
 
   app.patch(
     '/admin/demo-requests/:id/test',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const params = DemoRequestParams.safeParse(request.params);
       const body = z.object({ isTest: z.boolean() }).strict().safeParse(request.body);
@@ -174,7 +174,7 @@ export async function demoRequestRoutes(app: FastifyInstance) {
 
   app.patch(
     '/admin/demo-requests/:id',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const params = DemoRequestParams.safeParse(request.params);
       const body = OperatorStatusBody.safeParse(request.body);
@@ -192,7 +192,7 @@ export async function demoRequestRoutes(app: FastifyInstance) {
 
   app.post(
     '/admin/demo-requests/:id/interaction',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const params = DemoRequestParams.safeParse(request.params);
       const body = OperatorInteractionBody.safeParse(request.body ?? {});

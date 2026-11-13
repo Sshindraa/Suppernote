@@ -33,7 +33,7 @@ describe('sendRecipientWhatsApp', () => {
         to: '+336****5678',
         code: 'SKR-TEST-01',
         amount: 50,
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
       }),
     ).resolves.toBeUndefined();
   });

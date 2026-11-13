@@ -6,7 +6,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { z } from 'zod';
-import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
+import { requireOrg, requirePlatformOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
 import { RATE_LIMIT_PUBLIC_READ, RATE_LIMIT_PUBLIC_WRITE } from '../../plugins/rate-limit.policy';
 import { db } from '../../shared/db/client';
@@ -220,7 +220,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
 
   app.patch(
     '/api/internal/experiences/payment-config',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (request, reply) => {
       const { restaurantId, commissionRate } = ExperiencePaymentCommissionSchema.parse(
         request.body,
@@ -484,7 +484,7 @@ export async function experienceRoutes(app: FastifyInstance): Promise<void> {
 
   app.post(
     '/api/internal/experiences/sessions/expire',
-    { preHandler: requireSokarOperator() },
+    { preHandler: requirePlatformOperator() },
     async (_request, reply) => {
       if (!experiencesEnabled()) return reply.status(503).send({ error: 'EXPERIENCES_DISABLED' });
       return reply.send({ expiredCount: await expireExperienceSessions() });

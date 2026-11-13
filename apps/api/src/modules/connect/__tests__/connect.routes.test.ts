@@ -108,7 +108,7 @@ const TEST_HOLD_TOKEN = ['tok', 'test'].join('-');
 const mockPublishedRestaurant: PublicRestaurantDto = {
   id: RESTAURANT_ID,
   slug: SLUG,
-  name: 'Chez Sokar',
+  name: 'Chez Suppernote',
   description: 'Bistrot français à Lyon',
   address: {
     line1: '12 Rue de la République, 69001 Lyon',
@@ -302,7 +302,7 @@ describe('Suppernote Connect — Routes publiques', () => {
       vi.mocked(db.restaurant.findUnique).mockResolvedValue({
         id: RESTAURANT_ID,
         slug: SLUG,
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         description: 'Bistrot français à Lyon',
         formattedAddress: '12 Rue de la République, 69001 Lyon',
         city: 'Lyon',
@@ -333,7 +333,7 @@ describe('Suppernote Connect — Routes publiques', () => {
       expect(res.statusCode).toBe(200);
       const body = res.json();
       expect(body.slug).toBe(SLUG);
-      expect(body.name).toBe('Chez Sokar');
+      expect(body.name).toBe('Chez Suppernote');
     });
 
     it('retourne 404 via l alias /public/v1/ si restaurant inexistant', async () => {
@@ -551,7 +551,7 @@ describe('Suppernote Connect — Routes publiques', () => {
         city: 'Lyon',
         country: 'FR',
         postalCode: '69001',
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         phoneNumber: '+33400000000',
         openingHours: {},
         images: [],
@@ -785,7 +785,7 @@ describe('Suppernote Connect — Routes publiques', () => {
         city: 'Lyon',
         country: 'FR',
         postalCode: '69001',
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         phoneNumber: '+33400000000',
         openingHours: {},
         images: [],
@@ -1003,7 +1003,7 @@ describe('Suppernote Connect — Routes publiques', () => {
         vi.mocked(db.restaurant.findUnique).mockResolvedValue({
           id: RESTAURANT_ID,
           slug: SLUG,
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           agenticOptIn: true,
           publishedAt: new Date('2026-06-24'),
           city: 'Lyon',
@@ -1069,7 +1069,7 @@ describe('Suppernote Connect — Routes publiques', () => {
         });
         expect(recordBookingMarketingConsent).toHaveBeenCalledWith({
           restaurantId: RESTAURANT_ID,
-          restaurantName: 'Chez Sokar',
+          restaurantName: 'Chez Suppernote',
           customerId: 'customer-1',
           source: 'CONNECT',
           consent,

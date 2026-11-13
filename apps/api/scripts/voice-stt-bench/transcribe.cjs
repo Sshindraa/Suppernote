@@ -104,7 +104,7 @@ async function synthesize(phrase) {
 
 function transcribe(audio, elevenLabsApiKey) {
   return new Promise((resolve) => {
-    const url = buildSttUrl(undefined, 'PCMA', undefined, { restaurantName: 'Chez Sokar' });
+    const url = buildSttUrl(undefined, 'PCMA', undefined, { restaurantName: 'Chez Suppernote' });
     const ws = new WebSocket(url, { headers: { 'xi-api-key': elevenLabsApiKey } });
     const committed = [];
     const words = [];
@@ -201,7 +201,7 @@ function requireBenchConfig(phrases) {
 async function checkElevenLabsAccess(apiKey) {
   await new Promise((resolve, reject) => {
     const url = buildSttUrl(undefined, 'PCMA', undefined, {
-      restaurantName: 'Sokar benchmark check',
+      restaurantName: 'Suppernote benchmark check',
     });
     const ws = new WebSocket(url, { headers: { 'xi-api-key': apiKey } });
     const timer = setTimeout(() => {

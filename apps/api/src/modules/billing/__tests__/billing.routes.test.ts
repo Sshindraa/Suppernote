@@ -218,9 +218,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.json()).toEqual({ url: 'https://billing.stripe.test/portal' });
     const portalCreate = (
       globalThis as unknown as {
-        __sokarStripeBillingPortalSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeBillingPortalSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeBillingPortalSessionCreate;
+    ).__stripeBillingPortalSessionCreate;
     expect(portalCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({ customer: 'cus_account' }),
     );
@@ -277,8 +277,8 @@ describe('billing.routes - checkout, portail et statut', () => {
       update: { stripeCustomerId: 'cus_test' },
     });
     const customerCreate = (
-      globalThis as unknown as { __sokarStripeCustomerCreate: { mock: { calls: unknown[][] } } }
-    ).__sokarStripeCustomerCreate;
+      globalThis as unknown as { __stripeCustomerCreate: { mock: { calls: unknown[][] } } }
+    ).__stripeCustomerCreate;
     expect(customerCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         email: 'manager@example.com',
@@ -289,20 +289,20 @@ describe('billing.routes - checkout, portail et statut', () => {
 
   it('met à jour l’e-mail Stripe du propriétaire et invalide son ancien Checkout', async () => {
     const stripe = globalThis as unknown as {
-      __sokarStripeCheckoutSessionExpire: ReturnType<typeof vi.fn>;
-      __sokarStripeCheckoutSessionList: ReturnType<typeof vi.fn>;
-      __sokarStripeCustomerUpdate: ReturnType<typeof vi.fn>;
-      __sokarStripeRead: { customer: ReturnType<typeof vi.fn> };
+      __stripeCheckoutSessionExpire: ReturnType<typeof vi.fn>;
+      __stripeCheckoutSessionList: ReturnType<typeof vi.fn>;
+      __stripeCustomerUpdate: ReturnType<typeof vi.fn>;
+      __stripeRead: { customer: ReturnType<typeof vi.fn> };
     };
-    stripe.__sokarStripeRead.customer.mockResolvedValueOnce({
+    stripe.__stripeRead.customer.mockResolvedValueOnce({
       id: 'cus_test',
       email: 'demo@sokar.com',
     });
-    stripe.__sokarStripeCustomerUpdate.mockResolvedValueOnce({
+    stripe.__stripeCustomerUpdate.mockResolvedValueOnce({
       id: 'cus_test',
       email: 'owner@example.com',
     });
-    stripe.__sokarStripeCheckoutSessionList.mockResolvedValueOnce({
+    stripe.__stripeCheckoutSessionList.mockResolvedValueOnce({
       data: [{ id: 'cs_old', mode: 'subscription', url: 'https://checkout.stripe.test/cs_old' }],
       has_more: false,
     });
@@ -342,17 +342,17 @@ describe('billing.routes - checkout, portail et statut', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(stripe.__sokarStripeCustomerUpdate).toHaveBeenCalledWith('cus_test', {
+    expect(stripe.__stripeCustomerUpdate).toHaveBeenCalledWith('cus_test', {
       email: 'owner@example.com',
     });
-    expect(stripe.__sokarStripeCheckoutSessionExpire).toHaveBeenCalledWith('cs_old');
+    expect(stripe.__stripeCheckoutSessionExpire).toHaveBeenCalledWith('cs_old');
   });
 
   describe('retour vers l’inscription (returnTo)', () => {
     type CheckoutCreate = { mock: { calls: unknown[][] } };
     const checkoutCreate = () =>
-      (globalThis as unknown as { __sokarStripeCheckoutSessionCreate: CheckoutCreate })
-        .__sokarStripeCheckoutSessionCreate;
+      (globalThis as unknown as { __stripeCheckoutSessionCreate: CheckoutCreate })
+        .__stripeCheckoutSessionCreate;
 
     async function checkout(payload: Record<string, unknown>) {
       process.env.STRIPE_PRICE_PRO_MONTHLY = 'price_pro_monthly_test';
@@ -434,9 +434,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.statusCode).toBe(200);
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     expect(checkoutCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         line_items: [{ price: 'price_pro_annual_test', quantity: 1 }],
@@ -468,9 +468,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.statusCode).toBe(200);
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     expect(checkoutCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         payment_method_collection: 'if_required',
@@ -507,9 +507,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.statusCode).toBe(200);
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     const params = checkoutCreate.mock.calls.at(-1)?.[0] as {
       payment_method_collection?: string;
       subscription_data: Record<string, unknown>;
@@ -582,8 +582,8 @@ describe('billing.routes - checkout, portail et statut', () => {
   describe('POST /billing/trial (« Plus tard » de l’onboarding)', () => {
     type CreateMock = { mock: { calls: unknown[][] } };
     const subscriptionCreate = () =>
-      (globalThis as unknown as { __sokarStripeSubscriptionCreate: CreateMock })
-        .__sokarStripeSubscriptionCreate;
+      (globalThis as unknown as { __stripeSubscriptionCreate: CreateMock })
+        .__stripeSubscriptionCreate;
 
     beforeEach(() => {
       process.env.STRIPE_PRICE_ESSENTIAL_MONTHLY = 'price_essential_monthly_test';
@@ -757,9 +757,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     );
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     expect(checkoutCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         customer: 'cus_account',
@@ -772,9 +772,9 @@ describe('billing.routes - checkout, portail et statut', () => {
   it('réutilise la session Checkout lors d’un retry avec la même clé d’idempotence', async () => {
     const sessionList = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionList: ReturnType<typeof vi.fn>;
+        __stripeCheckoutSessionList: ReturnType<typeof vi.fn>;
       }
-    ).__sokarStripeCheckoutSessionList;
+    ).__stripeCheckoutSessionList;
     sessionList.mockResolvedValueOnce({ data: [], has_more: false }).mockResolvedValueOnce({
       data: [{ id: 'cs_test', mode: 'subscription', url: 'https://checkout.stripe.test/cs_test' }],
       has_more: false,
@@ -804,9 +804,9 @@ describe('billing.routes - checkout, portail et statut', () => {
 
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
 
     const app = await getApp();
     const headers = {
@@ -878,9 +878,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.statusCode).toBe(200);
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     expect(checkoutCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         line_items: [{ price: 'price_multi_site_monthly_test', quantity: 1 }],
@@ -910,9 +910,9 @@ describe('billing.routes - checkout, portail et statut', () => {
     expect(response.statusCode).toBe(200);
     const checkoutCreate = (
       globalThis as unknown as {
-        __sokarStripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
+        __stripeCheckoutSessionCreate: { mock: { calls: unknown[][] } };
       }
-    ).__sokarStripeCheckoutSessionCreate;
+    ).__stripeCheckoutSessionCreate;
     expect(checkoutCreate.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         line_items: [

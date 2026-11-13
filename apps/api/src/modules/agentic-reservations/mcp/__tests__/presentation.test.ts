@@ -9,7 +9,7 @@ import {
 describe('MCP human-facing messages', () => {
   it('returns the minimal availability answer unchanged', () => {
     const message =
-      'Oui, une table est disponible pour 2 personnes au restaurant Chez Sokar à 19 h.';
+      'Oui, une table est disponible pour 2 personnes au restaurant Chez Suppernote à 19 h.';
     expect(formatMcpSuccessMessage('answer_availability', { message }, {})).toBe(message);
     expect(formatMcpSuccessContent('2025-06-18', 'answer_availability', { message }, {})).toBe(
       message,
@@ -23,7 +23,7 @@ describe('MCP human-facing messages', () => {
         searchOutcome: 'no_exact_slot_available',
         requestedRestaurant: {
           id: '550e8400-e29b-41d4-a716-446655440003',
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           status: 'unavailable',
         },
         restaurants: [],
@@ -31,14 +31,14 @@ describe('MCP human-facing messages', () => {
       },
       {
         city: 'Lyon',
-        restaurantName: 'Chez Sokar',
+        restaurantName: 'Chez Suppernote',
         partySize: 2,
         slotStart: '2026-10-01T19:00:00',
       },
     );
 
     expect(message).toBe(
-      'Le restaurant Chez Sokar n’a pas de disponibilité le jeudi 1er octobre à 19 h pour 2 personnes.',
+      'Le restaurant Chez Suppernote n’a pas de disponibilité le jeudi 1er octobre à 19 h pour 2 personnes.',
     );
     expect(message).not.toContain('550e8400');
     expect(message).not.toContain('{');
@@ -59,10 +59,10 @@ describe('MCP human-facing messages', () => {
       formatMcpSuccessMessage(
         'search_restaurants',
         {
-          requestedRestaurant: { name: 'Chez Sokar', status: 'available' },
+          requestedRestaurant: { name: 'Chez Suppernote', status: 'available' },
           restaurants: [
             {
-              name: 'Chez Sokar',
+              name: 'Chez Suppernote',
               availableSlots: [
                 {
                   startsAt: '2026-10-01T17:00:00.000Z',
@@ -75,14 +75,14 @@ describe('MCP human-facing messages', () => {
         },
         {
           city: 'Lyon',
-          restaurantName: 'Chez Sokar',
+          restaurantName: 'Chez Suppernote',
           partySize: 2,
           slotStart: '2026-10-01T19:00:00',
           timezone: 'Europe/Paris',
         },
       ),
     ).toBe(
-      'Oui, une table est disponible pour 2 personnes au restaurant Chez Sokar le jeudi 1er octobre à 19 h.',
+      'Oui, une table est disponible pour 2 personnes au restaurant Chez Suppernote le jeudi 1er octobre à 19 h.',
     );
   });
 
@@ -91,18 +91,18 @@ describe('MCP human-facing messages', () => {
       formatMcpSuccessMessage(
         'search_restaurants',
         {
-          requestedRestaurant: { name: 'Chez Sokar', status: 'not_found' },
+          requestedRestaurant: { name: 'Chez Suppernote', status: 'not_found' },
           restaurants: [],
           capacityLimits: [],
         },
         {
           city: 'Lyon',
-          restaurantName: 'Chez Sokar',
+          restaurantName: 'Chez Suppernote',
           partySize: 2,
           slotStart: '2026-10-01T19:00:00',
         },
       ),
-    ).toBe('Je ne trouve pas de fiche accessible pour Chez Sokar à Lyon.');
+    ).toBe('Je ne trouve pas de fiche accessible pour Chez Suppernote à Lyon.');
   });
 
   it('formule les autres succès sans identifiants ni détails internes', () => {

@@ -8,7 +8,7 @@ describe('confirmation SMS segment budget', () => {
     '餐厅很好',
     'Le Restaurant '.repeat(30),
     'Restaurant 🍽️ '.repeat(20),
-    'Chez Sokar',
+    'Chez Suppernote',
   ])('reste sur un segment pour %s', (name) => {
     const text = buildConfirmationText(name, '18/10/2026', '19:00', 20);
     expect(countSmsSegments(text)).toBe(1);

@@ -33,7 +33,8 @@ describe('marketing unsubscribe token', () => {
     vi.clearAllMocks();
     process.env.MARKETING_UNSUBSCRIBE_SECRET = 'u'.repeat(48);
     process.env.MARKETING_OPTOUT_HASH_SECRET = 'o'.repeat(48);
-    process.env.MARKETING_UNSUBSCRIBE_BASE_URL = 'https://api.sokar.test/marketing/unsubscribe';
+    process.env.MARKETING_UNSUBSCRIBE_BASE_URL =
+      'https://api.suppernote.test/marketing/unsubscribe';
     vi.mocked(db.customer.findFirst).mockResolvedValue({
       id: 'customer-1',
       emailNormalized: 'client@example.test',
@@ -114,9 +115,9 @@ describe('marketing consent link token', () => {
   }
 
   it('ouvre la page de consentement sur l’origine de l’API', async () => {
-    process.env.API_URL = 'https://api.sokar.test/';
+    process.env.API_URL = 'https://api.suppernote.test/';
     const url = new URL(buildMarketingConsentUrl(await consentToken()));
-    expect(`${url.origin}${url.pathname}`).toBe('https://api.sokar.test/marketing/consent');
+    expect(`${url.origin}${url.pathname}`).toBe('https://api.suppernote.test/marketing/consent');
     expect(url.searchParams.get('token')).toMatch(/^c1\./);
   });
 

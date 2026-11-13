@@ -18,7 +18,7 @@ import { WebSocket, type RawData } from 'ws';
 const TEXTS = [
   {
     id: 't1',
-    text: "Bonjour, vous êtes bien chez Chez Sokar. Je peux vous réserver une table pour quatre personnes samedi soir. Vous préférez vers vingt heures trente, ou plutôt vers vingt et une heures ? Je note votre nom : c'est bien Lefèvre ?",
+    text: "Bonjour, ici Chez Suppernote. Je peux vous réserver une table pour quatre personnes samedi soir. Vous préférez vers vingt heures trente, ou plutôt vers vingt et une heures ? Je note votre nom : c'est bien Lefèvre ?",
   },
   {
     id: 't2',

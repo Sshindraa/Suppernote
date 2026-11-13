@@ -46,7 +46,7 @@ function reservation(overrides: Record<string, unknown> = {}) {
     startsAt: STARTS_AT,
     createdAt: new Date('2099-10-01T10:00:00.000Z'),
     customerPhone: '+33612345678',
-    restaurant: { name: 'Chez Sokar', timezone: 'Europe/Paris' },
+    restaurant: { name: 'Chez Suppernote', timezone: 'Europe/Paris' },
     ...overrides,
   };
 }
@@ -125,7 +125,7 @@ describe('confirmation e-mail after a web booking', () => {
 
     const message = sendEmail.mock.calls[0][0];
     expect(message.to).toBe('client@example.com');
-    expect(message.subject).toBe('Votre réservation au restaurant Chez Sokar est confirmée');
+    expect(message.subject).toBe('Votre réservation au restaurant Chez Suppernote est confirmée');
     expect(message.html).not.toContain('/marketing/consent');
     expect(dbMock.reservationAuditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({

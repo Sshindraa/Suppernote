@@ -12,6 +12,7 @@
  *   - Appels (si applicable, anonymisés en PII si besoin)
  */
 
+import { withMergedCustomers } from './merged-customers';
 import type { PrismaClient } from '@prisma/client';
 import { ConsentService } from './consent.service';
 import { CURRENT_PRIVACY_POLICY_VERSION } from './privacy-policy';
@@ -269,7 +270,7 @@ export class ExportService {
     // Guard the model so older test fixtures and pre-migration workers can still
     // execute the legacy export path.
     const normalizedPhone = normalizeCustomerPhone(args.subject);
-    const crmProfiles = this.prisma.customer
+    const foundCrmProfiles = this.prisma.customer
       ? ((await this.prisma.customer.findMany({
           where: normalizedPhone
             ? {
@@ -279,6 +280,15 @@ export class ExportService {
                 ],
               }
             : { phone: args.subject },
+          select: { id: true, restaurantId: true, phone: true },
+        })) ?? [])
+      : [];
+    const crmProfileIds = this.prisma.customer
+      ? (await withMergedCustomers(this.prisma.customer, foundCrmProfiles)).map((c) => c.id)
+      : [];
+    const crmProfiles = this.prisma.customer
+      ? ((await this.prisma.customer.findMany({
+          where: { id: { in: crmProfileIds } },
           select: {
             id: true,
             restaurantId: true,

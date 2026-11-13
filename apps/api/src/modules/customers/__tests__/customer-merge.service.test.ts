@@ -19,6 +19,11 @@ vi.mock('../../../shared/db/client', () => ({
     customerConsent: { findMany: vi.fn(), updateMany: vi.fn() },
     reservation: { findMany: vi.fn(), updateMany: vi.fn() },
     giftCard: { findMany: vi.fn(), updateMany: vi.fn() },
+    experienceReservation: { updateMany: vi.fn() },
+    reputationFeedbackRequest: { updateMany: vi.fn() },
+    reputationFeedback: { updateMany: vi.fn() },
+    reputationRecoveryTask: { updateMany: vi.fn() },
+    loyaltyGrant: { updateMany: vi.fn() },
     marketingPermission: { findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
     marketingPermissionEvent: { findMany: vi.fn(), updateMany: vi.fn() },
     marketingSuppression: { findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
@@ -94,6 +99,11 @@ describe('customer merge service', () => {
     for (const model of [
       db.reservation,
       db.giftCard,
+      db.experienceReservation,
+      db.reputationFeedbackRequest,
+      db.reputationFeedback,
+      db.reputationRecoveryTask,
+      db.loyaltyGrant,
       db.customerConsent,
       db.customerTimelineEvent,
       db.marketingPermissionEvent,
@@ -265,6 +275,18 @@ describe('customer merge service', () => {
       data: { mergedIntoId: 'target', archivedAt: expect.any(Date) },
     });
     expect(redisCache.del).toHaveBeenCalledTimes(2);
+    for (const model of [
+      db.experienceReservation,
+      db.reputationFeedbackRequest,
+      db.reputationFeedback,
+      db.reputationRecoveryTask,
+      db.loyaltyGrant,
+    ]) {
+      expect(model.updateMany).toHaveBeenCalledWith({
+        where: { restaurantId: 'restaurant-1', customerId: { in: ['source'] } },
+        data: { customerId: 'target' },
+      });
+    }
 
     const payloadHash = vi.mocked(db.customerMergeAudit.create).mock.calls[0]?.[0]?.data
       ?.payloadHash;

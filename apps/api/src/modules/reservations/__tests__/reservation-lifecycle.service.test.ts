@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient, Reservation } from '@prisma/client';
 import { CapacityAwareAvailabilityService } from '../../floor-plan/availability-capacity-aware.service';
+import { TableAllocationService } from '../../floor-plan/table-allocation.service';
 import {
   ReservationLifecycleService,
   ReservationNotFoundError,
@@ -170,6 +171,43 @@ describe('ReservationLifecycleService', () => {
     });
     expect(invalidate).toHaveBeenCalledWith(previous.restaurantId);
     expect(result.capacity).toBe('released');
+  });
+
+  it('SEATED prend le verrou restaurant avant le verrou de ligne (pas d’interblocage avec la promotion)', async () => {
+    const { prisma, tx } = makePrisma();
+    const rowLock = vi.fn().mockResolvedValue([]);
+    Object.assign(tx, { $queryRaw: rowLock });
+    const previous = makeReservation({
+      tableId: 'table-1',
+      startsAt: new Date('2099-06-05T19:00:00.000Z'),
+      endsAt: new Date('2099-06-05T20:30:00.000Z'),
+    });
+    vi.mocked(tx.reservation.findUnique).mockResolvedValue(previous);
+    vi.mocked(tx.reservation.update).mockResolvedValue(
+      makeReservation({ ...previous, state: 'SEATED', status: 'SEATED' }),
+    );
+    const lock = vi
+      .spyOn(TableAllocationService.prototype, 'lockRestaurantCapacity')
+      .mockResolvedValue(undefined);
+    vi.spyOn(TableAllocationService.prototype, 'assertTableAvailableForSeating').mockResolvedValue(
+      undefined,
+    );
+    vi.spyOn(CapacityAwareAvailabilityService, 'invalidateAvailability').mockResolvedValue(
+      undefined,
+    );
+
+    await new ReservationLifecycleService(prisma).transition({
+      reservationId: previous.id,
+      restaurantId: previous.restaurantId,
+      toState: 'SEATED',
+      actor: 'dashboard',
+      metadata: { source: 'test' },
+      observationSource: 'dashboard',
+    });
+
+    expect(lock).toHaveBeenCalledWith(tx, previous.restaurantId);
+    expect(rowLock).toHaveBeenCalled();
+    expect(lock.mock.invocationCallOrder[0]).toBeLessThan(rowLock.mock.invocationCallOrder[0]);
   });
 
   it('rejects a terminal-to-confirmed transition before writing', async () => {

@@ -4070,6 +4070,6 @@ Après la fusion de la correction #703, la promotion staging 43132671403 et la p
 
 Audit des réservations : la récupération de retard (promotion et retour arrière) prenait des verrous de ligne sans verrou restaurant et sans contrôle de capacité sans table. Elle prend désormais le verrou restaurant en premier et refuse si une réservation sans table occupe la capacité. La transition lifecycle `SEATED` prend aussi le verrou restaurant avant le verrou de ligne, pour éviter un interblocage avec la promotion.
 
-L'exclusion `reservations_no_overlap_active` (23P01) est traduite en créneau indisponible dans la création agentique, la réservation legacy et le walk-in. Helper partagé : `apps/api/src/shared/reservations/overlap-violation.ts`. Forme réelle vérifiée sur une base jetable : `PrismaClientKnownRequestError`, code `P2010`, `meta.code = '23P01'`, nom de contrainte dans le message.
+L'exclusion `reservations_no_overlap_active` (23P01) est traduite en créneau indisponible dans la création agentique, la réservation legacy et le walk-in. Helper partagé : `apps/api/src/shared/reservations/overlap-violation.ts`. Forme réelle vérifiée sur une base jetable : `PrismaClientKnownRequestError`, code `P2010`, `meta.code = '23P01'`, nom de contrainte dans le message. Le test d'intégration `reservation-modification` (création ORM `db.reservation.create`) passe 10/10 sur une base migrée jetable.
 
 Fichiers clés : `floor-plan/service-copilot-delay-recovery.service.ts`, `reservations/reservation-lifecycle.service.ts`, `shared/reservations/overlap-violation.ts`.

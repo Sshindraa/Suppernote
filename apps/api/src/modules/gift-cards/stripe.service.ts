@@ -413,7 +413,7 @@ export async function createManagedTestAccount(restaurantId: string): Promise<st
   const account = (await getStripe().rawRequest(
     'POST',
     '/v2/core/accounts',
-    { identity: { country: 'FR' }, metadata: { restaurantId, source: 'sokar_managed_test' } },
+    { identity: { country: 'FR' }, metadata: { restaurantId, source: MANAGED_TEST_SOURCE } },
     {
       apiVersion: CONNECT_ACCOUNTS_API_VERSION,
       idempotencyKey: `gift-card-managed-test:${restaurantId}`,
@@ -441,7 +441,7 @@ export async function configureManagedTestAccount(
   };
   if (
     account.metadata?.restaurantId !== restaurantId ||
-    account.metadata?.source !== 'sokar_managed_test' ||
+    !isManagedTestSource(account.metadata?.source) ||
     account.livemode !== false
   ) {
     throw new Error('Compte de test incompatible.');
@@ -485,8 +485,7 @@ export async function isManagedTestAccount(
   if (!managedConnectTestEnabled(restaurantId)) return false;
   const account = await getStripe().accounts.retrieve(accountId);
   return (
-    account.metadata?.restaurantId === restaurantId &&
-    account.metadata?.source === 'sokar_managed_test'
+    account.metadata?.restaurantId === restaurantId && isManagedTestSource(account.metadata?.source)
   );
 }
 
@@ -506,7 +505,7 @@ export async function createConnectedAccount(restaurantId: string, _email: strin
         locales: ['fr-FR'],
         responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
       },
-      metadata: { restaurantId, source: 'sokar_gift_cards' },
+      metadata: { restaurantId, source: 'suppernote_gift_cards' },
     },
     {
       apiVersion: CONNECT_ACCOUNTS_API_VERSION,
@@ -564,6 +563,12 @@ export async function createConnectedAccountSession(accountId: string) {
  * Construit et vérifie un event Stripe depuis le webhook (signature verification).
  * Supporte une liste de secrets séparés par des virgules pour la rotation.
  */
+const MANAGED_TEST_SOURCE = 'suppernote_managed_test';
+/** Comptes de test créés avant le renommage : leur métadonnée Stripe garde l'ancien nom. */
+function isManagedTestSource(source: string | undefined): boolean {
+  return source === MANAGED_TEST_SOURCE || source === 'sokar_managed_test';
+}
+
 export async function constructWebhookEvent(
   payload: string,
   signature: string,

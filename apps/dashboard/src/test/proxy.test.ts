@@ -41,14 +41,14 @@ describe('forwardedHeaders — proxy Next.js', () => {
 
   it('forward le site actif vers le resolver API', () => {
     const headers = forwardedHeaders(mockReq({ 'x-sokar-site-id': 'site_123' }));
-    expect(headers['X-Sokar-Site-ID']).toBe('site_123');
+    expect(headers['X-Suppernote-Site-ID']).toBe('site_123');
   });
 
   it('forward le site actif passé par un lecteur audio sans header custom', () => {
     const headers = forwardedHeaders(
       mockReq({}, 'https://dashboard.test/api/proxy/calls/c1/recording?siteId=site_123'),
     );
-    expect(headers['X-Sokar-Site-ID']).toBe('site_123');
+    expect(headers['X-Suppernote-Site-ID']).toBe('site_123');
   });
 
   it("forward le cookie Clerk pour l'authentification", () => {
@@ -97,7 +97,7 @@ describe('forwardedHeaders — proxy Next.js', () => {
       mockReq({
         'x-forwarded-for': '203.0.113.7, 10.0.0.1',
         'x-request-id': 'req-xyz',
-        'x-sokar-site-id': 'site_123',
+        'x-suppernote-site-id': 'site_123',
         'idempotency-key': 'merge-123',
         cookie: '__session=tok',
       }),
@@ -105,7 +105,7 @@ describe('forwardedHeaders — proxy Next.js', () => {
     expect(headers).toEqual({
       'X-Forwarded-For': '203.0.113.7, 10.0.0.1',
       'X-Request-ID': 'req-xyz',
-      'X-Sokar-Site-ID': 'site_123',
+      'X-Suppernote-Site-ID': 'site_123',
       'Idempotency-Key': 'merge-123',
       Cookie: '__session=tok',
     });

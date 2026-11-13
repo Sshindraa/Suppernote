@@ -4,7 +4,7 @@
  * Flow :
  *   1. Vérifier que le PaymentIntent Stripe est succeeded
  *   2. Calculer la commission Suppernote = amount * restaurant.giftCardCommissionRate
- *   3. Créer la GiftCard avec stripePaymentIntentId, stripePaymentStatus, sokarCommissionAmount
+ *   3. Créer la GiftCard avec stripePaymentIntentId, stripePaymentStatus, suppernoteCommissionAmount
  *   4. Déclencher les notifications (email expéditeur, email destinataire, WhatsApp, notif restaurateur)
  */
 import { Prisma, type PrismaClient, type GiftCard } from '@prisma/client';
@@ -193,7 +193,7 @@ export class GiftCardPaymentService {
       : restaurant.giftCardCommissionRate
         ? restaurant.giftCardCommissionRate.toNumber()
         : 0.05;
-    const sokarCommissionAmount = Math.round(amount * commissionRate * 100) / 100;
+    const suppernoteCommissionAmount = Math.round(amount * commissionRate * 100) / 100;
 
     // 5. Créer la carte cadeau
     const { card, created } = await this.prisma.$transaction(async (tx) => {
@@ -256,7 +256,7 @@ export class GiftCardPaymentService {
         stripePaymentStatus: 'succeeded',
         templateId: input.templateId,
         customImageUrl: input.customImageUrl,
-        sokarCommissionAmount,
+        suppernoteCommissionAmount,
         preferredDate: input.preferredDate,
         preferredTime: input.preferredTime,
         preferredPartySize: input.preferredPartySize,

@@ -250,7 +250,7 @@ export class McpServer {
           return jsonRpcResult(id, {
             protocolVersion,
             capabilities: { tools: {} },
-            serverInfo: { name: 'sokar-mcp', version: MCP_SERVER_VERSION },
+            serverInfo: { name: 'suppernote-mcp', version: MCP_SERVER_VERSION },
             instructions: MCP_ASSISTANT_INSTRUCTIONS,
           });
         }
@@ -291,6 +291,8 @@ export class McpServer {
               ? /^Missing scope: (mcp:(?:read|reserve|cancel))$/u.exec(result.error)?.[1]
               : undefined;
           const errorMeta = {
+            'com.suppernote/error': { code: result.code, message: result.error },
+            // Ancienne clé, gardée pour les intégrations existantes (shortcut: retirer en phase 5).
             'com.sokar/error': { code: result.code, message: result.error },
             ...(missingScope
               ? {

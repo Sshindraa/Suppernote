@@ -17,7 +17,13 @@ import { logger } from '../../shared/logger/pino';
 export const INVITABLE_ROLES = ['MANAGER', 'STAFF', 'READ_ONLY'] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
-export const SOKAR_ROLE_METADATA_KEY = 'sokarRole';
+export const ROLE_METADATA_KEY = 'suppernoteRole';
+/** Ancienne clé Clerk : relue tant que des comptes la portent encore (shortcut: retirer après migration des métadonnées Clerk). */
+export const LEGACY_ROLE_METADATA_KEY = 'sokarRole';
+
+export function readRoleMetadata(metadata: Record<string, unknown> | null | undefined): unknown {
+  return metadata?.[ROLE_METADATA_KEY] ?? metadata?.[LEGACY_ROLE_METADATA_KEY];
+}
 const MAX_PENDING_INVITATIONS = 20;
 const PAGE_SIZE = 100;
 
@@ -146,7 +152,7 @@ export async function listTeam(input: {
       };
     }),
     invitations: clerk.invitations.map((invitation) => {
-      const role = invitation.publicMetadata?.[SOKAR_ROLE_METADATA_KEY];
+      const role = readRoleMetadata(invitation.publicMetadata);
       return {
         id: invitation.id,
         email: invitation.emailAddress,
@@ -207,7 +213,7 @@ export async function inviteMember(input: {
       inviterUserId: input.inviterUserId,
       emailAddress: email,
       role: 'org:member',
-      publicMetadata: { [SOKAR_ROLE_METADATA_KEY]: role },
+      publicMetadata: { [ROLE_METADATA_KEY]: role },
       redirectUrl: input.redirectUrl,
     });
     return {
@@ -319,7 +325,7 @@ export async function transferOwnership(input: {
           await clerkClient.organizations.updateOrganizationMembershipMetadata({
             organizationId: input.organizationId,
             userId: input.actingUserId,
-            publicMetadata: { [SOKAR_ROLE_METADATA_KEY]: 'REVOKED' },
+            publicMetadata: { [ROLE_METADATA_KEY]: 'REVOKED' },
           });
         }
       } catch (error) {
@@ -450,9 +456,9 @@ export async function claimInvitedMembership(input: {
           userId: [input.userId],
           limit: 1,
         });
-        role = (memberships.data[0] as ClerkMembershipLike | undefined)?.publicMetadata?.[
-          SOKAR_ROLE_METADATA_KEY
-        ];
+        role = readRoleMetadata(
+          (memberships.data[0] as ClerkMembershipLike | undefined)?.publicMetadata,
+        );
       } catch {
         return null;
       }

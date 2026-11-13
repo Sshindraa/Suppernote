@@ -265,7 +265,7 @@ export function serializeGiftCard(
     purchaseReference: card.purchaseReference,
     stripePaymentStatus: card.stripePaymentStatus,
     templateId: card.templateId,
-    sokarCommissionAmount: card.sokarCommissionAmount?.toNumber() ?? 0,
+    suppernoteCommissionAmount: card.suppernoteCommissionAmount?.toNumber() ?? 0,
     type: card.type,
     targetAmount: card.targetAmount?.toNumber() ?? null,
     crowdfundedUntil: card.crowdfundedUntil,

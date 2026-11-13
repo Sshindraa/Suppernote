@@ -88,7 +88,7 @@ export function useGiftCardFlow({ slug, restaurantId, source = 'widget' }: UseGi
   }, [slug]);
 
   useEffect(() => {
-    const storageKey = `sokar-gift-card-checkout:${restaurantId}`;
+    const storageKey = `suppernote-gift-card-checkout:${restaurantId}`;
     const stored = sessionStorage.getItem(storageKey);
     if (!stored) return;
     let saved: {
@@ -226,7 +226,7 @@ export function useGiftCardFlow({ slug, restaurantId, source = 'widget' }: UseGi
         if (recovered.card) {
           setResult(recovered.card);
           setStep('done');
-          sessionStorage.removeItem(`sokar-gift-card-checkout:${restaurantId}`);
+          sessionStorage.removeItem(`suppernote-gift-card-checkout:${restaurantId}`);
           return;
         }
         if (recovered.status !== 'canceled') {
@@ -272,14 +272,20 @@ export function useGiftCardFlow({ slug, restaurantId, source = 'widget' }: UseGi
         };
       }
       const attempt = checkoutAttempt.current;
-      sessionStorage.setItem(`sokar-gift-card-checkout:${restaurantId}`, JSON.stringify(attempt));
+      sessionStorage.setItem(
+        `suppernote-gift-card-checkout:${restaurantId}`,
+        JSON.stringify(attempt),
+      );
       const pi = await createPaymentIntent({
         ...piInput,
         idempotencyKey: attempt.idempotencyKey,
         accessToken: attempt.accessToken,
       });
       attempt.checkoutId = pi.checkoutId;
-      sessionStorage.setItem(`sokar-gift-card-checkout:${restaurantId}`, JSON.stringify(attempt));
+      sessionStorage.setItem(
+        `suppernote-gift-card-checkout:${restaurantId}`,
+        JSON.stringify(attempt),
+      );
       setStripePromise(loadStripe(pk, { stripeAccount: pi.stripeAccountId }));
       setClientSecret(pi.clientSecret);
       setPaymentIntentId(pi.paymentIntentId);
@@ -327,7 +333,7 @@ export function useGiftCardFlow({ slug, restaurantId, source = 'widget' }: UseGi
       }
 
       const res = await purchaseGiftCard(input);
-      sessionStorage.removeItem(`sokar-gift-card-checkout:${restaurantId}`);
+      sessionStorage.removeItem(`suppernote-gift-card-checkout:${restaurantId}`);
       setResult(res);
       setStep('done');
 

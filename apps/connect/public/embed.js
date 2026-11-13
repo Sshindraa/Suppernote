@@ -45,7 +45,10 @@
     // Valide que le message provient bien de l'iframe du widget (pas d'une
     // autre fenêtre/iframe du même domaine).
     if (e.source !== iframe.contentWindow) return;
-    if (e.data?.type === 'sokar-widget-resize' && e.data?.height) {
+    if (
+      (e.data?.type === 'suppernote-widget-resize' || e.data?.type === 'sokar-widget-resize') &&
+      e.data?.height
+    ) {
       if (typeof e.data?.height === 'number' && e.data.height > 0 && e.data.height < 10000) {
         iframe.style.height = e.data.height + 'px';
       }

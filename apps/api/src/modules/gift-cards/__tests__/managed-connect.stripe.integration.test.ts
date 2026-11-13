@@ -72,7 +72,9 @@ describe.skipIf(!url || !secret || !publicKey)(
           if (
             account.livemode !== false ||
             account.metadata?.restaurantId !== restaurantId ||
-            account.metadata?.source !== 'sokar_managed_test'
+            !['suppernote_managed_test', 'sokar_managed_test'].includes(
+              account.metadata?.source ?? '',
+            )
           )
             throw new Error('Refusing to close an unrelated account');
           await stripe.rawRequest(

@@ -120,6 +120,14 @@ describe('mcp auth', () => {
       expect(validateApiKeyFormat(PREFIX)).toBe(false);
       expect(validateApiKeyFormat('plain-key')).toBe(false);
     });
+
+    it('accepte le nouveau préfixe Suppernote et garde l’ancien valable', () => {
+      const NEW_PREFIX = ['sk', '_suppernote', '_agent_'].join('');
+      const newKey = NEW_PREFIX + 'test_fixture_' + 'c'.repeat(32);
+      expect(validateApiKeyFormat(newKey)).toBe(true);
+      expect(getApiKeyPrefix(newKey)).toBe(newKey.slice(0, NEW_PREFIX.length + 8));
+      expect(getApiKeyPrefix(VALID_KEY)).toBe(VALID_KEY.slice(0, PREFIX.length + 8));
+    });
   });
 
   describe('validateOrigin', () => {

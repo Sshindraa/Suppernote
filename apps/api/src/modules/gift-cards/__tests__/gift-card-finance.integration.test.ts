@@ -139,7 +139,7 @@ describe.skipIf(!url)('gift card finance — real PostgreSQL transactions', () =
   }
   async function card() {
     return prisma.giftCard.create({
-      data: { restaurantId, amount: 100, remainingAmount: 100, sokarCommissionAmount: 0 },
+      data: { restaurantId, amount: 100, remainingAmount: 100, suppernoteCommissionAmount: 0 },
     });
   }
 
@@ -540,7 +540,7 @@ describe.skipIf(!url)('gift card finance — real PostgreSQL transactions', () =
         restaurantId,
         amount: 0,
         remainingAmount: 0,
-        sokarCommissionAmount: 0,
+        suppernoteCommissionAmount: 0,
         type: 'CROWDFUNDED',
         crowdfundedUntil: new Date(Date.now() + 86400000),
       },
@@ -623,7 +623,7 @@ describe.skipIf(!url)('gift card finance — real PostgreSQL transactions', () =
         restaurantId,
         amount: 0,
         remainingAmount: 0,
-        sokarCommissionAmount: 0,
+        suppernoteCommissionAmount: 0,
         type: 'CROWDFUNDED',
         crowdfundedUntil: new Date(Date.now() + 86400000),
       },
@@ -796,7 +796,7 @@ describe.skipIf(!url)('gift card finance — real PostgreSQL transactions', () =
       recipientName: 'Changed recipient',
     });
     expect(gift.amount.toNumber()).toBe(100);
-    expect(gift.sokarCommissionAmount.toNumber()).toBe(5);
+    expect(gift.suppernoteCommissionAmount.toNumber()).toBe(5);
     expect(gift.recipientName).toBe('Original recipient');
     expect(gift.packSnapshot).toMatchObject({ name: 'Original pack', amount: 100 });
   });

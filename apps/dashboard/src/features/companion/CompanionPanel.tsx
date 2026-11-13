@@ -44,7 +44,7 @@ interface CompanionReply {
 const SUGGESTION_KEYS = ['week', 'noShows', 'bookings'] as const;
 
 function historyKey(siteId: string): string {
-  return `sokar.companion.${siteId}`;
+  return `suppernote.companion.${siteId}`;
 }
 
 function isMessage(value: unknown): value is Message {

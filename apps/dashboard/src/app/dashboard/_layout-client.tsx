@@ -740,7 +740,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
         setFloorPlans(plans);
         let persistedFloorPlanId: string | null = null;
         try {
-          persistedFloorPlanId = window.localStorage.getItem(`sokar.floor-plan.${orgId}`);
+          persistedFloorPlanId = window.localStorage.getItem(`suppernote.floor-plan.${orgId}`);
         } catch {
           // Local storage may be unavailable in a private browsing context.
         }
@@ -777,7 +777,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
   const handleSelectFloorPlan = (floorPlanId: string) => {
     setSelectedFloorPlanId(floorPlanId);
     try {
-      window.localStorage.setItem(`sokar.floor-plan.${orgId}`, floorPlanId);
+      window.localStorage.setItem(`suppernote.floor-plan.${orgId}`, floorPlanId);
     } catch {
       // Local storage may be unavailable in a private browsing context.
     }

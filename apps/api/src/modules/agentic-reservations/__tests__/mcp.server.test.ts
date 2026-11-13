@@ -139,7 +139,7 @@ describe('MCP server', () => {
       const body = res.json();
       expect(body.result.protocolVersion).toBeDefined();
       expect(body.result.capabilities.tools).toBeDefined();
-      expect(body.result.serverInfo.name).toBe('sokar-mcp');
+      expect(body.result.serverInfo.name).toBe('suppernote-mcp');
       expect(body.result.serverInfo.version).toBe(MCP_SERVER_VERSION);
       expect(body.result.instructions).toContain('langage courant');
       expect(body.result.instructions).toContain('ne demandez jamais');
@@ -386,7 +386,7 @@ describe('MCP server', () => {
       expect(body.result.content[0].text).toBe(
         'Je n’ai pas pu terminer cette demande. Réessayez ou demandez de l’aide.',
       );
-      expect(body.result._meta['com.sokar/error']).toEqual({
+      expect(body.result._meta['com.suppernote/error']).toEqual({
         code: 'UNKNOWN_TOOL',
         message: 'Unknown tool: unknown_tool',
       });
@@ -406,6 +406,7 @@ describe('MCP server', () => {
       expect(body.result.content[0].text).toBe(
         'Je n’ai pas pu traiter la demande telle quelle. Vérifiez les informations fournies.',
       );
+      expect(body.result._meta['com.suppernote/error'].code).toBe('INVALID_INPUT');
       expect(body.result._meta['com.sokar/error'].code).toBe('INVALID_INPUT');
 
       const metrics = await renderMetrics();
@@ -494,12 +495,12 @@ describe('MCP server', () => {
       expect(body.result.content[0].text).toBe(
         'Cette action nécessite une autorisation supplémentaire.',
       );
-      expect(body.result._meta['com.sokar/error'].code).toBe('FORBIDDEN');
+      expect(body.result._meta['com.suppernote/error'].code).toBe('FORBIDDEN');
       expect(body.result._meta['mcp/www_authenticate']).toEqual([
         expect.stringContaining('error="insufficient_scope"'),
       ]);
       expect(body.result._meta['mcp/www_authenticate'][0]).toContain('scope="mcp:reserve"');
-      expect(body.result._meta['com.sokar/error']).toEqual({
+      expect(body.result._meta['com.suppernote/error']).toEqual({
         code: 'FORBIDDEN',
         message: 'Missing scope: mcp:reserve',
       });
@@ -520,7 +521,7 @@ describe('MCP server', () => {
       const body = res.json();
       expect(body.result.isError).toBe(true);
       expect(body.result.content[0].text).toBe('Je ne trouve pas la fiche de ce restaurant.');
-      expect(body.result._meta['com.sokar/error'].code).toBe('NOT_FOUND');
+      expect(body.result._meta['com.suppernote/error'].code).toBe('NOT_FOUND');
     });
 
     it('create_reservation sanitize les prompt injections', async () => {
@@ -566,7 +567,7 @@ describe('MCP server', () => {
       });
       const body = res.json();
       expect(body.result.isError).toBe(true);
-      expect(body.result._meta['com.sokar/error'].code).toBe('INVALID_INPUT');
+      expect(body.result._meta['com.suppernote/error'].code).toBe('INVALID_INPUT');
     });
 
     it('create_reservation exige customerPhone E.164', async () => {

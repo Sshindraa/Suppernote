@@ -94,7 +94,7 @@ export default function FloorPlanPage() {
       const defaultPlan = getDefaultFloorPlan(data);
       let persistedFloorPlanId: string | null = null;
       try {
-        persistedFloorPlanId = window.localStorage.getItem(`sokar.floor-plan.${orgId}`);
+        persistedFloorPlanId = window.localStorage.getItem(`suppernote.floor-plan.${orgId}`);
       } catch {
         // Local storage may be unavailable in a private browsing context.
       }
@@ -133,7 +133,7 @@ export default function FloorPlanPage() {
       await loadFloorPlans();
       setSelectedFloorPlanId(created.id);
       try {
-        window.localStorage.setItem(`sokar.floor-plan.${orgId}`, created.id);
+        window.localStorage.setItem(`suppernote.floor-plan.${orgId}`, created.id);
         window.dispatchEvent(new Event('suppernote:floor-plans-changed'));
       } catch {
         // Local storage may be unavailable in a private browsing context.

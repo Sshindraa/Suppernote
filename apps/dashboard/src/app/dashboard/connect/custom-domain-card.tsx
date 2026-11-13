@@ -96,7 +96,7 @@ export function CustomDomainCard({ restaurantId, customDomain, customDomainStatu
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(siteId ? { 'X-Sokar-Site-ID': siteId } : {}),
+          ...(siteId ? { 'X-Suppernote-Site-ID': siteId } : {}),
         },
         body: JSON.stringify({ customDomain: normalized }),
       });
@@ -116,7 +116,7 @@ export function CustomDomainCard({ restaurantId, customDomain, customDomainStatu
     try {
       const res = await fetch(`/api/proxy/restaurants/${restaurantId}/connect/verify-dns`, {
         method: 'POST',
-        headers: siteId ? { 'X-Sokar-Site-ID': siteId } : undefined,
+        headers: siteId ? { 'X-Suppernote-Site-ID': siteId } : undefined,
       });
       if (!res.ok) throw await apiErrorFrom(res, 'Erreur lors de la vérification');
       const data = await res.json();
@@ -136,7 +136,7 @@ export function CustomDomainCard({ restaurantId, customDomain, customDomainStatu
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(siteId ? { 'X-Sokar-Site-ID': siteId } : {}),
+          ...(siteId ? { 'X-Suppernote-Site-ID': siteId } : {}),
         },
         body: JSON.stringify({ customDomain: null }),
       });

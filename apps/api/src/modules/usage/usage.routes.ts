@@ -109,7 +109,9 @@ async function requireInternalUsageToken(
   if (!expected) {
     return reply.status(503).send({ error: 'INTERNAL_USAGE_TOKEN_NOT_CONFIGURED' });
   }
-  const suppliedHeader = request.headers['x-sokar-internal-usage-token'];
+  const suppliedHeader =
+    request.headers['x-suppernote-internal-usage-token'] ??
+    request.headers['x-sokar-internal-usage-token'];
   const supplied = Array.isArray(suppliedHeader) ? suppliedHeader[0] : suppliedHeader;
   if (!supplied) return reply.status(401).send({ error: 'INTERNAL_USAGE_UNAUTHORIZED' });
   const expectedBytes = Buffer.from(expected);

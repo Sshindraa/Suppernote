@@ -34,7 +34,7 @@ export type CreateGiftCardInput = {
   stripePaymentStatus?: string;
   templateId?: string;
   customImageUrl?: string;
-  sokarCommissionAmount?: number;
+  suppernoteCommissionAmount?: number;
   // P3 — Crowdfunding
   type?: GiftCardType;
   targetAmount?: number;

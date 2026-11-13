@@ -195,7 +195,7 @@ async function resolveContextForMember(input: {
 }
 
 function getRequestedSiteId(req: FastifyRequest): string | undefined {
-  const value = req.headers['x-sokar-site-id'];
+  const value = req.headers['x-suppernote-site-id'] ?? req.headers['x-sokar-site-id'];
   const siteId = Array.isArray(value) ? value[0] : value;
   const trimmed = siteId?.trim();
   return trimmed && trimmed.length <= 128 ? trimmed : undefined;

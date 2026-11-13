@@ -318,7 +318,7 @@ export async function createPublicExperienceCheckout(input: {
       }
       const unitPriceCents = session.experience.priceCents;
       const totalPriceCents = unitPriceCents * input.quantity;
-      const sokarFeeCents = Math.round(totalPriceCents * commissionRate);
+      const suppernoteFeeCents = Math.round(totalPriceCents * commissionRate);
       const newCheckout = await tx.experienceCheckout.create({
         data: {
           restaurantId: restaurant.id,
@@ -327,7 +327,7 @@ export async function createPublicExperienceCheckout(input: {
           quantity: input.quantity,
           unitPriceCents,
           totalPriceCents,
-          sokarFeeCents,
+          suppernoteFeeCents,
           currency: session.experience.currency,
           stripeAccountId,
           idempotencyKey: key,
@@ -350,7 +350,7 @@ export async function createPublicExperienceCheckout(input: {
       )
     : await createExperienceCheckoutSession({
         amountCents: checkout.totalPriceCents,
-        applicationFeeCents: checkout.sokarFeeCents,
+        applicationFeeCents: checkout.suppernoteFeeCents,
         currency: checkout.currency,
         restaurantId: restaurant.id,
         experienceCheckoutId: checkout.id,

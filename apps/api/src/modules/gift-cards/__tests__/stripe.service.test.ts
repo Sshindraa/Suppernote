@@ -133,7 +133,7 @@ describe('stripe.service', () => {
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY', 'pk_test_example');
     sdk.rawRequest.mockResolvedValue({
       livemode: false,
-      metadata: { restaurantId: 'rest-1', source: 'sokar_managed_test' },
+      metadata: { restaurantId: 'rest-1', source: 'suppernote_managed_test' },
       applied_configurations: ['merchant'],
     });
     try {
@@ -358,7 +358,7 @@ describe('Stripe Connect account creation', () => {
           locales: ['fr-FR'],
           responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
         },
-        metadata: { restaurantId: 'rest-1', source: 'sokar_gift_cards' },
+        metadata: { restaurantId: 'rest-1', source: 'suppernote_gift_cards' },
       },
       { apiVersion: '2026-08-26.dahlia', idempotencyKey: 'gift-card-connect-v2:rest-1:hosted' },
     );

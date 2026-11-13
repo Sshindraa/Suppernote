@@ -1,7 +1,8 @@
 # ADR — Fondation de protection bancaire des réservations
 
 Date : 2026-09-14
-Statut : `PARTIEL LOCAL` — code et migration livrés, activation provider interdite pendant le gel
+Statut : `PARTIEL LOCAL` — empreinte bancaire en cours (spec validée le 2026-11-13,
+`docs/reservation-card-guarantee-spec.md`) ; adaptateur Stripe et webhook livrés en PR 1
 
 ## Contexte
 
@@ -38,7 +39,9 @@ ne peut pas recevoir une nouvelle préparation.
 
 ### Webhook sans donnée carte
 
-`POST /webhooks/stripe/reservation-payments` vérifie la signature sur le corps brut, exige les
+Depuis le 2026-11-13, les événements arrivent par l'endpoint Connect partagé `POST /webhooks/stripe`
+et sont aiguillés vers `reservation-payment.webhook.ts` avant les cartes cadeaux ; la route dédiée
+`/webhooks/stripe/reservation-payments` a été retirée. Le webhook vérifie la signature sur le corps brut, exige les
 métadonnées `restaurantId` et `reservationPaymentId`, puis vérifie montant et devise. Seuls
 `providerEventId`, type, statut résultant, date et SHA-256 du corps sont persistés dans
 `ReservationPaymentEvent`. Les cartes, secrets, payloads et erreurs détaillées ne sortent jamais
@@ -60,6 +63,12 @@ un compte et doit être planifiée après qualification.
 4. vérifier `account`, metadata, montant capturé et devise sur les événements Connect ;
 5. implémenter capture après no-show, remboursement total/partiel, frais et rapprochement quotidien ;
 6. exécuter les scénarios sandbox (3DS, rejeu, retard, expiration, chargeback) puis un pilote limité.
+
+Avancement au 2026-11-13 (PR 1 de l'empreinte) : points 2, 4 et la partie capture/remboursement du
+point 5 livrés en local (adaptateur `gift-cards/stripe.service.ts`, compte Connect déjà ouvert pour
+les cartes cadeaux, aucune référence secrète nouvelle à stocker) ; hold = réservation `PENDING`,
+libérée par le job `reservation-payment-expiry` (point 3). Restent : parcours client, écrans, frais
+et rapprochement, scénarios sandbox.
 
 ## Preuves locales
 

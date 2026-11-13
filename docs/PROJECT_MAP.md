@@ -269,13 +269,16 @@ rollback reste possible.
 ### Protection bancaire des réservations
 
 - `apps/api/src/modules/reservation-payments/reservation-payment.routes.ts` expose les policies
-  versionnées, la préparation dry-run/commit, l'état d'une tentative, l'expiration et le webhook
-  Stripe signé sous le capability Pro `reservations.payments`.
+  versionnées, la préparation dry-run/commit, l'état d'une tentative, l'expiration, le prélèvement et
+  le remboursement d'une empreinte sous le capability Pro `reservations.payments`. Les événements
+  Stripe passent par `/webhooks/stripe` puis `reservation-payment.webhook.ts`.
 - `reservation-payment.service.ts` calcule les montants fixes/par personne, applique une machine
   d'états idempotente, vérifie devise/montant, hash les événements et confirme une réservation
   `PENDING` dans la transaction. Aucun numéro de carte, payload brut ou secret n'est stocké.
-- Le modèle marchand, Stripe Connect, le hold de capacité et les captures/remboursements restent
-  non qualifiés ; `RESERVATION_PAYMENTS_ENABLED=false` par défaut.
+- Empreinte bancaire (spec `docs/reservation-card-guarantee-spec.md`) : compte Connect du restaurant
+  (direct charges), Checkout en mode `setup`, prélèvement hors session décidé par l'équipe, place tenue
+  par la réservation `PENDING` et libérée chaque minute à l'expiration. Parcours client, écrans et
+  qualification sandbox à venir ; `RESERVATION_PAYMENTS_ENABLED=false` par défaut.
 
 ### CRM groupe / identité multi-site
 

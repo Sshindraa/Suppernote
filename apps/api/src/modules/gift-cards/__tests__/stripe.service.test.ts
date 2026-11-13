@@ -22,12 +22,27 @@ const sdk = vi.hoisted(() => ({
   accountRetrieve: vi.fn(),
   accountLinkCreate: vi.fn(),
   accountSessionCreate: vi.fn(),
+  customerCreate: vi.fn(),
+  checkoutSessionCreate: vi.fn(),
 }));
 
 vi.mock('stripe', () => {
   let shouldThrow = false;
 
+  class StripeCardError extends Error {
+    constructor(
+      readonly raw: unknown,
+      readonly code?: string,
+      readonly decline_code?: string,
+    ) {
+      super('card error');
+    }
+  }
+
   class Stripe {
+    static errors = { StripeCardError };
+    customers = { create: sdk.customerCreate };
+    checkout = { sessions: { create: sdk.checkoutSessionCreate } };
     rawRequest = sdk.rawRequest;
     accounts = { retrieve: sdk.accountRetrieve };
     accountLinks = { create: sdk.accountLinkCreate };
@@ -72,6 +87,7 @@ vi.mock('stripe', () => {
 
   return {
     default: Stripe,
+    __StripeCardError: StripeCardError,
     __setWebhookShouldThrow: (value: boolean) => {
       shouldThrow = value;
     },
@@ -84,6 +100,8 @@ import {
   retrievePaymentIntent,
   constructWebhookEvent,
   createRefund,
+  chargeReservationGuarantee,
+  createReservationGuaranteeSetupSession,
   createConnectedAccountSession,
   managedConnectTestEnabled,
   createManagedTestAccount,
@@ -388,5 +406,114 @@ describe('Stripe Connect account creation', () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+});
+
+describe('empreinte bancaire de réservation', () => {
+  beforeEach(() => {
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_example');
+    sdk.customerCreate.mockReset().mockResolvedValue({ id: 'cus_new' });
+    sdk.checkoutSessionCreate
+      .mockReset()
+      .mockResolvedValue({ id: 'cs_1', url: 'https://checkout.stripe.test/cs_1' });
+    sdk.create.mockReset().mockResolvedValue({ id: 'pi_capture', status: 'succeeded' });
+  });
+
+  const setupInput = {
+    stripeAccountId: 'acct_restaurant',
+    metadata: { type: 'reservation_guarantee', reservationPaymentId: 'payment-1' },
+    customerEmail: 'client@example.test',
+    successUrl: 'https://suppernote.test/ok',
+    cancelUrl: 'https://suppernote.test/annule',
+    expiresAt: new Date('2026-11-13T12:00:00.000Z'),
+    customText: 'Aucun montant n’est débité aujourd’hui.',
+    customerIdempotencyKey: 'customer-key',
+    idempotencyKey: 'setup-key',
+  };
+
+  it('ouvre une page Stripe en mode setup sur le compte du restaurant', async () => {
+    const result = await createReservationGuaranteeSetupSession({
+      ...setupInput,
+      stripeCustomerId: null,
+    });
+    expect(result).toEqual({
+      sessionId: 'cs_1',
+      url: 'https://checkout.stripe.test/cs_1',
+      customerId: 'cus_new',
+    });
+    expect(sdk.customerCreate).toHaveBeenCalledWith(
+      { email: 'client@example.test', metadata: setupInput.metadata },
+      { stripeAccount: 'acct_restaurant', idempotencyKey: 'customer-key' },
+    );
+    expect(sdk.checkoutSessionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'setup',
+        customer: 'cus_new',
+        payment_method_types: ['card'],
+        expires_at: Math.floor(setupInput.expiresAt.getTime() / 1000),
+        metadata: setupInput.metadata,
+        setup_intent_data: { metadata: setupInput.metadata },
+      }),
+      { stripeAccount: 'acct_restaurant', idempotencyKey: 'setup-key' },
+    );
+  });
+
+  it('réutilise le client Stripe déjà créé', async () => {
+    await createReservationGuaranteeSetupSession({ ...setupInput, stripeCustomerId: 'cus_old' });
+    expect(sdk.customerCreate).not.toHaveBeenCalled();
+    expect(sdk.checkoutSessionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: 'cus_old' }),
+      expect.anything(),
+    );
+  });
+
+  const chargeInput = {
+    stripeAccountId: 'acct_restaurant',
+    stripeCustomerId: 'cus_1',
+    stripePaymentMethodId: 'pm_1',
+    amountCents: 6000,
+    currency: 'EUR',
+    metadata: { type: 'reservation_guarantee' },
+    receiptEmail: null,
+    idempotencyKey: 'capture-key',
+  };
+
+  it('prélève hors session avec la clé d’idempotence fournie', async () => {
+    await expect(chargeReservationGuarantee(chargeInput)).resolves.toEqual({
+      ok: true,
+      paymentIntentId: 'pi_capture',
+      status: 'succeeded',
+    });
+    expect(sdk.create).toHaveBeenCalledWith(
+      {
+        amount: 6000,
+        currency: 'eur',
+        customer: 'cus_1',
+        payment_method: 'pm_1',
+        off_session: true,
+        confirm: true,
+        metadata: { type: 'reservation_guarantee' },
+      },
+      { stripeAccount: 'acct_restaurant', idempotencyKey: 'capture-key' },
+    );
+  });
+
+  it('renvoie un refus bancaire sans relancer', async () => {
+    const { __StripeCardError } = (await import('stripe')) as unknown as {
+      __StripeCardError: new (raw: unknown, code?: string, decline?: string) => Error;
+    };
+    sdk.create.mockRejectedValueOnce(
+      new __StripeCardError(
+        { payment_intent: { id: 'pi_declined' } },
+        'authentication_required',
+        undefined,
+      ),
+    );
+    await expect(chargeReservationGuarantee(chargeInput)).resolves.toEqual({
+      ok: false,
+      paymentIntentId: 'pi_declined',
+      failureCode: 'authentication_required',
+    });
+    expect(sdk.create).toHaveBeenCalledTimes(1);
   });
 });

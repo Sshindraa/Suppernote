@@ -164,9 +164,12 @@ async function handleLockedReply(
   // intent === 'CANCELLED'
   try {
     if (reservation.status !== 'CANCELLED' || reservation.state !== 'CANCELLED') {
-      await ReservationService.update(reservation.id, reservation.restaurantId, {
-        status: 'CANCELLED',
-      });
+      await ReservationService.update(
+        reservation.id,
+        reservation.restaurantId,
+        { status: 'CANCELLED' },
+        'customer:sms-reply',
+      );
     }
     await db.reservation.update({
       where: { id: reservation.id },

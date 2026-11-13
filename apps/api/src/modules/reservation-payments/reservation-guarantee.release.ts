@@ -19,14 +19,27 @@ function snapshotOf(value: Prisma.JsonValue): { type?: unknown; cancellationHour
 }
 
 /**
+ * Annulations faites par le client lui-même (lien personnel, web, réponse SMS, assistant ou voix
+ * agissant pour lui). Liste fermée : une annulation par l'équipe, le système ou un acteur inconnu
+ * ferme toujours l'empreinte, pour ne jamais rendre prélevable ce que le client n'a pas décidé.
+ */
+const CUSTOMER_ACTOR = /^(customer|connect|agent|generic-agent|voice):/;
+
+export function isCustomerCancellation(actor: string): boolean {
+  return CUSTOMER_ACTOR.test(actor);
+}
+
+/**
  * Appelé dans la transaction qui annule une réservation. Une empreinte encore en attente, ou une
- * carte enregistrée annulée dans le délai gratuit, est fermée (`CANCELLED`) : plus aucun
- * prélèvement possible. Une annulation tardive garde l'empreinte `AUTHORIZED` (prélevable).
+ * carte enregistrée annulée dans le délai gratuit ou par l'équipe, est fermée (`CANCELLED`) : plus
+ * aucun prélèvement possible. Seule une annulation tardive du client garde l'empreinte
+ * `AUTHORIZED` (prélevable).
  * Ne dépend pas du service de cycle de vie, qui l'importe.
  */
 export async function releaseCardGuaranteeOnCancel(
   tx: Prisma.TransactionClient,
   reservation: { id: string; restaurantId: string; startsAt: Date | null; reservedAt: Date },
+  actor: string,
   now = new Date(),
 ): Promise<boolean> {
   const payment = await tx.reservationPayment.findFirst({
@@ -45,6 +58,7 @@ export async function releaseCardGuaranteeOnCancel(
   const startsAt = reservation.startsAt ?? reservation.reservedAt;
   const free =
     payment.status !== ReservationPaymentStatus.AUTHORIZED ||
+    !isCustomerCancellation(actor) ||
     now.getTime() <= startsAt.getTime() - hours * 3_600_000;
   if (!free) return false;
   const updated = await tx.reservationPayment.updateMany({

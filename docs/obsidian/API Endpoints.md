@@ -102,6 +102,8 @@ Module : `apps/api/src/modules/reservation-payments/reservation-payment.routes.t
 | POST    | `/reservations/:id/payment/expire`               | Expiration manuelle d'une tentative, Owner/Manager                     |
 | POST    | `/api/internal/reservation-payments/expire`      | Opérateur Sokar, nettoyage borné des échéances                         |
 | POST    | `/reservations/:id/payment/capture`              | Owner/Manager : après `NO_SHOW` ou annulation tardive, 7 j max ; 202   |
+| GET     | `/reservation-guarantee/settings`                | Équipe : réglage d'empreinte en vigueur (ou valeurs proposées)         |
+| PUT     | `/reservation-guarantee/settings`                | Owner/Manager : active, modifie (nouvelle version) ou coupe            |
 | GET     | `/public/r/:slug/card-guarantee`                 | Public : conditions d'empreinte pour `date` + `partySize`, ou `null`   |
 | GET     | `/public/r/:slug/card-guarantee/:token`          | Public, jeton signé : état de l'empreinte, sans nom ni téléphone       |
 | POST    | `/public/r/:slug/card-guarantee/:token/checkout` | Public, `{ accepted: true }` : rouvre la page Stripe                   |

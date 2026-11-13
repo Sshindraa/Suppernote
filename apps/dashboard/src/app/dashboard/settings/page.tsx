@@ -35,6 +35,7 @@ import {
 import { SYSTEM_PROMPT_EXTRA_MAX_LENGTH } from '@/constants/ui';
 import { SiteManagementCard } from '@/features/sites/site-management-card';
 import { TeamCard } from '@/features/team/team-card';
+import { CardGuaranteeSettingsCard } from '@/features/card-guarantee/card-guarantee-settings-card';
 import { useSiteSelection } from '@/features/sites/site-context';
 import { TrialRecap, TrialTrack } from '@/features/billing/trial';
 
@@ -592,6 +593,7 @@ export default function SettingsPage() {
 
       <SiteManagementCard />
       <TeamCard />
+      <CardGuaranteeSettingsCard restaurantName={restaurant?.name || name || 'Votre restaurant'} />
 
       {canManageCrmPrivacy && (
         <Card id="settings-crm" className="sokar-card scroll-mt-24 transition-all duration-200">

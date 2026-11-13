@@ -222,7 +222,7 @@ export class ReservationLifecycleService {
     }
 
     if (!sameState && args.toState === 'CANCELLED') {
-      await releaseCardGuaranteeOnCancel(tx, reservation);
+      await releaseCardGuaranteeOnCancel(tx, reservation, args.actor);
     }
 
     if (

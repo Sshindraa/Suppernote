@@ -99,7 +99,12 @@ describe('inbound replies', () => {
     state.findMany.mockResolvedValue([{ ...reservation, id: 'res-2' }]);
     await handleReply('customer', 'NON', 'sms', 'message-1');
     expect(state.cancel).toHaveBeenCalledTimes(1);
-    expect(state.cancel).toHaveBeenCalledWith('res-1', 'rest-1', { status: 'CANCELLED' });
+    expect(state.cancel).toHaveBeenCalledWith(
+      'res-1',
+      'rest-1',
+      { status: 'CANCELLED' },
+      'customer:sms-reply',
+    );
     expect(state.add).toHaveBeenCalledTimes(1);
   });
 

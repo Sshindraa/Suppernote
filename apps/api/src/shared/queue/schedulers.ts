@@ -114,6 +114,14 @@ export async function registerJobSchedulers(): Promise<void> {
       { name: 'voice-capacity-check', data: { kind: 'voice-capacity-check' } },
     ),
   );
+  // Empreintes bancaires : libère chaque minute les places tenues dont la carte n'a pas été enregistrée.
+  await register('reconciliation/reservation-payment-expiry', () =>
+    queues.reconciliation.upsertJobScheduler(
+      'reservation-payment-expiry',
+      { every: 60 * 1000 },
+      { name: 'reservation-payment-expiry', data: { kind: 'reservation-payment-expiry' } },
+    ),
+  );
   // Conservation marketing (runbook §4) : fichier de prospection et preuves, une fois par nuit.
   await register('reconciliation/marketing-retention-purge', () =>
     queues.reconciliation.upsertJobScheduler(

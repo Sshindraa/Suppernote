@@ -1,6 +1,6 @@
 # Empreinte bancaire de réservation — spec courte
 
-Date : 2026-11-13 · Statut : **à valider par Hamza** (aucun code avant accord)
+Date : 2026-11-13 · Statut : **validée par Hamza le 2026-11-13** (« Oui, valide tout »)
 Socle existant : `apps/api/src/modules/reservation-payments/` (ADR
 `docs/architecture/adr-reservation-payments-foundation.md`, fiche 7 de
 `docs/architecture/fonctions-coupees-2026-10.md`).
@@ -8,8 +8,7 @@ Socle existant : `apps/api/src/modules/reservation-payments/` (ADR
 But : réduire les absences sans prévenir sur les groupes et les dates chargées. Seul le type
 `CARD_GUARANTEE` est livré ; `DEPOSIT` et `PREPAYMENT` restent dans le schéma, sans écran.
 
-Chaque point ci-dessous porte une **proposition par défaut** ; les points marqués ❓ demandent
-une décision explicite.
+Toutes les propositions par défaut ont été retenues le 2026-11-13.
 
 ## 1. Modèle marchand
 
@@ -51,7 +50,7 @@ une décision explicite.
 - Cas prélevables : absence sans prévenir, et annulation **après** la fin du délai gratuit.
   Une annulation dans le délai gratuit ferme l'empreinte (moyen de paiement détaché) : plus aucun
   prélèvement possible.
-- ❓ Fenêtre pour prélever : **proposition 7 jours** après l'heure de la réservation, ensuite le
+- Fenêtre pour prélever : **7 jours** après l'heure de la réservation, ensuite le
   bouton disparaît.
 - Technique : `PaymentIntent` sur le compte connecté, `customer` + `payment_method` enregistrés,
   `off_session: true`, `confirm: true`, clé d'idempotence `reservation-guarantee-capture:<paymentId>`.
@@ -92,13 +91,13 @@ Le _hold_ de capacité est la réservation `PENDING` elle-même : `capacity.ts` 
   explique le principe et annonce un SMS ; la réservation est créée en `PENDING`.
 - Le SMS contient un lien court Suppernote (`/garantie/<jeton>`) qui ouvre une session Checkout
   neuve à chaque clic tant que la réservation est tenue.
-- ❓ Délai pour enregistrer la carte après un appel : **proposition 2 h** (la place est tenue
+- Délai pour enregistrer la carte après un appel : **2 h** (la place est tenue
   pendant ce temps), puis expiration et SMS « réservation non confirmée ».
 - Le prompt reçoit un principe, pas une phrase imposée (règle voix existante).
 
 ### MCP / assistants IA
 
-- ❓ **Proposition v1 :** pas d'empreinte via MCP. Pour une réservation qui en demanderait une,
+- **v1 :** pas d’empreinte via MCP. Pour une réservation qui en demanderait une,
   l'outil répond qu'elle se fait sur la page de réservation du restaurant (lien). Ajout d'un champ
   `cardGuaranteeUrl` plus tard, de façon additive.
 
@@ -144,8 +143,8 @@ Avant la page Stripe et dans la confirmation (e-mail, SMS) :
 - Case à cocher « J'accepte ces conditions d'annulation » sur la page Suppernote avant Checkout.
 - Checkout `custom_text` reprend la phrase courte ; le nom affiché est celui du restaurant.
 - Mention dans les CGU Suppernote / annexe client : Suppernote est prestataire technique ; les
-  conditions d'annulation et le prélèvement relèvent du restaurant. ❓ Relecture juridique à prévoir
-  avant ouverture commerciale (pas bloquante pour la sandbox).
+  conditions d'annulation et le prélèvement relèvent du restaurant. Relecture juridique des
+  mentions avant le pilote (pas bloquante pour la sandbox).
 - Litige : le restaurant répond dans Stripe ; la fiche réservation lui donne les preuves utiles
   (heure de l'acceptation des conditions, statut `NO_SHOW` et qui l'a posé).
 

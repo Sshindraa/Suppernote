@@ -85,5 +85,10 @@ describe('registerJobSchedulers', () => {
       { pattern: '5 * * * *', tz: 'Europe/Paris' },
       { name: 'test-reservation-purge', data: { kind: 'test-reservation-purge' } },
     );
+    expect(mocks.genericQueue.upsertJobScheduler).toHaveBeenCalledWith(
+      'reservation-payment-expiry',
+      { every: 60 * 1000 },
+      { name: 'reservation-payment-expiry', data: { kind: 'reservation-payment-expiry' } },
+    );
   });
 });

@@ -171,6 +171,100 @@ export async function retrieveExperienceCheckoutSession(
 }
 
 /**
+ * Empreinte bancaire : page Stripe hébergée en mode `setup` sur le compte du restaurant.
+ * Aucun montant n'est débité ; la carte est gardée pour un éventuel prélèvement hors session.
+ */
+export async function createReservationGuaranteeSetupSession(input: {
+  stripeAccountId: string;
+  stripeCustomerId: string | null;
+  metadata: Record<string, string>;
+  customerEmail?: string | null;
+  successUrl: string;
+  cancelUrl: string;
+  expiresAt: Date;
+  customText: string;
+  customerIdempotencyKey: string;
+  idempotencyKey: string;
+}): Promise<{ sessionId: string; url: string; customerId: string }> {
+  const stripe = getStripe();
+  const options = { stripeAccount: input.stripeAccountId };
+  const customerId =
+    input.stripeCustomerId ??
+    (
+      await stripe.customers.create(
+        {
+          ...(input.customerEmail ? { email: input.customerEmail } : {}),
+          metadata: input.metadata,
+        },
+        { ...options, idempotencyKey: input.customerIdempotencyKey },
+      )
+    ).id;
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: 'setup',
+      customer: customerId,
+      payment_method_types: ['card'],
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+      expires_at: Math.floor(input.expiresAt.getTime() / 1_000),
+      locale: 'fr',
+      metadata: input.metadata,
+      setup_intent_data: { metadata: input.metadata },
+      custom_text: { submit: { message: input.customText.slice(0, 1_200) } },
+    },
+    { ...options, idempotencyKey: input.idempotencyKey },
+  );
+  if (!session.url) throw new Error('Stripe n’a pas retourné de lien d’enregistrement de carte.');
+  return { sessionId: session.id, url: session.url, customerId };
+}
+
+/**
+ * Prélèvement d'une empreinte, hors session, sur décision de l'équipe.
+ * Un refus bancaire ou une authentification exigée est renvoyé, jamais relancé.
+ */
+export async function chargeReservationGuarantee(input: {
+  stripeAccountId: string;
+  stripeCustomerId: string;
+  stripePaymentMethodId: string;
+  amountCents: number;
+  currency: string;
+  metadata: Record<string, string>;
+  receiptEmail?: string | null;
+  idempotencyKey: string;
+}): Promise<
+  | { ok: true; paymentIntentId: string; status: string }
+  | { ok: false; paymentIntentId: string | null; failureCode: string }
+> {
+  try {
+    const intent = await getStripe().paymentIntents.create(
+      {
+        amount: input.amountCents,
+        currency: input.currency.toLowerCase(),
+        customer: input.stripeCustomerId,
+        payment_method: input.stripePaymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: input.metadata,
+        ...(input.receiptEmail ? { receipt_email: input.receiptEmail } : {}),
+      },
+      { stripeAccount: input.stripeAccountId, idempotencyKey: input.idempotencyKey },
+    );
+    return { ok: true, paymentIntentId: intent.id, status: intent.status };
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeCardError) {
+      const intent = (error.raw as { payment_intent?: { id?: string } } | undefined)
+        ?.payment_intent;
+      return {
+        ok: false,
+        paymentIntentId: intent?.id ?? null,
+        failureCode: (error.decline_code ?? error.code ?? 'card_declined').slice(0, 120),
+      };
+    }
+    throw error;
+  }
+}
+
+/**
  * Récupère le statut d'un PaymentIntent.
  */
 export async function retrievePaymentIntent(

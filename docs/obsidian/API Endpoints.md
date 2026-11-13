@@ -101,9 +101,13 @@ Module : `apps/api/src/modules/reservation-payments/reservation-payment.routes.t
 | POST    | `/reservations/:id/payment/prepare`         | Préparation idempotente ; `dryRun=true` par défaut, aucun appel Stripe |
 | POST    | `/reservations/:id/payment/expire`          | Expiration manuelle d'une tentative, Owner/Manager                     |
 | POST    | `/api/internal/reservation-payments/expire` | Opérateur Sokar, nettoyage borné des échéances                         |
-| POST    | `/webhooks/stripe/reservation-payments`     | Signature Stripe et hash du payload ; transitions atomiques            |
+| POST    | `/reservations/:id/payment/capture`         | Owner/Manager : prélève une empreinte après `NO_SHOW`, 7 j max ; 202   |
+| POST    | `/reservations/:id/payment/refund`          | Owner/Manager : remboursement total ou partiel du prélèvement ; 202    |
 
-Le webhook exige les métadonnées `restaurantId` et `reservationPaymentId`, vérifie montant/devise,
+Les événements Stripe arrivent par `/webhooks/stripe` (endpoint Connect partagé), aiguillés vers
+`reservation-payment.webhook.ts` avant les cartes cadeaux (`metadata.type = reservation_guarantee`,
+ou PaymentIntent déjà enregistré pour `charge.*`). La route `/webhooks/stripe/reservation-payments`
+a été retirée le 2026-11-13. Le webhook exige les métadonnées `restaurantId` et `reservationPaymentId`, vérifie montant/devise,
 ignore les événements inconnus en les conservant sous forme de hash et ne stocke aucune carte ni
 payload brut. Les intents Stripe réels, le modèle marchand Connect, le hold de capacité, les
 captures et les remboursements restent désactivés tant que le pilote n'est pas qualifié.

@@ -34,6 +34,7 @@ import {
 } from '../../../modules/voice/call-finalization.service';
 import { purgeTestReservations } from '../../../modules/reservations/test-reservation-purge';
 import { purgeMarketingRetention } from '../../../modules/marketing/marketing-retention-purge';
+import { expireReservationPayments } from '../../../modules/reservation-payments/reservation-payment.service';
 import { initGreetingCache } from '../../../modules/voice/stream/greeting-cache';
 import { checkVoiceCapacityHeadroom } from '../../../modules/voice/call-capacity';
 
@@ -44,6 +45,7 @@ interface DailyReconciliationJobData {
     | 'voice-finalization'
     | 'test-reservation-purge'
     | 'marketing-retention-purge'
+    | 'reservation-payment-expiry'
     | 'greeting-warm'
     | 'voice-capacity-check';
   readonly dayKey?: string;
@@ -494,6 +496,12 @@ export async function processReconciliationJob(
     // Ne génère que les accueils manquants ; lire un accueil existant prolonge son expiration.
     await initGreetingCache();
     log.info('greeting warm completed');
+    return;
+  }
+
+  if (data.kind === 'reservation-payment-expiry') {
+    const expired = await expireReservationPayments();
+    log.info({ expired }, 'reservation payment expiry completed');
     return;
   }
 

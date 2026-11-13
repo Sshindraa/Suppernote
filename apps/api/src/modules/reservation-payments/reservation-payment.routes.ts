@@ -1,14 +1,9 @@
-import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { ReservationPaymentStatus, ReservationPaymentType } from '@prisma/client';
 import { db } from '../../shared/db/client';
-import { logger } from '../../shared/logger/pino';
 import { requireOrg, requireSokarOperator } from '../../plugins/clerk';
 import { requireCapability } from '../entitlements/entitlement.guard';
-import { constructWebhookEvent } from '../gift-cards/stripe.service';
-import { checkRateLimit, getClientIp, rateLimitKey } from '../../shared/redis/rate-limit';
-import { RATE_LIMIT_PROVIDER_WEBHOOK } from '../../plugins/rate-limit.policy';
 import {
   PAYMENT_AMOUNT_MODES,
   ReservationPaymentInputError,
@@ -16,12 +11,13 @@ import {
   ReservationPaymentPolicyNotFoundError,
   ReservationPaymentReservationNotFoundError,
   ReservationPaymentStateError,
-  applyReservationPaymentProviderEvent,
+  captureCardGuarantee,
   createReservationPaymentPolicy,
   expireReservationPayments,
   getReservationPayment,
   listReservationPaymentPolicies,
   prepareReservationPayment,
+  refundCardGuarantee,
   transitionReservationPayment,
 } from './reservation-payment.service';
 
@@ -53,9 +49,8 @@ const PaymentParamsSchema = z.object({
   paymentId: z.string().trim().min(1).max(128),
 });
 
-const WebhookMetadataSchema = z.object({
-  restaurantId: z.string().trim().min(1).max(128),
-  reservationPaymentId: z.string().trim().min(1).max(128),
+const MoneyBodySchema = z.object({
+  amount: z.union([z.string().trim(), z.number().finite()]).optional(),
 });
 
 function reservationPaymentsEnabled(environment: NodeJS.ProcessEnv = process.env): boolean {
@@ -110,7 +105,7 @@ function sendPaymentError(error: unknown, reply: FastifyReply): FastifyReply | u
     return reply.status(404).send({ error: error.code });
   }
   if (error instanceof ReservationPaymentStateError) {
-    return reply.status(409).send({ error: error.code });
+    return reply.status(409).send({ error: error.code, message: error.message });
   }
   if (error instanceof ReservationPaymentInputError) {
     return reply.status(400).send({ error: error.code, message: error.message });
@@ -118,17 +113,9 @@ function sendPaymentError(error: unknown, reply: FastifyReply): FastifyReply | u
   return undefined;
 }
 
-function stringValue(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
-}
-
-function numberValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-/** Routes for the local reservation-payment foundation. Provider calls are
- * intentionally absent; the prepare endpoint creates only an internal record
- * until a merchant model and a Stripe Connect pilot are approved. */
+/** Routes de l'empreinte bancaire. Les événements Stripe arrivent par `/webhooks/stripe`
+ * (voir `reservation-payment.webhook.ts`) ; prélever et rembourser restent des gestes de
+ * responsable, confirmés ensuite par le webhook. */
 export async function reservationPaymentRoutes(app: FastifyInstance): Promise<void> {
   const paymentRead = [
     requireOrg(),
@@ -223,103 +210,40 @@ export async function reservationPaymentRoutes(app: FastifyInstance): Promise<vo
     },
   );
 
-  /** Stripe callback: verify the raw signature first, then persist only a
-   * normalized event hash/status. Unknown event types are acknowledged and
-   * recorded for audit without changing the payment. */
-  // Provider tier: the global 100 req/min budget must not throttle Stripe.
-  const stripeWebhookRouteOptions = {
-    config: { rateLimit: RATE_LIMIT_PROVIDER_WEBHOOK },
-  };
   app.post(
-    '/webhooks/stripe/reservation-payments',
-    stripeWebhookRouteOptions,
+    '/reservations/:id/payment/capture',
+    { preHandler: paymentWrite },
     async (request, reply) => {
-      if (!reservationPaymentsEnabled()) {
-        return reply.status(503).send({ error: 'RESERVATION_PAYMENTS_DISABLED' });
-      }
-      const ip = getClientIp(request);
-      if (!(await checkRateLimit(rateLimitKey('reservation-payment-webhook', ip), 300))) {
-        return reply.status(429).send({ error: 'RATE_LIMITED' });
-      }
-      const signatureHeader = request.headers['stripe-signature'];
-      const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
-      if (!signature) return reply.status(400).send({ error: 'MISSING_STRIPE_SIGNATURE' });
-      const rawBody = (request as unknown as { rawBody?: unknown }).rawBody;
-      if (typeof rawBody !== 'string')
-        return reply.status(400).send({ error: 'RAW_BODY_REQUIRED' });
-
-      let event: Awaited<ReturnType<typeof constructWebhookEvent>>;
+      const { id } = ReservationParamsSchema.parse(request.params);
+      const body = MoneyBodySchema.parse(request.body ?? {});
       try {
-        event = await constructWebhookEvent(rawBody, signature);
-      } catch {
-        return reply.status(400).send({ error: 'INVALID_STRIPE_SIGNATURE' });
-      }
-
-      const object = event.data.object as unknown as Record<string, unknown>;
-      const metadataCandidate = object.metadata;
-      const metadataParsed = WebhookMetadataSchema.safeParse(metadataCandidate);
-      if (!metadataParsed.success) {
-        return reply.status(400).send({ error: 'PAYMENT_METADATA_REQUIRED' });
-      }
-      const metadata = metadataParsed.data;
-      if (
-        metadata.restaurantId !== request.headers['x-sokar-restaurant-id'] &&
-        request.headers['x-sokar-restaurant-id']
-      ) {
-        return reply.status(403).send({ error: 'PAYMENT_TENANT_MISMATCH' });
-      }
-      const amount =
-        event.type === 'payment_intent.succeeded'
-          ? (numberValue(object.amount_received) ?? numberValue(object.amount))
-          : numberValue(object.amount);
-      const refundedAmount = numberValue(object.amount_refunded);
-      const currency = stringValue(object.currency)?.toUpperCase();
-      const occurredAt = new Date(event.created * 1000);
-      const paymentIntentId =
-        event.type === 'charge.refunded'
-          ? (stringValue(object.payment_intent) ??
-            (object.payment_intent && typeof object.payment_intent === 'object'
-              ? stringValue((object.payment_intent as Record<string, unknown>).id)
-              : undefined))
-          : stringValue(object.id);
-      const setupIntentId = event.type.startsWith('setup_intent.')
-        ? stringValue(object.id)
-        : undefined;
-      try {
-        const result = await applyReservationPaymentProviderEvent({
-          restaurantId: metadata.restaurantId,
-          paymentId: metadata.reservationPaymentId,
-          providerEventId: event.id,
-          eventType: event.type,
-          occurredAt: Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt,
-          payloadHash: createHash('sha256').update(rawBody).digest('hex'),
-          stripeAccountId: event.account ?? null,
-          ...(amount !== undefined ? { amount: amount / 100 } : {}),
-          ...(refundedAmount !== undefined ? { refundedAmount: refundedAmount / 100 } : {}),
-          ...(currency ? { currency } : {}),
-          ...(paymentIntentId &&
-          (event.type.startsWith('payment_intent.') || event.type === 'charge.refunded')
-            ? { stripePaymentIntentId: paymentIntentId }
-            : {}),
-          ...(setupIntentId ? { stripeSetupIntentId: setupIntentId } : {}),
-          ...(event.type === 'payment_intent.payment_failed'
-            ? { failureCode: stringValue(object.last_payment_error) ?? 'PAYMENT_FAILED' }
-            : {}),
+        const result = await captureCardGuarantee({
+          restaurantId: request.restaurantId,
+          reservationId: id,
+          actorUserId: request.userId ?? 'unknown',
+          ...(body.amount !== undefined ? { amount: body.amount } : {}),
         });
-        return reply.send({ received: true, ...result });
+        return reply.status(result.outcome === 'DECLINED' ? 402 : 202).send({ data: result });
       } catch (error) {
-        if (
-          error instanceof ReservationPaymentInputError ||
-          error instanceof ReservationPaymentStateError ||
-          error instanceof ReservationPaymentNotFoundError ||
-          error instanceof ReservationPaymentPolicyNotFoundError ||
-          error instanceof ReservationPaymentReservationNotFoundError
-        ) {
-          logger.warn(
-            { code: error.code, stripeEventId: event.id, paymentId: metadata.reservationPaymentId },
-            'reservation payment webhook rejected',
-          );
-        }
+        return sendPaymentError(error, reply) ?? Promise.reject(error);
+      }
+    },
+  );
+
+  app.post(
+    '/reservations/:id/payment/refund',
+    { preHandler: paymentWrite },
+    async (request, reply) => {
+      const { id } = ReservationParamsSchema.parse(request.params);
+      const body = MoneyBodySchema.parse(request.body ?? {});
+      try {
+        const result = await refundCardGuarantee({
+          restaurantId: request.restaurantId,
+          reservationId: id,
+          ...(body.amount !== undefined ? { amount: body.amount } : {}),
+        });
+        return reply.status(202).send({ data: result });
+      } catch (error) {
         return sendPaymentError(error, reply) ?? Promise.reject(error);
       }
     },

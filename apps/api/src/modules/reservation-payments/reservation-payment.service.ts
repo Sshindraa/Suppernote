@@ -1,5 +1,13 @@
 import { Prisma, ReservationPaymentStatus, ReservationPaymentType } from '@prisma/client';
 import { db } from '../../shared/db/client';
+import { logger } from '../../shared/logger/pino';
+import {
+  chargeReservationGuarantee,
+  createRefund,
+  createReservationGuaranteeSetupSession,
+  expireExperienceCheckoutSession,
+  retrieveConnectedAccount,
+} from '../gift-cards/stripe.service';
 import {
   ReservationLifecycleService,
   type ReservationLifecycleResult,
@@ -68,6 +76,13 @@ const PAYMENT_SELECT = {
   stripeAccountId: true,
   stripeSetupIntentId: true,
   stripePaymentIntentId: true,
+  stripeCustomerId: true,
+  stripePaymentMethodId: true,
+  stripeCheckoutSessionId: true,
+  capturedAmount: true,
+  refundedAmount: true,
+  termsAcceptedAt: true,
+  disputeStatus: true,
   idempotencyKey: true,
   policySnapshot: true,
   expiresAt: true,
@@ -125,20 +140,28 @@ export class ReservationPaymentReservationNotFoundError extends Error {
   }
 }
 
+const STATE_ERROR_MESSAGES = {
+  PAYMENT_TRANSITION_INVALID: 'Reservation payment transition is not allowed',
+  PAYMENT_IDEMPOTENCY_CONFLICT: 'Payment idempotency key already belongs to another payment',
+  PAYMENT_POLICY_VERSION_CONFLICT: 'Reservation payment policy version already exists',
+  PAYMENT_PROVIDER_NOT_READY: 'Le compte Stripe du restaurant ne peut pas encore encaisser.',
+  PAYMENT_CAPTURE_NOT_ALLOWED: 'Cette empreinte ne peut pas être prélevée.',
+  PAYMENT_CAPTURE_IN_PROGRESS: 'Un prélèvement est déjà en cours pour cette réservation.',
+  PAYMENT_REFUND_NOT_ALLOWED: 'Ce prélèvement ne peut pas être remboursé de ce montant.',
+} as const;
+
 export class ReservationPaymentStateError extends Error {
   constructor(
     readonly code:
       | 'PAYMENT_TRANSITION_INVALID'
       | 'PAYMENT_IDEMPOTENCY_CONFLICT'
-      | 'PAYMENT_POLICY_VERSION_CONFLICT',
+      | 'PAYMENT_POLICY_VERSION_CONFLICT'
+      | 'PAYMENT_PROVIDER_NOT_READY'
+      | 'PAYMENT_CAPTURE_NOT_ALLOWED'
+      | 'PAYMENT_CAPTURE_IN_PROGRESS'
+      | 'PAYMENT_REFUND_NOT_ALLOWED',
   ) {
-    super(
-      code === 'PAYMENT_TRANSITION_INVALID'
-        ? 'Reservation payment transition is not allowed'
-        : code === 'PAYMENT_IDEMPOTENCY_CONFLICT'
-          ? 'Payment idempotency key already belongs to another payment'
-          : 'Reservation payment policy version already exists',
-    );
+    super(STATE_ERROR_MESSAGES[code]);
     this.name = 'ReservationPaymentStateError';
   }
 }
@@ -182,6 +205,10 @@ export interface ReservationPaymentView {
   hasStripeAccount: boolean;
   hasSetupIntent: boolean;
   hasPaymentIntent: boolean;
+  hasSavedCard: boolean;
+  capturedAmount: string | null;
+  refundedAmount: string | null;
+  disputeStatus: string | null;
   idempotencyKey: string;
   expiresAt: Date | null;
   failureCode: string | null;
@@ -218,8 +245,11 @@ export interface ReservationPaymentProviderEventInput {
   stripeSetupIntentId?: string;
   stripePaymentIntentId?: string;
   stripeAccountId?: string | null;
+  stripeCustomerId?: string;
+  stripePaymentMethodId?: string;
   refundedAmount?: string | number;
   failureCode?: string;
+  disputeStatus?: string;
 }
 
 export interface ReservationPaymentProviderEventResult {
@@ -335,6 +365,11 @@ function policySnapshot(policy: PolicyRow): Prisma.InputJsonObject {
   };
 }
 
+function snapshotType(value: Prisma.JsonValue): string | null {
+  const type = asRules(value).type;
+  return typeof type === 'string' ? type : null;
+}
+
 function asRules(value: Prisma.JsonValue): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -370,6 +405,10 @@ function serializePayment(row: PaymentRow): ReservationPaymentView {
     hasStripeAccount: Boolean(row.stripeAccountId),
     hasSetupIntent: Boolean(row.stripeSetupIntentId),
     hasPaymentIntent: Boolean(row.stripePaymentIntentId),
+    hasSavedCard: Boolean(row.stripePaymentMethodId),
+    capturedAmount: row.capturedAmount?.toFixed(2) ?? null,
+    refundedAmount: row.refundedAmount?.toFixed(2) ?? null,
+    disputeStatus: row.disputeStatus,
     idempotencyKey: row.idempotencyKey,
     expiresAt: row.expiresAt,
     failureCode: row.failureCode,
@@ -743,13 +782,30 @@ export async function applyReservationPaymentProviderEvent(
       select: PAYMENT_SELECT,
     });
     if (!payment) throw new ReservationPaymentNotFoundError();
+    const isGuarantee =
+      snapshotType(payment.policySnapshot) === ReservationPaymentType.CARD_GUARANTEE;
+    const isIntentEvent = eventType.startsWith('payment_intent.');
+    const isChargeEvent = eventType.startsWith('charge.');
+    // Une tentative de prélèvement refaite après un refus crée un nouveau PaymentIntent : tant que
+    // l'empreinte n'est pas prélevée, la métadonnée signée suffit à rattacher l'événement.
+    const sameIntent =
+      !payment.stripePaymentIntentId ||
+      payment.stripePaymentIntentId === input.stripePaymentIntentId;
     if (
       (input.stripeAccountId ?? null) !== payment.stripeAccountId ||
-      ((eventType.startsWith('payment_intent.') || eventType === 'charge.refunded') &&
-        (!input.stripePaymentIntentId ||
-          input.stripePaymentIntentId !== payment.stripePaymentIntentId)) ||
+      ((isIntentEvent || isChargeEvent) && !input.stripePaymentIntentId) ||
+      (isChargeEvent && input.stripePaymentIntentId !== payment.stripePaymentIntentId) ||
+      (isIntentEvent &&
+        !sameIntent &&
+        !(isGuarantee && payment.status === ReservationPaymentStatus.AUTHORIZED)) ||
       (eventType.startsWith('setup_intent.') &&
-        (!input.stripeSetupIntentId || input.stripeSetupIntentId !== payment.stripeSetupIntentId))
+        (!input.stripeSetupIntentId ||
+          (payment.stripeSetupIntentId !== null &&
+            input.stripeSetupIntentId !== payment.stripeSetupIntentId) ||
+          (isGuarantee && !input.stripePaymentMethodId) ||
+          (payment.stripeCustomerId !== null &&
+            input.stripeCustomerId !== undefined &&
+            input.stripeCustomerId !== payment.stripeCustomerId)))
     ) {
       throw new ReservationPaymentInputError(
         'PAYMENT_PROVIDER_MISMATCH',
@@ -758,6 +814,25 @@ export async function applyReservationPaymentProviderEvent(
     }
 
     let resultingStatus = reservationPaymentStatusForProviderEvent(eventType);
+    let capturedAmount: Prisma.Decimal | undefined;
+    let refundedAmount: Prisma.Decimal | undefined;
+    // Montant de référence : le prélèvement réel d'une empreinte, sinon le montant préparé.
+    const chargedBase = payment.capturedAmount ?? payment.amount;
+    if (
+      isGuarantee &&
+      payment.status === ReservationPaymentStatus.AUTHORIZED &&
+      (eventType === 'payment_intent.payment_failed' ||
+        eventType === 'payment_intent.requires_action')
+    ) {
+      // Refus ou 3DS exigée hors session : la carte reste enregistrée, l'équipe peut réessayer.
+      resultingStatus = sameIntent ? ReservationPaymentStatus.AUTHORIZED : null;
+    } else if (
+      isGuarantee &&
+      eventType === 'payment_intent.canceled' &&
+      payment.status === ReservationPaymentStatus.AUTHORIZED
+    ) {
+      resultingStatus = null;
+    }
     if (eventType === 'charge.refunded') {
       if (input.refundedAmount === undefined) {
         throw new ReservationPaymentInputError(
@@ -766,13 +841,14 @@ export async function applyReservationPaymentProviderEvent(
         );
       }
       const refunded = normalizeMoney(input.refundedAmount);
-      if (refunded.lte(0) || refunded.gt(payment.amount)) {
+      if (refunded.lte(0) || refunded.gt(chargedBase)) {
         throw new ReservationPaymentInputError(
           'PAYMENT_AMOUNT_MISMATCH',
           'Le remboursement ne correspond pas au paiement.',
         );
       }
-      resultingStatus = refunded.equals(payment.amount)
+      refundedAmount = refunded;
+      resultingStatus = refunded.equals(chargedBase)
         ? ReservationPaymentStatus.REFUNDED
         : ReservationPaymentStatus.PARTIALLY_REFUNDED;
     }
@@ -786,14 +862,25 @@ export async function applyReservationPaymentProviderEvent(
         'La devise du provider ne correspond pas au paiement.',
       );
     }
-    if (
-      resultingStatus &&
-      input.amount !== undefined &&
-      !normalizeMoney(input.amount).equals(payment.amount)
-    ) {
+    if (resultingStatus && input.amount !== undefined) {
+      const providerAmount = normalizeMoney(input.amount);
+      const guaranteeCapture = isGuarantee && eventType === 'payment_intent.succeeded';
+      const amountOk = guaranteeCapture
+        ? providerAmount.lte(payment.amount) &&
+          (!payment.capturedAmount || !sameIntent || providerAmount.equals(payment.capturedAmount))
+        : providerAmount.equals(chargedBase);
+      if (!amountOk) {
+        throw new ReservationPaymentInputError(
+          'PAYMENT_AMOUNT_MISMATCH',
+          'Le montant du provider ne correspond pas au paiement.',
+        );
+      }
+      if (guaranteeCapture) capturedAmount = providerAmount;
+    }
+    if (isGuarantee && eventType === 'payment_intent.succeeded' && !capturedAmount) {
       throw new ReservationPaymentInputError(
         'PAYMENT_AMOUNT_MISMATCH',
-        'Le montant du provider ne correspond pas au paiement.',
+        'Le montant prélevé est requis.',
       );
     }
     const stale = Boolean(
@@ -802,6 +889,12 @@ export async function applyReservationPaymentProviderEvent(
       input.occurredAt < payment.lastProviderEventAt,
     );
     if (!resultingStatus || stale) {
+      if (input.disputeStatus && eventType.startsWith('charge.dispute.')) {
+        await tx.reservationPayment.update({
+          where: { id: payment.id },
+          data: { disputeStatus: input.disputeStatus.slice(0, 40) },
+        });
+      }
       const event = await tx.reservationPaymentEvent.create({
         data: {
           restaurantId: input.restaurantId,
@@ -838,6 +931,23 @@ export async function applyReservationPaymentProviderEvent(
         status: resultingStatus,
         lastProviderEventAt: input.occurredAt,
         ...(input.failureCode ? { failureCode: input.failureCode.slice(0, 120) } : {}),
+        ...(eventType === 'setup_intent.succeeded'
+          ? {
+              stripeSetupIntentId: input.stripeSetupIntentId,
+              ...(input.stripePaymentMethodId
+                ? { stripePaymentMethodId: input.stripePaymentMethodId }
+                : {}),
+              ...(input.stripeCustomerId ? { stripeCustomerId: input.stripeCustomerId } : {}),
+            }
+          : {}),
+        ...(capturedAmount
+          ? {
+              capturedAmount,
+              stripePaymentIntentId: input.stripePaymentIntentId,
+              failureCode: null,
+            }
+          : {}),
+        ...(refundedAmount ? { refundedAmount } : {}),
       },
     });
     const event = await tx.reservationPaymentEvent.create({
@@ -903,20 +1013,283 @@ export async function applyReservationPaymentProviderEvent(
   return outcome.result;
 }
 
-export async function expireReservationPayments(now = new Date()): Promise<number> {
-  const result = await db.reservationPayment.updateMany({
-    where: {
-      status: {
-        in: [
-          ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD,
-          ReservationPaymentStatus.REQUIRES_ACTION,
-        ],
-      },
-      expiresAt: { lte: now },
-    },
-    data: { status: ReservationPaymentStatus.EXPIRED },
+export const RESERVATION_GUARANTEE_METADATA_TYPE = 'reservation_guarantee';
+/** L'équipe peut prélever jusqu'à 7 jours après l'heure de la réservation (spec §4). */
+export const GUARANTEE_CAPTURE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** Stripe refuse une session Checkout qui expire dans moins de 30 minutes. */
+const CHECKOUT_MIN_LIFETIME_MS = 31 * 60 * 1000;
+
+const OPEN_PAYMENT_STATUSES = [
+  ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD,
+  ReservationPaymentStatus.REQUIRES_ACTION,
+];
+
+function guaranteeMetadata(payment: {
+  id: string;
+  restaurantId: string;
+  reservationId: string;
+}): Record<string, string> {
+  return {
+    type: RESERVATION_GUARANTEE_METADATA_TYPE,
+    restaurantId: payment.restaurantId,
+    reservationPaymentId: payment.id,
+    reservationId: payment.reservationId,
+  };
+}
+
+function toCents(amount: Prisma.Decimal): number {
+  return amount.mul(100).toDecimalPlaces(0).toNumber();
+}
+
+const GUARANTEE_SELECT = {
+  ...PAYMENT_SELECT,
+  updatedAt: true,
+  reservation: {
+    select: { status: true, state: true, startsAt: true, reservedAt: true, customerEmail: true },
+  },
+} as const;
+
+async function findGuarantee(where: Prisma.ReservationPaymentWhereInput) {
+  const row = await db.reservationPayment.findFirst({
+    where,
+    orderBy: [{ createdAt: 'desc' }],
+    select: GUARANTEE_SELECT,
   });
-  return result.count;
+  if (!row) throw new ReservationPaymentNotFoundError();
+  if (snapshotType(row.policySnapshot) !== ReservationPaymentType.CARD_GUARANTEE) {
+    throw new ReservationPaymentStateError('PAYMENT_TRANSITION_INVALID');
+  }
+  return row;
+}
+
+/**
+ * Ouvre la page Stripe d'enregistrement de carte pour une empreinte en attente. Chaque appel
+ * ouvre une session neuve (lien SMS cliqué plusieurs fois) et ferme la précédente.
+ */
+export async function startCardGuaranteeSetup(input: {
+  restaurantId: string;
+  paymentId: string;
+  successUrl: string;
+  cancelUrl: string;
+  customText: string;
+  termsAcceptedAt: Date;
+  now?: Date;
+}): Promise<{ url: string; expiresAt: Date }> {
+  const now = input.now ?? new Date();
+  const payment = await findGuarantee({ id: input.paymentId, restaurantId: input.restaurantId });
+  if (
+    payment.status !== ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD ||
+    !payment.expiresAt ||
+    payment.expiresAt <= now
+  ) {
+    throw new ReservationPaymentStateError('PAYMENT_TRANSITION_INVALID');
+  }
+  const restaurant = await db.restaurant.findUnique({
+    where: { id: input.restaurantId },
+    select: { giftCardStripeAccountId: true },
+  });
+  const accountId = restaurant?.giftCardStripeAccountId ?? null;
+  if (!accountId || (payment.stripeAccountId && payment.stripeAccountId !== accountId)) {
+    throw new ReservationPaymentStateError('PAYMENT_PROVIDER_NOT_READY');
+  }
+  const account = await retrieveConnectedAccount(accountId);
+  if (!account.chargesEnabled) throw new ReservationPaymentStateError('PAYMENT_PROVIDER_NOT_READY');
+
+  if (payment.stripeCheckoutSessionId) {
+    await expireExperienceCheckoutSession(payment.stripeCheckoutSessionId, accountId).catch(
+      (error: unknown) =>
+        logger.warn(
+          { paymentId: payment.id, err: error instanceof Error ? error.message : String(error) },
+          'reservation guarantee: previous checkout session not expired',
+        ),
+    );
+  }
+  const sessionExpiresAt = new Date(
+    Math.max(payment.expiresAt.getTime(), now.getTime() + CHECKOUT_MIN_LIFETIME_MS),
+  );
+  const session = await createReservationGuaranteeSetupSession({
+    stripeAccountId: accountId,
+    stripeCustomerId: payment.stripeCustomerId,
+    metadata: guaranteeMetadata(payment),
+    customerEmail: payment.reservation.customerEmail,
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
+    expiresAt: sessionExpiresAt,
+    customText: input.customText,
+    customerIdempotencyKey: `reservation-guarantee-customer:${payment.id}`,
+    idempotencyKey: `reservation-guarantee-setup:${payment.id}:${now.getTime()}`,
+  });
+  await db.reservationPayment.update({
+    where: { id: payment.id },
+    data: {
+      stripeAccountId: accountId,
+      stripeCustomerId: session.customerId,
+      stripeCheckoutSessionId: session.sessionId,
+      termsAcceptedAt: payment.termsAcceptedAt ?? input.termsAcceptedAt,
+    },
+  });
+  return { url: session.url, expiresAt: payment.expiresAt };
+}
+
+export type CardGuaranteeCaptureResult =
+  | { outcome: 'PENDING_CONFIRMATION'; amount: string }
+  | { outcome: 'DECLINED'; failureCode: string };
+
+/**
+ * Prélève une empreinte sur décision de l'équipe, après une absence. Le statut `CAPTURED`
+ * n'est écrit que par le webhook `payment_intent.succeeded`.
+ */
+export async function captureCardGuarantee(input: {
+  restaurantId: string;
+  reservationId: string;
+  actorUserId: string;
+  amount?: string | number;
+  now?: Date;
+}): Promise<CardGuaranteeCaptureResult> {
+  const now = input.now ?? new Date();
+  const payment = await findGuarantee({
+    restaurantId: input.restaurantId,
+    reservationId: input.reservationId,
+  });
+  const reservationAt = payment.reservation.startsAt ?? payment.reservation.reservedAt;
+  // shortcut: absence seulement ; l'annulation tardive arrive avec le parcours d'annulation (PR 2).
+  if (
+    payment.status !== ReservationPaymentStatus.AUTHORIZED ||
+    !payment.stripeAccountId ||
+    !payment.stripeCustomerId ||
+    !payment.stripePaymentMethodId ||
+    payment.reservation.status !== 'NO_SHOW' ||
+    now.getTime() > reservationAt.getTime() + GUARANTEE_CAPTURE_WINDOW_MS
+  ) {
+    throw new ReservationPaymentStateError('PAYMENT_CAPTURE_NOT_ALLOWED');
+  }
+  if (payment.capturedAmount && !payment.failureCode) {
+    throw new ReservationPaymentStateError('PAYMENT_CAPTURE_IN_PROGRESS');
+  }
+  const amount = input.amount === undefined ? payment.amount : normalizeMoney(input.amount);
+  if (amount.gt(payment.amount)) {
+    throw new ReservationPaymentInputError(
+      'PAYMENT_AMOUNT_INVALID',
+      'Le montant dépasse l’empreinte annoncée au client.',
+    );
+  }
+  const result = await chargeReservationGuarantee({
+    stripeAccountId: payment.stripeAccountId,
+    stripeCustomerId: payment.stripeCustomerId,
+    stripePaymentMethodId: payment.stripePaymentMethodId,
+    amountCents: toCents(amount),
+    currency: payment.currency,
+    metadata: guaranteeMetadata(payment),
+    receiptEmail: payment.reservation.customerEmail,
+    // updatedAt change après chaque refus : un double clic est dédoublonné, un nouvel essai non.
+    idempotencyKey: `reservation-guarantee-capture:${payment.id}:${payment.updatedAt.getTime()}`,
+  });
+  await db.reservationPayment.update({
+    where: { id: payment.id },
+    data: result.ok
+      ? {
+          stripePaymentIntentId: result.paymentIntentId,
+          capturedAmount: amount,
+          capturedByUserId: input.actorUserId,
+          failureCode: null,
+        }
+      : {
+          ...(result.paymentIntentId ? { stripePaymentIntentId: result.paymentIntentId } : {}),
+          capturedAmount: null,
+          failureCode: result.failureCode,
+        },
+  });
+  return result.ok
+    ? { outcome: 'PENDING_CONFIRMATION', amount: amount.toFixed(2) }
+    : { outcome: 'DECLINED', failureCode: result.failureCode };
+}
+
+/** Rembourse tout ou partie d'un prélèvement. `charge.refunded` met le statut à jour. */
+export async function refundCardGuarantee(input: {
+  restaurantId: string;
+  reservationId: string;
+  amount?: string | number;
+}): Promise<{ refundId: string; amount: string }> {
+  const payment = await findGuarantee({
+    restaurantId: input.restaurantId,
+    reservationId: input.reservationId,
+  });
+  const captured = payment.capturedAmount;
+  const remaining = captured?.sub(payment.refundedAmount ?? 0);
+  const amount = input.amount === undefined ? remaining : normalizeMoney(input.amount);
+  if (
+    (payment.status !== ReservationPaymentStatus.CAPTURED &&
+      payment.status !== ReservationPaymentStatus.PARTIALLY_REFUNDED) ||
+    !payment.stripePaymentIntentId ||
+    !payment.stripeAccountId ||
+    !remaining ||
+    !amount ||
+    amount.lte(0) ||
+    amount.gt(remaining)
+  ) {
+    throw new ReservationPaymentStateError('PAYMENT_REFUND_NOT_ALLOWED');
+  }
+  const refund = await createRefund({
+    paymentIntentId: payment.stripePaymentIntentId,
+    amount: toCents(amount),
+    stripeAccountId: payment.stripeAccountId,
+    idempotencyKey: `reservation-guarantee-refund:${payment.id}:${payment.updatedAt.getTime()}:${toCents(amount)}`,
+  });
+  return { refundId: refund.id, amount: amount.toFixed(2) };
+}
+
+/**
+ * Expire les empreintes non enregistrées à temps et libère la place tenue (`PENDING` →
+ * `EXPIRED`) dans la même transaction, puis ferme la page Stripe encore ouverte.
+ */
+export async function expireReservationPayments(now = new Date(), limit = 200): Promise<number> {
+  const due = await db.reservationPayment.findMany({
+    where: { status: { in: OPEN_PAYMENT_STATUSES }, expiresAt: { lte: now } },
+    orderBy: [{ expiresAt: 'asc' }],
+    take: limit,
+    select: {
+      id: true,
+      restaurantId: true,
+      reservationId: true,
+      stripeAccountId: true,
+      stripeCheckoutSessionId: true,
+    },
+  });
+  let expired = 0;
+  for (const row of due) {
+    const transition = {
+      reservationId: row.reservationId,
+      restaurantId: row.restaurantId,
+      toState: 'EXPIRED' as const,
+      onlyIfFromState: 'PENDING' as const,
+      actor: 'payment:expiry-worker',
+      operation: 'release' as const,
+      observationSource: 'worker' as const,
+      metadata: { paymentId: row.id },
+    };
+    const lifecycle = await db.$transaction(async (tx) => {
+      // Garde contre un webhook arrivé entre la lecture et l'écriture.
+      const updated = await tx.reservationPayment.updateMany({
+        where: { id: row.id, status: { in: OPEN_PAYMENT_STATUSES } },
+        data: { status: ReservationPaymentStatus.EXPIRED },
+      });
+      if (updated.count === 0) return null;
+      return reservationLifecycle.transitionInTransaction(tx, transition);
+    });
+    if (!lifecycle) continue;
+    expired += 1;
+    await reservationLifecycle.finalizeTransition(transition, lifecycle);
+    if (row.stripeCheckoutSessionId && row.stripeAccountId) {
+      await expireExperienceCheckoutSession(row.stripeCheckoutSessionId, row.stripeAccountId).catch(
+        (error: unknown) =>
+          logger.warn(
+            { paymentId: row.id, err: error instanceof Error ? error.message : String(error) },
+            'reservation guarantee: checkout session not expired',
+          ),
+      );
+    }
+  }
+  return expired;
 }
 
 export { PAYMENT_SELECT, POLICY_SELECT, serializePayment, serializePolicy };

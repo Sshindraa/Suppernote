@@ -45,6 +45,7 @@ import {
   handleExperienceCheckoutStripeEvent,
   handleExperienceRefundStripeEvent,
 } from '../experiences/experience-payment.service';
+import { handleReservationPaymentStripeEvent } from '../reservation-payments/reservation-payment.webhook';
 
 const ListGiftCardsQuerySchema = z.object({
   status: z.enum(['ACTIVE', 'REDEEMED', 'EXPIRED', 'CANCELLED', 'CLOSED']).optional(),
@@ -1134,6 +1135,9 @@ export async function giftCardRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
+      // Empreintes bancaires de réservation : traitées à part, avant toute logique cartes cadeaux.
+      const guarantee = await handleReservationPaymentStripeEvent(event, rawBody);
+      if (guarantee.handled) return reply.send({ received: true });
       if (
         [
           'checkout.session.completed',

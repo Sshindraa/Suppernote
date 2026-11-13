@@ -23,6 +23,11 @@ import type { MessagingUsageContext } from '../../../modules/usage/messaging-usa
 import { isSlotStartPast, utcToZonedParts } from '../../timezone/restaurant-time';
 import { buildConfirmationText } from '../../messaging/confirmation-text';
 import { reservationManagementUrl } from '../../../modules/reservations/reservation-management';
+import {
+  isCardGuaranteeSmsJob,
+  processCardGuaranteeSmsJob,
+  type CardGuaranteeSmsJobData,
+} from '../../../modules/reservation-payments/reservation-guarantee.sms';
 
 export interface OutboundConfirmJobData {
   reservationId: string;
@@ -68,6 +73,10 @@ export async function processOutboundConfirmJob(
   job: Job<OutboundConfirmJobData>,
   deps: OutboundConfirmDependencies = getDefaultDependencies(),
 ): Promise<void> {
+  // Lien d'empreinte bancaire et son expiration partagent la file SMS client.
+  if (isCardGuaranteeSmsJob(job.name)) {
+    return processCardGuaranteeSmsJob(job as unknown as Job<CardGuaranteeSmsJobData>, deps);
+  }
   const log = jobLogger(job);
   const data = job.data;
   const reservation = await deps.db.reservation.findUnique({

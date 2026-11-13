@@ -101,11 +101,19 @@ expiration. Le widget ChatGPT (`apps/widget`) renvoie vers la page de réservati
   pendant ce temps), puis expiration et SMS « réservation non confirmée ».
 - Le prompt reçoit un principe, pas une phrase imposée (règle voix existante).
 
+Livré en PR 4 : la disponibilité vocale porte les conditions comme un fait pour le modèle, le prompt
+porte le principe (annonce au récapitulatif avant l'accord, jamais de carte au téléphone), la création
+tient la réservation `PENDING` 2 h et met en file le SMS du lien ; SMS d'expiration hors web ; SMS de
+confirmation habituel après la carte pour une réservation vocale ; « Demander une empreinte » (24 h au
+plus) et « Renvoyer le lien » depuis la fiche. La page `/garantie` accepte un restaurant sans page
+Connect (le jeton signé suffit).
+
 ### MCP / assistants IA
 
 - **v1 :** pas d’empreinte via MCP. Pour une réservation qui en demanderait une,
   l'outil répond qu'elle se fait sur la page de réservation du restaurant (lien). Ajout d'un champ
   `cardGuaranteeUrl` plus tard, de façon additive.
+- Livré en PR 4 : `create_reservation` répond `CARD_GUARANTEE_REQUIRED` avec l'adresse `/book/<slug>`.
 
 ### Expiration
 

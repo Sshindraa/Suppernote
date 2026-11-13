@@ -52,7 +52,19 @@ vi.mock('../../../shared/db/client', () => ({
     message: {
       create: vi.fn(),
     },
+    reservationPayment: {
+      findFirst: vi.fn(),
+    },
   },
+}));
+
+const guarantee = vi.hoisted(() => ({ terms: vi.fn(), sms: vi.fn() }));
+vi.mock('../card-guarantee-facts', async (importOriginal) => ({
+  ...((await importOriginal()) as Record<string, unknown>),
+  voiceCardGuaranteeTerms: guarantee.terms,
+}));
+vi.mock('../../reservation-payments/reservation-guarantee.sms', () => ({
+  enqueueCardGuaranteeSms: guarantee.sms,
 }));
 
 const { mockGiftCardCreate } = vi.hoisted(() => ({
@@ -395,6 +407,63 @@ describe('CallSessionManager — tool execution', () => {
       const reply = await created(undefined);
       expect(reply).toContain('Réservation confirmée pour Jean');
       expect(reply).not.toContain('SMS');
+    });
+  });
+
+  describe('createReservation avec empreinte bancaire', () => {
+    afterEach(() => guarantee.terms.mockReset().mockResolvedValue(null));
+    const TERMS = {
+      policyId: 'policy-1',
+      amountPerPerson: '20.00',
+      totalAmount: '80.00',
+      currency: 'EUR',
+      cancellationHours: 24,
+    };
+
+    it('tient la réservation en attente, envoie le lien par SMS et ne la dit pas confirmée', async () => {
+      guarantee.terms.mockResolvedValue(TERMS);
+      vi.mocked(ReservationService.create).mockResolvedValue({
+        id: 'res-guarantee',
+      } as unknown as Awaited<ReturnType<typeof ReservationService.create>>);
+      vi.mocked(db.reservationPayment.findFirst).mockResolvedValue({
+        id: 'payment-1',
+        restaurantId: 'rest-1',
+      } as never);
+      const mgr = CallSessionManager.getInstance();
+      const session = makeSession();
+      session.smsConfirmEnabled = true;
+      authorizeReservation(session, '2026-07-16', '19:30', 4, 'Jean');
+
+      const reply = await mgr.createReservationFromConversation(session);
+
+      expect(ReservationService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          partySize: 4,
+          cardGuarantee: { policyId: 'policy-1', expiresAt: expect.any(Date) },
+        }),
+      );
+      const { expiresAt } = vi.mocked(ReservationService.create).mock.calls[0][0].cardGuarantee!;
+      expect(expiresAt.getTime() - Date.now()).toBeGreaterThan(119 * 60_000);
+      expect(guarantee.sms).toHaveBeenCalledWith('link', {
+        id: 'payment-1',
+        restaurantId: 'rest-1',
+      });
+      expect(reply).toContain('EN ATTENTE');
+      expect(reply).not.toContain('Réservation confirmée');
+      expect(reply).not.toContain('va être envoyé');
+    });
+
+    it('sans numéro pour le lien : ne crée rien et oriente vers le gérant', async () => {
+      guarantee.terms.mockResolvedValue(TERMS);
+      const mgr = CallSessionManager.getInstance();
+      const session = makeSession();
+      session.from = '';
+      authorizeReservation(session, '2026-07-16', '19:30', 4, 'Jean');
+
+      const reply = await mgr.createReservationFromConversation(session);
+
+      expect(ReservationService.create).not.toHaveBeenCalled();
+      expect(reply).toContain('gérant');
     });
   });
 

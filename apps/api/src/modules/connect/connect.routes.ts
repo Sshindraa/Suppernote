@@ -1250,8 +1250,14 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
   async function loadGuaranteeByToken(params: unknown) {
     const parsed = CardGuaranteeTokenParamSchema.safeParse(params);
     if (!parsed.success) return null;
-    const restaurant = await canal.getPublishedBySlug(parsed.data.slug);
-    if (!restaurant) return null;
+    // Le lien SMS d'une réservation vocale vaut aussi pour un restaurant sans page Connect :
+    // le jeton signé, lié au restaurant, suffit.
+    // tenant-scoping: global — résolution du slug public ; le jeton vérifie le restaurant.
+    const restaurant = await db.restaurant.findUnique({
+      where: { slug: parsed.data.slug },
+      select: { id: true, slug: true, name: true },
+    });
+    if (!restaurant?.slug) return null;
     const paymentId = verifyCardGuaranteeToken(parsed.data.token, restaurant.id);
     if (!paymentId) return null;
     const payment = await db.reservationPayment.findFirst({
@@ -1270,7 +1276,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
     const snapshot = (payment.policySnapshot ?? {}) as { cancellationHours?: unknown };
     const cancellationHours =
       typeof snapshot.cancellationHours === 'number' ? snapshot.cancellationHours : 24;
-    return { restaurant, payment, cancellationHours };
+    return { restaurant: { ...restaurant, slug: restaurant.slug }, payment, cancellationHours };
   }
 
   app.get(

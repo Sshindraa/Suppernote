@@ -36,6 +36,7 @@ import {
   recordMarketingHonoredConversions,
 } from '../marketing/marketing-attribution.service';
 import { ReservationLifecycleService } from './reservation-lifecycle.service.js';
+import { createCardGuaranteePaymentInTransaction } from '../reservation-payments/reservation-payment.service';
 import {
   ACTIVE_RESERVATION_STATES,
   reservationOverlapWhere,
@@ -55,6 +56,11 @@ export interface CreateReservationInput {
   marketingAttributionToken?: string;
   consents?: Prisma.InputJsonObject;
   channel?: ReservationChannel;
+  /**
+   * Empreinte bancaire demandée (voix) : la réservation naît `PENDING`, la place est tenue et
+   * l'empreinte est écrite dans la même transaction ; le lien part par SMS après la création.
+   */
+  cardGuarantee?: { policyId: string; expiresAt: Date };
 }
 
 interface AvailabilitySlot {
@@ -348,7 +354,7 @@ export class ReservationService {
             // `state` est écrit explicitement : s'en remettre au défaut Prisma
             // marchait par coïncidence et laissait la porte ouverte à une
             // divergence silencieuse avec `status` (R1-4).
-            ...creationProjection('CONFIRMED'),
+            ...creationProjection(input.cardGuarantee ? 'PENDING' : 'CONFIRMED'),
             tableId: table.id,
             estimatedRevenue: input.partySize * 35,
             cancellationPolicySnap: snapshotCancellationPolicy(
@@ -364,14 +370,25 @@ export class ReservationService {
             reservationId: created.id,
             actor: input.callId ? 'voice:reservation-service' : 'legacy:reservation-service',
             fromState: null,
-            toState: 'CONFIRMED',
+            toState: input.cardGuarantee ? 'PENDING' : 'CONFIRMED',
             metadata: {
               source: 'legacy_reservation_service',
               callId: input.callId ?? null,
               partySize: input.partySize,
+              ...(input.cardGuarantee ? { awaitingCardGuarantee: true } : {}),
             },
           },
         });
+
+        if (input.cardGuarantee) {
+          await createCardGuaranteePaymentInTransaction(tx, {
+            restaurantId: input.restaurantId,
+            reservationId: created.id,
+            policyId: input.cardGuarantee.policyId,
+            partySize: input.partySize,
+            expiresAt: input.cardGuarantee.expiresAt,
+          });
+        }
 
         return created;
       } catch (err) {
@@ -440,7 +457,9 @@ export class ReservationService {
 
     // 4. Enqueue SMS confirmation to client
     let notification: ReservationNotificationObservation = 'not_applicable';
-    if (input.customerPhone) {
+    // Une réservation en attente d'empreinte n'est pas confirmée : le SMS de confirmation part
+    // seulement une fois la carte enregistrée (webhook), le lien d'empreinte à sa place.
+    if (input.customerPhone && !input.cardGuarantee) {
       try {
         if (restaurant.smsConfirmEnabled) {
           await queues.smsClient.add(

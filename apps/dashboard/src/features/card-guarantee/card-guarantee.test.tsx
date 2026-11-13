@@ -142,6 +142,42 @@ describe('empreinte sur la fiche réservation', () => {
     expect(await screen.findByRole('button', { name: 'Rembourser 40 €' })).toBeInTheDocument();
   });
 
+  it('demande une empreinte par SMS pour une réservation à venir', async () => {
+    mocks.get.mockResolvedValue({ data: null });
+    mocks.post.mockResolvedValue({ data: { paymentId: 'p1' } });
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+    render(
+      <ReservationCardGuarantee
+        reservation={{ id: 'res-1', reservedAt: tomorrow, state: 'CONFIRMED' }}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Demander une empreinte par SMS' }));
+    await waitFor(() =>
+      expect(mocks.post).toHaveBeenCalledWith('reservations/res-1/payment/request'),
+    );
+  });
+
+  it('renvoie le lien tant que la carte n’est pas enregistrée', async () => {
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+    mocks.get.mockResolvedValue({
+      data: {
+        ...payment,
+        status: 'REQUIRES_PAYMENT_METHOD',
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    });
+    mocks.post.mockResolvedValue({ data: { queued: true } });
+    render(
+      <ReservationCardGuarantee
+        reservation={{ id: 'res-1', reservedAt: tomorrow, state: 'PENDING' }}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Renvoyer le lien par SMS' }));
+    await waitFor(() =>
+      expect(mocks.post).toHaveBeenCalledWith('reservations/res-1/payment/resend'),
+    );
+  });
+
   it('ne montre rien sans empreinte', async () => {
     mocks.get.mockResolvedValue({ data: null });
     const { container } = render(

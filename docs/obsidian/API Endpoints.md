@@ -93,21 +93,23 @@ Mise à jour / suppression.
 
 Module : `apps/api/src/modules/reservation-payments/reservation-payment.routes.ts`
 
-| Méthode | Route                                            | Garde / comportement                                                   |
-| ------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
-| GET     | `/reservation-payment-policies`                  | Pro/Multi-site, lecture tenant-scoped ; policies versionnées           |
-| POST    | `/reservation-payment-policies`                  | Owner/Manager + flag `RESERVATION_PAYMENTS_ENABLED`                    |
-| GET     | `/reservations/:id/payment`                      | État de la dernière tentative, sans identifiant secret                 |
-| POST    | `/reservations/:id/payment/prepare`              | Préparation idempotente ; `dryRun=true` par défaut, aucun appel Stripe |
-| POST    | `/reservations/:id/payment/expire`               | Expiration manuelle d'une tentative, Owner/Manager                     |
-| POST    | `/api/internal/reservation-payments/expire`      | Opérateur Sokar, nettoyage borné des échéances                         |
-| POST    | `/reservations/:id/payment/capture`              | Owner/Manager : après `NO_SHOW` ou annulation tardive, 7 j max ; 202   |
-| GET     | `/reservation-guarantee/settings`                | Équipe : réglage d'empreinte en vigueur (ou valeurs proposées)         |
-| PUT     | `/reservation-guarantee/settings`                | Owner/Manager : active, modifie (nouvelle version) ou coupe            |
-| GET     | `/public/r/:slug/card-guarantee`                 | Public : conditions d'empreinte pour `date` + `partySize`, ou `null`   |
-| GET     | `/public/r/:slug/card-guarantee/:token`          | Public, jeton signé : état de l'empreinte, sans nom ni téléphone       |
-| POST    | `/public/r/:slug/card-guarantee/:token/checkout` | Public, `{ accepted: true }` : rouvre la page Stripe                   |
-| POST    | `/reservations/:id/payment/refund`               | Owner/Manager : remboursement total ou partiel du prélèvement ; 202    |
+| Méthode | Route                                            | Garde / comportement                                                          |
+| ------- | ------------------------------------------------ | ----------------------------------------------------------------------------- |
+| GET     | `/reservation-payment-policies`                  | Pro/Multi-site, lecture tenant-scoped ; policies versionnées                  |
+| POST    | `/reservation-payment-policies`                  | Owner/Manager + flag `RESERVATION_PAYMENTS_ENABLED`                           |
+| GET     | `/reservations/:id/payment`                      | État de la dernière tentative, sans identifiant secret                        |
+| POST    | `/reservations/:id/payment/prepare`              | Préparation idempotente ; `dryRun=true` par défaut, aucun appel Stripe        |
+| POST    | `/reservations/:id/payment/expire`               | Expiration manuelle d'une tentative, Owner/Manager                            |
+| POST    | `/api/internal/reservation-payments/expire`      | Opérateur Sokar, nettoyage borné des échéances                                |
+| POST    | `/reservations/:id/payment/capture`              | Owner/Manager : après `NO_SHOW` ou annulation tardive, 7 j max ; 202          |
+| GET     | `/reservation-guarantee/settings`                | Équipe : réglage d'empreinte en vigueur (ou valeurs proposées)                |
+| PUT     | `/reservation-guarantee/settings`                | Owner/Manager : active, modifie (nouvelle version) ou coupe                   |
+| POST    | `/reservations/:id/payment/request`              | Owner/Manager : demande une empreinte par SMS (24 h max, réservation à venir) |
+| POST    | `/reservations/:id/payment/resend`               | Owner/Manager : renvoie le lien tant que la carte n'est pas enregistrée       |
+| GET     | `/public/r/:slug/card-guarantee`                 | Public : conditions d'empreinte pour `date` + `partySize`, ou `null`          |
+| GET     | `/public/r/:slug/card-guarantee/:token`          | Public, jeton signé : état de l'empreinte, sans nom ni téléphone              |
+| POST    | `/public/r/:slug/card-guarantee/:token/checkout` | Public, `{ accepted: true }` : rouvre la page Stripe                          |
+| POST    | `/reservations/:id/payment/refund`               | Owner/Manager : remboursement total ou partiel du prélèvement ; 202           |
 
 Les événements Stripe arrivent par `/webhooks/stripe` (endpoint Connect partagé), aiguillés vers
 `reservation-payment.webhook.ts` avant les cartes cadeaux (`metadata.type = reservation_guarantee`,

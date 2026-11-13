@@ -1,6 +1,7 @@
 import { Prisma, ReservationPaymentStatus, ReservationPaymentType } from '@prisma/client';
 import { db } from '../../shared/db/client';
 import { logger } from '../../shared/logger/pino';
+import { enqueueCardGuaranteeSms } from './reservation-guarantee.sms';
 import {
   chargeReservationGuarantee,
   createRefund,
@@ -260,6 +261,8 @@ export interface ReservationPaymentProviderEventResult {
   duplicate: boolean;
   stale: boolean;
   reservationConfirmed: boolean;
+  /** Réservation confirmée par cet événement, pour les notifications après la transaction. */
+  reservationId?: string;
   ignoredReason?: 'UNSUPPORTED_EVENT' | 'STALE_EVENT';
 }
 
@@ -992,6 +995,7 @@ export async function applyReservationPaymentProviderEvent(
         duplicate: false,
         stale: false,
         reservationConfirmed: lifecycle?.mutated === true,
+        reservationId: payment.reservationId,
       },
       lifecycle,
       reservationId: payment.reservationId,
@@ -1061,6 +1065,8 @@ export async function createCardGuaranteePaymentInTransaction(
     policyId: string;
     partySize: number;
     expiresAt: Date;
+    /** Une demande de l'équipe après une empreinte close prend une clé neuve. */
+    idempotencyKey?: string;
   },
 ): Promise<string> {
   const policy = await tx.reservationPaymentPolicy.findFirst({
@@ -1078,7 +1084,7 @@ export async function createCardGuaranteePaymentInTransaction(
       status: ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD,
       amount: computeReservationPaymentAmount(policy, input.partySize),
       currency: 'EUR',
-      idempotencyKey: `card-guarantee:${input.reservationId}`,
+      idempotencyKey: input.idempotencyKey ?? `card-guarantee:${input.reservationId}`,
       policySnapshot: policySnapshot(policy),
       expiresAt: input.expiresAt,
     },
@@ -1315,6 +1321,18 @@ export async function expireReservationPayments(now = new Date(), limit = 200): 
     if (!lifecycle) continue;
     expired += 1;
     await reservationLifecycle.finalizeTransition(transition, lifecycle);
+    // Hors web, le client a quitté le tunnel : il apprend par SMS que la table est libérée.
+    if (lifecycle.mutated && lifecycle.reservation.channel !== 'WEB') {
+      await enqueueCardGuaranteeSms('expired', {
+        id: row.id,
+        restaurantId: row.restaurantId,
+      }).catch((error: unknown) =>
+        logger.warn(
+          { paymentId: row.id, err: error instanceof Error ? error.message : String(error) },
+          'reservation guarantee: expiry SMS not queued',
+        ),
+      );
+    }
     if (row.stripeCheckoutSessionId && row.stripeAccountId) {
       await expireExperienceCheckoutSession(row.stripeCheckoutSessionId, row.stripeAccountId).catch(
         (error: unknown) =>

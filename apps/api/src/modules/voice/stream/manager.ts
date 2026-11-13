@@ -8,6 +8,13 @@ import {
   ReservationService,
   type AvailabilityResult,
 } from '../../reservations/reservation.service';
+import {
+  CARD_GUARANTEE_NO_PHONE_FACT,
+  VOICE_CARD_GUARANTEE_HOLD_MS,
+  cardGuaranteeCreatedFact,
+  voiceCardGuaranteeTerms,
+} from '../card-guarantee-facts';
+import { enqueueCardGuaranteeSms } from '../../reservation-payments/reservation-guarantee.sms';
 import { db } from '../../../shared/db/client';
 import { logger } from '../../../shared/logger/pino';
 import * as Sentry from '@sentry/node';
@@ -1588,16 +1595,52 @@ export class CallSessionManager {
               );
             }
 
-            await ReservationService.create({
+            // Empreinte bancaire : la table est tenue, le lien part par SMS, jamais de carte au téléphone.
+            const guarantee = await voiceCardGuaranteeTerms({
+              restaurantId: session.restaurantId,
+              date,
+              partySize: partySize ?? 1,
+            });
+            const reservationPhone = customerPhone ?? session.from;
+            if (guarantee && !reservationPhone) {
+              return terminalToolReply(executionControl, CARD_GUARANTEE_NO_PHONE_FACT);
+            }
+
+            const created = await ReservationService.create({
               restaurantId: session.restaurantId,
               callId: callRecordId,
               // Heure locale du restaurant, jamais celle du serveur.
               reservedAt: zonedTimeToUtc(date, time, session.timezone || 'Europe/Paris'),
               partySize: partySize ?? 1,
               customerName: reservationCustomerName,
-              customerPhone: customerPhone ?? session.from,
+              customerPhone: reservationPhone,
+              ...(guarantee
+                ? {
+                    cardGuarantee: {
+                      policyId: guarantee.policyId,
+                      expiresAt: new Date(Date.now() + VOICE_CARD_GUARANTEE_HOLD_MS),
+                    },
+                  }
+                : {}),
             });
             session.reservationCreatedAt = Date.now();
+
+            if (guarantee) {
+              const payment = await db.reservationPayment.findFirst({
+                where: { restaurantId: session.restaurantId, reservationId: created.id },
+                select: { id: true, restaurantId: true },
+              });
+              if (payment) await enqueueCardGuaranteeSms('link', payment);
+              return terminalToolReply(
+                executionControl,
+                cardGuaranteeCreatedFact({
+                  customerName: reservationCustomerName,
+                  date,
+                  time,
+                  partySize: partySize ?? 1,
+                }),
+              );
+            }
 
             return terminalToolReply(
               executionControl,

@@ -24,6 +24,7 @@ import { cn, formatPhone } from '@/lib/utils';
 import MobileDataCard from '@/components/MobileDataCard';
 import { ReservationAdditionLine, useReservationAddition } from '@/components/pos/real-spend';
 import { useCapabilities } from '@/lib/use-capabilities';
+import { ReservationCardGuarantee } from '@/features/card-guarantee/reservation-card-guarantee';
 import {
   Table,
   TableHeader,
@@ -1623,6 +1624,13 @@ function ReservationDetails({
                 <dd className="whitespace-pre-wrap">{reservation.specialRequests || '—'}</dd>
               </div>
             </dl>
+            <ReservationCardGuarantee
+              reservation={{
+                id: reservation.id,
+                reservedAt: reservation.reservedAt,
+                state: reservationState(reservation),
+              }}
+            />
             {(reservationState(reservation) === 'PENDING' ||
               reservationState(reservation) === 'CONFIRMED') && (
               <Button onClick={() => setEditing(true)}>Modifier</Button>

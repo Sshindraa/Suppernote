@@ -164,7 +164,12 @@ describe('annulation d’une réservation garantie', () => {
       payment(ReservationPaymentStatus.AUTHORIZED) as never,
     );
     await expect(
-      releaseCardGuaranteeOnCancel(tx, reservation, new Date('2026-11-19T19:00:00.000Z')),
+      releaseCardGuaranteeOnCancel(
+        tx,
+        reservation,
+        'customer:personal-link',
+        new Date('2026-11-19T19:00:00.000Z'),
+      ),
     ).resolves.toBe(true);
     expect(tx.reservationPayment.updateMany).toHaveBeenCalledWith({
       where: {
@@ -181,15 +186,34 @@ describe('annulation d’une réservation garantie', () => {
       payment(ReservationPaymentStatus.AUTHORIZED) as never,
     );
     await expect(
-      releaseCardGuaranteeOnCancel(tx, reservation, new Date('2026-11-19T19:00:01.000Z')),
+      releaseCardGuaranteeOnCancel(
+        tx,
+        reservation,
+        'customer:personal-link',
+        new Date('2026-11-19T19:00:01.000Z'),
+      ),
     ).resolves.toBe(false);
     expect(tx.reservationPayment.updateMany).not.toHaveBeenCalled();
   });
+
+  it.each(['staff:user-1', 'legacy:reservation-update', 'system:expire-worker', 'payment:x'])(
+    'ferme l’empreinte après le délai quand l’annulation vient de « %s »',
+    async (actor) => {
+      vi.mocked(tx.reservationPayment.findFirst).mockResolvedValue(
+        payment(ReservationPaymentStatus.AUTHORIZED) as never,
+      );
+      await expect(
+        releaseCardGuaranteeOnCancel(tx, reservation, actor, new Date('2026-11-20T18:00:00.000Z')),
+      ).resolves.toBe(true);
+    },
+  );
 
   it('ferme toujours une empreinte dont la carte n’a pas été enregistrée', async () => {
     vi.mocked(tx.reservationPayment.findFirst).mockResolvedValue(
       payment(ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD) as never,
     );
-    await expect(releaseCardGuaranteeOnCancel(tx, reservation, startsAt)).resolves.toBe(true);
+    await expect(
+      releaseCardGuaranteeOnCancel(tx, reservation, 'customer:personal-link', startsAt),
+    ).resolves.toBe(true);
   });
 });

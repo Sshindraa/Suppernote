@@ -20,6 +20,11 @@ import {
   refundCardGuarantee,
   transitionReservationPayment,
 } from './reservation-payment.service';
+import {
+  CardGuaranteeSettingsSchema,
+  getCardGuaranteeSettings,
+  saveCardGuaranteeSettings,
+} from './reservation-guarantee.settings';
 
 const PolicyBodySchema = z.object({
   type: z.nativeEnum(ReservationPaymentType),
@@ -145,6 +150,35 @@ export async function reservationPaymentRoutes(app: FastifyInstance): Promise<vo
           ...body,
         });
         return reply.status(201).send({ data: policy });
+      } catch (error) {
+        return sendPaymentError(error, reply) ?? Promise.reject(error);
+      }
+    },
+  );
+
+  app.get(
+    '/reservation-guarantee/settings',
+    { preHandler: paymentRead },
+    async (request, reply) => {
+      return reply.send({ data: await getCardGuaranteeSettings(request.restaurantId) });
+    },
+  );
+
+  app.put(
+    '/reservation-guarantee/settings',
+    { preHandler: paymentWrite },
+    async (request, reply) => {
+      const parsed = CardGuaranteeSettingsSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'PAYMENT_POLICY_INVALID',
+          message: 'Vérifiez le nombre de couverts, les dates, le montant et le délai.',
+        });
+      }
+      try {
+        return reply.send({
+          data: await saveCardGuaranteeSettings(request.restaurantId, parsed.data),
+        });
       } catch (error) {
         return sendPaymentError(error, reply) ?? Promise.reject(error);
       }

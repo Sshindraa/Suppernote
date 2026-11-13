@@ -16,6 +16,25 @@ type SessionPost = (
   options?: { signal?: AbortSignal },
 ) => Promise<Session>;
 
+/** Couleurs du thème courant, au format accepté par Connect.js (HSL à virgules, rayons en px). */
+function connectAppearance(element: HTMLElement | null) {
+  const tokens = getComputedStyle(document.documentElement);
+  const color = (token: string) =>
+    `hsl(${tokens.getPropertyValue(token).trim().split(/\s+/).join(', ')})`;
+  const containerStyle = element ? getComputedStyle(element) : undefined;
+  return {
+    overlays: 'dialog' as const,
+    variables: {
+      colorPrimary: color('--primary'),
+      colorBackground: color('--background'),
+      colorText: color('--foreground'),
+      colorDanger: color('--destructive'),
+      borderRadius: containerStyle?.borderRadius,
+      fontFamily: containerStyle?.fontFamily,
+    },
+  };
+}
+
 export function VerifiedGiftCardStripeOnboarding(props: {
   restaurantId: string;
   onClose: () => void;
@@ -103,25 +122,10 @@ export function GiftCardStripeOnboarding({
         ]);
         if (!active) return;
         let firstSecret: string | undefined = session.clientSecret;
-        const tokens = getComputedStyle(document.documentElement);
-        // Connect.js accepts legacy comma-separated HSL and pixel radii.
-        const color = (token: string) =>
-          `hsl(${tokens.getPropertyValue(token).trim().split(/\s+/).join(', ')})`;
-        const containerStyle = container.current ? getComputedStyle(container.current) : undefined;
         connect = loadConnectAndInitialize({
           publishableKey: session.publishableKey,
           locale: 'fr-FR',
-          appearance: {
-            overlays: 'dialog',
-            variables: {
-              colorPrimary: color('--primary'),
-              colorBackground: color('--background'),
-              colorText: color('--foreground'),
-              colorDanger: color('--destructive'),
-              borderRadius: containerStyle?.borderRadius,
-              fontFamily: containerStyle?.fontFamily,
-            },
-          },
+          appearance: connectAppearance(container.current),
           fetchClientSecret: async () => {
             if (!active) throw new Error('Configuration fermée.');
             if (firstSecret) {
@@ -157,6 +161,16 @@ export function GiftCardStripeOnboarding({
       void connect?.logout().catch(() => undefined);
     };
   }, [restaurantId, post, attempt, initialSession, managedTestPublishableKey]);
+
+  // Le thème peut changer pendant la configuration : Stripe reçoit les nouvelles couleurs.
+  useEffect(() => {
+    if (!instance) return;
+    const observer = new MutationObserver(() =>
+      instance.update({ appearance: connectAppearance(container.current) }),
+    );
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, [instance]);
 
   return (
     <div

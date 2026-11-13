@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   post: vi.fn(),
   initialize: vi.fn(),
   logout: vi.fn(),
+  update: vi.fn(),
   reverify: vi.fn(),
 }));
 vi.mock('@clerk/nextjs', () => ({
@@ -195,7 +196,25 @@ describe('embedded gift card onboarding', () => {
     });
     mocks.post.mockResolvedValue({ clientSecret: 'mock', publishableKey: 'pk_test' });
     mocks.logout.mockResolvedValue(undefined);
-    mocks.initialize.mockReturnValue({ logout: mocks.logout });
+    mocks.initialize.mockReturnValue({ logout: mocks.logout, update: mocks.update });
+  });
+
+  it('repasse les couleurs à Stripe quand le thème change pendant la configuration', async () => {
+    render(<GiftCardStripeConnect />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reprendre la configuration' }));
+    await screen.findByLabelText('Formulaire Stripe intégré');
+    const root = document.documentElement;
+    root.style.setProperty('--background', '0 0% 100%');
+    root.classList.add('light');
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith({
+        appearance: expect.objectContaining({
+          variables: expect.objectContaining({ colorBackground: 'hsl(0, 0%, 100%)' }),
+        }),
+      }),
+    );
+    root.classList.remove('light');
+    root.style.removeProperty('--background');
   });
 
   it('opens inline in French, renews the session, then closes and refreshes without claiming activation', async () => {

@@ -119,7 +119,7 @@ export default function GiftCardForm({ open, onOpenChange, packs, onCreated }: G
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="sokar-error text-sm">{error}</div>}
+          {error && <div className="suppernote-error text-sm">{error}</div>}
 
           {/* Type */}
           <div className="space-y-2">

@@ -11,13 +11,13 @@ vi.mock('@/lib/api', () => ({
 
 const restaurantsResponse = {
   ok: true,
-  restaurants: [{ restaurantId: 'resto-1', restaurantName: 'Chez Sokar' }],
+  restaurants: [{ restaurantId: 'resto-1', restaurantName: 'Chez Suppernote' }],
 };
 
 const healthResponse = {
   ok: true,
   health: {
-    restaurant: { id: 'resto-1', name: 'Chez Sokar', slug: 'chez-sokar' },
+    restaurant: { id: 'resto-1', name: 'Chez Suppernote', slug: 'chez-sokar' },
     phone: {
       number: '+33451221528',
       carrier: 'telnyx',

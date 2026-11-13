@@ -49,8 +49,19 @@
     --floor-status-upcoming: 35 95% 58%;
     --floor-status-late: 0 83% 65%;
     --floor-status-occupied: 270 75% 72%;
-    --floor-table-surface: 225 17% 24%;
-    --floor-table-chair: 225 17% 28%;
+    --floor-table-surface: 40 4% 11%;
+    --floor-table-chair: 40 4% 14%;
+    /* Table assise : la plus lumineuse dans les deux thèmes ; halo de bougie la nuit seulement. */
+    /* Table non assise en Live : éteinte, en retrait du sol dans les deux thèmes. */
+    --floor-table-idle: 40 4% 11%;
+    /* Table tenue (réservée, attendue, en retard) : un cran au-dessus du sol. */
+    --floor-table-held: 40 4% 17%;
+    --floor-table-lit: 40 27% 88%;
+    --floor-table-lit-text: 40 12% 8%;
+    --floor-table-lit-chair: 40 20% 78%;
+    /* Lueur en deux couches : liseré clair et serré, puis voile large et léger. */
+    --floor-table-glow-near: 40 95% 80% / 0.3;
+    --floor-table-glow-far: 34 90% 66% / 0.2;
     --floor-table-accent: 174 63% 72%;
     --floor-table-text: 0 0% 96%;
     --floor-table-muted: 218 12% 68%;
@@ -159,11 +170,18 @@
        volontairement contrastées pour conserver la lecture de la disposition. */
     --floor-status-free: 145 70% 32%;
     --floor-status-reserved: 211 85% 45%;
-    --floor-status-upcoming: 30 95% 42%;
+    --floor-status-upcoming: 28 92% 34%;
     --floor-status-late: 0 72% 48%;
     --floor-status-occupied: 270 65% 50%;
     --floor-table-surface: 0 0% 100%;
     --floor-table-chair: 0 0% 100%;
+    --floor-table-idle: 40 5% 90%;
+    --floor-table-held: 40 6% 85%;
+    --floor-table-lit: 0 0% 100%;
+    --floor-table-lit-text: 0 0% 6.7%;
+    --floor-table-lit-chair: 0 0% 100%;
+    --floor-table-glow-near: 0 0% 0% / 0;
+    --floor-table-glow-far: 0 0% 0% / 0;
     --floor-table-accent: 38 8% 45%;
     --floor-table-text: 0 0% 6.7%;
     --floor-table-muted: 38 7.8% 45%;
@@ -192,50 +210,50 @@
 }
 
 @layer components {
-  .sokar-page {
+  .suppernote-page {
     @apply min-h-screen bg-background text-foreground;
     background-image:
       radial-gradient(circle at top, hsl(var(--foreground) / 0.1), transparent 34rem),
       linear-gradient(180deg, hsl(var(--background)), hsl(var(--background)));
   }
 
-  .sokar-container {
+  .suppernote-container {
     @apply mx-auto w-full max-w-7xl px-6 py-8 md:px-8;
   }
 
-  .sokar-card {
+  .suppernote-card {
     @apply relative overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200;
   }
 
-  .sokar-card::before {
+  .suppernote-card::before {
     content: '';
     @apply pointer-events-none absolute left-1/2 top-0 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl;
     background: hsl(var(--foreground) / 0.1);
   }
 
-  .sokar-card-hover {
+  .suppernote-card-hover {
     @apply hover:-translate-y-0.5 hover:border-foreground/15;
   }
 
-  .sokar-pill {
+  .suppernote-pill {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-border bg-secondary px-4 py-2 text-sm text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground;
   }
 
-  .sokar-icon-button {
+  .suppernote-icon-button {
     @apply inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground transition-all duration-200 hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
   }
 
-  .sokar-empty {
+  .suppernote-empty {
     @apply flex min-h-40 flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-border bg-card/60 p-5 text-center text-muted-foreground;
   }
 
   @media (min-width: 768px) {
-    .sokar-empty {
+    .suppernote-empty {
       @apply min-h-48 p-6;
     }
   }
 
-  .sokar-error {
+  .suppernote-error {
     @apply flex items-center gap-3 rounded-2xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive;
   }
 
@@ -809,7 +827,7 @@ input[type='range']::-moz-range-thumb:hover {
 @media (max-width: 640px) {
   .glass-card,
   .pricing-card,
-  .sokar-card {
+  .suppernote-card {
     backdrop-filter: blur(8px) saturate(130%);
     -webkit-backdrop-filter: blur(8px) saturate(130%);
   }
@@ -886,10 +904,10 @@ input[type='range']::-moz-range-thumb:hover {
 
 /* Mobile-friendly touch targets */
 @media (max-width: 640px) {
-  .sokar-page {
+  .suppernote-page {
     padding-top: 5rem;
   }
-  .sokar-container {
+  .suppernote-container {
     padding-left: 1rem;
     padding-right: 1rem;
     padding-top: 1.5rem;
@@ -899,7 +917,7 @@ input[type='range']::-moz-range-thumb:hover {
 
 /* Disable hover effects on touch devices for performance */
 @media (hover: none) and (pointer: coarse) {
-  .sokar-card-hover:hover,
+  .suppernote-card-hover:hover,
   .pricing-card:hover,
   .glass-card:hover {
     /* stylelint-disable-next-line declaration-no-important -- !important requis
@@ -907,7 +925,7 @@ input[type='range']::-moz-range-thumb:hover {
        stuck visuel après un tap sur mobile). */
     transform: none !important;
   }
-  .sokar-pill:hover {
+  .suppernote-pill:hover {
     background-color: hsl(var(--secondary));
     color: hsl(var(--muted-foreground));
   }
@@ -916,8 +934,8 @@ input[type='range']::-moz-range-thumb:hover {
 /* Safari mobile specific fixes */
 @supports (-webkit-touch-callout: none) {
   /* Disable callout on long press for non-interactive elements */
-  .sokar-page,
-  .sokar-card,
+  .suppernote-page,
+  .suppernote-card,
   .glass-card {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -985,13 +1003,13 @@ body {
 
 /* Keep style containment for the page surface without creating a containing
    block for the dashboard's fixed navigation and overlays. */
-.sokar-page {
+.suppernote-page {
   contain: style;
 }
 
 /* Bottom nav safe zone spacing */
 @media (max-width: 767px) {
-  .sokar-page {
+  .suppernote-page {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -1171,10 +1189,14 @@ body {
 
 /* Le champ date natif garde son vrai contrôle tactile, mais son indicateur
    WebKit recouvrait le libellé français superposé sur les écrans étroits. */
-@media (max-width: 639px) {
-  .floor-plan-service-date-input::-webkit-calendar-picker-indicator {
-    opacity: 0;
-  }
+.floor-plan-service-date-input::-webkit-calendar-picker-indicator {
+  /* Invisible mais étendu à tout le champ : un clic n'importe où ouvre le calendrier. */
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  cursor: pointer;
+  opacity: 0;
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
@@ -1665,7 +1687,8 @@ body {
   }
 
   .dashboard-shell {
-    --dashboard-desktop-header-height: 5.5rem;
+    /* 12 px de marge + 48 px de barre + 8 px d'air : chaque pixel gagné agrandit le plan de salle. */
+    --dashboard-desktop-header-height: 4.25rem;
     padding-top: var(--dashboard-desktop-header-height);
   }
 
@@ -1698,4 +1721,18 @@ body {
  */
 .text-destructive {
   color: hsl(var(--destructive-text));
+}
+
+/* Lueur de bougie autour d'une table assise (plan Live, thème sombre) : ombre portée de la forme du plateau. */
+.floor-table-glow {
+  box-shadow:
+    0 0 0.9rem 0.15rem hsl(var(--floor-table-glow-near)),
+    0 0 6rem 2rem hsl(var(--floor-table-glow-far));
+}
+
+/* Sol de la salle en Live : un parquet à peine visible, pour que les tables ne flottent pas dans le vide. */
+.floor-plan-parquet {
+  background-image:
+    repeating-linear-gradient(45deg, hsl(var(--foreground) / 0.035) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(-45deg, hsl(var(--foreground) / 0.035) 0 1px, transparent 1px 28px);
 }

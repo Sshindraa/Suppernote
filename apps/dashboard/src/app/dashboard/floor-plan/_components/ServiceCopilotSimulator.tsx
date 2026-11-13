@@ -465,7 +465,7 @@ function ServiceCopilotSimulatorContent({
           )}
         </div>
       ) : (
-        <div className="sokar-empty min-h-0 p-3 sm:p-4">
+        <div className="suppernote-empty min-h-0 p-3 sm:p-4">
           <p className="text-sm text-muted-foreground">
             Renseignez les couverts et l&apos;heure d&apos;arrivée pour voir les tables
             recommandées.
@@ -483,10 +483,10 @@ export function ServiceCopilotSimulator(props: ServiceCopilotSimulatorProps) {
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
         title="Simuler un placement"
-        className="h-8 shrink-0 gap-1.5 rounded-full border-border/70 bg-background/70 px-3 text-muted-foreground shadow-sm transition-all duration-200 hover:bg-muted hover:text-foreground"
+        className="h-8 shrink-0 gap-1.5 px-2 text-muted-foreground transition-all duration-200 hover:text-foreground"
         onClick={() => setDialogOpen(true)}
       >
         <Search size={14} aria-hidden="true" />

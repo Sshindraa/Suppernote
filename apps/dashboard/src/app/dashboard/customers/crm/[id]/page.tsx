@@ -369,7 +369,7 @@ export default function CrmCustomerPage() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `sokar-crm-export-${customerId}.json`;
+    anchor.download = `suppernote-crm-export-${customerId}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }

@@ -36,7 +36,7 @@ type TicketTypeStatus = 'ACTIVE' | 'INACTIVE';
 type OrderStatus = 'CONFIRMED' | 'CANCELLED' | 'REFUND_PENDING' | 'REFUNDED';
 type TicketStatus = 'ISSUED' | 'CHECKED_IN' | 'CANCELLED' | 'REFUNDED';
 
-type SokarEvent = {
+type RestaurantEvent = {
   id: string;
   key: string;
   name: string;
@@ -189,7 +189,7 @@ function statusVariant(
 export default function EventsPage() {
   const createRequested = useSearchParams().get('create') === '1';
   const { get, post, patch } = useApi();
-  const [events, setEvents] = useState<SokarEvent[]>([]);
+  const [events, setEvents] = useState<RestaurantEvent[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -230,7 +230,7 @@ export default function EventsPage() {
     setError('');
     setLock(null);
     try {
-      const eventResponse = await get<ListResponse<SokarEvent>>('events?limit=100');
+      const eventResponse = await get<ListResponse<RestaurantEvent>>('events?limit=100');
       const nextEvents = Array.isArray(eventResponse.data) ? eventResponse.data : [];
       setEvents(nextEvents);
       const nextSelected =
@@ -349,7 +349,7 @@ export default function EventsPage() {
     setError('');
     setNotice('');
     try {
-      const response = await post<MutationResponse<SokarEvent>>('events', { key, name });
+      const response = await post<MutationResponse<RestaurantEvent>>('events', { key, name });
       if (response.data) {
         setEvents((current) => [response.data!, ...current]);
         setSelectedEventId(response.data.id);

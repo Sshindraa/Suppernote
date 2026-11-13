@@ -26,10 +26,11 @@ function pageMetadata(path: string, title: string, description: string): Metadat
 
 export const HOME_METADATA = pageMetadata(
   '/',
-  // Titre court pour Google (≈ 55 caractères) ; les mots-clés « assistant téléphonique » et
-  // « réservation en ligne » restent dans la description et l'accroche de la page.
-  'Suppernote — Chef de rang numérique : réservations restaurant',
-  'Le chef de rang numérique de votre restaurant : assistant téléphonique qui répond aux appels, réservation en ligne et plan de salle. Démonstration sur demande.',
+  // Titre court pour Google (≈ 55 caractères) ; les mots-clés « réservation en ligne » et
+  // « plan de salle » restent dans la description et l'accroche de la page. « Assistant
+  // téléphonique » vit sur sa propre page (/solutions/assistant-telephonique-restaurant).
+  'Suppernote — Chef de rang digital : réservations restaurant',
+  'Le chef de rang numérique de votre restaurant : il répond aux appels, prend les réservations en ligne et organise le plan de salle. Démonstration sur demande.',
 );
 
 export const PRICING_METADATA = pageMetadata(

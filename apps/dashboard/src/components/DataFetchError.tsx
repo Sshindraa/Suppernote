@@ -17,7 +17,7 @@ type DataFetchErrorProps = {
  */
 export function DataFetchError({ message, onRetry, retrying = false }: DataFetchErrorProps) {
   return (
-    <div role="alert" className="sokar-error items-start justify-between sm:items-center">
+    <div role="alert" className="suppernote-error items-start justify-between sm:items-center">
       <div className="flex min-w-0 items-start gap-3">
         <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
         <p className="min-w-0">{message}</p>

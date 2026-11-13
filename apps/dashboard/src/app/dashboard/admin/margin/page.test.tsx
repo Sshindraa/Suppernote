@@ -33,7 +33,7 @@ function report(rows: unknown[], month = currentMonthKey()) {
 function pricedRow(overrides: Record<string, unknown> = {}) {
   return {
     restaurantId: 'restaurant-1',
-    restaurantName: 'Chez Sokar',
+    restaurantName: 'Chez Suppernote',
     plan: 'PRO',
     catalogPriceEur: 299,
     estimatedCostEur: '12.500000',
@@ -97,7 +97,7 @@ describe('AdminMarginPage', () => {
     render(<AdminMarginPage />);
 
     expect(await screen.findByRole('heading', { name: 'Coût opérationnel' })).toBeInTheDocument();
-    expect(screen.getByText('Chez Sokar')).toBeInTheDocument();
+    expect(screen.getByText('Chez Suppernote')).toBeInTheDocument();
     expect(screen.getByText('Tarifé')).toBeInTheDocument();
     expect(screen.getAllByText(/12,50/).length).toBeGreaterThan(0);
     expect(screen.getByText(/286,50/)).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('AdminMarginPage', () => {
 
   it('ouvre le détail des usages sans encombrer le tableau', async () => {
     render(<AdminMarginPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Détail de Chez Sokar' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Détail de Chez Suppernote' }));
 
     expect(await screen.findByText(/Détail des usages/)).toBeInTheDocument();
     expect(screen.getByText('TELEPHONY_SECONDS')).toBeInTheDocument();

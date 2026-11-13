@@ -141,7 +141,7 @@ test.describe('Widget réservation public', () => {
     // assertions ci-dessous attendent les données et l'interface utile.
     await page.goto(`/widget/${RESTAURANT_SLUG}`, { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByText(/Chez (Sokar|Suppernote)/).first()).toBeVisible();
+    await expect(page.getByText('Chez Suppernote').first()).toBeVisible();
     await expect(page.getByText('Nombre de personnes')).toBeVisible();
     await expect(page.getByText('Sélectionner la date')).toBeVisible();
     await expect(page.getByText('Créneau horaire')).toBeVisible();

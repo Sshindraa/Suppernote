@@ -119,7 +119,7 @@ export default function GiftCardPackForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="sokar-error text-sm">{error}</div>}
+          {error && <div className="suppernote-error text-sm">{error}</div>}
 
           <div className="space-y-2">
             <Label htmlFor="name">Nom du pack</Label>

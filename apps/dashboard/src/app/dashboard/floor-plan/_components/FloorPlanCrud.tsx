@@ -273,13 +273,13 @@ export function FloorPlanCrud({ floorPlanId }: { floorPlanId?: string }) {
       </div>
 
       {error ? (
-        <div className="sokar-error">
+        <div className="suppernote-error">
           <AlertCircle size={18} />
           {error}
         </div>
       ) : null}
 
-      <Card className="sokar-card">
+      <Card className="suppernote-card">
         <CardHeader>
           <h2 className="text-base font-semibold">Tables du plan</h2>
         </CardHeader>

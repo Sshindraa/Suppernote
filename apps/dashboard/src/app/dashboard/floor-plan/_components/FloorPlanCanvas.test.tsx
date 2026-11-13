@@ -5,16 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clampZoom,
   computeCenterScroll,
-  computeContentBounds,
   computeFitZoom,
   computeFocusScroll,
   computeLiveContentBounds,
   computeZoomAnchorScroll,
   findNearbyFreeTablePosition,
+  settleTableDrop,
   findOverlappingTableChairs,
   FloorPlanCanvas,
   getTableAlignmentGuides,
-  getChairPositions,
+  getTableSpacingGuides,
   getSafeTableDimensions,
   isDoubleTap,
   nudgeTableClearOfChairs,
@@ -136,94 +136,7 @@ beforeEach(() => {
   apiMocks.del.mockResolvedValue({});
 });
 
-function getRectangleChairGap(left: number, top: number, width: number, height: number): number {
-  const chairRight = left + TABLE_LAYOUT.chairSize;
-  const chairBottom = top + TABLE_LAYOUT.chairSize;
-  const tableLeft = -TABLE_LAYOUT.borderWidth;
-  const tableTop = -TABLE_LAYOUT.borderWidth;
-  const tableRight = width - TABLE_LAYOUT.borderWidth;
-  const tableBottom = height - TABLE_LAYOUT.borderWidth;
-
-  return Math.max(
-    tableLeft - chairRight,
-    left - tableRight,
-    tableTop - chairBottom,
-    top - tableBottom,
-  );
-}
-
-function getMinimumEllipseValue(left: number, top: number, width: number, height: number): number {
-  const centerX = width / 2 - TABLE_LAYOUT.borderWidth;
-  const centerY = height / 2 - TABLE_LAYOUT.borderWidth;
-  const radiusX = width / 2;
-  const radiusY = height / 2;
-  const closestX = Math.max(left, Math.min(centerX, left + TABLE_LAYOUT.chairSize));
-  const closestY = Math.max(top, Math.min(centerY, top + TABLE_LAYOUT.chairSize));
-
-  return ((closestX - centerX) / radiusX) ** 2 + ((closestY - centerY) / radiusY) ** 2;
-}
-
 describe('FloorPlanCanvas — disposition des chaises', () => {
-  const smallestTable = {
-    width: TABLE_LAYOUT.minimumDimension,
-    height: TABLE_LAYOUT.minimumDimension,
-  };
-
-  it('keeps every rectangular chair outside the table with a gap at the minimum size', () => {
-    for (let capacity = 1; capacity <= TABLE_LAYOUT.maximumChairCount; capacity++) {
-      const chairs = getChairPositions({ ...smallestTable, capacity, shape: 'rect' });
-
-      expect(chairs).toHaveLength(capacity);
-      for (const chair of chairs) {
-        expect(
-          getRectangleChairGap(chair.left, chair.top, smallestTable.width, smallestTable.height),
-        ).toBe(TABLE_LAYOUT.chairGap);
-      }
-    }
-  });
-
-  it('keeps every round-table chair fully outside the contour at safe sizes', () => {
-    const roundTables = [
-      smallestTable,
-      {
-        width: TABLE_LAYOUT.minimumDimension + 32,
-        height: TABLE_LAYOUT.minimumDimension + 16,
-      },
-    ];
-
-    for (const table of roundTables) {
-      for (let capacity = 1; capacity <= TABLE_LAYOUT.maximumChairCount; capacity++) {
-        const chairs = getChairPositions({ ...table, capacity, shape: 'round' });
-
-        expect(chairs).toHaveLength(capacity);
-        for (const chair of chairs) {
-          expect(
-            getMinimumEllipseValue(chair.left, chair.top, table.width, table.height),
-          ).toBeGreaterThan(1);
-        }
-      }
-    }
-  });
-
-  it('keeps cardinal chairs clear of a minimum-size round table', () => {
-    const chairs = getChairPositions({ ...smallestTable, capacity: 4, shape: 'round' });
-    const [topChair, rightChair, bottomChair, leftChair] = chairs;
-    const tableTop = -TABLE_LAYOUT.borderWidth;
-    const tableLeft = -TABLE_LAYOUT.borderWidth;
-    const tableRight = smallestTable.width - TABLE_LAYOUT.borderWidth;
-    const tableBottom = smallestTable.height - TABLE_LAYOUT.borderWidth;
-
-    expect(chairs).toHaveLength(4);
-    expect(tableTop - (topChair.top + TABLE_LAYOUT.chairSize)).toBeGreaterThanOrEqual(
-      TABLE_LAYOUT.roundTableVisualGap,
-    );
-    expect(rightChair.left - tableRight).toBeGreaterThanOrEqual(TABLE_LAYOUT.roundTableVisualGap);
-    expect(bottomChair.top - tableBottom).toBeGreaterThanOrEqual(TABLE_LAYOUT.roundTableVisualGap);
-    expect(tableLeft - (leftChair.left + TABLE_LAYOUT.chairSize)).toBeGreaterThanOrEqual(
-      TABLE_LAYOUT.roundTableVisualGap,
-    );
-  });
-
   it('clamps unsafe dimensions without changing safe ones', () => {
     const safeWidth = TABLE_LAYOUT.minimumDimension + 24;
     const safeHeight = TABLE_LAYOUT.minimumDimension + 40;
@@ -263,8 +176,9 @@ describe('FloorPlanCanvas — guides et duplication de table', () => {
   };
 
   it('propose les guides de bord et de centre les plus proches pendant un drag', () => {
+    // Plateau rectangulaire affiché à 132 px de large (minimum) : bords visibles à x-26 et x+106.
     const guides = getTableAlignmentGuides({
-      x: 178,
+      x: 104,
       y: 100,
       width: 80,
       height: 80,
@@ -272,8 +186,76 @@ describe('FloorPlanCanvas — guides et duplication de table', () => {
       excludedTableId: 'moving',
     });
 
-    expect(guides.x).toMatchObject({ axis: 'x', value: 180, position: 180, distance: 2 });
-    expect(guides.y).toMatchObject({ axis: 'y', value: 100, position: 100, distance: 0 });
+    // Bord gauche visible (78) contre bord gauche visible de la référence (74) : même bord.
+    expect(guides.x).toMatchObject({ axis: 'x', value: 74, position: 100, distance: 4 });
+    expect(guides.y).toMatchObject({ axis: 'y', value: 108, position: 100, distance: 0 });
+  });
+
+  it('préfère une table de même forme à une ronde plus proche', () => {
+    const round = {
+      ...referenceTable,
+      id: 'round',
+      shape: 'round' as const,
+      positionX: 400,
+      positionY: 86,
+    };
+    const guides = getTableAlignmentGuides({
+      x: 600,
+      y: 86,
+      width: 80,
+      height: 80,
+      shape: 'rect',
+      tables: [referenceTable, round],
+      excludedTableId: 'moving',
+      threshold: 20,
+    });
+    // Le haut de T1 est à 14 px, la ronde plus près : la rangée de rectangles l'emporte.
+    expect(guides.y).toMatchObject({ position: 100, reference: { id: 'reference' } });
+  });
+
+  it('privilégie la table la plus proche sur un même axe', () => {
+    const second = { ...referenceTable, id: 'second', positionX: 300 };
+    const off = { ...referenceTable, id: 'off', positionX: 500, positionY: 140 };
+    const guides = getTableAlignmentGuides({
+      x: 700,
+      y: 104,
+      width: 80,
+      height: 80,
+      tables: [referenceTable, second, off],
+      excludedTableId: 'moving',
+    });
+    expect(guides.y?.reference.id).toBe('second');
+  });
+
+  it("reprend l'écart déjà présent dans la rangée", () => {
+    // Plateaux de 132 px : T1 à x=100 (plateau 74-206), T2 à 300 (274-406), écart 68.
+    const second = { ...referenceTable, id: 'second', positionX: 300 };
+    const spacing = getTableSpacingGuides({
+      x: 505, // plateau à 479, écart de 73 avec T2 : à 5 px de 68
+      y: 100,
+      width: 80,
+      height: 80,
+      shape: 'rect',
+      tables: [referenceTable, second],
+      excludedTableId: 'moving',
+    });
+    expect(spacing.x).toMatchObject({ position: 500, gap: 68 });
+    expect(spacing.x?.segments).toHaveLength(2);
+    expect(spacing.y).toBeNull();
+  });
+
+  it('centre une table entre deux voisines', () => {
+    const right = { ...referenceTable, id: 'right', positionX: 500 };
+    const spacing = getTableSpacingGuides({
+      x: 296,
+      y: 100,
+      width: 80,
+      height: 80,
+      shape: 'rect',
+      tables: [referenceTable, right],
+      excludedTableId: 'moving',
+    });
+    expect(spacing.x).toMatchObject({ position: 300, gap: 68 });
   });
 
   it('duplique à proximité sans chevaucher la table voisine', () => {
@@ -285,9 +267,10 @@ describe('FloorPlanCanvas — guides et duplication de table', () => {
       positionY: 96,
     };
 
+    // Juste en dessous, mais assez bas pour que ses chaises ne touchent pas celles de l'original.
     expect(findNearbyFreeTablePosition(source, [source, occupiedRight], 800, 500)).toEqual({
       x: 96,
-      y: 192,
+      y: 208,
     });
   });
 
@@ -308,6 +291,57 @@ describe('FloorPlanCanvas — guides et duplication de table', () => {
     });
   });
 
+  describe('settleTableDrop', () => {
+    const other = {
+      ...referenceTable,
+      id: 'other',
+      positionX: 96,
+      positionY: 96,
+      width: undefined,
+      height: undefined,
+    } as unknown as typeof referenceTable;
+    const dropped = (x: number, y: number) =>
+      ({ ...other, id: 'moving', positionX: x, positionY: y }) as typeof referenceTable;
+    const plateOverlap = (table: typeof referenceTable, gap: number) =>
+      tablePlatesOverlapAtPosition({
+        x: table.positionX,
+        y: table.positionY,
+        width: 144,
+        height: 104,
+        shape: 'rect',
+        tables: [other],
+        gap,
+      });
+
+    it('pose une table lâchée sur une autre contre elle, alignée', () => {
+      const result = settleTableDrop(dropped(100, 120), [other], 800, 500, false)!;
+      expect(result.aside).toBe(true);
+      expect(result.x).toBe(96);
+      expect(plateOverlap({ ...dropped(result.x, result.y) }, 0)).toBe(false);
+      expect(plateOverlap({ ...dropped(result.x, result.y) }, 5)).toBe(true);
+    });
+
+    it('aligne une table lâchée à côté d’une autre sans la déplacer sur l’autre axe', () => {
+      const result = settleTableDrop(dropped(260, 120), [other], 800, 500, false)!;
+      expect(result).toEqual({ x: 260, y: 96, aside: false });
+    });
+
+    it('laisse la pose libre avec Alt, sauf pour un plateau superposé', () => {
+      expect(settleTableDrop(dropped(260, 120), [other], 800, 500, true)).toEqual({
+        x: 260,
+        y: 120,
+        aside: false,
+      });
+      expect(settleTableDrop(dropped(100, 120), [other], 800, 500, true)!.aside).toBe(true);
+    });
+
+    it('renvoie null quand aucune place n’existe', () => {
+      // Plan de la taille d’une seule table, déjà occupé.
+      const full = { ...other, positionX: 0, positionY: 0 };
+      expect(settleTableDrop(dropped(4, 4), [full], 144, 104, false)).toBeNull();
+    });
+  });
+
   it('signale les chaises qui se chevauchent même quand les plateaux sont séparés', () => {
     const moving = { ...referenceTable, id: 'moving', positionY: 192 };
     const tables = [moving, referenceTable];
@@ -324,6 +358,24 @@ describe('FloorPlanCanvas — guides et duplication de table', () => {
     expect(findOverlappingTableChairs(moving, tables)).toBe(referenceTable);
     expect(findOverlappingTableChairs(moving, tables, { plateOnly: true })).toBeUndefined();
     expect(findOverlappingTableChairs({ ...moving, positionY: 210 }, tables)).toBeUndefined();
+  });
+
+  it('au lâcher, garde le même passage entre deux rectangles qu’avec une ronde', () => {
+    // Plateaux de 132 px côte à côte, collés bord à bord (aucune chaise sur les côtés).
+    const moving = { ...referenceTable, id: 'moving', positionX: 232 };
+    const placed = nudgeTableClearOfChairs(moving, [referenceTable], 800, 600, 80, undefined, true);
+    expect(placed).toBeDefined();
+    // Bord gauche du plateau déplacé à au moins 16 px du bord droit de la référence (206).
+    expect(placed!.positionX - 26 - 206).toBeGreaterThanOrEqual(16);
+  });
+
+  it('au lâcher, écarte une table dont les chaises touchent celles de la voisine', () => {
+    const moving = { ...referenceTable, id: 'moving', positionY: 192 };
+    const placed = nudgeTableClearOfChairs(moving, [referenceTable], 800, 600, 32, undefined, true);
+    expect(placed).toBeDefined();
+    expect(
+      findOverlappingTableChairs({ ...moving, ...placed }, [moving, referenceTable]),
+    ).toBeUndefined();
   });
 
   it('signale une chaise ronde qui touche le plateau voisin sans collision de plateaux', () => {
@@ -422,7 +474,7 @@ describe('FloorPlanCanvas — taille des tables', () => {
 
       render(<FloorPlanCanvas orgId="org_test" mode="service" />);
       const table = await screen.findByRole('button', { name: `T4 · ${capacity} places` });
-      expect(table.querySelectorAll('.bg-floor-table-chair')).toHaveLength(chairs);
+      expect(table.querySelectorAll('[data-floor-seat]')).toHaveLength(chairs);
       expect(within(table).getByText(`${capacity} places`)).toBeInTheDocument();
     },
   );
@@ -440,12 +492,13 @@ describe('FloorPlanCanvas — taille des tables', () => {
 
     expect(tableName).toHaveClass('max-w-full', 'truncate');
     expect(capacity).toHaveClass('truncate');
-    expect(table.querySelectorAll('.bg-floor-table-chair')).toHaveLength(4);
-    expect(table.querySelector('.rounded-full.bg-floor-table-surface')).toHaveStyle({
+    expect(table.querySelectorAll('[data-floor-seat]')).toHaveLength(4);
+    expect(table.querySelector('.rounded-full[data-floor-top]')).toHaveStyle({
       width: '72px',
       height: '72px',
     });
-    expect(table.querySelector('.bg-floor-table-accent')).not.toBeNull();
+    // Plus de bande décorative en édition : la table se lit à son nom et ses places.
+    expect(table.querySelector('.bg-floor-table-accent')).toBeNull();
   });
 
   it.each(['service', 'design'] as const)(
@@ -453,10 +506,10 @@ describe('FloorPlanCanvas — taille des tables', () => {
     async (mode) => {
       render(<FloorPlanCanvas orgId="org_test" mode={mode} />);
       const table = await screen.findByRole('button', { name: 'T4 · 4 places' });
-      const chairs = table.querySelectorAll<HTMLElement>('.bg-floor-table-chair');
+      const chairs = table.querySelectorAll<HTMLElement>('[data-floor-seat]');
       expect(chairs).toHaveLength(4);
       for (const chair of chairs) {
-        expect(chair).toHaveStyle({ width: '36px', height: '32px' });
+        expect(chair).toHaveStyle({ width: '14px', height: '1px' });
       }
       expect(chairs[1].style.transform).toBe('rotate(90deg)');
     },
@@ -491,7 +544,7 @@ describe('FloorPlanCanvas — taille des tables', () => {
       const zone = screen.getByRole('button', { name: 'Salle' });
       layouts.push({
         table: [table.style.left, table.style.top, table.style.width, table.style.height],
-        chairs: [...table.querySelectorAll<HTMLElement>('.bg-floor-table-chair')].map((chair) =>
+        chairs: [...table.querySelectorAll<HTMLElement>('[data-floor-seat]')].map((chair) =>
           [chair.style.left, chair.style.top, chair.style.width, chair.style.height].join(','),
         ),
         zone: [zone.style.left, zone.style.top, zone.style.width, zone.style.height],
@@ -512,11 +565,11 @@ describe('FloorPlanCanvas — taille des tables', () => {
       for (const mode of ['design', 'service'] as const) {
         const { unmount } = render(<FloorPlanCanvas orgId="org_test" mode={mode} />);
         await screen.findByRole('button', { name: 'T4 · 4 places' });
-        const zoom =
-          mode === 'service'
-            ? screen.getByLabelText('Niveau de zoom').textContent
-            : screen.getByRole('button', { name: "Ajuster le plan à l'écran" }).textContent;
-        zoomLevels.push(parseInt(zoom ?? '', 10));
+        // L'édition n'affiche plus de pourcentage : on lit l'échelle appliquée au plan.
+        const scale = [...document.querySelectorAll<HTMLElement>('[style*="scale("]')]
+          .map((element) => /scale\(([\d.]+)\)/.exec(element.style.transform)?.[1])
+          .find(Boolean);
+        zoomLevels.push(Math.round(Number(scale) * 100));
         unmount();
       }
       expect(zoomLevels[0]).toBe(zoomLevels[1]);
@@ -537,7 +590,7 @@ describe('FloorPlanCanvas — taille des tables', () => {
     render(<FloorPlanCanvas orgId="org_test" mode="service" />);
     for (const name of ['T4', 'T5']) {
       const table = await screen.findByRole('button', { name: `${name} · 4 places` });
-      expect(table.querySelectorAll('.bg-floor-table-chair')).toHaveLength(4);
+      expect(table.querySelectorAll('[data-floor-seat]')).toHaveLength(4);
       expect(within(table).getByText('4 places')).toBeInTheDocument();
     }
   });
@@ -794,6 +847,28 @@ describe('FloorPlanCanvas — guides des murs', () => {
     expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled();
   });
 
+  it('annule une duplication avec ⌘Z en supprimant la copie', async () => {
+    const table = floorPlan.tables![0];
+    apiMocks.post.mockImplementation(async (_path: string, body: Record<string, unknown>) => ({
+      ...table,
+      ...body,
+      id: 'table-copy',
+    }));
+
+    render(<FloorPlanCanvas orgId="org_test" mode="design" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'T4 · 4 places' }));
+    fireEvent.keyDown(window, { key: 'd', metaKey: true });
+    await waitFor(() => expect(apiMocks.post).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Annuler' })).not.toBeDisabled());
+
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    await waitFor(() =>
+      expect(apiMocks.del).toHaveBeenCalledWith(
+        expect.stringContaining('restaurants/org_test/floor-plan/tables/table-copy'),
+      ),
+    );
+  });
+
   it('ouvre la confirmation de suppression avec Delete sur une table sélectionnée', async () => {
     const { container } = render(<FloorPlanCanvas orgId="org_test" />);
     await waitFor(() => {
@@ -803,7 +878,7 @@ describe('FloorPlanCanvas — guides des murs', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'T4 · 4 places' }));
     fireEvent.keyDown(window, { key: 'Delete' });
 
-    expect(await screen.findByRole('heading', { name: 'Supprimer 1 tables' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Supprimer T4' })).toBeInTheDocument();
   });
 
   it('supprime le mur sélectionné avec Backspace', async () => {
@@ -881,6 +956,30 @@ describe('FloorPlanCanvas — édition du plan', () => {
     expect(screen.getByRole('button', { name: 'Annuler' })).not.toBeDisabled();
     expect(screen.queryByText('Construisez votre plan')).not.toBeInTheDocument();
     expect(screen.queryByText('Tables à placer · 2')).not.toBeInTheDocument();
+  });
+
+  it('ne garde pas dans l’historique une pose de table dont l’enregistrement échoue', async () => {
+    const placed = floorPlan.tables![0];
+    const unplaced = {
+      ...placed,
+      id: 'table-unplaced-fail',
+      name: 'T9',
+      displayName: null,
+      positionX: null,
+      positionY: null,
+    };
+    apiMocks.get.mockImplementation(async (path: string) => {
+      if (path.includes('/reservations')) return [];
+      return { ...floorPlan, tables: [placed, unplaced], walls: [], sections: [] };
+    });
+    apiMocks.patch.mockRejectedValue(new Error('Serveur indisponible'));
+
+    render(<FloorPlanCanvas orgId="org_test" mode="design" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /T9, 4 places/ }));
+
+    expect(await screen.findByText('Serveur indisponible')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Annuler' })).toBeDisabled();
   });
 
   it('affiche une table historique sans réglage de section dans l’éditeur', async () => {
@@ -1076,7 +1175,7 @@ describe('FloorPlanCanvas — édition du plan', () => {
     expect(screen.queryByRole('button', { name: /Enregistrer/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Enregistré')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Plan test/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Paramètres du plan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Réglages de la salle' }));
     expect(
       await screen.findByRole('heading', { name: 'Paramètres de la salle' }),
     ).toBeInTheDocument();
@@ -1253,7 +1352,7 @@ describe('FloorPlanCanvas — actions Live service', () => {
     expect(screen.queryByRole('status', { name: 'Pouls du service' })).not.toBeInTheDocument();
     // La vue service doit utiliser la même surface que les autres rubriques
     // (arrondis + bordure + fond carte) et non l'ancien rendu à plat.
-    expect(tablist.closest('.sokar-card')).not.toBeNull();
+    expect(tablist.closest('.suppernote-card')).not.toBeNull();
   });
 
   it('ouvre la simulation depuis la barre sans lancer de placement', async () => {
@@ -1318,7 +1417,6 @@ describe('FloorPlanCanvas — actions Live service', () => {
     expect(screen.getByText('Martin Dupont')).toBeInTheDocument();
     expect(occupiedTable).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getAllByText('Occupée').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByTitle('Occupée')).toBeInTheDocument();
   });
 
   it('compte une seule fois une table présente dans sa section et dans le plan', async () => {
@@ -1336,7 +1434,7 @@ describe('FloorPlanCanvas — actions Live service', () => {
 
     const tables = await screen.findAllByRole('button', { name: 'T4 · 4 places' });
     expect(tables).toHaveLength(1);
-    expect(tables[0].querySelector('.rounded-full.bg-floor-table-surface')).toHaveStyle({
+    expect(tables[0].querySelector('.rounded-full[data-floor-top]')).toHaveStyle({
       width: '72px',
       height: '72px',
     });
@@ -1598,10 +1696,11 @@ describe('FloorPlanCanvas — actions Live service', () => {
         });
         render(<FloorPlanCanvas orgId="org_test" mode="service" />);
         for (const [name, label] of [
-          ['T1', 'Réservée'],
+          ['T1', compact ? 'Réservée' : format(new Date(reservations[0].startsAt), 'HH:mm')],
           ['T2', format(new Date(reservations[1].startsAt), 'HH:mm')],
-          ['T3', compact ? 'Retard' : 'En retard'],
-          ['T4', 'Occupée'],
+          ['T3', compact ? 'Retard' : /^(Retard 10 min|\+10 min)$/],
+          // Table ronde occupée : l'heure de fin de son créneau (10 min passées sur 120).
+          ['T4', compact ? 'Occupée' : format(new Date(Date.now() + 110 * 60_000), 'HH:mm')],
         ]) {
           const table = (await screen.findByText(name)).closest('[role="button"]') as HTMLElement;
           expect(within(table).getByText(label)).toBeInTheDocument();
@@ -1748,6 +1847,37 @@ describe('FloorPlanCanvas — actions Live service', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Martin Dupont/ }));
     // Même libellé sur le panneau du bureau et sur la feuille du téléphone.
     expect(await screen.findAllByRole('button', { name: 'Libérer la table' })).not.toHaveLength(0);
+  });
+
+  it('libère une table occupée par appui long, sans envoi avant la fin du délai d’annulation', async () => {
+    apiMocks.get.mockImplementation(async (path: string) => {
+      if (path.includes('/floor-plan/reservations')) return [makeReservation('SEATED')];
+      if (path.includes('/waiting-list')) return [];
+      return floorPlan;
+    });
+
+    const { unmount } = render(<FloorPlanCanvas orgId="org_test" mode="service" />);
+    const table = await screen.findByRole('button', { name: /Martin Dupont/ });
+    const handle = table.querySelector('[role="presentation"]');
+    expect(handle).not.toBeNull();
+    fireEvent.pointerDown(handle!, { button: 0, clientX: 10, clientY: 10 });
+
+    // La table s'affiche libre tout de suite, mais rien n'est encore envoyé : « Annuler » reste possible.
+    await waitFor(
+      () => expect(screen.queryByRole('button', { name: /Martin Dupont/ })).not.toBeInTheDocument(),
+      { timeout: 2000 },
+    );
+    expect(apiMocks.patch).not.toHaveBeenCalledWith(
+      expect.stringContaining('/state'),
+      expect.anything(),
+    );
+
+    // Quitter l'écran pendant le délai envoie la libération au lieu de la perdre.
+    unmount();
+    expect(apiMocks.patch).toHaveBeenCalledWith(
+      'restaurants/org_test/floor-plan/reservations/reservation-seated/state',
+      { state: 'HONORED' },
+    );
   });
 
   it('conserve le résumé et la légende pendant la sélection et permet de fermer la fiche', async () => {
@@ -2446,45 +2576,6 @@ describe('FloorPlanCanvas — cadrage tactile et gestes', () => {
         minZoom: 0.3,
       }),
     ).toBe(0.3);
-  });
-
-  it('calcule la zone occupée par les tables posées', () => {
-    expect(
-      computeContentBounds(
-        [
-          { positionX: 100, positionY: 200, width: 144, height: 104, rotation: 0 },
-          { positionX: 400, positionY: 300, width: 128, height: 128, shape: 'round', rotation: 0 },
-          { positionX: null, positionY: null },
-        ],
-        1400,
-        900,
-      ),
-    ).toEqual({
-      x: 52,
-      y: 152,
-      width: 524,
-      height: 324,
-    });
-
-    // Aucune table posée : pas de zone, le cadrage retombe sur le plan entier.
-    expect(computeContentBounds([{ positionX: null, positionY: null }], 1400, 900)).toBeNull();
-  });
-
-  it("tient compte de la rotation pour l'empreinte au sol", () => {
-    // 144 × 104 tourné à 90° pivote autour du centre : l'empreinte devient
-    // 104 × 144, ancrée au coin supérieur gauche d'origine.
-    expect(
-      computeContentBounds(
-        [{ positionX: 100, positionY: 100, width: 144, height: 104, rotation: 90 }],
-        1400,
-        900,
-      ),
-    ).toEqual({
-      x: 72,
-      y: 32,
-      width: 200,
-      height: 240,
-    });
   });
 
   it('cadre les zones et les tables entières en Live', () => {

@@ -67,4 +67,21 @@ describe('useUndoHistory', () => {
     expect(oldest).toEqual({ id: 'table-1', x: 1 });
     expect(result.current.undo()).toBeNull();
   });
+
+  it('retire une action dont l\u2019enregistrement a échoué, sans toucher aux autres', () => {
+    const { result } = renderHook(() => useUndoHistory<Snapshot>());
+    const kept = action(0, 10);
+    const failed = action(10, 40);
+
+    act(() => result.current.record(kept));
+    act(() => result.current.record(failed));
+    act(() => result.current.discard(failed));
+
+    let undone: Snapshot | null = null;
+    act(() => {
+      undone = result.current.undo();
+    });
+    expect(undone).toEqual({ id: 'table-1', x: 0 });
+    expect(result.current.canUndo).toBe(false);
+  });
 });

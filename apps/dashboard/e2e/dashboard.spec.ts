@@ -206,7 +206,7 @@ test.describe('Espace administration Suppernote — preview local', () => {
     await expect(page.locator('main a[href="/admin/demo-requests"]')).toBeVisible();
     await expect(page.locator('main a[href="/admin/onboarding"]')).toBeVisible();
     await expect(page.locator('main a[href="/admin/margin"]')).toBeVisible();
-    await expect(page.getByText('Chez Sokar HQ')).toHaveCount(0);
+    await expect(page.getByText('Chez Suppernote HQ')).toHaveCount(0);
   });
 
   test('redirige une ancienne URL opérateur vers le nouvel espace', async ({ page }) => {

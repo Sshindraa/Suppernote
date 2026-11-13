@@ -35,15 +35,20 @@ export function WalkInPlacement({
   table,
   onPlace,
   className,
+  defaultPartySize,
 }: {
   table: WalkInTable;
+  /** Taille déjà choisie dans « Sans réservation » ; sinon déduite de la table. */
+  defaultPartySize?: number | null;
   /** Doit rejeter avec un `Error` dont le message est affiché tel quel. */
   onPlace: (partySize: number, customerName?: string) => Promise<void>;
   className?: string;
 }) {
   const fieldId = useId();
   const [open, setOpen] = useState(false);
-  const [partySize, setPartySize] = useState(String(defaultWalkInPartySize(table.capacity)));
+  const [partySize, setPartySize] = useState(
+    String(defaultPartySize ?? defaultWalkInPartySize(table.capacity)),
+  );
   const [customerName, setCustomerName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

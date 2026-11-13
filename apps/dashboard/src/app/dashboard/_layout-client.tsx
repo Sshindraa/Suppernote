@@ -364,7 +364,7 @@ export function DashboardModeSwitcher({
       className={cn(
         compact
           ? 'dashboard-mobile-only dashboard-mobile-mode-switcher dashboard-mobile-mode-switcher--inline relative z-30'
-          : 'dashboard-desktop-only dashboard-mode-switcher fixed left-1/2 top-6 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2',
+          : 'dashboard-desktop-only dashboard-mode-switcher fixed left-1/2 top-3 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2',
       )}
     >
       {modeNav}
@@ -390,14 +390,14 @@ export function DashboardModeSwitcher({
 export function DashboardSidebar({
   pathname,
   salleView,
-  isSokarOperator,
+  isPlatformOperator,
   onCreateOffer,
   expanded = true,
   onExpandedChange,
 }: {
   pathname: string;
   salleView: string;
-  isSokarOperator: boolean;
+  isPlatformOperator: boolean;
   onCreateOffer: () => void;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -603,7 +603,7 @@ export function DashboardSidebar({
           })
         )}
       </nav>
-      {isSokarOperator && !salleMode && (
+      {isPlatformOperator && !salleMode && (
         <SidebarNavItem
           href="/admin"
           label={tNav('admin')}
@@ -719,8 +719,8 @@ function DashboardShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const refreshFloorPlans = () => setFloorPlanRefreshKey((key) => key + 1);
-    window.addEventListener('sokar:floor-plans-changed', refreshFloorPlans);
-    return () => window.removeEventListener('sokar:floor-plans-changed', refreshFloorPlans);
+    window.addEventListener('suppernote:floor-plans-changed', refreshFloorPlans);
+    return () => window.removeEventListener('suppernote:floor-plans-changed', refreshFloorPlans);
   }, []);
 
   useEffect(() => {
@@ -790,7 +790,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        'dashboard-shell sokar-page relative min-h-screen overflow-hidden',
+        'dashboard-shell suppernote-page relative min-h-screen overflow-hidden',
         !sidebarExpanded && 'dashboard-shell--sidebar-compact',
       )}
     >
@@ -806,7 +806,7 @@ function DashboardShell({ children }: { children: ReactNode }) {
       <DashboardSidebar
         pathname={pathname}
         salleView={searchParams.get('view') ?? ''}
-        isSokarOperator={operatorAccess === true}
+        isPlatformOperator={operatorAccess === true}
         onCreateOffer={() => setCreateOfferOpen(true)}
         expanded={sidebarExpanded}
         onExpandedChange={setSidebarExpanded}
@@ -814,13 +814,13 @@ function DashboardShell({ children }: { children: ReactNode }) {
       <CreateOfferDialog open={createOfferOpen} onOpenChange={setCreateOfferOpen} />
       <div
         className={cn(
-          'dashboard-desktop-only fixed top-6 z-50 h-12 items-center gap-3',
+          'dashboard-desktop-only fixed top-3 z-50 h-12 items-center gap-3',
           sidebarExpanded ? 'left-64 max-w-[calc(50vw-22rem)]' : 'left-24 max-w-[calc(50vw-18rem)]',
         )}
       >
         <SiteSwitcher />
       </div>
-      <div className="dashboard-desktop-only fixed right-8 top-6 z-50 h-12 items-center gap-2">
+      <div className="dashboard-desktop-only fixed right-8 top-3 z-50 h-12 items-center gap-2">
         <AccountMenu showSettings={showRestaurantSettings} />
       </div>
       <div

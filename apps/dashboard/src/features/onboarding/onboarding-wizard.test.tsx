@@ -64,7 +64,7 @@ function createState(): OnboardingState {
     defaultHours: {},
     restaurant: {
       id: 'restaurant-1',
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       managerPhone: '',
       managerEmail: '',
       phoneNumber: '',

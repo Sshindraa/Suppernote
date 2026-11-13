@@ -222,7 +222,7 @@ export default function ReactivationPage() {
             <div className="space-y-3">
               <h2 className="text-sm font-medium text-muted-foreground">À valider</h2>
               {pendingCampaigns.map((campaign) => (
-                <div key={campaign.id} className="sokar-card p-4">
+                <div key={campaign.id} className="suppernote-card p-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">
@@ -368,7 +368,7 @@ export default function ReactivationPage() {
                   ))}
                 </div>
               ) : (
-                <div className="sokar-card overflow-hidden">
+                <div className="suppernote-card overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>

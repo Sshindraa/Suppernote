@@ -35,7 +35,7 @@ function RestaurantLink() {
   return (
     <Link href="/dashboard" aria-label="Suppernote" title="Suppernote" className={brandClassName}>
       <Image
-        src="/sokar-restaurant-mark.png"
+        src="/restaurant-mark.png"
         alt=""
         width={44}
         height={44}
@@ -66,7 +66,7 @@ function RestaurantSettingsMenu() {
           className={brandClassName}
         >
           <Image
-            src="/sokar-restaurant-mark.png"
+            src="/restaurant-mark.png"
             alt=""
             width={44}
             height={44}
@@ -143,7 +143,7 @@ function AccountMenuInner({ showSettings }: { showSettings: boolean }) {
         className={brandClassName}
       >
         <Image
-          src="/sokar-restaurant-mark.png"
+          src="/restaurant-mark.png"
           alt=""
           width={44}
           height={44}

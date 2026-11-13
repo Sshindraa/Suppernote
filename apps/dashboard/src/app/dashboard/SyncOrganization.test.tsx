@@ -17,11 +17,11 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
   synced = vi.fn();
-  window.addEventListener('sokar:organization-synced', synced);
+  window.addEventListener('suppernote:organization-synced', synced);
 });
 afterEach(() => {
   cleanup();
-  window.removeEventListener('sokar:organization-synced', synced);
+  window.removeEventListener('suppernote:organization-synced', synced);
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });

@@ -14,9 +14,9 @@ const mocks = vi.hoisted(() => ({
   placeImportDraft: null as PlaceImportDraft | null,
   restaurant: {
     id: 'restaurant-1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     managerPhone: '+33611112222',
-    managerEmail: 'contact@sokar.fr',
+    managerEmail: 'contact@example.com',
     phoneE164: null as string | null,
     googlePlaceId: null as string | null,
   },
@@ -71,9 +71,9 @@ describe('RestaurantStep Google Places prefill', () => {
     vi.clearAllMocks();
     mocks.placeImportDraft = null;
     Object.assign(mocks.restaurant, {
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       managerPhone: '+33611112222',
-      managerEmail: 'contact@sokar.fr',
+      managerEmail: 'contact@example.com',
       phoneE164: null,
       googlePlaceId: null,
     });
@@ -143,7 +143,7 @@ describe('RestaurantStep Google Places prefill', () => {
       expect(mocks.patch).toHaveBeenCalledWith('restaurants/restaurant-1', {
         name: 'Le Bistrot',
         managerPhone: '+33611112222',
-        managerEmail: 'contact@sokar.fr',
+        managerEmail: 'contact@example.com',
         phoneE164: '+33123456789',
         googlePlaceId: bistrot.placeId,
       }),
@@ -195,7 +195,7 @@ describe('RestaurantStep Google Places prefill', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Modifier l’email de gestion' }));
     fireEvent.change(screen.getByLabelText('Email pour gérer Suppernote'), {
-      target: { value: 'restaurant@sokar.local' },
+      target: { value: 'restaurant@example.local' },
     });
     fireEvent.blur(screen.getByLabelText('Email pour gérer Suppernote'));
 
@@ -217,7 +217,7 @@ describe('RestaurantStep Google Places prefill', () => {
     });
     fireEvent.blur(screen.getByLabelText('Mobile du responsable'));
     fireEvent.change(screen.getByLabelText('Email pour gérer Suppernote'), {
-      target: { value: 'contact@sokar.fr' },
+      target: { value: 'contact@example.com' },
     });
     fireEvent.blur(screen.getByLabelText('Email pour gérer Suppernote'));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -228,7 +228,7 @@ describe('RestaurantStep Google Places prefill', () => {
       name: 'Le Bistrot',
       phoneE164: '+33123456789',
       managerPhone: '+33611112222',
-      managerEmail: 'contact@sokar.fr',
+      managerEmail: 'contact@example.com',
       googlePlaceId: null,
     });
   });
@@ -245,7 +245,7 @@ describe('RestaurantStep Google Places prefill', () => {
     fireEvent.blur(email);
     expect(email).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByRole('alert')).toHaveTextContent('Saisissez une adresse email valide.');
-    fireEvent.change(email, { target: { value: 'contact@sokar.fr' } });
+    fireEvent.change(email, { target: { value: 'contact@example.com' } });
     fireEvent.blur(email);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer et continuer' }));
@@ -289,7 +289,7 @@ describe('RestaurantStep Google Places prefill', () => {
       name: ' ',
       phoneE164: '123',
       managerPhone: '+33600000000',
-      managerEmail: 'restaurant@sokar.local',
+      managerEmail: 'restaurant@example.invalid',
     });
     render(<RestaurantStep onComplete={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Saisir mes informations manuellement' }));
@@ -331,7 +331,7 @@ describe('RestaurantStep Google Places prefill', () => {
   it('pre-fills the commercial name deduced from the Google Maps listing', async () => {
     mocks.placeImportDraft = { ...bistrot, name: 'Le Bistrot lyon 2', displayName: 'Le Bistrot' };
     mocks.restaurant.managerPhone = '+33611112222';
-    mocks.restaurant.managerEmail = 'contact@sokar.fr';
+    mocks.restaurant.managerEmail = 'contact@example.com';
     const complete = vi.fn();
     render(<RestaurantStep onComplete={complete} />);
     expect(screen.getByText('Le Bistrot lyon 2')).toBeInTheDocument();
@@ -372,7 +372,7 @@ describe('RestaurantStep Google Places prefill', () => {
       await screen.findByText('Aucun résultat trouvé. Essayez avec un nom et une ville.'),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Saisir mes informations manuellement' }));
-    expect(screen.getByText('Chez Sokar')).toBeInTheDocument();
+    expect(screen.getByText('Chez Suppernote')).toBeInTheDocument();
   });
 });
 
@@ -381,9 +381,9 @@ describe('RestaurantStep mobile du gérant', () => {
     vi.clearAllMocks();
     mocks.placeImportDraft = null;
     Object.assign(mocks.restaurant, {
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       managerPhone: '',
-      managerEmail: 'contact@sokar.fr',
+      managerEmail: 'contact@example.com',
       phoneE164: '+33123456789',
       googlePlaceId: null,
     });
@@ -431,9 +431,9 @@ describe('RestaurantStep focus et validation', () => {
     vi.clearAllMocks();
     mocks.placeImportDraft = null;
     Object.assign(mocks.restaurant, {
-      name: 'Chez Sokar',
+      name: 'Chez Suppernote',
       managerPhone: '+33611112222',
-      managerEmail: 'contact@sokar.fr',
+      managerEmail: 'contact@example.com',
       phoneE164: null,
       googlePlaceId: null,
     });

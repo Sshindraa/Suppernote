@@ -15,7 +15,7 @@ import {
 
 /**
  * Le choix de la date de réservation ne dépend ni du jour ni de l'heure : il suit les disponibilités
- * de l'API et l'heure du restaurant. Ces cas rejouent ce que l'API de Chez Sokar renvoie : fermé
+ * de l'API et l'heure du restaurant. Ces cas rejouent ce que l'API de Chez Suppernote renvoie : fermé
  * dimanche et lundi, créneaux de 12:00 à 21:30 les autres jours, créneaux passés du jour inclus.
  */
 

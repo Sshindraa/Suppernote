@@ -197,7 +197,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 /** Texte technique ou générique : à remplacer, jamais à montrer. */
 const TECHNICAL_MESSAGE =
-  /^(rate limit exceeded|too many requests|authentication required|organization required|forbidden|unauthorized|not found|bad request|validation error|internal server error|service unavailable|sokar operator access required|authentication provider not configured|erreur \d+|error|internalservererror|badrequesterror)\b/i;
+  /^(rate limit exceeded|too many requests|authentication required|organization required|forbidden|unauthorized|not found|bad request|validation error|internal server error|service unavailable|authentication provider not configured|erreur \d+|error|internalservererror|badrequesterror)\b/i;
 
 /** Phrase anglaise de l'API (« Restaurant not found », « Slug is required ») : jamais lisible par le restaurateur. */
 const ENGLISH_MESSAGE =

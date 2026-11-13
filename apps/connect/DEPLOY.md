@@ -140,7 +140,7 @@ curl -s http://127.0.0.1:3001/metrics | grep sokar_connect
 | Page `/r/[slug]` accessible sans auth         | ✅     | Test 200                                                                                                        |
 | JSON-LD Restaurant valide (Rich Results Test) | ✅     | Cf. spec v1.1 §19                                                                                               |
 | Page `/r/[slug]/book` interactive             | ✅     | T6 flow complet                                                                                                 |
-| 10 restos en local/staging (seed)             | ✅     | Seed: Chez Sokar demo + 5 Lyon + 5 Paris, `connectPublished=true`, `connectAgentic=false`. Skip en prod (§11.1) |
+| 10 restos en local/staging (seed)             | ✅     | Seed: Chez Suppernote + 4 Lyon + 5 Paris, `connectPublished=true`, `connectAgentic=false`. Skip en prod (§11.1) |
 | 10 restos réels onboardés (pilote)            | ⏳     | Pilote fermé §11.2 — onboarding manuel de vrais restaurants, pas du seed                                        |
 | Pages locales indexables conditionnellement   | ✅     | Règle 5/10/20 active                                                                                            |
 | Tracking `page_view` et `cta_clicked`         | ✅     | Queue `connect-analytics` + prom-client                                                                         |

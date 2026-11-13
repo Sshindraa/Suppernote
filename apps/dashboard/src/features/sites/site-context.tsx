@@ -105,8 +105,9 @@ export function SiteProvider({
 
   useEffect(() => {
     const handleOrganizationSynced = () => setRefreshToken((token) => token + 1);
-    window.addEventListener('sokar:organization-synced', handleOrganizationSynced);
-    return () => window.removeEventListener('sokar:organization-synced', handleOrganizationSynced);
+    window.addEventListener('suppernote:organization-synced', handleOrganizationSynced);
+    return () =>
+      window.removeEventListener('suppernote:organization-synced', handleOrganizationSynced);
   }, []);
 
   useEffect(() => {

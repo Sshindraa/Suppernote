@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useApi } from '@/lib/api';
@@ -21,14 +20,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FloorPlanCanvas } from './_components/FloorPlanCanvas';
-import { FirstServiceGuide } from './_components/FirstServiceGuide';
 import { FloorPlanCrud } from './_components/FloorPlanCrud';
 import { DataFetchError } from '@/components/DataFetchError';
 import { Plus } from 'lucide-react';
-
-const ServiceCopilotWidget = dynamic(() => import('../ServiceCopilotWidget'), {
-  ssr: false,
-});
 
 function getDefaultFloorPlan(floorPlans: FloorPlanSummary[]): FloorPlanSummary | null {
   return (
@@ -140,7 +134,7 @@ export default function FloorPlanPage() {
       setSelectedFloorPlanId(created.id);
       try {
         window.localStorage.setItem(`sokar.floor-plan.${orgId}`, created.id);
-        window.dispatchEvent(new Event('sokar:floor-plans-changed'));
+        window.dispatchEvent(new Event('suppernote:floor-plans-changed'));
       } catch {
         // Local storage may be unavailable in a private browsing context.
       }
@@ -167,7 +161,7 @@ export default function FloorPlanPage() {
   if (!orgId) {
     return (
       <div className="space-y-6">
-        <Card className="sokar-card">
+        <Card className="suppernote-card">
           <CardContent className="p-8 text-center text-muted-foreground">
             <Skeleton className="mx-auto h-8 w-48 rounded-full" />
             <p className="mt-4 text-sm">Chargement de l&apos;organisation...</p>
@@ -193,7 +187,7 @@ export default function FloorPlanPage() {
         <Skeleton className="h-10 w-64 rounded-lg" />
       ) : floorPlans === null ? null : floorPlans.length === 0 ? (
         listError ? null : (
-          <div className="sokar-empty">
+          <div className="suppernote-empty">
             <p className="text-sm">Aucun plan de salle</p>
             <p className="text-xs opacity-60">
               Dessinez votre salle pour suivre le service en direct.
@@ -262,10 +256,6 @@ export default function FloorPlanPage() {
       )}
 
       {selectedFloorPlanId && activeView === 'service-live' && (
-        <ServiceCopilotWidget showCalm={false} density="service" accessFallback={null} />
-      )}
-      {selectedFloorPlanId && activeView === 'service-live' && <FirstServiceGuide />}
-      {selectedFloorPlanId && activeView === 'service-live' && (
         <FloorPlanCanvas
           key={`service-live-${selectedFloorPlanId}`}
           orgId={orgId}
@@ -296,7 +286,7 @@ export default function FloorPlanPage() {
         !listError &&
         floorPlans !== null &&
         floorPlans.length > 0 && (
-          <div className="sokar-empty">
+          <div className="suppernote-empty">
             <p className="text-sm">Aucun plan de salle sélectionné.</p>
           </div>
         )}

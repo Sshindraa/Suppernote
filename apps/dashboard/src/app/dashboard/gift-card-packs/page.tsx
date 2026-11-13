@@ -113,7 +113,7 @@ export default function GiftCardPacksPage() {
 
       {packs.length === 0 ? (
         error ? null : (
-          <div className="sokar-empty">
+          <div className="suppernote-empty">
             <Package size={40} className="opacity-30" />
             <p className="text-sm">Aucun pack expérience pour le moment</p>
             <p className="text-xs opacity-60">

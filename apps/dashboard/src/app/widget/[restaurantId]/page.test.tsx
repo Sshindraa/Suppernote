@@ -64,7 +64,7 @@ function restaurantResponse() {
     text: async () =>
       JSON.stringify({
         id: 'r1',
-        name: 'Chez Sokar',
+        name: 'Chez Suppernote',
         openingHours: { mon: { open: '12:00', close: '22:00' } },
       }),
   } as unknown as Response;
@@ -110,7 +110,7 @@ function jsonResponse(data: unknown): Response {
 function bookingRestaurantResponse(): Response {
   return jsonResponse({
     id: 'r1',
-    name: 'Chez Sokar',
+    name: 'Chez Suppernote',
     openingHours: Object.fromEntries(
       ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => [
         day,
@@ -692,7 +692,7 @@ describe('réservation publique sur le widget réellement servi par /book', () =
         return jsonResponse({
           id: 'r1',
           slug: 'chez-sokar',
-          name: 'Chez Sokar',
+          name: 'Chez Suppernote',
           openingHours: Object.fromEntries(
             ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day) => [
               day,
@@ -840,7 +840,12 @@ describe('réservation publique sur le widget réellement servi par /book', () =
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        jsonResponse({ id: 'r1', name: 'Chez Sokar', bookingEnabled: false, openingHours: {} }),
+        jsonResponse({
+          id: 'r1',
+          name: 'Chez Suppernote',
+          bookingEnabled: false,
+          openingHours: {},
+        }),
       ),
     );
     const widget = render(<ReservationWidget />);

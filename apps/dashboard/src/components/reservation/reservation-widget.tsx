@@ -2079,7 +2079,7 @@ export default function ReservationWidget({
                               type="email"
                               value={customerEmail}
                               onChange={(e) => setCustomerEmail(e.target.value)}
-                              placeholder="client@sokar.fr"
+                              placeholder="client@suppernote.com"
                               className={fieldClass}
                             />
                           </div>

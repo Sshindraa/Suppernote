@@ -102,14 +102,14 @@ function rms(analyser: AnalyserNode, buffer: Float32Array<ArrayBuffer>): number 
 }
 
 const CAPTURE_WORKLET = `
-class SokarMicCapture extends AudioWorkletProcessor {
+class SuppernoteMicCapture extends AudioWorkletProcessor {
   process(inputs) {
     const channel = inputs[0] && inputs[0][0];
     if (channel) this.port.postMessage(channel.slice());
     return true;
   }
 }
-registerProcessor('sokar-mic-capture', SokarMicCapture);
+registerProcessor('suppernote-mic-capture', SuppernoteMicCapture);
 `;
 
 export class LiveCallSession {
@@ -255,7 +255,7 @@ export class LiveCallSession {
         new Blob([CAPTURE_WORKLET], { type: 'application/javascript' }),
       );
       await context.audioWorklet.addModule(this.workletUrl);
-      const worklet = new AudioWorkletNode(context, 'sokar-mic-capture');
+      const worklet = new AudioWorkletNode(context, 'suppernote-mic-capture');
       worklet.port.onmessage = (event: MessageEvent<Float32Array>) => this.onMicSamples(event.data);
       node = worklet;
     } catch {

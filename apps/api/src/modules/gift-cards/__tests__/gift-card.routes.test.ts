@@ -10,6 +10,7 @@ import { checkRateLimit } from '../../../shared/redis/rate-limit';
 import { logger } from '../../../shared/logger/pino.js';
 import { CapacityAwareAvailabilityService } from '../../floor-plan/availability-capacity-aware.service';
 import { ReservationService } from '../../agentic-reservations/core/reservation.service';
+import { GiftCardPaymentService } from '../gift-card-payment.service';
 
 // Le handler webhook envoie un vrai SMS Telnyx (gift-card-payment.service).
 // Sans mock, un appel réseau réel traîne sous charge parallèle → test flaky (~15s).
@@ -1162,6 +1163,38 @@ describe('gift-card routes', () => {
         data: { object: { id: piId, metadata } },
       } as unknown as Awaited<ReturnType<typeof constructWebhookEvent>>);
     }
+
+    it('ignore un payment_intent.succeeded d’expérience (géré par checkout.session.*)', async () => {
+      vi.mocked(constructWebhookEvent).mockResolvedValue({
+        id: 'evt_experience_pi',
+        created: 100,
+        type: 'payment_intent.succeeded',
+        account: 'acct_x',
+        data: {
+          object: {
+            id: 'pi_experience_1',
+            metadata: {
+              type: 'experience_checkout',
+              restaurantId: RESTAURANT_ID,
+              experienceCheckoutId: 'exp_checkout_1',
+            },
+          },
+        },
+      } as never);
+      const handleSpy = vi.spyOn(GiftCardPaymentService.prototype, 'handleStripeWebhook');
+
+      const app = await getApp();
+      const res = await app.inject({
+        method: 'POST',
+        url: '/webhooks/stripe',
+        headers: { 'stripe-signature': 't=123,v1=fake', 'content-type': 'application/json' },
+        payload: {},
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(handleSpy).not.toHaveBeenCalled();
+      handleSpy.mockRestore();
+    });
 
     it('recrée une carte cadeau depuis le webhook avec metadata complètes', async () => {
       mockWebhookEvent('pi_webhook_1', WEBHOOK_METADATA);

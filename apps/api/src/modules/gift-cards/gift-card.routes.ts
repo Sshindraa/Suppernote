@@ -1165,7 +1165,10 @@ export async function giftCardRoutes(app: FastifyInstance): Promise<void> {
       } else if (event.type === 'payment_intent.succeeded') {
         const pi = event.data.object as { id: string; metadata?: Record<string, string> };
         const paymentService = new GiftCardPaymentService(db);
-        if (pi.metadata?.type === 'crowdfunding_contribution') {
+        if (pi.metadata?.type === 'experience_checkout') {
+          // Déjà confirmé via checkout.session.* ; ici ce serait une 500 en boucle de retry.
+          logger.info({ paymentIntentId: pi.id }, '[stripe-webhook] Experience PI ignored');
+        } else if (pi.metadata?.type === 'crowdfunding_contribution') {
           let details: import('./gift-card.types').ContributeInput;
           if (pi.metadata.checkoutId) {
             const checkout = await new GiftCardCheckoutService(db).findForPayment(

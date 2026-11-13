@@ -12,7 +12,10 @@ import { getParentOrigin } from '@/app/widget/[restaurantId]/post-message-securi
 import {
   bookingSlotsOf,
   buildMarketingConsentLabel,
+  CARD_GUARANTEE_ACCEPT_LABEL,
+  cardGuaranteeNotice,
   MARKETING_CONSENT_VERSION,
+  type CardGuaranteeTerms,
   normalizeOpeningHours,
   type MarketingConsentChannel,
 } from '@suppernote/shared';
@@ -24,6 +27,7 @@ import {
   Users,
   ChevronRight,
   CheckCircle2,
+  CreditCard,
   AlertCircle,
   ChevronLeft,
   ArrowLeft,
@@ -97,6 +101,22 @@ function formatLongFrenchDate(date: Date) {
 
 function formatShortFrenchDate(date: Date) {
   return `${date.getDate()} ${FRENCH_MONTHS_SHORT[date.getMonth()]}`;
+}
+
+/**
+ * Stripe refuse d'être affiché dans une iframe : on ouvre la page dans la fenêtre principale,
+ * ou dans un nouvel onglet si le site hôte l'interdit. Un lien de secours reste affiché.
+ */
+function openTopLevel(url: string) {
+  try {
+    if (window.top && window.top !== window) {
+      window.top.location.assign(url);
+      return;
+    }
+    window.location.assign(url);
+  } catch {
+    window.open(url, '_blank', 'noopener');
+  }
 }
 
 function triggerHaptic() {
@@ -360,6 +380,10 @@ export default function ReservationWidget({
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Empreinte bancaire : conditions de la table choisie, acceptation, puis page Stripe.
+  const [cardGuarantee, setCardGuarantee] = useState<CardGuaranteeTerms | null>(null);
+  const [cardGuaranteeAccepted, setCardGuaranteeAccepted] = useState(false);
+  const [cardGuaranteeUrl, setCardGuaranteeUrl] = useState<string | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<ConfirmedReservation | null>(
     null,
   );
@@ -668,6 +692,27 @@ export default function ReservationWidget({
     'rounded-[1.6rem] border border-white/[0.62] bg-white/[0.58] shadow-sm backdrop-blur-2xl sm:bg-white/[0.34]';
 
   const selectionKey = `${selectedDate ? formatDateParam(selectedDate) : ''}|${selectedTime}|${partySize}`;
+
+  // Les conditions d'empreinte s'affichent avant les coordonnées ; le serveur les revérifie.
+  const guaranteeDate = selectedDate ? formatDateParam(selectedDate) : '';
+  const guaranteeSlug = restaurant?.slug || restaurantId;
+  useEffect(() => {
+    setCardGuarantee(null);
+    setCardGuaranteeAccepted(false);
+    if (step !== 2 || modification || testBooking || !guaranteeDate || !guaranteeSlug) return;
+    let cancelled = false;
+    publicApiFetch<{ cardGuarantee: CardGuaranteeTerms | null }>(
+      'GET',
+      `public/r/${encodeURIComponent(guaranteeSlug)}/card-guarantee?date=${guaranteeDate}&partySize=${partySize}`,
+    )
+      .then((data) => {
+        if (!cancelled) setCardGuarantee(data.cardGuarantee ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [step, modification, testBooking, guaranteeDate, guaranteeSlug, partySize]);
   const waitingListOffer = waitingListOfferKey === selectionKey;
 
   const consentChannels: MarketingConsentChannel[] = [
@@ -798,8 +843,12 @@ export default function ReservationWidget({
         status: string;
         managementUrl?: string;
         whatsappWithdrawalToken?: string;
+        cardGuarantee?: { checkoutUrl: string | null; pageUrl: string };
       }>('POST', `${path}/confirm`, {
         holdToken: hold.holdToken,
+        ...(cardGuarantee && cardGuaranteeAccepted
+          ? { cardGuarantee: { accepted: true, totalAmount: cardGuarantee.totalAmount } }
+          : {}),
         customer: { firstName: customerName, phone, email: customerEmail || undefined },
         source: 'web',
         ...testFields,
@@ -823,6 +872,12 @@ export default function ReservationWidget({
             }
           : {}),
       });
+      if (confirmation.status === 'awaiting_card_guarantee' && confirmation.cardGuarantee) {
+        const target = confirmation.cardGuarantee.checkoutUrl ?? confirmation.cardGuarantee.pageUrl;
+        setCardGuaranteeUrl(target);
+        openTopLevel(target);
+        return;
+      }
       const res: ConfirmedReservation = {
         id: confirmation.reservationId,
         restaurantId: restaurant.id,
@@ -839,7 +894,21 @@ export default function ReservationWidget({
       setSuccess(true);
     } catch (err: unknown) {
       const message = getErrorMessage(err, '');
-      if (err instanceof PublicApiError && err.status === 409 && message === 'no_table_available') {
+      if (
+        err instanceof PublicApiError &&
+        err.status === 409 &&
+        message === 'card_guarantee_required'
+      ) {
+        setCardGuarantee((err.data.cardGuarantee as CardGuaranteeTerms | undefined) ?? null);
+        setCardGuaranteeAccepted(false);
+        setError(
+          'Les conditions d’empreinte bancaire ont changé. Lisez-les et cochez la case pour continuer.',
+        );
+      } else if (
+        err instanceof PublicApiError &&
+        err.status === 409 &&
+        message === 'no_table_available'
+      ) {
         setWaitingListOfferKey(
           err.data.waitingListEnabled === true && !testBooking ? selectionKey : null,
         );
@@ -1029,7 +1098,12 @@ export default function ReservationWidget({
   const canProceed =
     step === 1
       ? Boolean(selectedTime)
-      : Boolean(!submitting && (modification || (customerName && customerPhone)));
+      : Boolean(
+          !submitting &&
+          !cardGuaranteeUrl &&
+          (modification || (customerName && customerPhone)) &&
+          (!cardGuarantee || cardGuaranteeAccepted),
+        );
   const primaryCtaLabel =
     step === 1
       ? availabilityRefreshing
@@ -1055,7 +1129,9 @@ export default function ReservationWidget({
         ? 'Validation...'
         : modification
           ? 'Confirmer la modification'
-          : 'Valider la réservation';
+          : cardGuarantee
+            ? 'Continuer vers l’enregistrement de la carte'
+            : 'Valider la réservation';
   const unchanged = Boolean(
     modification &&
     selectedDate &&
@@ -2065,6 +2141,46 @@ export default function ReservationWidget({
                         </a>
                       </p>
                     </fieldset>
+                  )}
+
+                  {step === 2 && !modification && cardGuarantee && (
+                    <div className="space-y-3 rounded-2xl border border-[hsl(var(--reservation-line))] bg-white/60 p-4 text-sm text-[hsl(var(--reservation-ink))]">
+                      <p className="flex items-start gap-2 font-semibold">
+                        <CreditCard size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                        Empreinte bancaire demandée
+                      </p>
+                      <p className="leading-relaxed text-[hsl(var(--reservation-soft))]">
+                        {cardGuaranteeNotice({
+                          restaurantName: restaurant?.name ?? 'Le restaurant',
+                          partySize,
+                          terms: cardGuarantee,
+                        })}
+                      </p>
+                      <label className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          name="card-guarantee-accepted"
+                          checked={cardGuaranteeAccepted}
+                          onChange={(event) => setCardGuaranteeAccepted(event.target.checked)}
+                          disabled={submitting || Boolean(cardGuaranteeUrl)}
+                          className="mt-1 h-4 w-4 shrink-0 transition-all duration-200"
+                        />
+                        <span>{CARD_GUARANTEE_ACCEPT_LABEL}</span>
+                      </label>
+                      {cardGuaranteeUrl && (
+                        <p role="status" className="text-[hsl(var(--reservation-soft))]">
+                          Votre table est réservée pendant l’enregistrement de la carte.{' '}
+                          <a
+                            href={cardGuaranteeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold underline transition-all duration-200 hover:text-[hsl(var(--reservation-ink))]"
+                          >
+                            Ouvrir la page sécurisée
+                          </a>
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   {step === 2 && !modification && selectedDate && selectedTime && (

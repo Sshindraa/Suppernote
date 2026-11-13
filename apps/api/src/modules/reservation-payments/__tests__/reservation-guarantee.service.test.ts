@@ -98,6 +98,21 @@ describe('empreinte bancaire : prélèvement et remboursement', () => {
     });
   });
 
+  it('prélève après une annulation tardive (empreinte restée enregistrée)', async () => {
+    vi.mocked(db.reservationPayment.findFirst).mockResolvedValue(
+      guarantee({ reservation: { status: 'CANCELLED' } }) as never,
+    );
+    stripe.chargeReservationGuarantee.mockResolvedValue({
+      ok: true,
+      paymentIntentId: 'pi_late',
+      status: 'succeeded',
+    });
+    await expect(captureCardGuarantee({ ...CAPTURE, now: NOW })).resolves.toEqual({
+      outcome: 'PENDING_CONFIRMATION',
+      amount: '120.00',
+    });
+  });
+
   it.each([
     ['réservation honorée', { reservation: { status: 'CONFIRMED' } }, NOW],
     [

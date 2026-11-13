@@ -11,7 +11,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { fetchWithTimeout } from '@suppernote/shared';
+import { cardGuaranteeNotice, fetchWithTimeout, type CardGuaranteeTerms } from '@suppernote/shared';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,13 +129,14 @@ const INSUFFICIENT_LEAD_TIME = 'INSUFFICIENT_LEAD_TIME';
  * fournit déjà le message en français (« … au moins 2 h à l'avance ») : on l'affiche tel quel au lieu
  * du faux « vient d'être réservé ». `null` si ce n'est pas un refus de délai.
  */
+function leadTimeMessageFrom(body: { code?: unknown; error?: unknown }): string | null {
+  return body.code === INSUFFICIENT_LEAD_TIME && typeof body.error === 'string' ? body.error : null;
+}
+
 async function leadTimeMessageOf(res: Response): Promise<string | null> {
   if (res.status !== 409) return null;
   try {
-    const body = (await res.json()) as { code?: unknown; error?: unknown };
-    return body.code === INSUFFICIENT_LEAD_TIME && typeof body.error === 'string'
-      ? body.error
-      : null;
+    return leadTimeMessageFrom((await res.json()) as { code?: unknown; error?: unknown });
   } catch {
     return null;
   }
@@ -183,6 +184,10 @@ export function ReservationWidget() {
   // États globaux
   const [error, setError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmResponse | null>(null);
+  const [guaranteeRedirect, setGuaranteeRedirect] = useState<{
+    terms: CardGuaranteeTerms;
+    bookingUrl: string | null;
+  } | null>(null);
 
   useEffect(() => {
     setInput(readToolInput());
@@ -207,6 +212,7 @@ export function ReservationWidget() {
   /** Étape 1 → Étape 2 : fetch availability. */
   async function handleFetchSlots(e: React.FormEvent) {
     e.preventDefault();
+    setGuaranteeRedirect(null);
     if (!slug) {
       setError('Slug du restaurant manquant — impossible de charger les créneaux.');
       return;
@@ -245,10 +251,31 @@ export function ReservationWidget() {
     }
   }
 
-  /** Sélection d'un créneau → Étape 3. */
-  function handleSelectSlot(time: string) {
+  /**
+   * Sélection d'un créneau → Étape 3. Une table soumise à empreinte bancaire se termine sur la
+   * page du restaurant : la carte ne se saisit pas dans un assistant (spec empreinte v1).
+   */
+  async function handleSelectSlot(time: string) {
     setSelectedTime(time);
     setError(null);
+    try {
+      const res = await fetchWithTimeout(
+        `${API_URL}/public/r/${encodeURIComponent(slug ?? '')}/card-guarantee?date=${encodeURIComponent(date)}&partySize=${partySize}`,
+        { method: 'GET' },
+      );
+      if (res.ok) {
+        const body = (await res.json()) as {
+          cardGuarantee: CardGuaranteeTerms | null;
+          bookingUrl?: string;
+        };
+        if (body.cardGuarantee) {
+          setGuaranteeRedirect({ terms: body.cardGuarantee, bookingUrl: body.bookingUrl ?? null });
+          return;
+        }
+      }
+    } catch {
+      // Le serveur revérifie à la confirmation (409 card_guarantee_required).
+    }
     setStep('customer');
   }
 
@@ -336,7 +363,24 @@ export function ReservationWidget() {
       });
 
       if (!confirmRes.ok) {
-        const tooSoon = await leadTimeMessageOf(confirmRes);
+        const refusal =
+          confirmRes.status === 409
+            ? ((await confirmRes.json().catch(() => ({}))) as {
+                code?: unknown;
+                error?: unknown;
+                cardGuarantee?: CardGuaranteeTerms;
+                bookingUrl?: string;
+              })
+            : {};
+        if (refusal.error === 'card_guarantee_required' && refusal.cardGuarantee) {
+          setGuaranteeRedirect({
+            terms: refusal.cardGuarantee,
+            bookingUrl: refusal.bookingUrl ?? null,
+          });
+          setStep('slots');
+          return;
+        }
+        const tooSoon = leadTimeMessageFrom(refusal);
         if (tooSoon) {
           // Le créneau est devenu trop proche entre le hold et la confirmation : retour aux horaires.
           setError(tooSoon);
@@ -571,6 +615,7 @@ export function ReservationWidget() {
             onClick={() => {
               setStep('details');
               setError(null);
+              setGuaranteeRedirect(null);
             }}
             aria-label="Retour aux détails"
             className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -594,7 +639,7 @@ export function ReservationWidget() {
                 key={slot.time}
                 type="button"
                 disabled={!slot.available}
-                onClick={() => handleSelectSlot(slot.time)}
+                onClick={() => void handleSelectSlot(slot.time)}
                 aria-disabled={!slot.available}
                 className={cn(
                   'h-10 rounded-md border text-sm font-medium transition-all duration-200',
@@ -606,6 +651,33 @@ export function ReservationWidget() {
                 {slot.time}
               </button>
             ))}
+          </div>
+        )}
+
+        {guaranteeRedirect && (
+          <div
+            className="space-y-3 rounded-md border border-border bg-muted/40 p-4 text-sm"
+            role="status"
+          >
+            <p className="leading-relaxed text-muted-foreground">
+              {cardGuaranteeNotice({
+                restaurantName: input.restaurant_name || 'Le restaurant',
+                partySize,
+                terms: guaranteeRedirect.terms,
+              })}
+            </p>
+            {guaranteeRedirect.bookingUrl ? (
+              <a
+                href={`${guaranteeRedirect.bookingUrl}?date=${encodeURIComponent(date)}&partySize=${partySize}&time=${encodeURIComponent(selectedTime)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90"
+              >
+                Terminer sur la page du restaurant
+              </a>
+            ) : (
+              <p>Contactez le restaurant pour terminer cette réservation.</p>
+            )}
           </div>
         )}
 

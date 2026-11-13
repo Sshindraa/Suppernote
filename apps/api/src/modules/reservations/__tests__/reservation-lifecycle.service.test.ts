@@ -60,6 +60,7 @@ function makePrisma() {
     reservationAuditLog: {
       create: vi.fn(),
     },
+    reservationPayment: { findFirst: vi.fn().mockResolvedValue(null) },
     agenticHold: {
       findUnique: vi.fn(),
     },

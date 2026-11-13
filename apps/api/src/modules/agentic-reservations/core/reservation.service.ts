@@ -140,6 +140,11 @@ export type CreateReservationInput = {
   specialRequests?: string;
   allowOverbook?: boolean;
   beforeCreate?: (tx: Prisma.TransactionClient) => Promise<void>;
+  /**
+   * Empreinte bancaire : la réservation naît `PENDING` (la place est tenue) et la ligne de paiement
+   * est écrite dans la même transaction, pour que l'expiration puisse toujours libérer la place.
+   */
+  awaitingCardGuarantee?: (tx: Prisma.TransactionClient, reservationId: string) => Promise<void>;
   /** Optionnel : tableId pré-allouée (ex. Connect hold) */
   tableId?: string | null;
   /** Optionnel : code carte cadeau à appliquer */
@@ -532,7 +537,9 @@ export class ReservationService {
 
         // Une réservation test est invisible pour le restaurant : personne ne pourrait la valider.
         const initialState: CreatableReservationState =
-          input.policy.requireManualValidation && !input.isTest ? 'PENDING' : 'CONFIRMED';
+          (input.policy.requireManualValidation || input.awaitingCardGuarantee) && !input.isTest
+            ? 'PENDING'
+            : 'CONFIRMED';
 
         await input.beforeCreate?.(tx);
         const reservation = await tx.reservation.create({
@@ -567,6 +574,9 @@ export class ReservationService {
           },
         });
 
+        if (input.awaitingCardGuarantee && !input.isTest) {
+          await input.awaitingCardGuarantee(tx, reservation.id);
+        }
         confirmationRequested = await enqueueReservationConfirmation(tx, reservation);
 
         if (consumedHoldId) {

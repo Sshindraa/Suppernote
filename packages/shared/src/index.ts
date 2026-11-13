@@ -32,3 +32,4 @@ export * from './pricing-catalog.cjs';
 export * from './connect-demo';
 export * from './privacy';
 export * from './marketing-consent';
+export * from './card-guarantee';

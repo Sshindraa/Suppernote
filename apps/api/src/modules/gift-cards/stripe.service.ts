@@ -264,6 +264,23 @@ export async function chargeReservationGuarantee(input: {
   }
 }
 
+/** Détache la carte d'une empreinte fermée ; une carte déjà détachée n'est pas une erreur. */
+export async function detachReservationGuaranteeCard(
+  paymentMethodId: string,
+  stripeAccountId: string,
+): Promise<void> {
+  try {
+    await getStripe().paymentMethods.detach(
+      paymentMethodId,
+      {},
+      { stripeAccount: stripeAccountId },
+    );
+  } catch (error) {
+    if (error instanceof Stripe.errors.StripeInvalidRequestError) return;
+    throw error;
+  }
+}
+
 /**
  * Récupère le statut d'un PaymentIntent.
  */

@@ -13,6 +13,7 @@ vi.mock('../../../shared/db/client', () => ({
   db: {
     reservation: { findUnique: vi.fn(), update: vi.fn() },
     reservationAuditLog: { create: vi.fn() },
+    reservationPayment: { findFirst: vi.fn().mockResolvedValue(null) },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   },

@@ -185,6 +185,13 @@ export const ConfirmInputSchema = z.object({
   testBookingToken: z.string().max(100).optional(),
   // Cases de consentement marketing (jamais cochées par défaut, jamais obligatoires).
   marketingConsent: BookingMarketingConsentSchema.optional(),
+  // Empreinte bancaire : acceptation des conditions affichées, avec le montant vu par le client.
+  cardGuarantee: z
+    .object({
+      accepted: z.literal(true),
+      totalAmount: z.string().regex(/^\d{1,6}\.\d{2}$/),
+    })
+    .optional(),
   // Honeypot anti-bot : doit être vide. Si rempli → bot.
   website: z.string().optional(),
 });
@@ -258,3 +265,9 @@ export type PublicRestaurantDto = {
     provider: 'google';
   };
 };
+
+export const CardGuaranteeTokenParamSchema = SlugParamSchema.extend({
+  token: z.string().min(40).max(120),
+});
+
+export const CardGuaranteeCheckoutSchema = z.object({ accepted: z.literal(true) });

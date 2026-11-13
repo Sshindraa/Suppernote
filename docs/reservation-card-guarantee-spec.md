@@ -85,6 +85,12 @@ Le _hold_ de capacité est la réservation `PENDING` elle-même : `capacity.ts` 
    La vérité vient seulement du webhook (`checkout.session.completed` / `setup_intent.succeeded`).
 4. Expiration : **30 min** (minimum Stripe pour une session Checkout).
 
+Livré en PR 2 : `GET /public/r/:slug/card-guarantee` (conditions), `/confirm` exige
+`cardGuarantee: { accepted, totalAmount }` (sinon `409 card_guarantee_required`) et répond
+`awaiting_card_guarantee` avec `checkoutUrl` et `pageUrl` ; page `/garantie?r=<slug>&t=<jeton>` sur le
+dashboard. Le jeton est signé avec `RESERVATION_MANAGEMENT_SECRET` (séparation de domaine), sans
+expiration. Le widget ChatGPT (`apps/widget`) renvoie vers la page de réservation du restaurant.
+
 ### Voix (Léa)
 
 - Léa reste conversationnelle : pas de carte au téléphone. Quand l'empreinte s'applique, elle

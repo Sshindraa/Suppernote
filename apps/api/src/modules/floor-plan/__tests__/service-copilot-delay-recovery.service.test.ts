@@ -15,6 +15,7 @@ function makePrismaMock() {
     waitingListEntry: { findFirst: vi.fn(), update: vi.fn() },
     table: { findFirst: vi.fn() },
     reservationAuditLog: { create: vi.fn(), findFirst: vi.fn() },
+    reservationPayment: { findFirst: vi.fn().mockResolvedValue(null) },
   };
   const prisma = {
     $transaction: vi.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),

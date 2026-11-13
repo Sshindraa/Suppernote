@@ -735,6 +735,75 @@ describe('réservation publique sur le widget réellement servi par /book', () =
     expect(widget.queryByText(/supprimée automatiquement sous 24 h/)).toBeNull();
   });
 
+  it('fait accepter l’empreinte bancaire puis ouvre la page Stripe', async () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    const dateValue = dateParam(date);
+    navMocks.setParams({ restaurantId: 'chez-sokar' });
+    navMocks.setSearch(
+      new URLSearchParams({ date: dateValue, time: '20:30', partySize: '6' }).toString(),
+    );
+    const terms = {
+      amountPerPerson: '20.00',
+      totalAmount: '120.00',
+      currency: 'EUR',
+      cancellationHours: 24,
+    };
+    const fetchSpy = vi.fn(async (url: string, _init?: RequestInit) => {
+      if (url.includes('/availability'))
+        return jsonResponse({
+          restaurantId: 'r1',
+          date: dateValue,
+          partySize: 6,
+          slots: ['20:30'],
+        });
+      if (url.includes('/card-guarantee?')) return jsonResponse({ cardGuarantee: terms });
+      if (url.endsWith('/hold')) return jsonResponse({ holdToken: crypto.randomUUID() });
+      if (url.endsWith('/confirm'))
+        return jsonResponse({
+          reservationId: 'pending-reservation',
+          status: 'awaiting_card_guarantee',
+          cardGuarantee: {
+            checkoutUrl: 'https://checkout.stripe.test/cs_1',
+            pageUrl: 'https://suppernote.test/garantie?r=chez-sokar&t=x',
+          },
+        });
+      return bookingRestaurantResponse();
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const original = window.location;
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...original, assign, href: original.href, origin: original.origin },
+    });
+    try {
+      const widget = render(<ReservationWidget />);
+      fireEvent.click(await widget.findByRole('button', { name: /Continuer · 20h30/ }));
+      fireEvent.change(await widget.findByLabelText('Nom complet *'), {
+        target: { value: 'Groupe Suppernote' },
+      });
+      fireEvent.change(widget.getByLabelText('Téléphone *'), { target: { value: '0600000000' } });
+      expect(await widget.findByText(/soit 120 € pour 6 personnes/)).toBeTruthy();
+      const submit = widget.getByRole('button', {
+        name: 'Continuer vers l’enregistrement de la carte',
+      });
+      expect((submit as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(widget.getByLabelText('J’accepte ces conditions d’annulation.'));
+      fireEvent.click(submit);
+
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('https://checkout.stripe.test/cs_1'));
+      const confirm = fetchSpy.mock.calls.find(([url]) => String(url).endsWith('/confirm'));
+      expect(JSON.parse((confirm![1] as RequestInit).body as string).cardGuarantee).toEqual({
+        accepted: true,
+        totalAmount: '120.00',
+      });
+      expect(widget.queryByText('Confirmée')).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: original });
+    }
+  });
+
   it('résout le slug public pour une ancienne URL de widget par identifiant', async () => {
     const { widget, fetchSpy } = await submitTest(undefined, false, true);
     expect(await widget.findByText('Confirmée')).toBeTruthy();

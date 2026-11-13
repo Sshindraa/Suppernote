@@ -33,15 +33,15 @@ export const PANELS: PanelDefinition[] = [
     title: 'Appels simultanés et seuil',
     unit: 'appels',
     series: [
-      { name: 'Appels en cours', query: `max(sokar_voice_active_sessions{${API}})` },
-      { name: 'Seuil', query: `max(sokar_voice_capacity_limit{${API}})` },
+      { name: 'Appels en cours', query: `max(suppernote_voice_active_sessions{${API}})` },
+      { name: 'Seuil', query: `max(suppernote_voice_capacity_limit{${API}})` },
     ],
   },
   {
     id: 'redis',
     title: 'Mémoire de Redis face à son plafond',
     unit: '%',
-    series: [{ name: 'Redis', query: `max(sokar_redis_memory_ratio{${WORKERS}}) * 100` }],
+    series: [{ name: 'Redis', query: `max(suppernote_redis_memory_ratio{${WORKERS}}) * 100` }],
   },
   {
     id: 'api-memory',
@@ -60,8 +60,8 @@ export const PANELS: PanelDefinition[] = [
     title: 'Files de tâches',
     unit: 'jobs',
     series: [
-      { name: 'En échec', query: `sum(sokar_queue_jobs{${WORKERS},state="failed"})` },
-      { name: 'En attente', query: `sum(sokar_queue_jobs{${WORKERS},state="waiting"})` },
+      { name: 'En échec', query: `sum(suppernote_queue_jobs{${WORKERS},state="failed"})` },
+      { name: 'En attente', query: `sum(suppernote_queue_jobs{${WORKERS},state="waiting"})` },
     ],
   },
   {
@@ -71,11 +71,11 @@ export const PANELS: PanelDefinition[] = [
     series: [
       {
         name: 'En erreur ou rejetés',
-        query: `sum(increase(sokar_telnyx_webhook_events_total{${API},result=~"error|rejected"}[15m]))`,
+        query: `sum(increase(suppernote_telnyx_webhook_events_total{${API},result=~"error|rejected"}[15m]))`,
       },
       {
         name: 'Total',
-        query: `sum(increase(sokar_telnyx_webhook_events_total{${API}}[15m]))`,
+        query: `sum(increase(suppernote_telnyx_webhook_events_total{${API}}[15m]))`,
       },
     ],
   },

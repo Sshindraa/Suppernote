@@ -33,7 +33,9 @@ export default function PwaInstallBanner() {
       navigator.userAgent.includes('SokarIOS');
 
     // Check localStorage to respect dismissal
-    const isDismissed = localStorage.getItem('sokar_pwa_dismissed') === 'true';
+    const isDismissed =
+      (localStorage.getItem('suppernote_pwa_dismissed') ??
+        localStorage.getItem('sokar_pwa_dismissed')) === 'true';
 
     // Show banner only if on iOS, NOT installed already, and NOT dismissed
     if (isIOS && !isStandalone && !isDismissed) {
@@ -48,7 +50,7 @@ export default function PwaInstallBanner() {
   const handleDismiss = () => {
     triggerHaptic(10);
     setShow(false);
-    localStorage.setItem('sokar_pwa_dismissed', 'true');
+    localStorage.setItem('suppernote_pwa_dismissed', 'true');
   };
 
   if (!show) return null;

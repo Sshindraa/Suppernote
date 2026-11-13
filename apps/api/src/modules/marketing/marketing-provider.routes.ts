@@ -58,7 +58,9 @@ async function requireInternalMarketingToken(
   const expected = process.env.SOKAR_INTERNAL_MARKETING_TOKEN?.trim();
   if (!expected)
     return reply.status(503).send({ error: 'INTERNAL_MARKETING_TOKEN_NOT_CONFIGURED' });
-  const suppliedHeader = request.headers['x-sokar-internal-marketing-token'];
+  const suppliedHeader =
+    request.headers['x-suppernote-internal-marketing-token'] ??
+    request.headers['x-sokar-internal-marketing-token'];
   const supplied = Array.isArray(suppliedHeader) ? suppliedHeader[0] : suppliedHeader;
   if (!supplied) return reply.status(401).send({ error: 'INTERNAL_MARKETING_UNAUTHORIZED' });
   const expectedBytes = Buffer.from(expected);

@@ -47,20 +47,23 @@ export class ConnectKpiService {
   async getKpis(): Promise<ConnectKpis> {
     // 1. Taux hold→confirm
     const holdsTotal = await readCounterByEvent(
-      'sokar_connect_events_total',
+      'suppernote_connect_events_total',
       'reservation_hold_created',
     );
     const confirmedTotal = await readCounterByEvent(
-      'sokar_connect_events_total',
+      'suppernote_connect_events_total',
       'reservation_confirmed',
     );
     const holdToConfirmRate = holdsTotal > 0 ? confirmedTotal / holdsTotal : 0;
 
     // 2. p95 sur /public/r/:slug (route="slug")
-    const slugP95Ms = await readHistogramP95ByRoute('sokar_connect_request_duration_ms', 'slug');
+    const slugP95Ms = await readHistogramP95ByRoute(
+      'suppernote_connect_request_duration_ms',
+      'slug',
+    );
 
     // 3. PII leaks (somme toutes les kinds)
-    const piiLeakIncidents = await readPromCounterByName('sokar_agentic_pii_leaks_total');
+    const piiLeakIncidents = await readPromCounterByName('suppernote_agentic_pii_leaks_total');
 
     // 4. aggregateRating — code audité (jsonld.service.ts), statut statique safe
     const aggregateRatingSafe = true;
@@ -146,7 +149,7 @@ async function readPromCounterByName(name: string): Promise<number> {
 
 /**
  * Lit un counter Prometheus filtré par la valeur d'un label `event`.
- * Ex: sokar_connect_events_total{event="reservation_hold_created",source="web"} 5
+ * Ex: suppernote_connect_events_total{event="reservation_hold_created",source="web"} 5
  * On somme toutes les séries dont le label `event` correspond.
  */
 async function readCounterByEvent(name: string, event: string): Promise<number> {

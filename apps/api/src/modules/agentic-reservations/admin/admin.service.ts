@@ -16,6 +16,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { logger } from '../../../shared/logger/pino';
 import { hashApiKey } from '../../../shared/crypto/api-key-hash';
+import { AGENT_KEY_PREFIX, getApiKeyPrefix } from '../mcp/auth.js';
 import { DEFAULT_MAX_PARTY_SIZE } from '@suppernote/config';
 import { PolicyValidationError, validateExposureSettings } from '../core/policies.service.js';
 import { AuditLogService } from '../core/audit-log.service.js';
@@ -471,7 +472,7 @@ export class AgenticAdminService {
   }
 
   private generateApiKey(): string {
-    return `sk_sokar_agent_${randomBytes(32).toString('base64url')}`;
+    return `${AGENT_KEY_PREFIX}${randomBytes(32).toString('base64url')}`;
   }
 
   private hashApiKey(apiKey: string): string {
@@ -479,6 +480,6 @@ export class AgenticAdminService {
   }
 
   private getApiKeyPrefix(apiKey: string): string {
-    return apiKey.slice(0, 'sk_sokar_agent_'.length + 8);
+    return getApiKeyPrefix(apiKey);
   }
 }

@@ -801,7 +801,7 @@ describe('gift-card routes', () => {
         purchaseReference: 'pi_test',
         stripePaymentIntentId: 'pi_test',
         stripePaymentStatus: 'succeeded',
-        sokarCommissionAmount: d(6),
+        suppernoteCommissionAmount: d(6),
         redemptions: [],
         contributions: [],
       } as unknown as Awaited<ReturnType<typeof db.giftCard.create>>);
@@ -864,7 +864,7 @@ describe('gift-card routes', () => {
         purchaseReference: 'pi_test',
         stripePaymentIntentId: 'pi_test',
         stripePaymentStatus: 'succeeded',
-        sokarCommissionAmount: d(7.5),
+        suppernoteCommissionAmount: d(7.5),
         packId: 'pack-1',
         redemptions: [],
         contributions: [],
@@ -1227,7 +1227,7 @@ describe('gift-card routes', () => {
         purchaseReference: 'pi_webhook_1',
         stripePaymentIntentId: 'pi_webhook_1',
         stripePaymentStatus: 'succeeded',
-        sokarCommissionAmount: d(6),
+        suppernoteCommissionAmount: d(6),
         redemptions: [],
         contributions: [],
       } as unknown as Awaited<ReturnType<typeof db.giftCard.create>>);
@@ -1457,7 +1457,7 @@ describe('gift-card routes', () => {
         stripePaymentStatus: 'pending',
         templateId: null,
         customImageUrl: null,
-        sokarCommissionAmount: d(0),
+        suppernoteCommissionAmount: d(0),
       } as unknown as Awaited<ReturnType<typeof db.giftCard.create>>);
     });
 
@@ -1730,7 +1730,7 @@ describe('gift-card routes', () => {
         amount: d(80), // 80 - 4 (5% commission)
         remainingAmount: d(80),
         currency: 'EUR',
-        sokarCommissionAmount: d(4),
+        suppernoteCommissionAmount: d(4),
         closedAt: new Date(),
         purchasedAt: new Date(),
         expiresAt: null,
@@ -1769,14 +1769,14 @@ describe('gift-card routes', () => {
       const body = res.json();
       expect(body.type).toBe('CROWDFUNDED');
       expect(body.amount).toBe(80);
-      expect(body.sokarCommissionAmount).toBe(4);
+      expect(body.suppernoteCommissionAmount).toBe(4);
       expect(body.status).toBe('ACTIVE');
       expect(db.giftCard.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'gc-crowd-1', restaurantId: RESTAURANT_ID },
           data: expect.objectContaining({
             status: 'ACTIVE',
-            sokarCommissionAmount: d(4),
+            suppernoteCommissionAmount: d(4),
           }),
         }),
       );
@@ -1862,7 +1862,7 @@ describe('gift-card routes', () => {
         stripePaymentStatus: 'succeeded',
         templateId: null,
         customImageUrl: null,
-        sokarCommissionAmount: d(5),
+        suppernoteCommissionAmount: d(5),
         type: 'SINGLE',
         targetAmount: null,
         crowdfundedUntil: null,

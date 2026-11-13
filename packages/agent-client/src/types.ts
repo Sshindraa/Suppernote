@@ -21,7 +21,7 @@ export type ToolListFormat = 'mcp' | 'openai' | 'mistral' | 'gemini';
 export type SuppernoteAgentClientConfig = {
   /** Base URL de l'API Suppernote (ex: https://api-staging.suppernote.com) */
   baseUrl: string;
-  /** Clé API Bearer au format historique `sk_sokar_agent_...`, toujours accepté par l'API. */
+  /** Clé API Bearer au format `sk_suppernote_agent_...` (l'ancien `sk_sokar_agent_...` reste accepté). */
   apiKey: string;
   /** Format de tools retourné par GET /v1/agents/tools */
   toolFormat?: ToolListFormat;

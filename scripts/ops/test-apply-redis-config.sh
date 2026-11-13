@@ -21,7 +21,7 @@ ROOT="$TMP/root"
 sleep() { :; }
 usage() { echo usage >&2; exit 2; }
 
-SESSIONS="sokar_voice_active_sessions 0"
+SESSIONS="suppernote_voice_active_sessions 0"
 PS_ID="abc123"
 VOLUME_NAME="infra_redis-data"
 curl() { printf '%s\n' "$SESSIONS"; }
@@ -46,13 +46,13 @@ run() { : > "$CALLS"; ( apply_redis_config "${1:-apply}" >/dev/null 2>&1 ) && ec
 not_touched() { ! grep -q "up -d" "$CALLS"; }
 
 # 1. Appels en cours : abandon, Redis intact.
-SESSIONS="sokar_voice_active_sessions 3"
+SESSIONS="suppernote_voice_active_sessions 3"
 test "$(run)" = 1; not_touched
 
 # 2. Mesure indisponible : abandon.
 SESSIONS=""
 test "$(run)" = 1; not_touched
-SESSIONS="sokar_voice_active_sessions 0"
+SESSIONS="suppernote_voice_active_sessions 0"
 
 # 3. Conteneur non géré par le compose : abandon.
 PS_ID=""

@@ -330,7 +330,7 @@ describe('restaurant routes — sites accessibles', () => {
     expect(clerkClient.organizations.updateOrganizationMembershipMetadata).toHaveBeenCalledWith({
       organizationId: 'test-rest-1',
       userId: 'user_2',
-      publicMetadata: { sokarRole: 'REVOKED' },
+      publicMetadata: { suppernoteRole: 'REVOKED' },
     });
     expect(db.restaurantAccountMembership.delete).toHaveBeenCalledWith({
       where: { id: 'site-grant' },

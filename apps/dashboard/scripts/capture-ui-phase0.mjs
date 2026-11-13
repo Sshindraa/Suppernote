@@ -473,7 +473,7 @@ async function makePage(browser, sizeName, variant, viewportOverride = sizes[siz
     time: new Date(variant === 'salle-midnight' ? midnightNow : fixedNow),
   });
   await page.addInitScript(() => {
-    localStorage.setItem('sokar_pwa_dismissed', 'true');
+    localStorage.setItem('suppernote_pwa_dismissed', 'true');
   });
   await page.route('**/api/proxy/**', async (route) => {
     const url = new URL(route.request().url());

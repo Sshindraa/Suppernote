@@ -25,8 +25,8 @@ aux pannes critiques détectées par `system-health` et le watchdog.
 
 Le worker publie deux gauges à chaque tick :
 
-- `sokar_slo_status{slo}` — `1` objectif tenu, `0` objectif manqué, `-1` non mesuré ;
-- `sokar_slo_value{slo,unit}` — valeur mesurée (ratio ou millisecondes).
+- `suppernote_slo_status{slo}` — `1` objectif tenu, `0` objectif manqué, `-1` non mesuré ;
+- `suppernote_slo_value{slo,unit}` — valeur mesurée (ratio ou millisecondes).
 
 Depuis R1-1, les workers tournent dans le process `sokar-workers` : les gauges y vivent, pas dans
 `dist/main.js`. Le `/metrics` de l'API ne les expose donc plus en production, et il n'existe pas

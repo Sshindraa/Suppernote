@@ -43,7 +43,7 @@ describe('Alerts service', () => {
     ).not.toThrow();
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_agentic_pii_leaks_total\{[^}]*kind="phone"[^}]*\} 1/);
+    expect(payload).toMatch(/suppernote_agentic_pii_leaks_total\{[^}]*kind="phone"[^}]*\} 1/);
   });
 
   it('alertErrorRateHigh alerte seulement au-dessus de 1%', () => {
@@ -57,7 +57,7 @@ describe('Alerts service', () => {
     expect(() => alertAgentUnavailable({ agent: 'claude', reason: 'rate_limited' })).not.toThrow();
   });
 
-  it('alertFailOpen incrémente sokar_fail_open_total{source} et ne throw pas', async () => {
+  it('alertFailOpen incrémente suppernote_fail_open_total{source} et ne throw pas', async () => {
     expect(() => alertFailOpen({ source: 'mcp_rate_limit', reason: 'redis_down' })).not.toThrow();
     expect(() => alertFailOpen({ source: 'mcp_rate_limit', reason: 'redis_down' })).not.toThrow();
     expect(() =>
@@ -65,9 +65,11 @@ describe('Alerts service', () => {
     ).not.toThrow();
 
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_fail_open_total');
-    expect(payload).toMatch(/sokar_fail_open_total\{[^}]*source="mcp_rate_limit"[^}]*\} 2/);
-    expect(payload).toMatch(/sokar_fail_open_total\{[^}]*source="openai_reserve_cache"[^}]*\} 1/);
+    expect(payload).toContain('suppernote_fail_open_total');
+    expect(payload).toMatch(/suppernote_fail_open_total\{[^}]*source="mcp_rate_limit"[^}]*\} 2/);
+    expect(payload).toMatch(
+      /suppernote_fail_open_total\{[^}]*source="openai_reserve_cache"[^}]*\} 1/,
+    );
   });
 
   it('alertFailOpen ne appelle pas captureException (bruit Sentry évité)', () => {

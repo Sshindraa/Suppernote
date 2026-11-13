@@ -17,27 +17,27 @@ describe('Voice Prometheus metrics', () => {
     __resetMetrics();
   });
 
-  it('enregistre sokar_voice_turn_duration_ms dans le registry Prometheus', async () => {
+  it('enregistre suppernote_voice_turn_duration_ms dans le registry Prometheus', async () => {
     voiceTurnDurationMs.observe(750);
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_voice_turn_duration_ms');
-    expect(payload).toContain('sokar_voice_turn_duration_ms_bucket{le="1000"');
+    expect(payload).toContain('suppernote_voice_turn_duration_ms');
+    expect(payload).toContain('suppernote_voice_turn_duration_ms_bucket{le="1000"');
   });
 
-  it('observe sokar_voice_llm_first_token_ms (TTFT)', async () => {
+  it('observe suppernote_voice_llm_first_token_ms (TTFT)', async () => {
     voiceLlmFirstTokenMs.observe(120);
     voiceLlmFirstTokenMs.observe(480);
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_voice_llm_first_token_ms');
-    expect(payload).toContain('sokar_voice_llm_first_token_ms_bucket{le="200"');
-    expect(payload).toContain('sokar_voice_llm_first_token_ms_bucket{le="500"');
+    expect(payload).toContain('suppernote_voice_llm_first_token_ms');
+    expect(payload).toContain('suppernote_voice_llm_first_token_ms_bucket{le="200"');
+    expect(payload).toContain('suppernote_voice_llm_first_token_ms_bucket{le="500"');
   });
 
-  it('observe sokar_voice_tts_first_audio_ms', async () => {
+  it('observe suppernote_voice_tts_first_audio_ms', async () => {
     voiceTtsFirstAudioMs.observe(300);
     const payload = await renderMetrics();
-    expect(payload).toContain('sokar_voice_tts_first_audio_ms');
-    expect(payload).toContain('sokar_voice_tts_first_audio_ms_bucket{le="500"');
+    expect(payload).toContain('suppernote_voice_tts_first_audio_ms');
+    expect(payload).toContain('suppernote_voice_tts_first_audio_ms_bucket{le="500"');
   });
 
   it('incrémente voice_provider_errors_total avec labels provider et type', async () => {
@@ -85,10 +85,10 @@ describe('Voice Prometheus metrics', () => {
 
     const payload = await renderMetrics();
     expect(payload).toMatch(
-      /sokar_voice_turn_plan_shadow_observations_total\{[^}]*status="valid"[^}]*policy_outcome="accepted"[^}]*agreement="disagree"[^}]*path="llm"[^}]*\} 1/,
+      /suppernote_voice_turn_plan_shadow_observations_total\{[^}]*status="valid"[^}]*policy_outcome="accepted"[^}]*agreement="disagree"[^}]*path="llm"[^}]*\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_voice_turn_plan_shadow_observations_total\{[^}]*status="missing"[^}]*policy_outcome="not_evaluated"[^}]*agreement="not_comparable"[^}]*path="deferred"[^}]*\} 1/,
+      /suppernote_voice_turn_plan_shadow_observations_total\{[^}]*status="missing"[^}]*policy_outcome="not_evaluated"[^}]*agreement="not_comparable"[^}]*path="deferred"[^}]*\} 1/,
     );
   });
 
@@ -103,9 +103,9 @@ describe('Voice Prometheus metrics', () => {
     __resetMetrics();
     const payload = await renderMetrics();
 
-    expect(payload).not.toContain('sokar_voice_semantic_answer_skipped_total{');
-    expect(payload).not.toContain('sokar_voice_semantic_choice_confidence_bucket{');
-    expect(payload).not.toContain('sokar_voice_semantic_eval_precision{');
+    expect(payload).not.toContain('suppernote_voice_semantic_answer_skipped_total{');
+    expect(payload).not.toContain('suppernote_voice_semantic_choice_confidence_bucket{');
+    expect(payload).not.toContain('suppernote_voice_semantic_eval_precision{');
   });
 
   it("n'a pas de collision de noms de métriques voice", async () => {
@@ -118,11 +118,11 @@ describe('Voice Prometheus metrics', () => {
     const voiceNames = voiceHelpLines.map((line) => line.split(' ')[2]);
     const uniqueNames = new Set(voiceNames);
     expect(voiceNames.length).toBe(uniqueNames.size);
-    expect(voiceNames).toContain('sokar_voice_turn_duration_ms');
-    expect(voiceNames).toContain('sokar_voice_llm_first_token_ms');
-    expect(voiceNames).toContain('sokar_voice_tts_first_audio_ms');
-    expect(voiceNames).toContain('sokar_voice_provider_errors_total');
-    expect(voiceNames).toContain('sokar_voice_turn_plan_shadow_observations_total');
+    expect(voiceNames).toContain('suppernote_voice_turn_duration_ms');
+    expect(voiceNames).toContain('suppernote_voice_llm_first_token_ms');
+    expect(voiceNames).toContain('suppernote_voice_tts_first_audio_ms');
+    expect(voiceNames).toContain('suppernote_voice_provider_errors_total');
+    expect(voiceNames).toContain('suppernote_voice_turn_plan_shadow_observations_total');
   });
 
   it('les buckets voice sont réalistes pour la latence voice (TTFT < 500ms target)', () => {

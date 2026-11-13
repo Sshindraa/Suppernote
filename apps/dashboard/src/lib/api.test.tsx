@@ -104,7 +104,7 @@ describe('useApi — lectures concurrentes', () => {
     const third = result.current.get('reservations');
     await Promise.all([first, organizationRead, second, third]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
-    expect(fetchMock.mock.calls[3][1].headers['X-Sokar-Site-ID']).toBe('site-two');
+    expect(fetchMock.mock.calls[3][1].headers['X-Suppernote-Site-ID']).toBe('site-two');
   });
 
   it('garde les annulations et les écritures indépendantes', async () => {
@@ -133,6 +133,6 @@ describe('useApi — lectures concurrentes', () => {
     rerender();
     expect(result.current.get).toBe(firstGet);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][1].headers['X-Sokar-Site-ID']).toBe('demo-site');
+    expect(fetchMock.mock.calls[0][1].headers['X-Suppernote-Site-ID']).toBe('demo-site');
   });
 });

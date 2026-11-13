@@ -101,7 +101,7 @@ describe('inviteMember', () => {
       inviterUserId: 'user_owner',
       emailAddress: 'serveur@example.com',
       role: 'org:member',
-      publicMetadata: { sokarRole: 'STAFF' },
+      publicMetadata: { suppernoteRole: 'STAFF' },
       redirectUrl: 'https://suppernote.com/register',
     });
     expect(result).toEqual({
@@ -271,7 +271,7 @@ describe('transferOwnership', () => {
         expect(clerk.updateOrganizationMembershipMetadata).toHaveBeenCalledWith({
           organizationId: 'org_1',
           userId: 'user_owner',
-          publicMetadata: { sokarRole: 'REVOKED' },
+          publicMetadata: { suppernoteRole: 'REVOKED' },
         });
         expect(clerk.deleteOrganizationMembership).toHaveBeenCalledWith({
           organizationId: 'org_1',
@@ -483,5 +483,14 @@ describe('revokeInvitation', () => {
         requestingUserId: 'user_owner',
       }),
     ).rejects.toMatchObject({ code: 'INVITATION_NOT_FOUND' });
+  });
+});
+
+describe('readRoleMetadata', () => {
+  it('préfère la nouvelle clé et relit l’ancienne en secours', async () => {
+    const { readRoleMetadata } = await import('../team.service');
+    expect(readRoleMetadata({ sokarRole: 'STAFF' })).toBe('STAFF');
+    expect(readRoleMetadata({ suppernoteRole: 'REVOKED', sokarRole: 'OWNER' })).toBe('REVOKED');
+    expect(readRoleMetadata(null)).toBeUndefined();
   });
 });

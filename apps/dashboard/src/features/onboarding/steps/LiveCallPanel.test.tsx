@@ -93,7 +93,7 @@ describe('LiveCallPanel', () => {
       '/api/proxy/restaurant/onboarding/live-demo',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ 'X-Sokar-Site-ID': 'site-1' }),
+        headers: expect.objectContaining({ 'X-Suppernote-Site-ID': 'site-1' }),
       }),
     );
     expect(mocks.connect).toHaveBeenCalledWith('wss://api.test/x');

@@ -31,7 +31,7 @@ describe('règles d’alerte Prometheus', () => {
   });
 
   it('ne référence que des métriques réellement enregistrées', () => {
-    const referenced = [...new Set(alertsText.match(/sokar_[a-z0-9_]+/g) ?? [])];
+    const referenced = [...new Set(alertsText.match(/suppernote_[a-z0-9_]+/g) ?? [])];
     expect(referenced.length).toBeGreaterThan(5);
 
     const registered = new Set(registeredMetricNames());
@@ -39,13 +39,13 @@ describe('règles d’alerte Prometheus', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('toutes les métriques maison portent le préfixe sokar_', () => {
+  it('toutes les métriques maison portent le préfixe suppernote_', () => {
     // `collectDefaultMetrics` ajoute process_*, nodejs_*, etc. : on ne garde que
     // les séries définies dans ce module.
     const registered = registeredMetricNames().filter(
       (name) => !name.startsWith('process_') && !name.startsWith('nodejs_'),
     );
-    const unprefixed = registered.filter((name) => !name.startsWith('sokar_'));
+    const unprefixed = registered.filter((name) => !name.startsWith('suppernote_'));
     expect(unprefixed).toEqual([]);
   });
 });

@@ -281,7 +281,7 @@ export class GiftCardCrowdfundingService {
             updated: card,
             card,
             totalCollected: card.amount.toNumber(),
-            commissionAmount: card.sokarCommissionAmount.toNumber(),
+            commissionAmount: card.suppernoteCommissionAmount.toNumber(),
             finalAmount: card.amount.toNumber(),
           };
         if (card.status !== 'ACTIVE')
@@ -335,7 +335,7 @@ export class GiftCardCrowdfundingService {
             status: 'ACTIVE',
             amount: total,
             remainingAmount: total,
-            sokarCommissionAmount: commission,
+            suppernoteCommissionAmount: commission,
             closedAt: new Date(),
             expiresAt: new Date(new Date().setMonth(new Date().getMonth() + card.validityMonths)),
           },

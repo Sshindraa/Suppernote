@@ -218,7 +218,7 @@ describe('agentic admin routes', () => {
       expect(res.statusCode).toBe(201);
       const body = res.json();
       expect(body.client.id).toBe('client-1');
-      expect(body.apiKey).toMatch(/^sk_sokar_agent_/);
+      expect(body.apiKey).toMatch(/^sk_suppernote_agent_/);
     });
 
     it('refuse une origin invalide', async () => {

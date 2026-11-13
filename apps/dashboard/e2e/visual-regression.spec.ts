@@ -106,7 +106,7 @@ test.describe('Régression visuelle — pages critiques', () => {
       // contenu testé. La neutraliser rend les captures comparables sans
       // imposer une écriture de localStorage au restaurateur.
       await pwPage.addInitScript(() => {
-        window.localStorage.setItem('sokar_pwa_dismissed', 'true');
+        window.localStorage.setItem('suppernote_pwa_dismissed', 'true');
       });
 
       if (page.name === 'pricing') {

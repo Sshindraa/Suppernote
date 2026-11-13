@@ -281,6 +281,17 @@ export type WidgetModification = {
 };
 const emptyQuery = new URLSearchParams();
 
+const WIDGET_RESIZE_TYPES = ['suppernote-widget-resize', 'sokar-widget-resize'];
+
+function isWidgetResizeMessage(type: unknown): boolean {
+  return typeof type === 'string' && WIDGET_RESIZE_TYPES.includes(type);
+}
+
+/** Envoie les deux noms : des pages restaurant gardent un ancien script d'intégration (shortcut: ne garder que le nouveau en phase 5). */
+function postWidgetResize(height: number, parentOrigin: string): void {
+  for (const type of WIDGET_RESIZE_TYPES) window.parent.postMessage({ type, height }, parentOrigin);
+}
+
 export default function ReservationWidget({
   restaurantId,
   query: searchParams = emptyQuery,
@@ -412,7 +423,7 @@ export default function ReservationWidget({
       const height = document.body.scrollHeight;
       const parentOrigin = getParentOrigin(explicitParentOrigin);
       if (parentOrigin) {
-        window.parent.postMessage({ type: 'sokar-widget-resize', height }, parentOrigin);
+        postWidgetResize(height, parentOrigin);
       }
     };
     sendHeight();
@@ -433,15 +444,12 @@ export default function ReservationWidget({
       if (e.origin !== giftCardOrigin) return;
       if (!giftCardIframeRef.current || e.source !== giftCardIframeRef.current.contentWindow)
         return;
-      if (e.data?.type !== 'sokar-widget-resize' || typeof e.data?.height !== 'number') return;
+      if (!isWidgetResizeMessage(e.data?.type) || typeof e.data?.height !== 'number') return;
       setGiftCardHeight(e.data.height);
       if (isEmbedded) {
         const parentOrigin = getParentOrigin(explicitParentOrigin);
         if (parentOrigin) {
-          window.parent.postMessage(
-            { type: 'sokar-widget-resize', height: document.body.scrollHeight },
-            parentOrigin,
-          );
+          postWidgetResize(document.body.scrollHeight, parentOrigin);
         }
       }
     };

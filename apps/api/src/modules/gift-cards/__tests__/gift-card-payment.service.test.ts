@@ -92,7 +92,7 @@ describe('GiftCardPaymentService', () => {
             amount: expect.anything(),
             stripePaymentIntentId: 'pi_test',
             stripePaymentStatus: 'succeeded',
-            sokarCommissionAmount: 5,
+            suppernoteCommissionAmount: 5,
             createdBy: 'CLIENT',
           }),
         }),
@@ -201,7 +201,7 @@ describe('GiftCardPaymentService', () => {
       expect(db.giftCard.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            sokarCommissionAmount: 7.5,
+            suppernoteCommissionAmount: 7.5,
             packId: 'pack-1',
           }),
         }),
@@ -250,7 +250,7 @@ describe('GiftCardPaymentService', () => {
       expect(db.giftCard.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            sokarCommissionAmount: 5,
+            suppernoteCommissionAmount: 5,
           }),
         }),
       );

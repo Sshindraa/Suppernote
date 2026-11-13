@@ -53,30 +53,42 @@ describe('voice quality metrics', () => {
 
     const payload = await renderMetrics();
     expect(payload).toMatch(
-      /sokar_voice_expected_answer_total\{kind="party_size",status="accepted"\} 1/,
-    );
-    expect(payload).toMatch(/sokar_voice_expected_answer_total\{kind="date",status="choice"\} 1/);
-    expect(payload).toMatch(
-      /sokar_voice_expected_answer_total\{kind="time",status="unresolved"\} 1/,
+      /suppernote_voice_expected_answer_total\{kind="party_size",status="accepted"\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_voice_slot_confidence_total\{kind="time",decision="wouldBeChoice"\} 1/,
+      /suppernote_voice_expected_answer_total\{kind="date",status="choice"\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_voice_slot_confidence_total\{kind="date",decision="wouldBeReadBack"\} 1/,
+      /suppernote_voice_expected_answer_total\{kind="time",status="unresolved"\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_voice_slot_confidence_total\{kind="party_size",decision="wouldBeReprompt"\} 1/,
+      /suppernote_voice_slot_confidence_total\{kind="time",decision="wouldBeChoice"\} 1/,
     );
     expect(payload).toMatch(
-      /sokar_voice_choice_answer_total\{kind="party_size",outcome="first"\} 1/,
+      /suppernote_voice_slot_confidence_total\{kind="date",decision="wouldBeReadBack"\} 1/,
     );
-    expect(payload).toMatch(/sokar_voice_choice_answer_total\{kind="time",outcome="second"\} 1/);
-    expect(payload).toMatch(/sokar_voice_choice_answer_total\{kind="time",outcome="other"\} 1/);
-    expect(payload).toMatch(/sokar_voice_choice_answer_total\{kind="date",outcome="neither"\} 1/);
-    expect(payload).toMatch(/sokar_voice_reprompt_total\{kind="party_size",cohort="flag_off"\} 1/);
-    expect(payload).toMatch(/sokar_voice_question_total\{kind="party_size",cohort="flag_off"\} 1/);
-    expect(payload).toMatch(/sokar_voice_reprompt_total\{kind="time",cohort="flag_on"\} 1/);
+    expect(payload).toMatch(
+      /suppernote_voice_slot_confidence_total\{kind="party_size",decision="wouldBeReprompt"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_choice_answer_total\{kind="party_size",outcome="first"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_choice_answer_total\{kind="time",outcome="second"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_choice_answer_total\{kind="time",outcome="other"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_choice_answer_total\{kind="date",outcome="neither"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_reprompt_total\{kind="party_size",cohort="flag_off"\} 1/,
+    );
+    expect(payload).toMatch(
+      /suppernote_voice_question_total\{kind="party_size",cohort="flag_off"\} 1/,
+    );
+    expect(payload).toMatch(/suppernote_voice_reprompt_total\{kind="time",cohort="flag_on"\} 1/);
   });
 
   it('compte une valeur relue puis corrigée au tour suivant', async () => {
@@ -85,8 +97,8 @@ describe('voice quality metrics', () => {
     observeVoiceReadbackResponse(session, { partySize: 5 }, 'correction');
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_voice_readback_total\{kind="party_size"\} 1/);
-    expect(payload).toMatch(/sokar_voice_readback_corrected_total\{kind="party_size"\} 1/);
+    expect(payload).toMatch(/suppernote_voice_readback_total\{kind="party_size"\} 1/);
+    expect(payload).toMatch(/suppernote_voice_readback_corrected_total\{kind="party_size"\} 1/);
   });
 
   it('ne compte une nouvelle valeur que pour le champ relu', async () => {
@@ -96,8 +108,8 @@ describe('voice quality metrics', () => {
     observeVoiceReadbackResponse(session, { date: '2026-10-03', time: '19:00' }, 'content');
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_voice_readback_corrected_total\{kind="date"\} 1/);
-    expect(payload).not.toContain('sokar_voice_readback_corrected_total{kind="time"}');
+    expect(payload).toMatch(/suppernote_voice_readback_corrected_total\{kind="date"\} 1/);
+    expect(payload).not.toContain('suppernote_voice_readback_corrected_total{kind="time"}');
   });
 
   it('compte un acte de correction explicite quand un seul champ a été relu', async () => {
@@ -106,7 +118,7 @@ describe('voice quality metrics', () => {
     observeVoiceReadbackResponse(session, {}, 'correction');
 
     const payload = await renderMetrics();
-    expect(payload).toMatch(/sokar_voice_readback_corrected_total\{kind="date"\} 1/);
+    expect(payload).toMatch(/suppernote_voice_readback_corrected_total\{kind="date"\} 1/);
   });
 
   it('limite la correction à un tour et n’expose ni valeur ni donnée personnelle', async () => {
@@ -130,6 +142,6 @@ describe('voice quality metrics', () => {
     expect(payload).not.toContain('call-secret');
     expect(payload).not.toContain('20:30');
     expect(payload).not.toContain('21:00');
-    expect(payload).not.toContain('sokar_voice_readback_corrected_total{kind="time"}');
+    expect(payload).not.toContain('suppernote_voice_readback_corrected_total{kind="time"}');
   });
 });

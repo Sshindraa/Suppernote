@@ -93,7 +93,7 @@ export class GiftCardService {
             templateId: input.templateId ?? null,
             customImageUrl: input.customImageUrl ?? null,
             packSnapshot: input.packSnapshot ?? undefined,
-            sokarCommissionAmount: input.sokarCommissionAmount ?? 0,
+            suppernoteCommissionAmount: input.suppernoteCommissionAmount ?? 0,
             type: input.type ?? 'SINGLE',
             targetAmount: input.targetAmount ?? null,
             crowdfundedUntil: input.crowdfundedUntil ?? null,

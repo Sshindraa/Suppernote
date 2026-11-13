@@ -176,7 +176,9 @@ export default function GiftCardList({
               { label: 'Montant', value: formatEuro(card.amount) },
               {
                 label: 'Commission',
-                value: card.sokarCommissionAmount ? formatEuro(card.sokarCommissionAmount) : '—',
+                value: card.suppernoteCommissionAmount
+                  ? formatEuro(card.suppernoteCommissionAmount)
+                  : '—',
               },
               { label: 'Solde', value: formatEuro(card.remainingAmount) },
               ...(card.type === 'CROWDFUNDED'
@@ -264,7 +266,9 @@ export default function GiftCardList({
                 </TableCell>
                 <TableCell className="font-medium">{formatEuro(card.amount)}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {card.sokarCommissionAmount ? formatEuro(card.sokarCommissionAmount) : '—'}
+                  {card.suppernoteCommissionAmount
+                    ? formatEuro(card.suppernoteCommissionAmount)
+                    : '—'}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {formatEuro(card.remainingAmount)}

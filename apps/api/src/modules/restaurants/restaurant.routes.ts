@@ -84,7 +84,7 @@ import {
   assertClerkOrganizationMember,
   ClerkMembershipVerificationError,
 } from './clerk-membership.service';
-import { SOKAR_ROLE_METADATA_KEY } from './team.service';
+import { ROLE_METADATA_KEY } from './team.service';
 
 type RestaurantWithIncludes = Prisma.RestaurantGetPayload<{
   include: { personality: true; exposureSettings: true; images: true };
@@ -861,7 +861,7 @@ export async function restaurantRoutes(app: FastifyInstance) {
                 await clerkClient.organizations.updateOrganizationMembershipMetadata({
                   organizationId: req.clerkOrganizationId,
                   userId: clerkUserId,
-                  publicMetadata: { [SOKAR_ROLE_METADATA_KEY]: 'REVOKED' },
+                  publicMetadata: { [ROLE_METADATA_KEY]: 'REVOKED' },
                 });
               } catch (error) {
                 if ((error as { status?: number } | null)?.status !== 404) throw error;

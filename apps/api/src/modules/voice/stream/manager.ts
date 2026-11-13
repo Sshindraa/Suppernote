@@ -1377,7 +1377,7 @@ export class CallSessionManager {
         );
         return null;
       }
-      // Un doublon de hedging n'est pas un repli : il est compté par sokar_voice_llm_hedge_total.
+      // Un doublon de hedging n'est pas un repli : il est compté par suppernote_voice_llm_hedge_total.
       if (reason === 'hedge') return response;
       voiceLlmFallbackTotal.inc({ path, outcome: 'used', reason });
       logger.warn(

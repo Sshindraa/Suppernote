@@ -203,12 +203,12 @@ async function main() {
     });
 
     if (!existingDemoClient) {
-      const demoMcpKey = `sk_sokar_agent_${randomBytes(32).toString('base64url')}`;
+      const demoMcpKey = `sk_suppernote_agent_${randomBytes(32).toString('base64url')}`;
       await prisma.agentClient.create({
         data: {
           restaurantId: restaurant.id,
           name: DEMO_MCP_CLIENT_NAME,
-          keyPrefix: demoMcpKey.slice(0, 'sk_sokar_agent_'.length + 8),
+          keyPrefix: demoMcpKey.slice(0, 'sk_suppernote_agent_'.length + 8),
           keyHash: createHash('sha256').update(demoMcpKey).digest('hex'),
           scopes: ['mcp:read', 'mcp:reserve', 'mcp:cancel'],
           allowedOrigins: ['https://claude.ai', 'https://cursor.sh'],

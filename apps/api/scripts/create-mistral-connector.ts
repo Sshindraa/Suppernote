@@ -10,7 +10,7 @@ function log(message: string) {
 }
 
 function generateAgentKey(): string {
-  const prefix = 'sk_sokar_agent_';
+  const prefix = 'sk_suppernote_agent_';
   const random = randomBytes(32).toString('hex');
   return prefix + random;
 }
@@ -20,7 +20,7 @@ function hashApiKey(key: string): string {
 }
 
 function validateApiKeyFormat(key: string): boolean {
-  const prefix = 'sk_sokar_agent_';
+  const prefix = 'sk_suppernote_agent_';
   return key.startsWith(prefix) && key.length >= prefix.length + 16;
 }
 

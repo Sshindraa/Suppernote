@@ -1,7 +1,7 @@
 /**
  * Auth MCP : OAuth opaque ou API key (Bearer) + validation Origin.
  *
- * - API key : préfixe `sk_sokar_agent_` + secret opaque. En P1, on valide
+ * - API key : préfixe `sk_suppernote_agent_` (ancien `sk_sokar_agent_` accepté) + secret opaque. En P1, on valide
  *   contre AgentClient.keyHash. En dev uniquement, AGENT_DEV_KEY reste un
  *   fallback local tant que le dashboard de gestion des clés n'existe pas.
  * - Origin : on autorise uniquement les clients MCP connus
@@ -66,11 +66,19 @@ export type AuthContext = {
 
 // Construction runtime pour contourner le masquage statique de secrets
 // sur les patterns qui ressemblent à des API keys.
-const VALID_KEY_PREFIX = ['sk', '_sokar', '_agent_'].join('');
+export const AGENT_KEY_PREFIX = ['sk', '_suppernote', '_agent_'].join('');
+/** Clés émises avant le renommage : toujours valables (shortcut: retirer quand plus aucune n'est active). */
+const LEGACY_AGENT_KEY_PREFIX = ['sk', '_sokar', '_agent_'].join('');
+
+function keyPrefixOf(key: string): string | null {
+  if (key.startsWith(AGENT_KEY_PREFIX)) return AGENT_KEY_PREFIX;
+  if (key.startsWith(LEGACY_AGENT_KEY_PREFIX)) return LEGACY_AGENT_KEY_PREFIX;
+  return null;
+}
 
 /**
  * Parse un Authorization header. Renvoie le token ou null.
- * Format attendu : "Bearer sk_sokar_agent_xxx".
+ * Format attendu : "Bearer sk_suppernote_agent_xxx".
  */
 function extractBearer(authHeader: string | undefined): string | null {
   if (!authHeader) return null;
@@ -83,12 +91,14 @@ function extractBearer(authHeader: string | undefined): string | null {
 export { hashApiKey } from '../../../shared/crypto/api-key-hash';
 
 export function getApiKeyPrefix(key: string): string {
-  return key.slice(0, Math.min(key.length, VALID_KEY_PREFIX.length + 8));
+  const prefix = keyPrefixOf(key) ?? AGENT_KEY_PREFIX;
+  return key.slice(0, Math.min(key.length, prefix.length + 8));
 }
 
 export function validateApiKeyFormat(key: string): boolean {
-  if (!key.startsWith(VALID_KEY_PREFIX)) return false;
-  if (key.length < VALID_KEY_PREFIX.length + 16) return false;
+  const prefix = keyPrefixOf(key);
+  if (!prefix) return false;
+  if (key.length < prefix.length + 16) return false;
   return true;
 }
 
@@ -135,13 +145,13 @@ export async function validateApiKey(
   prisma: PrismaClient,
 ): Promise<AuthContext | null> {
   // 1. Essayer d'abord un token OAuth (opaque, stocké dans Redis)
-  //    Les tokens OAuth ne respectent pas le format sk_sokar_agent_, donc
+  //    Les tokens OAuth ne respectent pas le format sk_suppernote_agent_, donc
   //    on les check avant la validation de format.
   const { validateOAuthToken } = await import('./oauth');
   const oauthCtx = await validateOAuthToken(key);
   if (oauthCtx) return oauthCtx;
 
-  // 2. Sinon, essayer une API key (format sk_sokar_agent_...)
+  // 2. Sinon, essayer une API key (format sk_suppernote_agent_...)
   if (!validateApiKeyFormat(key)) return null;
 
   // Lookup par keyPrefix (index non-unique) puis vérification timing-safe
@@ -218,7 +228,7 @@ export async function authenticateMcpRequest(
   const apiKey = extractBearer(req.headers.authorization);
   if (!apiKey) {
     throw new McpAuthError(
-      'Missing or invalid Authorization header (expected "Bearer sk_sokar_agent_xxx")',
+      'Missing or invalid Authorization header (expected "Bearer sk_suppernote_agent_xxx")',
       401,
       'UNAUTHORIZED',
     );

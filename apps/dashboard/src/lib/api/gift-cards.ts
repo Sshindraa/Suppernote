@@ -22,7 +22,7 @@ export type GiftCardListItem = {
   purchasedAt: string;
   expiresAt: string | null;
   stripePaymentStatus: string | null;
-  sokarCommissionAmount: number;
+  suppernoteCommissionAmount: number;
   type: string;
   targetAmount: number | null;
   crowdfundedUntil: string | null;

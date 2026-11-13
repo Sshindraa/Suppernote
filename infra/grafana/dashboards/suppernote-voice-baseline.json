@@ -1,5 +1,5 @@
 {
-  "uid": "sokar-voice-baseline",
+  "uid": "suppernote-voice-baseline",
   "title": "Suppernote — Référence naturalité voice (Phase 0)",
   "tags": ["suppernote", "voice", "baseline"],
   "timezone": "Europe/Paris",
@@ -33,7 +33,7 @@
           "uid": "prometheus"
         },
         "query": {
-          "query": "label_values(sokar_voice_calls_total, restaurant_id)",
+          "query": "label_values(suppernote_voice_calls_total, restaurant_id)",
           "refId": "R"
         },
         "refresh": 2,
@@ -65,7 +65,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le, path) (rate(sokar_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le, path) (rate(suppernote_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__rate_interval])))",
           "legendFormat": "{{path}}"
         }
       ],
@@ -94,7 +94,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.95, sum by (le, path) (rate(sokar_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, path) (rate(suppernote_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__rate_interval])))",
           "legendFormat": "{{path}}"
         }
       ],
@@ -122,21 +122,21 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.5, sum by (le, restaurant_id, path) (increase(sokar_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
+          "expr": "histogram_quantile(0.5, sum by (le, restaurant_id, path) (increase(suppernote_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
           "legendFormat": "p50",
           "format": "table",
           "instant": true
         },
         {
           "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le, restaurant_id, path) (increase(sokar_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
+          "expr": "histogram_quantile(0.95, sum by (le, restaurant_id, path) (increase(suppernote_voice_end_of_speech_to_first_audio_ms_bucket{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
           "legendFormat": "p95",
           "format": "table",
           "instant": true
         },
         {
           "refId": "C",
-          "expr": "sum by (restaurant_id, path) (increase(sokar_voice_end_of_speech_to_first_audio_ms_count{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
+          "expr": "sum by (restaurant_id, path) (increase(suppernote_voice_end_of_speech_to_first_audio_ms_count{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
           "legendFormat": "tours",
           "format": "table",
           "instant": true
@@ -166,7 +166,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (restaurant_id) (increase(sokar_voice_false_end_of_turn_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])) / sum by (restaurant_id) (increase(sokar_voice_end_of_speech_to_first_audio_ms_count{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
+          "expr": "sum by (restaurant_id) (increase(suppernote_voice_false_end_of_turn_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])) / sum by (restaurant_id) (increase(suppernote_voice_end_of_speech_to_first_audio_ms_count{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
           "legendFormat": "{{restaurant_id}}"
         }
       ],
@@ -195,7 +195,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (outcome, purpose) (increase(sokar_voice_filler_events_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
+          "expr": "sum by (outcome, purpose) (increase(suppernote_voice_filler_events_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
           "legendFormat": "{{purpose}} {{outcome}}"
         }
       ],
@@ -223,7 +223,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (status) (increase(sokar_voice_turn_plan_shadow_by_restaurant_total{env=~\"$env\",restaurant_id=~\"$restaurant\",status=~\"speech_missing|missing\"}[$__range])) / scalar(sum(increase(sokar_voice_turn_plan_shadow_by_restaurant_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
+          "expr": "sum by (status) (increase(suppernote_voice_turn_plan_shadow_by_restaurant_total{env=~\"$env\",restaurant_id=~\"$restaurant\",status=~\"speech_missing|missing\"}[$__range])) / scalar(sum(increase(suppernote_voice_turn_plan_shadow_by_restaurant_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
           "legendFormat": "{{status}}"
         }
       ],
@@ -251,7 +251,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (motive) (increase(sokar_voice_transfers_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])) / scalar(sum(increase(sokar_voice_calls_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
+          "expr": "sum by (motive) (increase(suppernote_voice_transfers_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])) / scalar(sum(increase(suppernote_voice_calls_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range])))",
           "legendFormat": "{{motive}}"
         }
       ],
@@ -279,7 +279,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (restaurant_id, motive, intent, outcome) (increase(sokar_voice_transfers_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
+          "expr": "sum by (restaurant_id, motive, intent, outcome) (increase(suppernote_voice_transfers_total{env=~\"$env\",restaurant_id=~\"$restaurant\"}[$__range]))",
           "legendFormat": "",
           "format": "table",
           "instant": true

@@ -111,7 +111,7 @@ export function LiveCallPanel({
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(siteId ? { 'X-Sokar-Site-ID': siteId } : {}),
+        ...(siteId ? { 'X-Suppernote-Site-ID': siteId } : {}),
       },
       body: '{}',
     });

@@ -62,7 +62,7 @@ export function useApi(options: { requireSession?: boolean } = {}) {
 
       const headers: Record<string, string> = {};
       if (body) headers['Content-Type'] = 'application/json';
-      if (requestSiteId) headers['X-Sokar-Site-ID'] = requestSiteId;
+      if (requestSiteId) headers['X-Suppernote-Site-ID'] = requestSiteId;
       if (options?.headers) Object.assign(headers, options.headers);
 
       const execute = async (): Promise<T> => {

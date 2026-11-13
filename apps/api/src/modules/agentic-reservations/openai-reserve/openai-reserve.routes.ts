@@ -20,7 +20,7 @@
  *   2. Rate limit strict 10 req/min/IP sur /v1/businesses
  *   3. Cache Redis TTL 120s sur getBusinessFeed() — le scraping répété
  *      tape le cache, pas la DB
- *   4. Métrique Prometheus sokar_openai_reserve_feed_requests_total{status}
+ *   4. Métrique Prometheus suppernote_openai_reserve_feed_requests_total{status}
  *      pour détecter un volume anormal
  */
 

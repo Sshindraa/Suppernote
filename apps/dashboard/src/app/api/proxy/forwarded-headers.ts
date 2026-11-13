@@ -18,7 +18,11 @@ export function forwardedHeaders(req: NextRequest) {
   // Audio elements cannot attach custom headers, so the calls page may pass
   // the already validated site selection as a query parameter. The API still
   // resolves membership and account ownership server-side.
-  const siteId = req.headers.get('x-sokar-site-id') || req.nextUrl.searchParams.get('siteId') || '';
+  const siteId =
+    req.headers.get('x-suppernote-site-id') ||
+    req.headers.get('x-sokar-site-id') ||
+    req.nextUrl.searchParams.get('siteId') ||
+    '';
   const range = req.headers.get('range') || '';
   // Preuve d'identité de l'export RGPD d'un client (code SMS saisi) : sans elle, l'API répond
   // « identité requise » et l'export ne peut jamais aboutir.
@@ -30,7 +34,7 @@ export function forwardedHeaders(req: NextRequest) {
   if (forwardedFor) headers['X-Forwarded-For'] = forwardedFor;
   if (requestId) headers['X-Request-ID'] = requestId;
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
-  if (siteId) headers['X-Sokar-Site-ID'] = siteId;
+  if (siteId) headers['X-Suppernote-Site-ID'] = siteId;
   if (range) headers.Range = range;
   if (identityToken) headers['X-Identity-Token'] = identityToken;
   return headers;

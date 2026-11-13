@@ -645,9 +645,9 @@ d'audit, ils sont comptés dans les métriques.
 Prometheus expose les appels par outil, résultat, transport, type d’authentification
 (`oauth`, `api_key`, `unknown`) et les codes d’erreur normalisés :
 
-- `sokar_mcp_tool_calls_total{tool,status}` : compteur historique commun aux appels MCP et à l’adaptateur `generic_agent` ;
-- `sokar_mcp_tool_calls_by_auth_type_total{tool,status,auth_type,transport}` : volumes détaillés ;
-- `sokar_mcp_tool_errors_by_code_total{tool,error_code,auth_type,transport}` : erreurs par code stable.
+- `suppernote_mcp_tool_calls_total{tool,status}` : compteur historique commun aux appels MCP et à l’adaptateur `generic_agent` ;
+- `suppernote_mcp_tool_calls_by_auth_type_total{tool,status,auth_type,transport}` : volumes détaillés ;
+- `suppernote_mcp_tool_errors_by_code_total{tool,error_code,auth_type,transport}` : erreurs par code stable.
 
 `transport` vaut `mcp`, `generic_agent` ou `unknown`. Filtrez `transport="mcp"`
 pour isoler le trafic MCP.
@@ -661,9 +661,9 @@ regroupé sous `OTHER` jusqu’à son ajout explicite.
 Pour comparer les volumes du parcours, additionnez les compteurs par outil :
 
 ```promql
-sum(increase(sokar_mcp_tool_calls_by_auth_type_total{transport="mcp",tool="search_restaurants"}[7d]))
-sum(increase(sokar_mcp_tool_calls_by_auth_type_total{transport="mcp",tool="check_availability"}[7d]))
-sum(increase(sokar_mcp_tool_calls_by_auth_type_total{transport="mcp",tool=~"create_hold|create_reservation"}[7d]))
+sum(increase(suppernote_mcp_tool_calls_by_auth_type_total{transport="mcp",tool="search_restaurants"}[7d]))
+sum(increase(suppernote_mcp_tool_calls_by_auth_type_total{transport="mcp",tool="check_availability"}[7d]))
+sum(increase(suppernote_mcp_tool_calls_by_auth_type_total{transport="mcp",tool=~"create_hold|create_reservation"}[7d]))
 ```
 
 Ces valeurs décrivent les volumes agrégés de chaque étape. Le protocole ne fournit

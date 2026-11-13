@@ -12,8 +12,8 @@
  * critique possède son propre cooldown, distinct des avertissements.
  *
  * Les compteurs lus sont aussi publiés en gauges Prometheus
- * (sokar_queue_jobs, sokar_calls_missing_transcript_24h,
- * sokar_reservations_missing_confirmation_sms_24h) pour un futur scraping.
+ * (suppernote_queue_jobs, suppernote_calls_missing_transcript_24h,
+ * suppernote_reservations_missing_confirmation_sms_24h) pour un futur scraping.
  *
  * Hors scope volontairement (détecté par le watchdog VPS, impossible depuis
  * le process API) : API/dashboard down, arrêt total de Redis, backup

@@ -45,7 +45,7 @@ describe('PwaInstallBanner', () => {
   });
 
   it("ne s'affiche pas si déjà dismiss (localStorage)", () => {
-    localStorage.setItem('sokar_pwa_dismissed', 'true');
+    localStorage.setItem('sokar_pwa_dismissed', 'true'); // ancienne clé : toujours respectée
     // iOS userAgent pour vérifier que le dismiss prend le pas
     Object.defineProperty(window.navigator, 'userAgent', {
       value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
@@ -146,13 +146,13 @@ describe('PwaInstallBanner', () => {
     });
 
     expect(screen.getByText('Installer Suppernote AI')).toBeInTheDocument();
-    expect(localStorage.getItem('sokar_pwa_dismissed')).toBeNull();
+    expect(localStorage.getItem('suppernote_pwa_dismissed')).toBeNull();
 
     const dismissBtn = screen.getByRole('button', { name: 'Dismiss banner' });
     // fireEvent fonctionne avec les fake timers (pas de delay interne)
     fireEvent.click(dismissBtn);
 
-    expect(localStorage.getItem('sokar_pwa_dismissed')).toBe('true');
+    expect(localStorage.getItem('suppernote_pwa_dismissed')).toBe('true');
     expect(screen.queryByText('Installer Suppernote AI')).not.toBeInTheDocument();
   });
 });

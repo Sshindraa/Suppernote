@@ -93,7 +93,7 @@ de domaine, pas un réglage.
 
 ## Seuil d'alerte
 
-La jauge `sokar_voice_active_sessions` est publiée par `CallSessionManager` à chaque création et
+La jauge `suppernote_voice_active_sessions` est publiée par `CallSessionManager` à chaque création et
 suppression de session. La règle Prometheus `VoiceSessionsHigh` (`infra/prometheus/alerts.yml`)
 déclenche un `warning` au-delà de 70 sessions pendant 2 minutes.
 

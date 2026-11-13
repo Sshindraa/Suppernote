@@ -77,7 +77,7 @@ export class PilotKpiService {
     const piiCount = await readCounterValues(piiLeaksTotal);
 
     // 3. Latence p95 — calculé depuis l'histogramme Prometheus check_availability
-    const p95 = await readHistogramP95('sokar_agentic_check_availability_duration_ms');
+    const p95 = await readHistogramP95('suppernote_agentic_check_availability_duration_ms');
 
     // 4. Honor rate (sur résas finalisées : HONORED + CANCELLED + NO_SHOW)
     const finalized = reservationsHonored + reservationsCancelled + reservationsNoShow;
@@ -129,16 +129,16 @@ export class PilotKpiService {
 
 /**
  * Lecture défensive d'un counter prom-client via son payload texte.
- * On parse `sokar_agentic_xxx{kind="phone"} 1` directement. C'est
+ * On parse `suppernote_agentic_xxx{kind="phone"} 1` directement. C'est
  * stable et indépendant des changements d'API privée.
  */
 async function readCounterValue(_metric: unknown): Promise<number> {
-  return readPromCounterByName('sokar_agentic_double_booking_attempts_total');
+  return readPromCounterByName('suppernote_agentic_double_booking_attempts_total');
 }
 
 async function readCounterValues(_metric: unknown): Promise<number> {
   // Pour piiLeaks on somme toutes les combinaisons kind
-  return readPromCounterByName('sokar_agentic_pii_leaks_total');
+  return readPromCounterByName('suppernote_agentic_pii_leaks_total');
 }
 
 let cachedMetricsText: string | null = null;

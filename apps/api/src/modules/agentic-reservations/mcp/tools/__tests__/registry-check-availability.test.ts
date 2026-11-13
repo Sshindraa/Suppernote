@@ -34,7 +34,7 @@ describe('McpToolRegistry.checkAvailability metrics', () => {
   it("observe la durée même en cas d'erreur métier", async () => {
     const beforePayload = await renderMetrics();
     const beforeMatch = beforePayload.match(
-      /sokar_agentic_check_availability_duration_ms_count (\d+)/,
+      /suppernote_agentic_check_availability_duration_ms_count (\d+)/,
     );
     const before = beforeMatch ? parseInt(beforeMatch[1], 10) : 0;
 
@@ -64,7 +64,7 @@ describe('McpToolRegistry.checkAvailability metrics', () => {
 
     const afterPayload = await renderMetrics();
     const afterMatch = afterPayload.match(
-      /sokar_agentic_check_availability_duration_ms_count (\d+)/,
+      /suppernote_agentic_check_availability_duration_ms_count (\d+)/,
     );
     const after = afterMatch ? parseInt(afterMatch[1], 10) : 0;
 

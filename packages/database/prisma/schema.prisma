@@ -1306,7 +1306,7 @@ model ExperienceCheckout {
   quantity                Int
   unitPriceCents          Int                      @map("unit_price_cents")
   totalPriceCents         Int                      @map("total_price_cents")
-  sokarFeeCents           Int                      @map("sokar_fee_cents")
+  suppernoteFeeCents           Int                      @map("sokar_fee_cents")
   currency                String                   @default("EUR")
   status                  ExperienceCheckoutStatus @default(OPEN)
   stripeAccountId         String                   @map("stripe_account_id")
@@ -2922,7 +2922,7 @@ model GiftCard {
   templateId            String? @map("template_id")
   customImageUrl        String? @map("custom_image_url")
   packSnapshot          Json?   @map("pack_snapshot")
-  sokarCommissionAmount Decimal @map("sokar_commission_amount") @db.Decimal(10, 2)
+  suppernoteCommissionAmount Decimal @map("sokar_commission_amount") @db.Decimal(10, 2)
 
   // P3 — Crowdfunding
   type             String    @default("SINGLE") @map("type") // SINGLE, CROWDFUNDED

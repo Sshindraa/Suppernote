@@ -151,7 +151,7 @@ describe('CompanionPanel', () => {
 
   it('restaure l’historique du site depuis sessionStorage et le sépare par site', () => {
     window.sessionStorage.setItem(
-      'sokar.companion.site_1',
+      'suppernote.companion.site_1',
       JSON.stringify([
         { role: 'user', content: 'Question ancienne' },
         { role: 'assistant', content: 'Réponse ancienne', sources: [] },
@@ -169,7 +169,7 @@ describe('CompanionPanel', () => {
 
   it('lit une entrée ancienne qui contient toolRuns sans ce champ', async () => {
     window.sessionStorage.setItem(
-      'sokar.companion.site_1',
+      'suppernote.companion.site_1',
       JSON.stringify([
         { role: 'user', content: 'Question ancienne' },
         {
@@ -243,7 +243,7 @@ describe('CompanionPanel', () => {
 
   it('une entrée sans responseId n’affiche pas de boutons d’avis', () => {
     window.sessionStorage.setItem(
-      'sokar.companion.site_1',
+      'suppernote.companion.site_1',
       JSON.stringify([
         { role: 'user', content: 'Question ancienne' },
         { role: 'assistant', content: 'Réponse ancienne', sources: [] },
@@ -291,14 +291,14 @@ describe('CompanionPanel', () => {
 
   it('Nouvelle conversation vide l’historique du site', () => {
     window.sessionStorage.setItem(
-      'sokar.companion.site_1',
+      'suppernote.companion.site_1',
       JSON.stringify([{ role: 'user', content: 'Question ancienne' }]),
     );
     renderPanel();
 
     fireEvent.click(screen.getByRole('button', { name: 'Nouvelle conversation' }));
 
-    expect(window.sessionStorage.getItem('sokar.companion.site_1')).toBeNull();
+    expect(window.sessionStorage.getItem('suppernote.companion.site_1')).toBeNull();
     expect(screen.queryByText('Question ancienne')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: WEEK_QUESTION })).toBeInTheDocument();
   });

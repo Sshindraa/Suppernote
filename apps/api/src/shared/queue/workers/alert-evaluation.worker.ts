@@ -131,7 +131,7 @@ async function getConnectQueueLength(): Promise<number | null> {
  * Évalue les SLO minimaux (R0-5) à partir des mêmes snapshots que les alertes,
  * plus deux mesures métier en base.
  *
- * Publie `sokar_slo_status` / `sokar_slo_value` et dispatche un finding par SLO
+ * Publie `suppernote_slo_status` / `suppernote_slo_value` et dispatche un finding par SLO
  * manqué, avec le cooldown partagé. Un SLO non mesurable (`unknown`) ne
  * déclenche rien : une fenêtre sans trafic n'est pas une panne.
  */

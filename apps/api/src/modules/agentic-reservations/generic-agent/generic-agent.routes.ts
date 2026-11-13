@@ -7,7 +7,7 @@
  *
  * Endpoint : POST /v1/agents
  * Body     : { "tool": "search_restaurants", "arguments": { ... } }
- * Auth     : Bearer sk_sokar_agent_xxx (même clés que MCP)
+ * Auth     : Bearer sk_suppernote_agent_xxx (même clés que MCP)
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';

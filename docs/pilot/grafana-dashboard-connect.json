@@ -27,7 +27,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(sokar_connect_reservations_confirmed_total)",
+          "expr": "sum(suppernote_connect_reservations_confirmed_total)",
           "legendFormat": "confirmed",
           "refId": "A"
         }
@@ -49,7 +49,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(sokar_connect_events_total)",
+          "expr": "sum(suppernote_connect_events_total)",
           "legendFormat": "events",
           "refId": "A"
         }
@@ -71,7 +71,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(sokar_connect_request_duration_ms_bucket[5m])) by (le, route))",
+          "expr": "histogram_quantile(0.95, sum(rate(suppernote_connect_request_duration_ms_bucket[5m])) by (le, route))",
           "legendFormat": "{{route}} p95",
           "refId": "A"
         }
@@ -93,7 +93,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(sokar_connect_events_total[5m])) by (event)",
+          "expr": "sum(rate(suppernote_connect_events_total[5m])) by (event)",
           "legendFormat": "{{event}}",
           "refId": "A"
         }
@@ -115,7 +115,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(sokar_connect_reservations_confirmed_total[1m])) * 60",
+          "expr": "sum(rate(suppernote_connect_reservations_confirmed_total[1m])) * 60",
           "legendFormat": "confirmed/min",
           "refId": "A"
         }
@@ -137,7 +137,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(sokar_mcp_tool_calls_total[5m])) by (tool, status)",
+          "expr": "sum(rate(suppernote_mcp_tool_calls_total[5m])) by (tool, status)",
           "legendFormat": "{{tool}} / {{status}}",
           "refId": "A"
         }
@@ -159,7 +159,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(rate(sokar_connect_ia_bot_hits_total[5m])) by (bot)",
+          "expr": "sum(rate(suppernote_connect_ia_bot_hits_total[5m])) by (bot)",
           "legendFormat": "{{bot}}",
           "refId": "A"
         }
@@ -181,7 +181,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum(sokar_connect_ia_bot_hits_total) by (path_class)",
+          "expr": "sum(suppernote_connect_ia_bot_hits_total) by (path_class)",
           "legendFormat": "{{path_class}}",
           "refId": "A"
         }

@@ -52,13 +52,13 @@ export type HistogramBucketSnapshot = Record<string, Record<string, number>>;
 export interface MetricSnapshot {
   timestamp: number;
   counters: {
-    /** sokar_http_requests_total{status_class} — global API. */
+    /** suppernote_http_requests_total{status_class} — global API. */
     httpRequests: CounterSnapshot;
-    /** sokar_connect_request_duration_ms_count{route,status} — Connect. */
+    /** suppernote_connect_request_duration_ms_count{route,status} — Connect. */
     connectRequestCount: CounterSnapshot;
   };
   histograms: {
-    /** sokar_connect_request_duration_ms_bucket{route,status,le} — Connect. */
+    /** suppernote_connect_request_duration_ms_bucket{route,status,le} — Connect. */
     connectRequestBuckets: HistogramBucketSnapshot;
   };
 }

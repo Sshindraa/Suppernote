@@ -118,7 +118,7 @@ describe('Generic Agent REST adapter', () => {
 
       const metrics = await renderMetrics();
       expect(metrics).toMatch(
-        /sokar_mcp_tool_calls_by_auth_type_total\{tool="search_restaurants",status="error",auth_type="api_key",transport="generic_agent"\} 1/,
+        /suppernote_mcp_tool_calls_by_auth_type_total\{tool="search_restaurants",status="error",auth_type="api_key",transport="generic_agent"\} 1/,
       );
     });
   });

@@ -137,7 +137,7 @@ export async function processGiftCardDelivery(prisma: PrismaClient, deliveryId: 
           sendRestaurantSaleNotification({
             ...data,
             restaurantEmail: restaurant.managerEmail,
-            commissionAmount: card.sokarCommissionAmount?.toNumber() ?? 0,
+            commissionAmount: card.suppernoteCommissionAmount?.toNumber() ?? 0,
           });
       break;
     case 'recipient_whatsapp':
@@ -149,7 +149,7 @@ export async function processGiftCardDelivery(prisma: PrismaClient, deliveryId: 
         send = () =>
           sendSms(
             restaurant.managerPhone,
-            `Nouvelle vente carte cadeau ${data.amount}€ chez ${restaurant.name}. Commission: ${card.sokarCommissionAmount?.toNumber() ?? 0}€.`,
+            `Nouvelle vente carte cadeau ${data.amount}€ chez ${restaurant.name}. Commission: ${card.suppernoteCommissionAmount?.toNumber() ?? 0}€.`,
             {
               restaurantId: card.restaurantId,
               sourceType: 'gift_card_sale_manager_sms',
@@ -202,7 +202,7 @@ export async function processGiftCardDelivery(prisma: PrismaClient, deliveryId: 
             title: card.occasion ?? 'Cagnotte',
             totalCollected: data.amount,
             finalAmount: data.amount,
-            commissionAmount: card.sokarCommissionAmount?.toNumber() ?? 0,
+            commissionAmount: card.suppernoteCommissionAmount?.toNumber() ?? 0,
           });
       break;
     case 'refund_sender_email': {

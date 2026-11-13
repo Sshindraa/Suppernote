@@ -1,7 +1,7 @@
 /**
  * Types du SDK @suppernote/agent-client.
  *
- * Le SDK est transport-agnostique : le SokarAgentClient ne fait que du HTTP
+ * Le SDK est transport-agnostique : le SuppernoteAgentClient ne fait que du HTTP
  * REST. Les adapters LLM (OpenAI-compatible, Gemini) implémentent l'interface
  * `LLMAdapter` et gèrent le format natif de chaque provider.
  */
@@ -18,10 +18,10 @@ export type ToolName =
 
 export type ToolListFormat = 'mcp' | 'openai' | 'mistral' | 'gemini';
 
-export type SokarAgentClientConfig = {
+export type SuppernoteAgentClientConfig = {
   /** Base URL de l'API Suppernote (ex: https://api-staging.suppernote.com) */
   baseUrl: string;
-  /** Clé API Bearer (format sk_sokar_agent_...) */
+  /** Clé API Bearer au format historique `sk_sokar_agent_...`, toujours accepté par l'API. */
   apiKey: string;
   /** Format de tools retourné par GET /v1/agents/tools */
   toolFormat?: ToolListFormat;

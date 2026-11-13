@@ -77,7 +77,7 @@ async function main() {
       name: 'Chez Suppernote',
       plan: 'STARTER',
       managerPhone: '+33601020304',
-      managerEmail: 'demo@sokar.com',
+      managerEmail: 'demo@suppernote.com',
       phoneNumber: DEMO_PHONE,
       phoneE164: DEMO_PHONE,
       openingHours,
@@ -257,7 +257,7 @@ async function main() {
     const LYON_RESTOS = [
       {
         slug: 'chez-sokar-bouchon-lyon',
-        name: 'Chez Sokar — Bouchon Lyonnais',
+        name: 'Chez Suppernote — Bouchon lyonnais',
         cuisine: ['Bistrot', 'Lyonnaise'],
         description: 'Bouchon lyonnais traditionnel dans le Vieux Lyon.',
         address: '5 Rue du Bœuf, 69005 Lyon',
@@ -268,7 +268,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-italien-lyon',
-        name: 'Chez Sokar — Trattoria Italienne',
+        name: 'Chez Suppernote — Trattoria italienne',
         cuisine: ['Italien', 'Pizza', 'Pâtes'],
         description: "Trattoria italienne authentique dans le quartier de la Presqu'île.",
         address: '22 Rue Mercière, 69002 Lyon',
@@ -279,7 +279,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-sushi-lyon',
-        name: 'Chez Sokar — Sushi Bar',
+        name: 'Chez Suppernote — Bar à sushi',
         cuisine: ['Japonais', 'Sushi', 'Poisson'],
         description: 'Bar à sushi moderne avec produits frais, situé à Confluence.',
         address: '112 Cours Charlemagne, 69002 Lyon',
@@ -290,7 +290,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-terrasse-lyon',
-        name: 'Chez Sokar — Terrasse Croix-Rousse',
+        name: 'Chez Suppernote — Terrasse Croix-Rousse',
         cuisine: ['Française', 'Méditerranéenne'],
         description: 'Restaurant avec grande terrasse ombragée sur les pentes de la Croix-Rousse.',
         address: '5 Montée de la Grande Côte, 69001 Lyon',
@@ -304,7 +304,7 @@ async function main() {
     const PARIS_RESTOS = [
       {
         slug: 'chez-sokar-bistrot-paris',
-        name: 'Chez Sokar — Bistrot Montmartre',
+        name: 'Chez Suppernote — Bistrot Montmartre',
         cuisine: ['Bistrot', 'Française'],
         description: 'Bistrot de quartier au pied de la butte Montmartre.',
         address: '18 Rue des Abbesses, 75018 Paris',
@@ -315,7 +315,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-neo-paris',
-        name: 'Chez Sokar — Néo-Bistrot Marais',
+        name: 'Chez Suppernote — Néo-bistrot Marais',
         cuisine: ['Néo-bistrot', 'Française', 'Moderne'],
         description: 'Cuisine moderne de saison dans le Marais, cave nature pointue.',
         address: '34 Rue du Temple, 75004 Paris',
@@ -326,7 +326,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-ramen-paris',
-        name: 'Chez Sokar — Ramen Izakaya',
+        name: 'Chez Suppernote — Ramen Izakaya',
         cuisine: ['Japonais', 'Ramen', 'Izakaya'],
         description: 'Izakaya et ramen maison dans le 2e arrondissement.',
         address: '12 Rue Sainte-Anne, 75002 Paris',
@@ -337,7 +337,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-tapas-paris',
-        name: 'Chez Sokar — Tapas Bar Bastille',
+        name: 'Chez Suppernote — Tapas Bastille',
         cuisine: ['Espagnol', 'Tapas', 'Bar à vins'],
         description: 'Tapas et petits producteurs ibériques près de la Bastille.',
         address: '27 Rue de la Roquette, 75011 Paris',
@@ -348,7 +348,7 @@ async function main() {
       },
       {
         slug: 'chez-sokar-veggie-paris',
-        name: 'Chez Sokar — Végétarien Canal Saint-Martin',
+        name: 'Chez Suppernote — Table végétarienne Canal Saint-Martin',
         cuisine: ['Végétarien', 'Bio', 'Moderne'],
         description: 'Table végétarienne 100% bio le long du Canal Saint-Martin.',
         address: '40 Rue de Lancry, 75010 Paris',
@@ -390,7 +390,7 @@ async function main() {
           agenticOptIn: true,
           publishedAt: new Date(),
           managerPhone: r.phone,
-          managerEmail: 'connect-demo@sokar.com',
+          managerEmail: 'connect-demo@suppernote.com',
         },
         create: {
           slug: r.slug,
@@ -411,7 +411,7 @@ async function main() {
           agenticOptIn: true,
           publishedAt: new Date(),
           managerPhone: r.phone,
-          managerEmail: 'connect-demo@sokar.com',
+          managerEmail: 'connect-demo@suppernote.com',
         },
       });
 
@@ -452,7 +452,7 @@ async function main() {
     }
 
     // ─── Pilote P1 — 9 restaurants réalistes (villes variées) ──────────
-    // Noms réalistes français, pas de préfixe "Chez Sokar".
+    // Noms français réalistes pour les scénarios de démonstration.
     // connectPublished=true, connectAgentic=false, connectDescription rempli.
     // Couvre 9 villes différentes pour valider les pages locales.
     const PILOT_RESTOS = [
@@ -647,7 +647,7 @@ async function main() {
           lat: r.lat,
           lng: r.lng,
           managerPhone: r.phone,
-          managerEmail: 'pilot@sokar.com',
+          managerEmail: 'pilot@suppernote.com',
         },
         create: {
           slug: r.slug,
@@ -671,7 +671,7 @@ async function main() {
           lat: r.lat,
           lng: r.lng,
           managerPhone: r.phone,
-          managerEmail: 'pilot@sokar.com',
+          managerEmail: 'pilot@suppernote.com',
         },
       });
 

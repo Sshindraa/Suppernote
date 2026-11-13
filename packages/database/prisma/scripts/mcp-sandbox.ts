@@ -389,7 +389,7 @@ async function main() {
             runId,
             startedAt: startedAt.toISOString(),
             restaurantId: restaurant.id,
-            restaurantSlug: restaurant.slug,
+            restaurantSlug: DEMO_SLUG,
             customerPhone: options.customerPhone,
             specialRequestsMarker: markerFor(runId),
           },

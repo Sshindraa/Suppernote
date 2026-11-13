@@ -1,6 +1,6 @@
-# Hermes Agent for Sokar
+# Hermes Agent for Suppernote
 
-Configuration Hermes CLI pour le monorepo Sokar.
+Configuration Hermes CLI pour le monorepo Suppernote.
 
 ## Configuration
 
@@ -47,7 +47,7 @@ zsh tools/hermes/scripts/start-hermes.sh
 
 Les MCP servers configurés :
 
-- **hermes** : Orchestrateur Sokar
+- **hermes** : Orchestrateur Suppernote
 - **sokar-postgres** : PostgreSQL
 - **sokar-github** : GitHub
 
@@ -68,7 +68,7 @@ Le template utilise `key_env` :
 - `tools/hermes/config/hermes-config.yaml` : template projet.
 - `tools/hermes/config/mcp-config.json` : MCP optionnel.
 
-## Stack Sokar reconnu
+## Stack Suppernote reconnu
 
 - **apps/api** : Fastify 5 + Prisma 6 + Redis + BullMQ + Telnyx
 - **apps/dashboard** : Next.js 15 + React 19 + Tailwind 3

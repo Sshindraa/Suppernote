@@ -1,5 +1,5 @@
 #!/bin/bash
-# Helper partagé pour backup/restore Postgres et notifications lors des déploiements Sokar.
+# Helper partagé pour backup/restore Postgres et notifications lors des déploiements Suppernote.
 # Sourcé par scripts/deploy.sh (via scripts/ops/deploy-common.sh).
 #
 # Variables attendues en entrée :

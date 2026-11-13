@@ -5,7 +5,7 @@ set -Eeuo pipefail
 # Usage : bash scripts/ops/test-deploy-common.sh
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-TMP_ROOT="$(mktemp -d /tmp/sokar-deploy-test.XXXXXX)"
+TMP_ROOT="$(mktemp -d /tmp/suppernote-deploy-test.XXXXXX)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
 SOKAR_ROOT="$TMP_ROOT"

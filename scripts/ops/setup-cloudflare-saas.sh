@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configuration idempotente de Cloudflare for SaaS sur le VPS Sokar.
+# Configuration idempotente de Cloudflare for SaaS sur le VPS Suppernote (hôte sokar).
 #
 # Ajoute CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_SAAS_FALLBACK_ORIGIN
 # dans /opt/sokar/apps/api/.env (prod) ou /opt/sokar-staging/apps/api/.env (staging),

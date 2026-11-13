@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET_URL="${SOKAR_DOGFOOD_URL:-https://sokar.tech}"
+TARGET_URL="${SOKAR_DOGFOOD_URL:-https://suppernote.com}"
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUTPUT_DIR="${SOKAR_DOGFOOD_OUTPUT:-$REPO_ROOT/.hermes/dogfood}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -9,7 +9,7 @@ REPORT_DIR="$OUTPUT_DIR/$STAMP"
 mkdir -p "$REPORT_DIR"
 
 cat > "$REPORT_DIR/prompt.txt" <<PROMPT
-Dogfood QA Sokar production website/dashboard entrypoints.
+Dogfood QA Suppernote production website/dashboard entrypoints.
 
 Target: $TARGET_URL
 Output directory: $REPORT_DIR
@@ -20,7 +20,7 @@ Scope:
 - Mobile/iPad layout risks.
 - Console errors after navigation and interactions.
 - Broken links, 404s, forms, CTAs.
-- Visual regressions against Sokar rules: static marketing preferred, logo/nav consistency, Shadcn token discipline where visible.
+- Visual regressions against Suppernote rules: static marketing preferred, logo/nav consistency, Shadcn token discipline where visible.
 
 Workflow:
 1. Use browser tools if available. Check console after every navigation and interaction.

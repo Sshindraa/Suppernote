@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Configure un fichier de swap sur le VPS.
 #
-# Le VPS a 4GB RAM et 0 swap → les builds Next.js (dashboard + Sokar Connect)
+# Le VPS a 4GB RAM et 0 swap → les builds Next.js (dashboard + Suppernote Connect)
 # sont tués par l'OOM killer (exit 137). 2GB de swap sur disque suffisent
 # car le swap n'est utilisé que pendant les pics de build.
 #

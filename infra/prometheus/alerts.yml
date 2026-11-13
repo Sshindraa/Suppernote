@@ -1,4 +1,4 @@
-# ── Sokar Prometheus alerting rules ──────────────────────────────────────────
+# ── Suppernote Prometheus alerting rules ─────────────────────────────────────
 # Circuit de notification humain : `dispatchAlert()` (Sentry et, selon ALERT_*,
 # email, webhook et SMS critique). `system-health`, les SLO, les seuils ElevenLabs
 # et les indisponibilités STT l'appellent depuis leurs workers / le flux vocal.
@@ -168,7 +168,7 @@ groups:
           team: sokar
         annotations:
           summary: 'Aucun hit bot IA depuis 72h'
-          description: "sokar_connect_ia_bot_hits_total n'a pas augmenté pendant 72h. Les bots IA (GPTBot, ClaudeBot, OAI-SearchBot...) ne crawlent pas Sokar. Vérifier robots.txt, le sitemap, et que les pages sont indexables."
+          description: "sokar_connect_ia_bot_hits_total n'a pas augmenté pendant 72h. Les bots IA (GPTBot, ClaudeBot, OAI-SearchBot...) ne crawlent pas Suppernote. Vérifier robots.txt, le sitemap, et que les pages sont indexables."
 
       # MCP error rate : si >10% des appels MCP sont en erreur sur 1h.
       - alert: McpToolErrorRateHigh

@@ -11,7 +11,7 @@
  *
  * Acquittement (dans le fichier `migration.sql`, avec une raison) :
  *
- *   -- sokar:destructive-ok — colonne remplacée par une vue, backfill vérifié
+ *   -- suppernote:destructive-ok — colonne remplacée par une vue, backfill vérifié
  *
  * Les migrations déjà sur `main` ne sont pas rescannées : la dette historique
  * n'empêche pas de travailler, comme pour la baseline de scoping tenant.
@@ -35,7 +35,7 @@ const writeErr = (message = '') => process.stderr.write(`${message}\n`);
 const MIGRATIONS_DIR = path.join(ROOT, 'packages/database/prisma/migrations');
 const MIGRATION_PATH = /^packages\/database\/prisma\/migrations\/[^/]+\/migration\.sql$/;
 
-export const ACK_MARKER = /--\s*sokar:destructive-ok\b/;
+export const ACK_MARKER = /--\s*(?:suppernote|sokar):destructive-ok\b/;
 
 /**
  * Motifs considérés destructifs. Volontairement conservateur : un `DROP INDEX`
@@ -182,7 +182,7 @@ function report(files, { failOnFindings }) {
     );
     writeErr('   2. prendre une sauvegarde avant le déploiement ;');
     writeErr('   3. ajouter dans le fichier migration.sql :');
-    writeErr('      -- sokar:destructive-ok — <raison et vérification faite>');
+    writeErr('      -- suppernote:destructive-ok — <raison et vérification faite>');
     writeErr('   Voir docs/runbooks/migration.md.');
     writeErr('');
     if (failOnFindings) process.exit(1);
@@ -206,8 +206,14 @@ function runSelfTest() {
       findings: 1,
     },
     {
-      name: 'DROP TABLE avec acquittement → acceptée',
-      sql: '-- sokar:destructive-ok — table vidée depuis 6 mois\nDROP TABLE "tmp_import";',
+      name: 'DROP TABLE avec nouvel acquittement → acceptée',
+      sql: '-- suppernote:destructive-ok — table vidée depuis 6 mois\nDROP TABLE "tmp_import";',
+      safe: true,
+      findings: 1,
+    },
+    {
+      name: 'ancien acquittement toujours accepté',
+      sql: '-- sokar:destructive-ok — migration déjà présente\nDROP TABLE "tmp_import";',
       safe: true,
       findings: 1,
     },

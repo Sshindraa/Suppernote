@@ -1,12 +1,12 @@
-# Sokar Auto-Logging System
+# Suppernote Auto-Logging System
 
 ## Architecture
 
-Le système d'automatisation Sokar élimine tout besoin de mise à jour manuelle de la documentation. Il repose sur **3 composants** qui fonctionnent en synergie :
+Le système d'automatisation Suppernote élimine tout besoin de mise à jour manuelle de la documentation. Il repose sur **3 composants** qui fonctionnent en synergie :
 
 ```
   ┌─────────────────────────────────────────────────────────────────────┐
-  │                   SOKAR AUTO-LOGGING SYSTEM                         │
+  │                SUPPERNOTE AUTO-LOGGING SYSTEM                       │
   │                                                                      │
   │  ┌──────────────────┐    ┌──────────────┐    ┌──────────────────┐   │
   │  │  mcp_serve.py    │    │ auto_sync.py │    │                  │   │
@@ -110,9 +110,9 @@ cat ~/.hermes/logs/mcp_serve.log
 
 ## Fichiers
 
-| Fichier                                       | Rôle                                                   |
-| --------------------------------------------- | ------------------------------------------------------ |
-| `tools/hermes/scripts/mcp_serve.py`           | MCP Gateway + classification + auto-logging            |
-| `tools/hermes/skills/obsidian/auto_sync.py`   | Git/filesystem watcher                                 |
-| `tools/hermes/skills/obsidian/auto_doc.py`    | Helpers de documentation (Context.md, décisions)       |
-| `tools/hermes/skills/obsidian/skill.py`       | Tools Hermes pour le vault (list, read, write, search) |
+| Fichier                                     | Rôle                                                   |
+| ------------------------------------------- | ------------------------------------------------------ |
+| `tools/hermes/scripts/mcp_serve.py`         | MCP Gateway + classification + auto-logging            |
+| `tools/hermes/skills/obsidian/auto_sync.py` | Git/filesystem watcher                                 |
+| `tools/hermes/skills/obsidian/auto_doc.py`  | Helpers de documentation (Context.md, décisions)       |
+| `tools/hermes/skills/obsidian/skill.py`     | Tools Hermes pour le vault (list, read, write, search) |

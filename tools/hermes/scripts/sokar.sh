@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================================
-# sokar.sh — Wrapper Hermes CLI pour Sokar
+# sokar.sh — Wrapper Hermes CLI pour Suppernote
 #
 # Concatène tous les arguments en une tâche, exécute hermes -z,
 # journalise l'activité dans Context.md + Journal.md (Obsidian),
@@ -36,11 +36,11 @@ if [[ -z "$TASK" ]]; then
   exit 1
 fi
 
-# ── 3. Détecter le module Sokar pour la journalisation ──────────────────────
+# ── 3. Détecter le module Suppernote pour la journalisation ─────────────────
 MODULE=$(python3 "${OBSIDIAN_DOC}" detect "${TASK}" 2>/dev/null || echo "general")
 
 # ── 4. Exécuter hermes -z et capturer le résultat ────────────────────────────
-echo "🚀 Sokar — Exécution : ${TASK}"
+echo "🚀 Suppernote — Exécution : ${TASK}"
 echo "   Module détecté : ${MODULE}"
 echo ""
 

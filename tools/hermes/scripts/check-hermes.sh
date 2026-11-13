@@ -35,7 +35,7 @@ check_env() {
     fi
 }
 
-echo "=== Hermes Agent Sokar — Healthcheck ==="
+echo "=== Hermes Agent Suppernote — Healthcheck ==="
 echo ""
 
 check "hermes CLI" "command -v hermes"

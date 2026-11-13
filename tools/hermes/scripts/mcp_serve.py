@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 """
-Hermes MCP server — Sokar execution gateway.
+Hermes MCP server — Suppernote execution gateway.
 
 Toute execution est deleguee a Hermes CLI via execute_task.
 
@@ -191,7 +191,7 @@ def update_relevant_note(task: str, result: str) -> None:
 
 
 def log_to_journal(task: str, result: str) -> None:
-    """Append une ligne markdown au Journal Sokar."""
+    """Append une ligne markdown au Journal Suppernote."""
     try:
         JOURNAL_PATH.parent.mkdir(parents=True, exist_ok=True)
         date = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -242,7 +242,7 @@ def log_session(cascade_msg: str, hermes_result: str) -> None:
 
 
 def guess_module(task: str) -> str:
-    """Devine le module Sokar touche a partir de la description de la tache."""
+    """Devine le module Suppernote touche a partir de la description de la tache."""
     patterns = [
         (r"apps/api/", "apps/api"),
         (r"apps/dashboard/", "apps/dashboard"),
@@ -388,7 +388,7 @@ TOOLS = {
                 },
                 "workdir": {
                     "type": "string",
-                    "description": "Working directory (defaut: racine du projet Sokar)",
+                    "description": "Working directory (defaut: racine du projet Suppernote)",
                 },
             },
             "required": ["task"],

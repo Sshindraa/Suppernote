@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup de l'environnement de staging Sokar sur le VPS sokar.
+# One-time setup de l'environnement de staging Suppernote sur le VPS sokar.
 #
 # Ce script est idempotent : il peut être relancé sans casser une install existante.
 # Il ne déploie PAS automatiquement : il prépare le terrain et demande de remplir
@@ -34,7 +34,7 @@ if [ ! -d "${SOKAR_ROOT}" ]; then
 fi
 
 # ─── 2. Clonage du repo ────────────────────────────────────────────────────
-echo "→ Clonage du repo Sokar..."
+echo "→ Clonage du repo Suppernote..."
 if [ ! -d "${SOKAR_ROOT}/.git" ]; then
   git clone "${REPO_URL}" "${SOKAR_ROOT}"
 fi

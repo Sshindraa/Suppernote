@@ -1,4 +1,4 @@
-# Scripts Sokar
+# Scripts Suppernote
 
 Ce dossier contient uniquement les entrées d'exploitation et les helpers
 réutilisables du monorepo. Les procédures ponctuelles et historiques sont

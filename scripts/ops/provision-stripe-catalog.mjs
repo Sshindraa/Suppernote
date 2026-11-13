@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Provisionne, de façon idempotente, le catalogue Stripe Sokar 199/299.
+ * Provisionne, de façon idempotente, le catalogue Stripe Suppernote 199/299.
  *
  * Les Price Stripe sont immuables : cette commande ne modifie ni n'archive les
  * anciens prix. Elle crée une version v3 sur les produits existants puis rend

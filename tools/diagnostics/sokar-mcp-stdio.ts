@@ -3,7 +3,7 @@
  * Bridge MCP stdio pour Claude Desktop.
  *
  * Il expose les mêmes tools que POST /mcp et délègue toute la logique métier,
- * auth, gating et audit au serveur HTTP Sokar.
+ * auth, gating et audit au serveur HTTP Suppernote.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -234,10 +234,10 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`Sokar MCP stdio bridge running; proxy=${API_BASE}/mcp`);
+  console.error(`Suppernote MCP stdio bridge running; proxy=${API_BASE}/mcp`);
 }
 
 main().catch((err) => {
-  console.error('Sokar MCP stdio bridge failed:', err);
+  console.error('Suppernote MCP stdio bridge failed:', err);
   process.exit(1);
 });

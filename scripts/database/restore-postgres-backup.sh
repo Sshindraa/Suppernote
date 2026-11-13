@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Restaure un dump Sokar dans une base explicitement nommée.
+# Restaure un dump Suppernote dans une base explicitement nommée.
 # Refuse d'écraser la base de production `sokar`.
 
 set -euo pipefail

@@ -15,7 +15,7 @@
 --
 
 \set ON_ERROR_STOP on
-\echo '>>> SOKAR EMERGENCY DISABLE — starting at:'
+\echo '>>> SUPPERNOTE EMERGENCY DISABLE — starting at:'
 SELECT now();
 
 -- ─── 1. Désactiver MCP pour tous les restaurants ─────────────────────────────
@@ -61,5 +61,5 @@ FROM reservation_audit_log a
 ORDER BY a.created_at DESC
 LIMIT 20;
 
-\echo '>>> SOKAR EMERGENCY DISABLE — done.'
+\echo '>>> SUPPERNOTE EMERGENCY DISABLE — done.'
 SELECT now();

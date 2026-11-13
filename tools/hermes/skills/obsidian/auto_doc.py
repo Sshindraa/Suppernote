@@ -1,5 +1,5 @@
 """
-auto_doc — Obsidian auto-documentation helpers for Sokar.
+auto_doc — Obsidian auto-documentation helpers for Suppernote.
 
 Usage:
     from tools.hermes.skills.obsidian.auto_doc import (
@@ -33,7 +33,7 @@ VAULT_PATH = SOKAR_ROOT / "docs" / "obsidian"
 
 
 def detect_module_from_task(task_text: str) -> str:
-    """Devine le module Sokar concerne a partir du texte d'une tache.
+    """Devine le module Suppernote concerne a partir du texte d'une tache.
 
     Priorite:
       apps/api > apps/dashboard > packages/database > packages/voice > agent > docs > general
@@ -84,7 +84,7 @@ def _ensure_context_md() -> None:
     CONTEXT_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not CONTEXT_PATH.exists():
         CONTEXT_PATH.write_text(
-            "# Contexte Sokar\n\n"
+            "# Contexte Suppernote\n\n"
             "## Dernière activité\n\n\n"
             "## Décisions récentes\n\n\n"
             "## TODOs actifs\n\n\n"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-# Helpers partagés pour l'installation et restauration des vhosts Nginx Sokar.
+# Helpers partagés pour l'installation et restauration des vhosts Nginx Suppernote.
 # Sourcé par scripts/ops/sokar-deploy-root.sh.
 #
 # Extrait de install_nginx() et restore_nginx() de sokar-deploy-root.sh (P2 scripts refactor).

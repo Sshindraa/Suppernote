@@ -3,7 +3,7 @@
     "hermes": {
       "command": "/usr/bin/python3",
       "args": ["-u", "${SOKAR_ROOT}/tools/hermes/scripts/mcp_serve.py"],
-      "description": "Hermes orchestrateur — agents Sokar via MCP"
+      "description": "Hermes orchestrateur — agents Suppernote via MCP"
     },
     "sokar-postgres": {
       "command": "npx",
@@ -22,7 +22,7 @@
     "obsidian-vault": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "${SOKAR_ROOT}/docs/obsidian"],
-      "description": "Sokar Obsidian vault — lecture et écriture des notes"
+      "description": "Suppernote Obsidian vault — lecture et écriture des notes"
     }
   }
 }

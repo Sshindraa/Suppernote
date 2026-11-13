@@ -1,4 +1,4 @@
-# Configuration Prometheus Sokar (R1-6).
+# Configuration Prometheus Suppernote (R1-6).
 #
 # Prod et staging tournent sur le même VPS : un seul Prometheus scrape les deux,
 # chaque cible portant son label `env` pour que les dashboards puissent filtrer.

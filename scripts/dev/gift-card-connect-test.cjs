@@ -36,7 +36,7 @@ const child = spawn('pnpm', ['--filter', '@suppernote/connect', 'dev'], {
   },
 });
 child.on('error', () => {
-  console.error('Impossible de démarrer Sokar Connect.');
+  console.error('Impossible de démarrer Suppernote Connect.');
   process.exit(1);
 });
 child.on('exit', (code) => process.exit(code ?? 1));

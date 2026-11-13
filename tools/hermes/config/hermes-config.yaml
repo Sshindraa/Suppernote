@@ -1,4 +1,4 @@
-# Hermes Agent — Configuration Sokar
+# Hermes Agent — Configuration Suppernote
 # Template sans secret. La configuration live est ~/.hermes/config.yaml.
 # Copier ce fichier vers ~/.hermes/config.yaml seulement si vous voulez réinitialiser Hermes.
 
@@ -29,10 +29,10 @@ delegation:
   max_spawn_depth: 2
   subagent_auto_approve: true
 
-# skills_dir: doit pointer sur le repo Sokar (racine), PAS sur tools/hermes/skills.
+# skills_dir: doit pointer sur le repo Suppernote (racine), PAS sur tools/hermes/skills.
 # Le repo-root charge .devin/skills/orchestrate (orchestration Devin).
 # Les scripts tools/hermes/skills/obsidian/ (auto_doc/auto_sync) sont
 # invoqués par code via sys.path dans mcp_serve.py — ils ne sont PAS des skills Hermes
 # (aucun SKILL.md), donc un skills_dir dessus ne chargerait rien de plus.
 # Ne JAMAIS remettre un chemin iCloud (Library/Mobile Documents/...) : il est mort.
-skills_dir: '<CHEMIN_VERS_VOTRE_REPO_SOKAR>' # ex: /Users/<vous>/Projects/Sokar — à remplacer après copie
+skills_dir: '<CHEMIN_VERS_VOTRE_REPO_SUPPERNOTE>' # ex: /Users/<vous>/Projects/Sokar — à remplacer après copie

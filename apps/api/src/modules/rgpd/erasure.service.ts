@@ -20,6 +20,7 @@
  * de téléphone dans Call (s'il existe en clair).
  */
 
+import { withMergedCustomers } from './merged-customers';
 import type { PrismaClient } from '@prisma/client';
 import { logger } from '../../shared/logger/pino';
 import { LONG_TRANSACTION_OPTIONS } from '../../shared/db/transaction-options';
@@ -107,7 +108,7 @@ export class ErasureService {
     // include both the legacy phone and its normalized identity in the erasure
     // subject so a profile created through a formatted number is covered.
     const normalizedPhone = normalizeCustomerPhone(args.subject);
-    const crmCustomers = this.prisma.customer
+    const foundCrmCustomers = this.prisma.customer
       ? ((await this.prisma.customer.findMany({
           where: normalizedPhone
             ? {
@@ -117,8 +118,11 @@ export class ErasureService {
                 ],
               }
             : { phone: args.subject },
-          select: { id: true, phone: true },
+          select: { id: true, restaurantId: true, phone: true },
         })) ?? [])
+      : [];
+    const crmCustomers = this.prisma.customer
+      ? await withMergedCustomers(this.prisma.customer, foundCrmCustomers)
       : [];
     const crmCustomerIds = crmCustomers.map((customer) => customer.id);
 

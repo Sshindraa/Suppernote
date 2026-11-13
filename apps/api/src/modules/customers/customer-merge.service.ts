@@ -26,6 +26,11 @@ export type CustomerMergeSummary = {
   sourceProfilesArchived: number;
   reservationsMoved: number;
   giftCardsMoved: number;
+  experienceReservationsMoved: number;
+  reputationFeedbackRequestsMoved: number;
+  reputationFeedbacksMoved: number;
+  reputationRecoveryTasksMoved: number;
+  loyaltyGrantsMoved: number;
   consentsReassigned: number;
   identitiesMoved: number;
   identitiesDeduplicated: number;
@@ -815,6 +820,11 @@ function emptySummary(sourceCount: number): CustomerMergeSummary {
     sourceProfilesArchived: 0,
     reservationsMoved: 0,
     giftCardsMoved: 0,
+    experienceReservationsMoved: 0,
+    reputationFeedbackRequestsMoved: 0,
+    reputationFeedbacksMoved: 0,
+    reputationRecoveryTasksMoved: 0,
+    loyaltyGrantsMoved: 0,
     consentsReassigned: 0,
     identitiesMoved: 0,
     identitiesDeduplicated: 0,
@@ -1386,6 +1396,20 @@ async function applyMerge(
       data: { customerId: args.targetCustomerId },
     })
   ).count;
+  // Aucune de ces tables n'a d'unicité sur le client : un simple déplacement suffit.
+  const bySource = {
+    where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+    data: { customerId: args.targetCustomerId },
+  };
+  summary.experienceReservationsMoved = (await tx.experienceReservation.updateMany(bySource)).count;
+  summary.reputationFeedbackRequestsMoved = (
+    await tx.reputationFeedbackRequest.updateMany(bySource)
+  ).count;
+  summary.reputationFeedbacksMoved = (await tx.reputationFeedback.updateMany(bySource)).count;
+  summary.reputationRecoveryTasksMoved = (
+    await tx.reputationRecoveryTask.updateMany(bySource)
+  ).count;
+  summary.loyaltyGrantsMoved = (await tx.loyaltyGrant.updateMany(bySource)).count;
   summary.consentsReassigned = (
     await tx.customerConsent.updateMany({
       where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },

@@ -1397,19 +1397,37 @@ async function applyMerge(
     })
   ).count;
   // Aucune de ces tables n'a d'unicité sur le client : un simple déplacement suffit.
-  const bySource = {
-    where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
-    data: { customerId: args.targetCustomerId },
-  };
-  summary.experienceReservationsMoved = (await tx.experienceReservation.updateMany(bySource)).count;
+  // Aucune de ces tables n'a d'unicité sur le client : un simple déplacement suffit.
+  summary.experienceReservationsMoved = (
+    await tx.experienceReservation.updateMany({
+      where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+      data: { customerId: args.targetCustomerId },
+    })
+  ).count;
   summary.reputationFeedbackRequestsMoved = (
-    await tx.reputationFeedbackRequest.updateMany(bySource)
+    await tx.reputationFeedbackRequest.updateMany({
+      where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+      data: { customerId: args.targetCustomerId },
+    })
   ).count;
-  summary.reputationFeedbacksMoved = (await tx.reputationFeedback.updateMany(bySource)).count;
+  summary.reputationFeedbacksMoved = (
+    await tx.reputationFeedback.updateMany({
+      where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+      data: { customerId: args.targetCustomerId },
+    })
+  ).count;
   summary.reputationRecoveryTasksMoved = (
-    await tx.reputationRecoveryTask.updateMany(bySource)
+    await tx.reputationRecoveryTask.updateMany({
+      where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+      data: { customerId: args.targetCustomerId },
+    })
   ).count;
-  summary.loyaltyGrantsMoved = (await tx.loyaltyGrant.updateMany(bySource)).count;
+  summary.loyaltyGrantsMoved = (
+    await tx.loyaltyGrant.updateMany({
+      where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },
+      data: { customerId: args.targetCustomerId },
+    })
+  ).count;
   summary.consentsReassigned = (
     await tx.customerConsent.updateMany({
       where: { restaurantId: args.restaurantId, customerId: { in: args.sourceCustomerIds } },

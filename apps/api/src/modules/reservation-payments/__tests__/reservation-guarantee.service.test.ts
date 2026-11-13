@@ -88,7 +88,7 @@ describe('empreinte bancaire : prélèvement et remboursement', () => {
       }),
     );
     expect(db.reservationPayment.update).toHaveBeenCalledWith({
-      where: { id: 'payment-1' },
+      where: { id: 'payment-1', restaurantId: 'rest-1' },
       data: {
         stripePaymentIntentId: 'pi_1',
         capturedAmount: new Prisma.Decimal('60'),
@@ -146,7 +146,7 @@ describe('empreinte bancaire : prélèvement et remboursement', () => {
       failureCode: 'authentication_required',
     });
     expect(db.reservationPayment.update).toHaveBeenCalledWith({
-      where: { id: 'payment-1' },
+      where: { id: 'payment-1', restaurantId: 'rest-1' },
       data: {
         stripePaymentIntentId: 'pi_declined',
         capturedAmount: null,
@@ -240,7 +240,7 @@ describe('empreinte bancaire : page Stripe et expiration', () => {
       }),
     );
     expect(db.reservationPayment.update).toHaveBeenCalledWith({
-      where: { id: 'payment-1' },
+      where: { id: 'payment-1', restaurantId: 'rest-1' },
       data: {
         stripeAccountId: 'acct_resto',
         stripeCustomerId: 'cus_1',

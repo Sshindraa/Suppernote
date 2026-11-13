@@ -891,7 +891,7 @@ export async function applyReservationPaymentProviderEvent(
     if (!resultingStatus || stale) {
       if (input.disputeStatus && eventType.startsWith('charge.dispute.')) {
         await tx.reservationPayment.update({
-          where: { id: payment.id },
+          where: { id: payment.id, restaurantId: payment.restaurantId },
           data: { disputeStatus: input.disputeStatus.slice(0, 40) },
         });
       }
@@ -1049,9 +1049,12 @@ const GUARANTEE_SELECT = {
   },
 } as const;
 
-async function findGuarantee(where: Prisma.ReservationPaymentWhereInput) {
+async function findGuarantee(
+  restaurantId: string,
+  target: { id: string } | { reservationId: string },
+) {
   const row = await db.reservationPayment.findFirst({
-    where,
+    where: { restaurantId, ...target },
     orderBy: [{ createdAt: 'desc' }],
     select: GUARANTEE_SELECT,
   });
@@ -1076,7 +1079,7 @@ export async function startCardGuaranteeSetup(input: {
   now?: Date;
 }): Promise<{ url: string; expiresAt: Date }> {
   const now = input.now ?? new Date();
-  const payment = await findGuarantee({ id: input.paymentId, restaurantId: input.restaurantId });
+  const payment = await findGuarantee(input.restaurantId, { id: input.paymentId });
   if (
     payment.status !== ReservationPaymentStatus.REQUIRES_PAYMENT_METHOD ||
     !payment.expiresAt ||
@@ -1120,7 +1123,7 @@ export async function startCardGuaranteeSetup(input: {
     idempotencyKey: `reservation-guarantee-setup:${payment.id}:${now.getTime()}`,
   });
   await db.reservationPayment.update({
-    where: { id: payment.id },
+    where: { id: payment.id, restaurantId: payment.restaurantId },
     data: {
       stripeAccountId: accountId,
       stripeCustomerId: session.customerId,
@@ -1147,10 +1150,7 @@ export async function captureCardGuarantee(input: {
   now?: Date;
 }): Promise<CardGuaranteeCaptureResult> {
   const now = input.now ?? new Date();
-  const payment = await findGuarantee({
-    restaurantId: input.restaurantId,
-    reservationId: input.reservationId,
-  });
+  const payment = await findGuarantee(input.restaurantId, { reservationId: input.reservationId });
   const reservationAt = payment.reservation.startsAt ?? payment.reservation.reservedAt;
   // shortcut: absence seulement ; l'annulation tardive arrive avec le parcours d'annulation (PR 2).
   if (
@@ -1185,7 +1185,7 @@ export async function captureCardGuarantee(input: {
     idempotencyKey: `reservation-guarantee-capture:${payment.id}:${payment.updatedAt.getTime()}`,
   });
   await db.reservationPayment.update({
-    where: { id: payment.id },
+    where: { id: payment.id, restaurantId: payment.restaurantId },
     data: result.ok
       ? {
           stripePaymentIntentId: result.paymentIntentId,
@@ -1210,10 +1210,7 @@ export async function refundCardGuarantee(input: {
   reservationId: string;
   amount?: string | number;
 }): Promise<{ refundId: string; amount: string }> {
-  const payment = await findGuarantee({
-    restaurantId: input.restaurantId,
-    reservationId: input.reservationId,
-  });
+  const payment = await findGuarantee(input.restaurantId, { reservationId: input.reservationId });
   const captured = payment.capturedAmount;
   const remaining = captured?.sub(payment.refundedAmount ?? 0);
   const amount = input.amount === undefined ? remaining : normalizeMoney(input.amount);

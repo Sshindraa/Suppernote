@@ -277,7 +277,7 @@ describe('empreinte bancaire via /webhooks/stripe', () => {
 
     expect(response.statusCode).toBe(200);
     expect(db.reservationPayment.update).toHaveBeenCalledWith({
-      where: { id: 'payment-1' },
+      where: { id: 'payment-1', restaurantId: 'test-rest-1' },
       data: { disputeStatus: 'needs_response' },
     });
   });

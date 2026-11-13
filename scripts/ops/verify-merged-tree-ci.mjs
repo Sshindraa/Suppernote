@@ -22,7 +22,7 @@ const REQUIRED_CHECKS = [
   'Secret Scanning',
   'API',
   'Dashboard',
-  'Sokar Connect',
+  'Suppernote Connect',
   'Packages (shared / config / database)',
   'Semgrep',
 ];

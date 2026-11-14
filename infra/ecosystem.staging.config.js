@@ -5,7 +5,7 @@
 //   Dashboard → 3100 (prod: 3000)
 //   Connect  → 4102 (prod: 4002)
 //
-// Isolement : DB sokar_staging, Redis db=3 (prod: db=0/1/2), Clerk staging keys,
+// Isolement : DB sokar_staging, Redis dédié redis-staging sur 127.0.0.1:6380 base 0 (prod: redis sur 6379, bases 0/1/2), Clerk staging keys,
 // voice désactivée (STAGING_DISABLE_VOICE=true via .env).
 module.exports = {
   apps: [

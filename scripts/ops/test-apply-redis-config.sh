@@ -99,4 +99,23 @@ ENVIRONMENT=autre
 test "$(run)" = 2
 ENVIRONMENT=prod
 
+# 10. Staging sans conteneur (premier lancement) : mode check dit « sera créé », rien modifié ;
+#     apply crée redis-staging sans save ni contrôle de volume (il n'existe pas encore).
+ENVIRONMENT=staging
+PS_ID=""
+test "$(run check)" = 0
+not_touched
+test "$(run)" = 0
+grep -q "up -d --no-deps redis-staging" "$CALLS"
+! grep -q "redis-cli save" "$CALLS"
+! grep -q "inspect" "$CALLS"
+PS_ID="abc123"
+ENVIRONMENT=prod
+
+# 11. Prod sans conteneur : abandon, même au premier lancement.
+PS_ID=""
+test "$(run)" = 1; not_touched
+test "$(run check)" = 1; not_touched
+PS_ID="abc123"
+
 echo "apply-redis-config: OK"

@@ -267,23 +267,33 @@ apply_redis_config() {
     esac
 
     "${compose[@]}" config --quiet
-    local container
+    local container creating=0
     container="$("${compose[@]}" ps -q "$svc")"
     if [ -z "$container" ]; then
-        echo "Abandon : le conteneur $svc en cours n'est pas géré par infra/docker-compose.yml." >&2
-        exit 1
-    fi
-    if [ -z "$(/usr/bin/docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")" ]; then
+        # Premier lancement du staging : le conteneur n'existe pas encore, il est créé par `up` ci-dessous
+        # (le volume nommé est créé avec lui). La prod n'a pas ce cas : un conteneur absent l'abandonne.
+        [ "$svc" = "redis-staging" ] || {
+            echo "Abandon : le conteneur $svc en cours n'est pas géré par infra/docker-compose.yml." >&2
+            exit 1
+        }
+        creating=1
+    elif [ -z "$(/usr/bin/docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")" ]; then
         echo "Abandon : /data de Redis n'est pas un volume nommé, les données seraient perdues." >&2
         exit 1
     fi
 
     if [ "$mode" = "check" ]; then
-        echo "Contrôles réussis : conteneur Redis géré par le compose, volume nommé, aucun appel en cours. Rien modifié."
+        if [ "$creating" = 1 ]; then
+            echo "Contrôles réussis : $svc sera créé par le compose (volume nommé), aucun appel en cours. Rien modifié."
+        else
+            echo "Contrôles réussis : conteneur Redis géré par le compose, volume nommé, aucun appel en cours. Rien modifié."
+        fi
         return 0
     fi
 
-    "${compose[@]}" exec -T "$svc" redis-cli save
+    if [ "$creating" = 0 ]; then
+        "${compose[@]}" exec -T "$svc" redis-cli save
+    fi
     "${compose[@]}" up -d --no-deps "$svc"
 
     local attempt

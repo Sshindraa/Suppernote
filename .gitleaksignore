@@ -20,12 +20,14 @@ dda5201468b9dcfd04c350e4b5295e447595077d:scripts/ops/test-sync-env.sh:stripe-acc
 # - donnée de mock dans un test unitaire (smoke.test.ts).
 # - clé publique Clerk `pk_test_` : destinée au navigateur, non secrète (dashboard.sh, dev.sh).
 # - jeton Notion révoqué le 2026-11-06 : intégration supprimée, l'API répond 401.
+#   gitleaks 8.30 le classe aussi en generic-api-key (même ligne) : les deux empreintes sont listées.
 ba34d9c83790f98cadf993f7ebe58698e01d7319:apps/api/src/modules/customers/customer-segment.service.ts:generic-api-key:258
 46f65ac11184c8f687c240b629c3089752eeee69:apps/api/src/modules/customers/customer-segment.service.ts:generic-api-key:258
 80ebcc7e2a73335962d7d858d0731aaee389acd4:apps/api/src/modules/canal-a/__tests__/smoke.test.ts:generic-api-key:141
 57ea48b4dfacd48aad99b6f21f3e7a8e5488316b:scripts/dashboard.sh:generic-api-key:4
 57ea48b4dfacd48aad99b6f21f3e7a8e5488316b:scripts/dev.sh:generic-api-key:11
 fcaf5d4e2c84abea6b7aa611d835592ec9669698:docs/obsidian/Sprint 1 Gap Analysis.md:notion-api-token:16
+fcaf5d4e2c84abea6b7aa611d835592ec9669698:docs/obsidian/Sprint 1 Gap Analysis.md:generic-api-key:16
 
 # - valeur d'exemple OPENAI_RESERVE_HMAC_KEY (apps/api/.env.example) : ne correspond ni à la production ni au staging (comparaison par empreinte, 2026-11-06).
 3df0c5234ede5683b5f2ea7184f7531b06938244:apps/api/.env.example:generic-api-key:27

@@ -28,13 +28,14 @@ pnpm dev
 
 ## What's inside
 
-| Service      | Image                       | Port (host)    | Purpose                                   |
-| ------------ | --------------------------- | -------------- | ----------------------------------------- |
-| `postgres`   | `postgres:16-alpine`        | 127.0.0.1:5432 | Primary DB (`sokar` database)             |
-| `redis`      | `redis:7-alpine`            | 127.0.0.1:6379 | Cache + BullMQ queue                      |
-| `localstack` | `localstack/localstack:4.2` | 127.0.0.1:4566 | AWS emulation (S3, SQS, SES, Lambda)      |
-| `prometheus` | `prom/prometheus:v3.1.0`    | 127.0.0.1:9090 | Metrics scraping, 30-day retention        |
-| `grafana`    | `grafana/grafana:11.5.1`    | 127.0.0.1:3030 | Local dashboards, admin password required |
+| Service         | Image                       | Port (host)    | Purpose                                        |
+| --------------- | --------------------------- | -------------- | ---------------------------------------------- |
+| `postgres`      | `postgres:16-alpine`        | 127.0.0.1:5432 | Primary DB (`sokar` database)                  |
+| `redis`         | `redis:7-alpine`            | 127.0.0.1:6379 | Cache + BullMQ queue (prod, 1 Go)              |
+| `redis-staging` | `redis:7-alpine`            | 127.0.0.1:6380 | Cache + BullMQ queue (staging, 256 Mo, base 0) |
+| `localstack`    | `localstack/localstack:4.2` | 127.0.0.1:4566 | AWS emulation (S3, SQS, SES, Lambda)           |
+| `prometheus`    | `prom/prometheus:v3.1.0`    | 127.0.0.1:9090 | Metrics scraping, 30-day retention             |
+| `grafana`       | `grafana/grafana:11.5.1`    | 127.0.0.1:3030 | Local dashboards, admin password required      |
 
 Ports are bound to `127.0.0.1` (loopback) only — not exposed to the LAN.
 The infra is intended for local dev or a single-host VPS; the API/dashboard

@@ -83,4 +83,20 @@ test "$(grep -n 'redis-cli save' "$CALLS" | cut -d: -f1)" -lt "$(grep -n 'up -d'
 ! grep -E -- '--env-file ' "$CALLS" | grep -v -- '--env-file /dev/null'
 grep -q -- '--env-file /dev/null' "$CALLS"
 
+# 8. Staging : seul redis-staging est recréé, jamais le service redis de prod.
+ENVIRONMENT=staging
+test "$(run)" = 0
+grep -q "up -d --no-deps redis-staging" "$CALLS"
+grep -q "exec -T redis-staging redis-cli ping" "$CALLS"
+! grep -qE "(up -d|exec -T) (--no-deps )?redis( |$)" "$CALLS"
+! grep -qE "exec -T redis " "$CALLS"
+test "$(run check)" = 0
+not_touched
+ENVIRONMENT=prod
+
+# 9. Environnement inconnu : refusé.
+ENVIRONMENT=autre
+test "$(run)" = 2
+ENVIRONMENT=prod
+
 echo "apply-redis-config: OK"

@@ -53,6 +53,8 @@
 | `apps/dashboard/.env` (prod) | Clerk keys, `API_URL`, Sentry                                                     |
 | `apps/connect/.env` (prod)   | `SITE_URL`, `API_URL`, `NEXT_PUBLIC_API_URL`, `DASHBOARD_URL`                     |
 
+**Redis (prod / staging) :** prod utilise `redis` sur `127.0.0.1:6379` (bases 0/1/2). Le staging a son propre Redis, `redis-staging` sur `127.0.0.1:6380`, base 0 (`REDIS_URL` de `/opt/sokar-staging/apps/api/.env`). Les deux services ne partagent ni mémoire ni files ; recréation : `sokar-deploy-root apply-redis-config {prod|staging}`.
+
 ## Base de données locale
 
 La base de dev (`sokar`) est gérée par `pnpm db:push`, pas par migrations : elle n'a **aucun

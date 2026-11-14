@@ -234,7 +234,14 @@ start_prometheus() {
 # écrites sur disque juste avant. Seul le service redis est touché.
 # Mode `check` : exécute tous les contrôles sans rien modifier.
 apply_redis_config() {
-    [ "$ENVIRONMENT" = "prod" ] || usage
+    # Prod garde le service `redis` (127.0.0.1:6379). Staging ne touche que `redis-staging` (127.0.0.1:6380),
+    # sans jamais recréer le conteneur de prod.
+    local svc
+    case "$ENVIRONMENT" in
+        prod) svc=redis ;;
+        staging) svc=redis-staging ;;
+        *) usage ;;
+    esac
     local mode="${1:-apply}"
     case "$mode" in apply|check) ;; *) usage ;; esac
 
@@ -261,9 +268,9 @@ apply_redis_config() {
 
     "${compose[@]}" config --quiet
     local container
-    container="$("${compose[@]}" ps -q redis)"
+    container="$("${compose[@]}" ps -q "$svc")"
     if [ -z "$container" ]; then
-        echo "Abandon : le conteneur Redis en cours n'est pas géré par infra/docker-compose.yml." >&2
+        echo "Abandon : le conteneur $svc en cours n'est pas géré par infra/docker-compose.yml." >&2
         exit 1
     fi
     if [ -z "$(/usr/bin/docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$container")" ]; then
@@ -276,19 +283,19 @@ apply_redis_config() {
         return 0
     fi
 
-    "${compose[@]}" exec -T redis redis-cli save
-    "${compose[@]}" up -d --no-deps redis
+    "${compose[@]}" exec -T "$svc" redis-cli save
+    "${compose[@]}" up -d --no-deps "$svc"
 
     local attempt
     for attempt in $(seq 1 30); do
-        if [ "$("${compose[@]}" exec -T redis redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
-            "${compose[@]}" exec -T redis redis-cli config get maxmemory
-            "${compose[@]}" exec -T redis redis-cli config get maxmemory-policy
+        if [ "$("${compose[@]}" exec -T "$svc" redis-cli ping 2>/dev/null | tr -d '\r')" = "PONG" ]; then
+            "${compose[@]}" exec -T "$svc" redis-cli config get maxmemory
+            "${compose[@]}" exec -T "$svc" redis-cli config get maxmemory-policy
             return 0
         fi
         sleep 1
     done
-    echo "Redis n'a pas répondu dans les 30 secondes." >&2
+    echo "$svc n'a pas répondu dans les 30 secondes." >&2
     exit 1
 }
 

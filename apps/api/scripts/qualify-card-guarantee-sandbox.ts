@@ -290,27 +290,16 @@ async function main() {
 
   // 6 et 7. Refus de la banque et 3DS exigée hors session : la carte reste, l'équipe peut réessayer.
   for (const [label, card, code] of [
-    ['Refus de la banque', 'pm_card_visa_chargeDeclined', 'card_declined'],
+    ['Refus de la banque', 'pm_card_visa_chargeDeclined', 'generic_decline'],
     ['3DS exigée hors session', 'pm_card_authenticationRequired', 'authentication_required'],
   ] as const) {
     const declined = await pendingGuarantee(label);
     await openSetup(declined.paymentId);
-    const current = await payment(declined.paymentId);
-    // La carte est rattachée directement : un SetupIntent 3DS ne se termine pas sans navigateur.
-    await stripe.paymentMethods
-      .attach(
-        card,
-        { customer: current.stripeCustomerId! },
-        {
-          stripeAccount: accountId,
-        },
-      )
-      .then(async (method) =>
-        db.reservationPayment.update({
-          where: { id: declined.paymentId },
-          data: { status: 'AUTHORIZED', stripePaymentMethodId: method.id },
-        }),
-      );
+    // Stripe refuses to attach failure fixtures; the capture API still produces their real test errors.
+    await db.reservationPayment.update({
+      where: { id: declined.paymentId },
+      data: { status: 'AUTHORIZED', stripePaymentMethodId: card },
+    });
     await markNoShow(declined.reservationId);
     const result = await service.captureCardGuarantee({
       restaurantId: restaurant.id,
@@ -333,9 +322,7 @@ async function main() {
       label,
       `refus ${code}, empreinte toujours AUTHORIZED, nouvel essai possible`,
       `${result.outcome} ${'failureCode' in result ? result.failureCode : ''}, ${final.status} (${final.failureCode}), ${failedEventApplied}`,
-      result.outcome === 'DECLINED' &&
-        final.status === 'AUTHORIZED' &&
-        (final.failureCode ?? '').includes(code.split('_')[0]!),
+      result.outcome === 'DECLINED' && final.status === 'AUTHORIZED' && final.failureCode === code,
     );
   }
 
@@ -443,8 +430,11 @@ async function main() {
       'passés par `handleReservationPaymentStripeEvent` (aiguillage de `/webhooks/stripe`) ; la',
       'signature est couverte par les tests unitaires. La page Checkout hébergée est remplacée par un',
       'SetupIntent identique (même client, mêmes métadonnées) faute de navigateur.',
+      'Limite : pour « Refus de la banque » et « 3DS exigée hors session », Stripe refuse de rattacher',
+      'ces cartes de test au client ; la carte est inscrite directement sur l’empreinte en base, puis',
+      'le prélèvement réel produit l’erreur Stripe. Le rattachement de la carte n’est pas couvert ici.',
       '',
-      `Résultat : **${passed}/${rows.length}** scénarios conformes.`,
+      `Résultat : **${passed}/${rows.length}** vérifications conformes (10 scénarios).`,
       '',
       '| Scénario | Attendu | Observé | |',
       '| --- | --- | --- | --- |',

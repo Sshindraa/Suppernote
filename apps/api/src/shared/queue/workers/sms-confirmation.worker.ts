@@ -14,6 +14,7 @@ import {
   NotificationProviderRefusedError,
   recordNotificationResult,
 } from '../notification-idempotency';
+import { fitToOneSegment } from '../../messaging/confirmation-text';
 
 export async function processManagerSmsJob(job: Job): Promise<void> {
   const log = jobLogger(job);
@@ -54,7 +55,12 @@ export async function processManagerSmsJob(job: Job): Promise<void> {
       timeZone: reservation.restaurant.timezone,
     });
     phoneNumber = reservation.restaurant.managerPhone;
-    message = `✅ Table libérée : ${reservation.customerName} a annulé sa résa de ${dateStr} ${timeStr} (${reservation.partySize} pers.) via ${job.data.channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}.`;
+    const via = job.data.channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+    message = fitToOneSegment(
+      reservation.customerName,
+      (name) =>
+        `Table libérée : ${name} a annulé sa résa du ${dateStr} ${timeStr} (${reservation.partySize} pers.) via ${via}.`,
+    );
   }
 
   // Resolve the recipient before claiming a provider attempt, so database failures can retry.

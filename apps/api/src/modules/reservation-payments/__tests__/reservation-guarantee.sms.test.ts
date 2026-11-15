@@ -1,3 +1,4 @@
+import { countSmsSegments } from '../../usage/messaging-usage.service';
 import { Prisma, ReservationPaymentStatus, type PrismaClient } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,7 +76,7 @@ describe('SMS de l’empreinte bancaire', () => {
     vi.unstubAllEnvs();
   });
 
-  it('envoie le lien signé, le montant maximal et l’heure limite', async () => {
+  it('envoie le lien signé et l’heure limite en deux segments au plus', async () => {
     vi.mocked(db.reservationPayment.findFirst).mockResolvedValue(paymentRow() as never);
 
     await processCardGuaranteeSmsJob(job('card-guarantee-link'), deps());
@@ -83,13 +84,15 @@ describe('SMS de l’empreinte bancaire', () => {
     const [to, text] = sendSms.mock.calls[0]!;
     expect(to).toBe('+33600000000');
     expect(text).toMatch(
-      /^Chez Test : pour confirmer votre table du 20\/11\/2026 à 19h30 \(4 pers\.\)/,
+      /^Chez Test : garantissez votre table du 20\/11\/2026 à 19h30 \(4 pers\.\) avant 13h00 : /,
     );
     expect(text).toMatch(
       /https:\/\/suppernote\.test\/garantie\?r=chez-test&t=[0-9a-f]{32}\.[\w-]{43}/,
     );
-    expect(text).toContain('Aucun montant n’est débité aujourd’hui (jusqu’à 80 €');
-    expect(text).toContain('Sans carte avant 13h00, la table sera libérée.');
+    // Le montant retenu en cas d'absence est affiché sur la page du lien, pas dans le SMS.
+    expect(text).toContain("Aucun débit aujourd'hui.");
+    // Le lien signé fait environ 120 caractères : deux segments au plus (cinq avant).
+    expect(countSmsSegments(text as string)).toBeLessThanOrEqual(2);
     expect(claims.acquire).toHaveBeenCalledTimes(1);
   });
 
@@ -110,7 +113,9 @@ describe('SMS de l’empreinte bancaire', () => {
       }) as never,
     );
     await processCardGuaranteeSmsJob(job('card-guarantee-expired'), deps());
-    expect(sendSms.mock.calls[0]![1]).toContain('n’est pas confirmée et la table a été libérée');
+    const expired = sendSms.mock.calls[0]![1] as string;
+    expect(expired).toContain('est annulée et la table libérée');
+    expect(countSmsSegments(expired)).toBe(1);
   });
 
   it('ne renvoie pas un SMS déjà parti', async () => {

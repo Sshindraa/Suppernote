@@ -1,3 +1,4 @@
+import { countSmsSegments } from '../../../usage/messaging-usage.service';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Job } from 'bullmq';
 import type { PrismaClient } from '@prisma/client';
@@ -153,11 +154,12 @@ describe('waiting-list-promote.worker', () => {
     expect(sendSms).toHaveBeenCalledTimes(1);
     const [to, text] = vi.mocked(sendSms).mock.calls[0] as [string, string];
     expect(to).toBe('+33612345678');
-    expect(text).toContain('Bonne nouvelle !');
+    expect(text).toContain("une table s'est libérée");
+    expect(countSmsSegments(text)).toBe(1);
     expect(text).toContain('Chez Suppernote');
     expect(text).toContain('mercredi 14 janvier 2026');
     expect(text).toContain('19:30');
-    expect(text).toContain('4 personnes');
+    expect(text).toContain('(4 pers.)');
     expect(text).toContain('+33123456789');
   });
 

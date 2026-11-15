@@ -936,6 +936,7 @@ export function __resetMetrics(): void {
   httpRequestsTotal.reset();
   telnyxWebhookEventsTotal.reset();
   telnyxMessagingEventsTotal.reset();
+  brevoSmsEventsTotal.reset();
   alertsSentTotal.reset();
   queueJobsGauge.reset();
   callsMissingTranscriptGauge.reset();
@@ -1158,6 +1159,13 @@ export const telnyxWebhookEventsTotal = new Counter({
  * Événements de messagerie Telnyx reçus, avec statut de livraison borné.
  * Aucun identifiant de message ou numéro de téléphone n'est exposé en label.
  */
+export const brevoSmsEventsTotal = new Counter({
+  name: 'suppernote_brevo_sms_events_total',
+  help: 'Total Brevo SMS webhook events by bounded delivery status',
+  labelNames: ['status'] as const,
+  registers: [getRegistry()],
+});
+
 export const telnyxMessagingEventsTotal = new Counter({
   name: 'suppernote_telnyx_messaging_events_total',
   help: 'Total Telnyx messaging webhook events by event type and bounded status',

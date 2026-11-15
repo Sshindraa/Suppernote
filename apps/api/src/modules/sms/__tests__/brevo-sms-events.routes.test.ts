@@ -25,6 +25,7 @@ vi.mock('../../marketing/marketing-provider.service', async (importOriginal) => 
 import { getApp, closeApp } from '../../../test/helpers';
 import { applyMarketingProviderEvent } from '../../marketing/marketing-provider.service';
 import { isValidBrevoWebhookToken } from '../brevo-sms-events.routes';
+import { brevoSmsEventsTotal } from '../../../shared/observability/metrics';
 
 const SECRET = 'y'.repeat(40);
 const mockApply = vi.mocked(applyMarketingProviderEvent);
@@ -114,6 +115,19 @@ describe('POST /sms/brevo/events', () => {
     ]);
     expect(response.json()).toEqual({ result: 'ok', applied: 1 });
     expect(mockApply).toHaveBeenCalledTimes(1);
+  });
+
+  it('compte les événements par statut borné', async () => {
+    const count = async (status: string) =>
+      (await brevoSmsEventsTotal.get()).values.find((v) => v.labels.status === status)?.value ?? 0;
+    const delivered = await count('delivered');
+    const ignored = await count('ignored');
+    await post([
+      { messageId: 11, msg_status: 'delivered' },
+      { messageId: 12, msg_status: 'replied' },
+    ]);
+    expect((await count('delivered')) - delivered).toBe(1);
+    expect((await count('ignored')) - ignored).toBe(1);
   });
 
   it('400 sur un corps invalide', async () => {

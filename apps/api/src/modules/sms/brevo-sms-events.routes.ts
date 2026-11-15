@@ -3,6 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { RATE_LIMIT_PROVIDER_WEBHOOK } from '../../plugins/rate-limit.policy';
 import { normalizeBrevoSmsEvent, storeBrevoSmsStatus } from '../../shared/brevo/sms-client';
+import { brevoSmsEventsTotal } from '../../shared/observability/metrics';
 import { redisQueue } from '../../shared/redis/client';
 import { applyMarketingProviderEvent } from '../marketing/marketing-provider.service';
 
@@ -55,6 +56,7 @@ export async function brevoSmsEventRoutes(app: FastifyInstance) {
         const messageId = event.messageId === undefined ? '' : String(event.messageId).trim();
         const status = normalizeBrevoSmsEvent(event.msg_status);
         // `skip` arrive avec messageId 0 : rien à rattacher.
+        brevoSmsEventsTotal.inc({ status: status ?? 'ignored' });
         if (!status || !messageId || messageId === '0') continue;
         if (!(await storeBrevoSmsStatus(redisQueue, messageId, status))) continue;
         applied++;

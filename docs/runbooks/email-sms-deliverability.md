@@ -17,7 +17,7 @@ Les liens de gestion de réservation restent la voie de réponse.
 **Webhook de livraison** : Brevo ne signe pas ses webhooks ; il publie seulement ses plages IP
 (`1.179.112.0/20`, `172.246.240.0/20`, [liste Brevo](https://help.brevo.com/hc/en-us/articles/15127404548498)).
 La route `/sms/brevo/events` exige donc le jeton `BREVO_SMS_WEBHOOK_SECRET` dans l’URL ; un filtrage IP Nginx
-peut s’ajouter. Statuts : `sent`/`accepted` → `sent`, `delivered` → `delivered`, `soft_bounce`,
+peut s’ajouter. Compteur Prometheus : `suppernote_brevo_sms_events_total{status}`. Statuts : `sent`/`accepted` → `sent`, `delivered` → `delivered`, `soft_bounce`,
 `hard_bounce`, `rej`, `bl`, `skip` → `delivery_failed` ; `replied`, `subscribe`, `unsubscribed` ignorés. Le
 dernier statut est gardé 7 jours dans Redis : il sert de relecture pour la réconciliation (Brevo n’a pas de
 lecture par identifiant) et rend les doublons sans effet. Coût : provider `brevo`, non tarifé.
@@ -25,13 +25,17 @@ lecture par identifiant) et rend les doublons sans effet. Coût : provider `brev
 ### Bascule (prod ou staging)
 
 1. Attendre la validation de l’ID d’expéditeur « Suppernote » pour la France chez Brevo.
-2. Dans le `.env` de l’environnement, avec sauvegarde `.env.bak-sms-provider-<date>` :
+1. Vérifier que le vhost déployé coupe le journal d’accès de `/sms/brevo/events` (le jeton est dans l’URL).
+   Le déploiement l’installe (`scripts/deploy.sh` → `install-nginx`, qui lance `nginx -t`) ; sinon, en root :
+   `sudo /usr/local/sbin/sokar-deploy-root install-nginx prod` (ou `staging`). Contrôle :
+   `grep -A2 'location = /sms/brevo/events' /etc/nginx/sites-enabled/sokar` doit montrer `access_log off;`.
+1. Dans le `.env` de l’environnement, avec sauvegarde `.env.bak-sms-provider-<date>` :
    `BREVO_SMS_WEBHOOK_SECRET=<openssl rand -hex 32>`, puis `SMS_PROVIDER=brevo`. `BREVO_API_KEY` est déjà posé ;
    `BREVO_SMS_SENDER` seulement si l’expéditeur validé diffère de `Suppernote`. `PUBLIC_API_URL` doit viser
    l’environnement (sinon les événements de staging arrivent en prod).
-3. Redémarrer API et workers sans `--update-env`, avec 0 appel vocal en cours ; vérifier `pm2 jlist` et
+1. Redémarrer API et workers sans `--update-env`, avec 0 appel vocal en cours ; vérifier `pm2 jlist` et
    `/health`.
-4. Un seul SMS de test vers un numéro de l’équipe ; attendre l’événement `delivered` dans les journaux
+1. Un seul SMS de test vers un numéro de l’équipe ; attendre l’événement `delivered` dans les journaux
    (`Brevo SMS delivered`) et la réception sur le téléphone.
 
 ### Retour à Telnyx

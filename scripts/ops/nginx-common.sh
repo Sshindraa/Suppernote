@@ -57,6 +57,8 @@ install_nginx_vhost() {
 
     if [ "$environment" = "prod" ]; then
         install -m 0644 "$root/infra/nginx/sokar.conf" "/etc/nginx/sites-available/$vhost"
+        # Créé par deploy pour que la rotation (copytruncate, su deploy) puisse le tronquer.
+        [ -e /var/log/sokar/nginx-legacy.log ] || install -o deploy -g deploy -m 0644 /dev/null /var/log/sokar/nginx-legacy.log
         ln -sfn "/etc/nginx/sites-available/$vhost" "/etc/nginx/sites-enabled/$vhost"
     else
         install -m 0644 "$root/infra/nginx/sokar-staging.conf" "/etc/nginx/sites-available/$vhost"

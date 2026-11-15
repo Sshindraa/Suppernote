@@ -209,7 +209,8 @@ test('personal booking link survives reload and withdrawal is explicit', async (
   await expect(phone).toHaveCSS('opacity', '1');
   if (testInfo.project.name === 'desktop-1440') {
     for (const action of [calendarButton, directions, phone]) {
-      const property = 'textDecorationColor';
+      // Le calendrier est un bouton plein : son survol change le fond, les liens leur soulignement.
+      const property = action === calendarButton ? 'backgroundColor' : 'textDecorationColor';
       const initial = await action.evaluate(
         (n, property) => getComputedStyle(n)[property],
         property,
@@ -455,7 +456,7 @@ test('personal modification keeps the current carton through selection and revie
   await early.press('Space');
   await page.getByRole('button', { name: 'Continuer · 20h00' }).click();
   expect(modifications).toBe(0);
-  await expect(page.locator('dl').first()).toContainText('19:30');
+  await expect(page.locator('dl').first()).toContainText('19h30');
   await expect(page.getByRole('dialog')).toContainText('20h00');
   await expect(page.getByRole('dialog')).toContainText('3 personnes');
   await page.screenshot({
@@ -464,10 +465,10 @@ test('personal modification keeps the current carton through selection and revie
   });
   await page.getByRole('button', { name: 'Confirmer la modification' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('dl').first()).toContainText('20:00');
+  await expect(page.locator('dl').first()).toContainText('20h00');
   expect(modifications).toBe(1);
   await page.reload();
-  await expect(page.locator('dl').first()).toContainText('20:00');
+  await expect(page.locator('dl').first()).toContainText('20h00');
   expect(modifications).toBe(1);
 });
 
@@ -518,5 +519,5 @@ test('a taken modification slot leaves the current booking intact', async ({ pag
   await page.getByRole('button', { name: 'Confirmer la modification' }).click();
   await expect(page.getByRole('alert')).toContainText('réservation initiale est conservée');
   await page.getByRole('button', { name: 'Quitter sans modifier' }).click();
-  await expect(page.locator('dl').first()).toContainText('19:30');
+  await expect(page.locator('dl').first()).toContainText('19h30');
 });

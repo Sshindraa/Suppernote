@@ -34,16 +34,19 @@ export const DEAD_LETTER_PAYLOAD_VERSION = 1;
 export const DEAD_LETTER_LIST_WINDOW = 500;
 
 const SECRET_KEY_PATTERN = /token|secret|apikey|api_key|authorization|password/i;
+// Données personnelles des jobs (SMS, e-mails, réservations) : jamais dans les logs ni Sentry.
+const PII_KEY_PATTERN =
+  /phone|email|address|firstname|lastname|fullname|customername|guestname|^name$|^to$|^from$|^body$|^message$|^text$|notes?$|specialrequests/i;
 
 /**
- * Redacts secret-looking keys at any depth. Used for logs, Sentry and the
+ * Redacts secret-looking and personal-data keys at any depth. Used for logs, Sentry and the
  * read paths of this module — never for the replayable payload.
  */
 export function redactJobData(value: unknown): unknown {
   if (!value || typeof value !== 'object') return value;
   return JSON.parse(
     JSON.stringify(value, (key, nested) => {
-      if (SECRET_KEY_PATTERN.test(key)) return '[REDACTED]';
+      if (SECRET_KEY_PATTERN.test(key) || PII_KEY_PATTERN.test(key)) return '[REDACTED]';
       return nested;
     }),
   );

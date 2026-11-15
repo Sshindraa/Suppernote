@@ -390,6 +390,12 @@ export async function customerCrmRoutes(app: FastifyInstance) {
             ...preview,
             target: redactSensitiveCustomerFields(preview.target),
             sources: preview.sources.map((source) => redactSensitiveCustomerFields(source)),
+            conflicts: {
+              ...preview.conflicts,
+              profileFields: preview.conflicts.profileFields.filter(
+                ({ field }) => field !== 'notes' && field !== 'specialOccasion',
+              ),
+            },
           },
         });
       } catch (error) {

@@ -138,4 +138,36 @@ describe('usage accounting export', () => {
     expect(csv).toContain('"Chez, ""Suppernote"""');
     expect(csv.endsWith('\n')).toBe(true);
   });
+
+  it('neutralise les formules de tableur sans toucher aux montants négatifs', () => {
+    const row = {
+      schemaVersion: 1,
+      month: '2026-09',
+      rowType: 'ADJUSTMENT',
+      restaurantId: 'r-1',
+      restaurantName: '=HYPERLINK("http://x")',
+      plan: 'PRO',
+      category: 'EMAIL_MESSAGES',
+      provider: 'resend',
+      unit: 'messages',
+      periodStart: '2026-09-01T00:00:00.000Z',
+      periodEnd: '2026-10-01T00:00:00.000Z',
+      quantity: '-1.000000',
+      costEur: '-0.010000',
+      currency: 'EUR',
+      costStatus: 'PRICED',
+      eventCount: null,
+      source: 'adjustment',
+      reportHash: null,
+      adjustmentId: 'a-1',
+      adjustmentStatus: 'APPROVED',
+      reason: '@SUM(A1)',
+    } as const;
+    const csv = usageAccountingExportToCsv({ rows: [row] });
+
+    expect(csv).toContain(`"'=HYPERLINK(""http://x"")"`);
+    expect(csv).toContain(`"'@SUM(A1)"`);
+    expect(csv).toContain('"-0.010000"');
+    expect(csv).toContain('"-1.000000"');
+  });
 });

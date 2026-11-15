@@ -31,6 +31,7 @@ import { isVoicePipelineEnabled } from '../../shared/configcat';
 import { isBillingSuspended } from '../billing/billing.service';
 import { recordWebhookOutcome } from '../../shared/observability/webhook-health';
 import { answerSuspendedCall, handleSuspendedCallEvent, isSuspendedCall } from './suspended-call';
+import { db } from '../../shared/db/client';
 import { isAtCallCapacity } from './call-capacity';
 import { telnyxFetch } from '../../shared/telnyx/http-agent';
 
@@ -194,7 +195,7 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
         // Avant : recordMonthlyCall → isVoicePipelineEnabled → lookupOrCreate
         //         (3 awaits séquentiels = ~50-150ms cumulés)
         // Après : Promise.all des 3 en parallèle = max(3) au lieu de sum(3)
-        const [, voiceEnabled, billingSuspended, customer] = await Promise.all([
+        const [, voiceEnabled, billingSuspended, customer, site] = await Promise.all([
           RestaurantService.recordMonthlyCall(ctx.id),
           isVoicePipelineEnabled(ctx.id),
           isBillingSuspended(ctx.id),
@@ -203,6 +204,8 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
                 CustomerService.withVoiceProfile(ctx.id, caller),
               )
             : Promise.resolve(null),
+          // Lu sans cache : le contexte d'appel est gardé 5 minutes et ne porte pas ce statut.
+          db.restaurant.findUnique({ where: { id: ctx.id }, select: { siteStatus: true } }),
         ]);
 
         // Kill switch — drop the call before any expensive work (DB write,
@@ -212,6 +215,23 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
           app.log.warn(
             { restaurantId: ctx.id, callId: payload.call_control_id },
             'Voice pipeline killed by feature flag — dropping call',
+          );
+          return reply.send({ result: 'ok' });
+        }
+
+        // Site suspendu ou archivé, ou abonnement terminé : Suppernote ne décroche pas.
+        // Aucune session vocale ; l'appel reste au restaurant (renvoi ou messagerie de sa ligne).
+        const inactiveSite = site?.siteStatus === 'SUSPENDED' || site?.siteStatus === 'ARCHIVED';
+        if (inactiveSite || billingSuspended) {
+          app.log.warn(
+            {
+              restaurantId: ctx.id,
+              callId: payload.call_control_id,
+              reason: inactiveSite
+                ? `site_${site?.siteStatus?.toLowerCase()}`
+                : 'billing_suspended',
+            },
+            'Inactive restaurant — call not answered by Suppernote',
           );
           return reply.send({ result: 'ok' });
         }
@@ -230,25 +250,6 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
             app.log.error(
               { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
               'Busy call answer failed',
-            );
-          }
-          return reply.send({ result: 'ok' });
-        }
-
-        // Ended subscription (trial without a card, cancellation, unpaid): no voice session.
-        // The restaurant may still forward its line here, so the caller hears a short message in
-        // the restaurant's name instead of silence, then Suppernote hangs up.
-        if (billingSuspended) {
-          app.log.warn(
-            { restaurantId: ctx.id, callId: payload.call_control_id },
-            'Billing suspended — short message then hang up',
-          );
-          try {
-            await answerSuspendedCall(payload.call_control_id, ctx.name);
-          } catch (err) {
-            app.log.error(
-              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
-              'Suspended call answer failed',
             );
           }
           return reply.send({ result: 'ok' });

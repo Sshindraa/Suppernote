@@ -460,7 +460,7 @@ describe('POST /voice/telnyx — call.initiated', () => {
     expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
   });
 
-  it('plays a short message instead of a voice session when the subscription has ended', async () => {
+  it('ne décroche pas quand l’abonnement est terminé', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
     mockRecordMonthlyCall.mockResolvedValue(undefined);
     mockIsVoicePipelineEnabled.mockResolvedValue(true);
@@ -475,15 +475,29 @@ describe('POST /voice/telnyx — call.initiated', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ result: 'ok' });
     expect(mockIsBillingSuspended).toHaveBeenCalledWith('rest-1');
-    expect(mockTelnyxFetch).toHaveBeenCalledTimes(1);
-    const [path, init] = mockTelnyxFetch.mock.calls[0] as [string, { body: string }];
-    expect(path).toBe('/v2/calls/cc-1/actions/answer');
-    const state = JSON.parse(
-      Buffer.from(JSON.parse(init.body).client_state, 'base64').toString('utf8'),
-    );
-    expect(state).toEqual({ kind: 'billing_suspended_call', name: 'Le Bistrot' });
+    expect(mockTelnyxFetch).not.toHaveBeenCalled();
     expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
   });
+
+  it.each(['SUSPENDED', 'ARCHIVED'] as const)(
+    'site %s : Suppernote ne décroche pas et n’ouvre aucune session vocale',
+    async (siteStatus) => {
+      mockLoadContext.mockResolvedValue(makeRestaurantCtx());
+      mockRecordMonthlyCall.mockResolvedValue(undefined);
+      mockIsVoicePipelineEnabled.mockResolvedValue(true);
+      vi.mocked(db.restaurant.findUnique).mockResolvedValueOnce({ siteStatus } as never);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/voice/telnyx',
+        payload: makeInitiatedPayload(),
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(mockTelnyxFetch).not.toHaveBeenCalled();
+      expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
+    },
+  );
 
   it('plays a busy message instead of a voice session when the call capacity is reached', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());

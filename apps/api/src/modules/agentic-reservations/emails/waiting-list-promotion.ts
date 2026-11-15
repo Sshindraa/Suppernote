@@ -1,3 +1,4 @@
+import { fitToOneSegment } from '../../../shared/messaging/confirmation-text';
 export interface WaitingListPromotionTemplateData {
   restaurantName: string;
   date: string;
@@ -7,8 +8,11 @@ export interface WaitingListPromotionTemplateData {
 }
 
 export function buildWaitingListPromotionSms(data: WaitingListPromotionTemplateData): string {
-  const people = data.partySize === 1 ? 'personne' : 'personnes';
-  return `Bonne nouvelle ! Une table s'est libérée chez ${data.restaurantName}. Votre réservation est confirmée le ${data.date} à ${data.time} pour ${data.partySize} ${people}. Pour modifier ou annuler, appelez le ${data.restaurantPhone}.`;
+  return fitToOneSegment(
+    data.restaurantName,
+    (name) =>
+      `${name} : une table s'est libérée, votre réservation est confirmée le ${data.date} à ${data.time} (${data.partySize} pers.). Modifier ou annuler : ${data.restaurantPhone}`,
+  );
 }
 
 export function buildWaitingListPromotionEmailHtml(data: WaitingListPromotionTemplateData): string {

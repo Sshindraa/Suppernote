@@ -161,6 +161,23 @@ describe('marketing provider reconciliation', () => {
     ).toBeNull();
   });
 
+  it('normalise les statuts Brevo déjà ramenés par le webhook', () => {
+    const brevo = (providerStatus: string, errorCode?: string) =>
+      normalizeMarketingProviderEvent({
+        provider: 'brevo',
+        eventType: 'sms.x',
+        providerStatus,
+        errorCode,
+      });
+    expect(brevo('sent')).toEqual({ status: MarketingMessageStatus.SENT });
+    expect(brevo('delivered')).toEqual({ status: MarketingMessageStatus.DELIVERED });
+    expect(brevo('delivery_failed', 'BREVO_23')).toEqual({
+      status: MarketingMessageStatus.FAILED,
+      errorCode: 'BREVO_23',
+    });
+    expect(brevo('replied')).toBeNull();
+  });
+
   it('avance une CampaignMessage et incrémente deliveredCount une seule fois', async () => {
     vi.mocked(db.campaignMessage.findFirst).mockResolvedValue({
       id: 'message-1',

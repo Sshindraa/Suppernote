@@ -5,6 +5,7 @@ import { db } from '../../db/client';
 import { queues } from '../queues';
 import { lookupResendEmail } from '../../email';
 import { lookupTelnyxMessage } from '../../telnyx/client';
+import { lookupBrevoSms } from '../../brevo/sms-client';
 import { lookupMetaStatus } from '../../whatsapp/meta-status';
 import {
   recordNotificationClaimEvent,
@@ -90,6 +91,7 @@ function getDefaultDependencies(): ReconciliationDependencies {
     lookupProviderMessage: async ({ provider, providerMessageId }) => {
       if (provider === 'resend') return lookupResendEmail(providerMessageId);
       if (provider === 'meta') return lookupMetaStatus(redisQueue, providerMessageId);
+      if (provider === 'brevo') return lookupBrevoSms(redisQueue, providerMessageId);
       return lookupTelnyxMessage(providerMessageId);
     },
     deadLetterQueue: queues.deadLetter,

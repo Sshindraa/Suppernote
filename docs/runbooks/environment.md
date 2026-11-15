@@ -1173,13 +1173,17 @@ nécessaires activées et la configuration vérifiée de bout en bout.
 
 ### Bloc 3 : appel de test sortant (provisioning)
 
-| Réglage                | Où le renseigner                        | Lu par                              | Utilité                                                                                         |
-| ---------------------- | --------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `TELNYX_FROM_NUMBER`   | secret `TELNYX_FROM_NUMBER_STAGING`     | `shared/telnyx/client`              | Numéro émetteur de l'appel de test (format E.164)                                               |
-| `TELNYX_SMS_FROM`      | optionnel                               | `shared/telnyx/client`              | Expéditeur SMS (numéro du profil de messagerie ou `SUPPERNOTE`) ; défaut : `TELNYX_FROM_NUMBER` |
-| `EMAIL_REPLY_TO`       | optionnel                               | `shared/email`                      | Adresse de réponse des e-mails ; défaut : `hello@suppernote.com`                                |
-| `TELNYX_CONNECTION_ID` | variable `TELNYX_CONNECTION_ID_STAGING` | `shared/telnyx/client`              | Application d'appel utilisée pour l'appel sortant (même que le bloc 2)                          |
-| `PUBLIC_API_URL`       | variable `PUBLIC_API_URL_STAGING`       | `admin/provisioning`, `restaurants` | Base des URL de webhook. Sans elle, le repli est la production                                  |
+| Réglage                    | Où le renseigner                        | Lu par                              | Utilité                                                                                         |
+| -------------------------- | --------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `TELNYX_FROM_NUMBER`       | secret `TELNYX_FROM_NUMBER_STAGING`     | `shared/telnyx/client`              | Numéro émetteur de l'appel de test (format E.164)                                               |
+| `TELNYX_SMS_FROM`          | optionnel                               | `shared/telnyx/client`              | Expéditeur SMS (numéro du profil de messagerie ou `SUPPERNOTE`) ; défaut : `TELNYX_FROM_NUMBER` |
+| `EMAIL_REPLY_TO`           | optionnel                               | `shared/email`                      | Adresse de réponse des e-mails ; défaut : `hello@suppernote.com`                                |
+| `SMS_PROVIDER`             | optionnel, global                       | `shared/brevo/sms-client`           | Fournisseur d'envoi des SMS : `telnyx` (défaut) ou `brevo`. Jamais par restaurant               |
+| `BREVO_API_KEY`            | secret (déjà posé en prod et staging)   | `shared/brevo/sms-client`           | Clé API Brevo, droit restreint aux SMS transactionnels. Lue seulement si `SMS_PROVIDER=brevo`   |
+| `BREVO_SMS_SENDER`         | optionnel                               | `shared/brevo/sms-client`           | Expéditeur alphanumérique validé chez Brevo, 11 caractères max ; défaut : `Suppernote`          |
+| `BREVO_SMS_WEBHOOK_SECRET` | secret, 32 caractères min               | `modules/sms/brevo-sms-events`      | Jeton de l'URL de livraison `/sms/brevo/events?token=…` ; sans lui, aucun `webUrl` n'est envoyé |
+| `TELNYX_CONNECTION_ID`     | variable `TELNYX_CONNECTION_ID_STAGING` | `shared/telnyx/client`              | Application d'appel utilisée pour l'appel sortant (même que le bloc 2)                          |
+| `PUBLIC_API_URL`           | variable `PUBLIC_API_URL_STAGING`       | `admin/provisioning`, `restaurants` | Base des URL de webhook. Sans elle, le repli est la production                                  |
 
 Le code de l'appel de test est corrigé dans cette livraison : `connection_id` est transmis, le webhook est
 `${PUBLIC_API_URL}/voice/telnyx`, et le message de test est joué au décroché puis l'appel est raccroché.
@@ -1208,6 +1212,8 @@ de test ; à confirmer dans le portail.
 `RESERVATION_MANAGEMENT_ENABLED` defaults to false. `RESERVATION_MANAGEMENT_SECRET` is a stable key_env secret of 32 random bytes encoded as 64 hex characters, shared by API/workers. `TELNYX_SMS_FROM` optionally selects a dedicated SMS sender (for example the alphanumeric sender already configured in the messaging profile); when unset, the historical `TELNYX_FROM_NUMBER` is preserved. Voice always keeps its existing sender. See `reservation-management.md`.
 
 `TELNYX_SMS_WEBHOOK_URL` optionally overrides delivery callbacks per SMS with `use_profile_webhooks=false`, so a staging test does not report to the shared production profile webhook. It must point to the signed `/sms/telnyx/inbound` route on the intended environment. An accepted request/message ID is not proof of handset delivery; require the matching signed `message.finalized` receipt with `delivered` status and the tester’s reception report.
+
+`SMS_PROVIDER=brevo` routes every SMS sent through `sendSms` to Brevo (`POST /v3/transactionalSMS/send`); voice, WhatsApp and inbound SMS stay on Telnyx. Brevo does not sign its webhooks: each send passes `webUrl=${PUBLIC_API_URL}/sms/brevo/events?token=${BREVO_SMS_WEBHOOK_SECRET}`, and the route compares the token in constant time. The request logger strips the query string of this route. Generate the secret with `openssl rand -hex 32`. Switch and rollback procedure: `email-sms-deliverability.md`.
 
 `RESERVATION_SELF_CANCELLATION_ENABLED` defaults to false and requires personal
 reservation management to be enabled. Enable on staging only after qualification.

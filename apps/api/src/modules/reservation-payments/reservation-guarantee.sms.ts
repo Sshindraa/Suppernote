@@ -1,6 +1,5 @@
 import type { Job } from 'bullmq';
 import { ReservationPaymentStatus, type PrismaClient } from '@prisma/client';
-import { formatGuaranteeEuros } from '@suppernote/shared';
 import { logger } from '../../shared/logger/pino';
 import { queues } from '../../shared/queue/queues';
 import { buildReservationNotificationJobId } from '../../shared/queue/job-options';
@@ -16,6 +15,7 @@ import {
 import type { sendSms } from '../../shared/telnyx/client';
 import { utcToZonedParts } from '../../shared/timezone/restaurant-time';
 import { cardGuaranteePageUrl, cardGuaranteeToken } from './reservation-guarantee.public';
+import { fitToOneSegment } from '../../shared/messaging/confirmation-text';
 
 export type CardGuaranteeSmsKind = 'link' | 'expired';
 export type CardGuaranteeSmsJobData = { paymentId: string; restaurantId: string; nonce: string };
@@ -61,10 +61,6 @@ export async function enqueueConfirmationAfterCardGuarantee(
     { reservationId: row.id },
     { jobId: buildReservationNotificationJobId('confirmation-after-guarantee', row.id) },
   );
-}
-
-function money(amount: { toFixed(digits: number): string }): string {
-  return formatGuaranteeEuros(amount.toFixed(2));
 }
 
 export async function processCardGuaranteeSmsJob(
@@ -126,10 +122,12 @@ export async function processCardGuaranteeSmsJob(
   const deadline = payment.expiresAt
     ? utcToZonedParts(payment.expiresAt, timezone).time.replace(':', 'h')
     : null;
-  const text =
+  // Court : le lien signé impose deux segments ; le montant retenu en cas d'absence est sur la page.
+  const text = fitToOneSegment(name, (shortName) =>
     kind === 'link'
-      ? `${name} : pour confirmer votre table du ${day} à ${time} (${people}), enregistrez votre carte ici : ${cardGuaranteePageUrl(slug!, token!)} Aucun montant n’est débité aujourd’hui (jusqu’à ${money(payment.amount)} en cas d’absence ou d’annulation tardive).${deadline ? ` Sans carte avant ${deadline}, la table sera libérée.` : ''}`
-      : `${name} : votre carte n’a pas été enregistrée à temps, votre réservation du ${day} à ${time} n’est pas confirmée et la table a été libérée. Pour réserver à nouveau, contactez le restaurant.`;
+      ? `${shortName} : garantissez votre table du ${day} à ${time} (${people})${deadline ? ` avant ${deadline}` : ''} : ${cardGuaranteePageUrl(slug!, token!)} Aucun débit aujourd'hui.`
+      : `${shortName} : sans carte enregistrée à temps, votre réservation du ${day} à ${time} est annulée et la table libérée. Pour réserver, contactez le restaurant.`,
+  );
 
   const claimKey = buildNotificationClaimKey(`card-guarantee-${kind}-sms`, `${paymentId}:${nonce}`);
   const claim = await acquireNotificationClaim(deps.claimStore, claimKey, {

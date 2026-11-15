@@ -23,6 +23,7 @@ import { startCapacityLimitPublisher } from './modules/voice/call-capacity';
 import { initVoiceFillerCache } from './modules/voice/stream/voice-filler';
 import { reservationManagementRoutes } from './modules/reservations/reservation-management.routes';
 import { smsInboundRoutes } from './modules/sms/sms-inbound.routes';
+import { brevoSmsEventRoutes } from './modules/sms/brevo-sms-events.routes';
 import { metaWhatsAppWebhookRoutes } from './modules/whatsapp/meta-webhook.routes';
 import { whatsappWebhookRoutes } from './modules/whatsapp/whatsapp-webhook.routes';
 import { restaurantRoutes } from './modules/restaurants/restaurant.routes';
@@ -252,6 +253,7 @@ export async function buildApp() {
 
   await app.register(telnyxVoiceRoutes);
   await app.register(smsInboundRoutes);
+  await app.register(brevoSmsEventRoutes);
   await app.register(reservationManagementRoutes);
   await app.register(whatsappWebhookRoutes);
   await app.register(metaWhatsAppWebhookRoutes);

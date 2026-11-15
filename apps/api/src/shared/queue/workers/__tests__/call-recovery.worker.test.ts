@@ -1,3 +1,4 @@
+import { countSmsSegments } from '../../../../modules/usage/messaging-usage.service';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Job } from 'bullmq';
 
@@ -117,7 +118,8 @@ describe('call-recovery.worker', () => {
 
     const [, text] = vi.mocked(sendSms).mock.calls[0] as [string, string];
     expect(text).toContain('https://suppernote.com/restaurant/chez-sokar-demo/book');
-    expect(text).toContain('Réservez en ligne');
+    expect(text).toContain('Réservez ici');
+    expect(countSmsSegments(text)).toBe(1);
   });
 
   it('fallback sur numéro de téléphone quand restaurantSlug est null', async () => {

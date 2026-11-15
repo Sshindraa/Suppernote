@@ -185,9 +185,12 @@
   align-items: center;
   gap: 8px;
   color: hsl(var(--muted-foreground));
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
 }
 .managementToggle {
+  color: hsl(var(--foreground) / 0.75);
+  text-decoration: underline;
+  text-underline-offset: 4px;
   margin: 0 auto;
 }
 .managementToggle::-webkit-details-marker,
@@ -367,4 +370,31 @@
     height: 14px;
     margin: 0;
   }
+}
+.notice {
+  max-width: 28rem;
+  margin: 0 auto;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.giftCard {
+  display: flex;
+  width: 100%;
+  max-width: 440px;
+  min-height: 56px;
+  margin: 32px auto 0;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  padding: 12px 16px;
+  color: hsl(var(--foreground));
+  font-size: 0.8125rem;
+  text-align: left;
+  transition: all 200ms;
+}
+.giftCard:hover {
+  background: hsl(var(--foreground) / 0.04);
 }

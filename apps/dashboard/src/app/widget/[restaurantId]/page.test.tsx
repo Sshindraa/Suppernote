@@ -808,13 +808,11 @@ describe('réservation publique sur le widget réellement servi par /book', () =
   it('résout le slug public pour une ancienne URL de widget par identifiant', async () => {
     const { widget, fetchSpy } = await submitTest(undefined, false, true);
     expect(await widget.findByText('Confirmée')).toBeTruthy();
-    expect(widget.getByRole('link', { name: 'Retour' }).getAttribute('href')).toBe(
-      '/restaurant/chez-sokar',
-    );
+    expect(widget.queryByRole('link', { name: 'Retour' })).toBeNull();
     const posts = fetchSpy.mock.calls.filter(([, init]) => init?.method === 'POST');
     expect(posts.map(([url]) => url)).toContain('/api/proxy/public/r/chez-sokar/confirm');
     expect(posts.some(([url]) => url.includes('/public/r/r1/'))).toBe(false);
-    fireEvent.click(widget.getByRole('button', { name: 'Offrir une carte cadeau' }));
+    fireEvent.click(widget.getByRole('button', { name: /Offrir une carte cadeau/ }));
     expect(widget.container.querySelector('iframe')?.getAttribute('src')).toContain(
       '/widget/chez-sokar/gift-card?embedded=1',
     );
@@ -899,12 +897,12 @@ describe('réservation publique sur le widget réellement servi par /book', () =
     }
     expect(widget.getByText(/supprimée automatiquement sous 24 h/)).toBeTruthy();
     expect(widget.queryByRole('link', { name: 'Gérer ma réservation' })).toBeNull();
-    expect(widget.container.querySelector('dl')?.textContent).toContain('20:30');
+    expect(widget.container.querySelector('dl')?.textContent).toContain('20h30');
     expect(widget.getByRole('button', { name: 'Ajouter au calendrier' })).toBeTruthy();
     expect(widget.getByRole('link', { name: 'Retour' }).getAttribute('href')).toContain(
       'testBooking=',
     );
-    expect(widget.queryByRole('button', { name: 'Offrir une carte cadeau' })).toBeNull();
+    expect(widget.queryByRole('button', { name: /Offrir une carte cadeau/ })).toBeNull();
   });
 
   it.each(['', 'expired'])(

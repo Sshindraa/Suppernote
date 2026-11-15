@@ -65,6 +65,8 @@ export default function ReservationView({
   demo = false,
   confirmation,
   actions,
+  notice,
+  footer,
 }: {
   demo?: boolean;
   confirmation?: {
@@ -73,6 +75,10 @@ export default function ReservationView({
     withdrawWhatsapp?: () => Promise<void>;
   };
   actions?: ReactNode;
+  /** Ligne sous les cartons : comment la confirmation arrive. */
+  notice?: ReactNode;
+  /** Bloc sous « Modifier ou annuler » (carte cadeau après une réservation). */
+  footer?: ReactNode;
 }) {
   const token = useRef('');
   const [reservation, setReservation] = useState<Reservation | null>(null);
@@ -325,7 +331,7 @@ export default function ReservationView({
                 <div className={cn(styles.ticket, styles.timeTicket)}>
                   <dt className="sr-only">Heure</dt>
                   <dd className={styles.ticketBody}>
-                    <span className={styles.timeNumber}>{reservation.time}</span>
+                    <span className={styles.timeNumber}>{reservation.time.replace(':', 'h')}</span>
                   </dd>
                 </div>
                 <div className={cn(styles.ticket, styles.guestsTicket)}>
@@ -338,12 +344,12 @@ export default function ReservationView({
                   </dd>
                 </div>
               </dl>
+              {notice && <p className={styles.notice}>{notice}</p>}
               <div className={styles.primaryActions}>
                 {confirmed && reservation.startsAt && (
                   <Button
                     onClick={addToCalendar}
-                    variant="link"
-                    className={cn(styles.calendar, 'min-h-11 transition-all duration-200')}
+                    className="min-h-11 rounded-full px-5 transition-all duration-200"
                   >
                     <CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" />
                     Ajouter au calendrier
@@ -538,6 +544,7 @@ export default function ReservationView({
                 )}
               </div>
             </details>
+            {footer}
           </>
         ) : null}
         {error && (

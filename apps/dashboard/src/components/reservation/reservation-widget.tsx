@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import ReservationView, { type Reservation } from '@/app/r/reservation-view';
+import reservationViewStyles from '@/app/r/reservation-view.module.css';
 import { ReservationDatePicker } from './reservation-date-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getGiftCardOrigin } from '@/lib/gift-card-origin';
@@ -1274,48 +1275,41 @@ export default function ReservationWidget({
     return (
       <ReservationView
         confirmation={bookingConfirmation ?? undefined}
+        notice={
+          testBooking
+            ? undefined
+            : customerEmail.trim()
+              ? `Confirmation envoyée par e-mail à ${customerEmail.trim()}.`
+              : 'Aucun e-mail renseigné : ajoutez la réservation à votre calendrier pour la garder.'
+        }
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => {
-                requestedSlotRef.current = null;
-                setSelectionNotice('');
-                setSuccess(false);
-                setStep(1);
-                setSelectedTime('');
-                setCustomerName('');
-                setCustomerPhone('');
-                setCustomerEmail('');
-                setPartySize(2);
-                setError('');
-                setConfirmedReservation(null);
-                setWhatsappOptIn(false);
-                setSelectedDate(new Date());
-              }}
-              className="min-h-11 text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
-            >
-              Faire une autre réservation
-            </button>
-            {!isEmbedded && (
+            {testBooking && !isEmbedded && (
               <Link
-                href={`/restaurant/${restaurant.slug ?? restaurantId}${testBooking ? `?${new URLSearchParams({ testBooking: testBookingToken })}` : ''}`}
+                href={`/restaurant/${restaurant.slug ?? restaurantId}?${new URLSearchParams({ testBooking: testBookingToken })}`}
                 className="min-h-11 content-center text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
               >
                 Retour
               </Link>
             )}
-            {!testBooking && restaurant.giftCardEnabled !== false && (
-              <button
-                type="button"
-                onClick={() => setShowGiftCard(true)}
-                className="min-h-11 text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
-              >
-                Offrir une carte cadeau
-              </button>
-            )}
             {giftCardOverlay}
           </>
+        }
+        footer={
+          !testBooking && restaurant.giftCardEnabled !== false ? (
+            <button
+              type="button"
+              onClick={() => setShowGiftCard(true)}
+              className={reservationViewStyles.giftCard}
+            >
+              <Gift size={18} aria-hidden="true" className="shrink-0" />
+              <span className="flex-1">
+                <span className="block font-medium">Offrir une carte cadeau</span>
+                <span className="block text-muted-foreground">Un repas chez {restaurant.name}</span>
+              </span>
+              <ChevronRight size={16} aria-hidden="true" className="shrink-0" />
+            </button>
+          ) : undefined
         }
       />
     );

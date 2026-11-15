@@ -219,6 +219,23 @@ describe('outbound-confirm.worker', () => {
     expect(db.reservationAuditLog.create).not.toHaveBeenCalled();
   });
 
+  it('envoie le SMS d’une réservation web sans e-mail même si le restaurant a coupé les SMS', async () => {
+    const { deps, db } = makeDependencies();
+    const current = await db.reservation.findUnique();
+    const off = { name: 'Chez Suppernote', timezone: 'Europe/Paris', smsConfirmEnabled: false };
+    db.reservation.findUnique.mockResolvedValue({
+      ...current,
+      channel: 'WEB',
+      customerEmail: null,
+      isTest: false,
+      restaurant: off,
+    });
+
+    await processOutboundConfirmJob(makeJob(), deps);
+
+    expect(sendSms).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ['2099-01-05T18:00:00.000Z', '05/01/2099 19:00'],
     ['2099-07-05T17:00:00.000Z', '05/07/2099 19:00'],

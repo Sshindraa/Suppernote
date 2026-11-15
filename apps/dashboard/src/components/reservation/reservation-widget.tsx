@@ -1280,7 +1280,7 @@ export default function ReservationWidget({
             ? undefined
             : customerEmail.trim()
               ? `Confirmation envoyée par e-mail à ${customerEmail.trim()}.`
-              : 'Aucun e-mail renseigné : ajoutez la réservation à votre calendrier pour la garder.'
+              : `Confirmation envoyée par SMS au ${customerPhone.trim()}.`
         }
         actions={
           <>

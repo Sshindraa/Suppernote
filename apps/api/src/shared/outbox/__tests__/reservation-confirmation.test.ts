@@ -76,6 +76,19 @@ describe('transactional reservation confirmation intent', () => {
       'reservation-confirmation-email',
     ]);
   });
+  it('queues an SMS for WEB without e-mail, even with the SMS setting off', async () => {
+    for (const enabled of [true, false]) {
+      vi.mocked(enqueue).mockClear();
+      expect(await enqueueReservationConfirmation(transaction(enabled), reservation)).toBe(true);
+      expect(vi.mocked(enqueue).mock.calls.map(([, event]) => event.topic)).toEqual([
+        'reservation-confirmation',
+      ]);
+    }
+  });
+  it('never queues the WEB fallback SMS for a test booking', async () => {
+    await enqueueReservationConfirmation(transaction(), { ...reservation, isTest: true });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
   it('queues the e-mail for MCP when the assistant provided one, never an SMS', async () => {
     await enqueueReservationConfirmation(transaction(), {
       ...reservation,

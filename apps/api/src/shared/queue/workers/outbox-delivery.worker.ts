@@ -2,6 +2,7 @@ import { processGiftCardDelivery } from '../../../modules/gift-cards/gift-card-d
 import { Worker, type Job } from 'bullmq';
 import { redisQueue } from '../../redis/client';
 import { db } from '../../db/client';
+import { isWebConfirmationSmsFallback } from '../../outbox/reservation-confirmation';
 import { queues } from '../queues';
 import { buildReservationNotificationJobId } from '../job-options';
 import { utcToZonedParts, isSlotStartPast } from '../../timezone/restaurant-time';
@@ -64,7 +65,7 @@ export async function processOutboxDeliveryJob(job: Job<OutboxDeliveryJobData>):
       reservation.state !== 'CONFIRMED' ||
       reservation.status !== 'CONFIRMED' ||
       !reservation.customerPhone ||
-      !reservation.restaurant.smsConfirmEnabled
+      (!reservation.restaurant.smsConfirmEnabled && !isWebConfirmationSmsFallback(reservation))
     )
       return;
     const instant = reservation.startsAt ?? reservation.reservedAt;

@@ -18,6 +18,7 @@ import {
 } from '../notification-idempotency';
 import { recordNotificationProviderResult } from '../../observability/metrics';
 import type { MessagingUsageContext } from '../../../modules/usage/messaging-usage.service';
+import { fitToOneSegment, smsSafeText } from '../../messaging/confirmation-text';
 
 export interface CallRecoveryJobData {
   callId: string;
@@ -113,7 +114,8 @@ export async function processCallRecoveryJob(
     }
   }
 
-  const opening = data.customerName ? `Bonjour ${data.customerName.split(' ')[0]}, ` : 'Bonjour, ';
+  const firstName = data.customerName ? smsSafeText(data.customerName).split(' ')[0] : '';
+  const opening = firstName ? `Bonjour ${firstName}, ` : 'Bonjour, ';
 
   // Lien de réservation en ligne (Suppernote Connect) si le slug est disponible.
   const siteUrl = process.env.SITE_URL ?? 'https://suppernote.com';
@@ -121,12 +123,15 @@ export async function processCallRecoveryJob(
     data.restaurantSlug != null ? `${siteUrl}/restaurant/${data.restaurantSlug}/book` : null;
 
   const tail = bookingUrl
-    ? ` Réservez en ligne : ${bookingUrl}`
+    ? ` Réservez ici : ${bookingUrl}`
     : data.restaurantPhone
       ? ` Appelez le ${data.restaurantPhone} ou rappelez-nous.`
       : ' Rappelez-nous quand vous voulez.';
 
-  const message = `${opening}votre réservation chez ${data.restaurantName} n'a pas pu être confirmée.${tail}`;
+  const message = fitToOneSegment(
+    data.restaurantName,
+    (name) => `${opening}votre réservation chez ${name} n'est pas confirmée.${tail}`,
+  );
 
   const claimKey = buildNotificationClaimKey('call-recovery-sms', data.callId);
   const claim = await acquireNotificationClaim(deps.claimStore, claimKey, {

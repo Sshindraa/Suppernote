@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type Redis from 'ioredis';
 import { sanitizeJobId } from './job-options';
 
-export type NotificationProvider = 'telnyx' | 'resend' | 'meta';
+export type NotificationProvider = 'telnyx' | 'brevo' | 'resend' | 'meta';
 export type NotificationChannel = 'sms' | 'whatsapp' | 'email';
 export type NotificationProviderResult = 'success' | 'failure_certain' | 'unknown';
 export type NotificationClaimStatus = 'in_progress' | 'unknown' | 'success';
@@ -138,7 +138,7 @@ export function buildNotificationReconciliationJobId(claimKey: string): string {
 }
 
 function isProvider(value: unknown): value is NotificationProvider {
-  return value === 'telnyx' || value === 'resend' || value === 'meta';
+  return value === 'telnyx' || value === 'brevo' || value === 'resend' || value === 'meta';
 }
 
 function isChannel(value: unknown): value is NotificationChannel {

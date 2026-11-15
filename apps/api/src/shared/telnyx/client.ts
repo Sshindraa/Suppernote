@@ -10,6 +10,7 @@ import {
   recordAcceptedMessagingUsage,
   type MessagingUsageContext,
 } from '../../modules/usage/messaging-usage.service';
+import { getSmsProvider, sendBrevoSms } from '../brevo/sms-client';
 
 // Agent keep-alive persistant pour le SDK Telnyx (balance, SMS, WhatsApp, outbound calls).
 // Évite le handshake TLS (~113ms) à chaque appel en réutilisant la connexion.
@@ -63,6 +64,8 @@ export async function sendSms(
   text: string,
   usage?: MessagingUsageContext,
 ): Promise<void | NotificationSendResult> {
+  // Choix global (`SMS_PROVIDER`), jamais par restaurant : les appelants gardent `sendSms`.
+  if (getSmsProvider() === 'brevo') return sendBrevoSms(to, text, usage);
   const t = getTelnyx();
   const messagingProfileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
   const response = await t.messages

@@ -100,7 +100,7 @@ export type NotificationProviderMetricResult =
   | 'reconciled_unknown';
 
 export function recordNotificationProviderResult(
-  provider: 'telnyx' | 'resend' | 'meta',
+  provider: 'telnyx' | 'brevo' | 'resend' | 'meta',
   channel: 'sms' | 'whatsapp' | 'email',
   result: NotificationProviderMetricResult,
 ): void {

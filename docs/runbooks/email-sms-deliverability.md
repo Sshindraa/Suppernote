@@ -2,6 +2,44 @@
 
 Audit du 17 octobre 2026 (production). Les constats SMS de cette date sont historiques ; voir la mise à jour du 24 octobre ci-dessous.
 
+## Bascule des SMS vers Brevo — 15 novembre 2026
+
+Telnyx route les numéros portés vers l’opérateur d’origine (bug confirmé par son support) : 12 SMS sur 16
+vers la France refusés en `40008`. L’envoi passe donc par Brevo, derrière `SMS_PROVIDER` (global, `telnyx`
+par défaut). La voix, WhatsApp et la route entrante `/sms/telnyx/inbound` restent chez Telnyx.
+
+**Réponses OUI/NON** : impossibles avec Brevo tant que l’expéditeur est un nom (« Suppernote »). Brevo ne
+transmet les réponses que par e-mail à l’adresse de connexion du compte, et seulement si l’expéditeur est un
+numéro : « If you use a text sender, there will be no way to link the recipient to the sender and the SMS
+response will fail » ([Brevo, Receive and reply to SMS messages by email](https://help.brevo.com/hc/en-us/articles/209447465)).
+Les liens de gestion de réservation restent la voie de réponse.
+
+**Webhook de livraison** : Brevo ne signe pas ses webhooks ; il publie seulement ses plages IP
+(`1.179.112.0/20`, `172.246.240.0/20`, [liste Brevo](https://help.brevo.com/hc/en-us/articles/15127404548498)).
+La route `/sms/brevo/events` exige donc le jeton `BREVO_SMS_WEBHOOK_SECRET` dans l’URL ; un filtrage IP Nginx
+peut s’ajouter. Statuts : `sent`/`accepted` → `sent`, `delivered` → `delivered`, `soft_bounce`,
+`hard_bounce`, `rej`, `bl`, `skip` → `delivery_failed` ; `replied`, `subscribe`, `unsubscribed` ignorés. Le
+dernier statut est gardé 7 jours dans Redis : il sert de relecture pour la réconciliation (Brevo n’a pas de
+lecture par identifiant) et rend les doublons sans effet. Coût : provider `brevo`, non tarifé.
+
+### Bascule (prod ou staging)
+
+1. Attendre la validation de l’ID d’expéditeur « Suppernote » pour la France chez Brevo.
+2. Dans le `.env` de l’environnement, avec sauvegarde `.env.bak-sms-provider-<date>` :
+   `BREVO_SMS_WEBHOOK_SECRET=<openssl rand -hex 32>`, puis `SMS_PROVIDER=brevo`. `BREVO_API_KEY` est déjà posé ;
+   `BREVO_SMS_SENDER` seulement si l’expéditeur validé diffère de `Suppernote`. `PUBLIC_API_URL` doit viser
+   l’environnement (sinon les événements de staging arrivent en prod).
+3. Redémarrer API et workers sans `--update-env`, avec 0 appel vocal en cours ; vérifier `pm2 jlist` et
+   `/health`.
+4. Un seul SMS de test vers un numéro de l’équipe ; attendre l’événement `delivered` dans les journaux
+   (`Brevo SMS delivered`) et la réception sur le téléphone.
+
+### Retour à Telnyx
+
+Mettre `SMS_PROVIDER=telnyx` (ou retirer la ligne), redémarrer de la même façon. Les SMS déjà envoyés par
+Brevo gardent leur suivi : la route `/sms/brevo/events` reste active et les identifiants numériques Brevo sont
+relus côté Brevo.
+
 ## SMS en production — 24 octobre 2026
 
 - Relevé en lecture seule : API et workers en ligne, `/health` et `/livez` verts ;

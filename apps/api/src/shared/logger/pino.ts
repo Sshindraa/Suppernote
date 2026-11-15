@@ -6,7 +6,9 @@ const isDev = process.env.NODE_ENV !== 'production';
 export const REDACT_CENSOR = '[REDACTED]';
 
 export function safeRequestUrl(url: string | undefined): string | undefined {
-  return url?.startsWith('/voice/stream/') || url?.startsWith('/api/rgpd/confirm-link')
+  return url?.startsWith('/voice/stream/') ||
+    url?.startsWith('/api/rgpd/confirm-link') ||
+    url?.startsWith('/sms/brevo/events')
     ? url.split('?')[0]
     : url;
 }

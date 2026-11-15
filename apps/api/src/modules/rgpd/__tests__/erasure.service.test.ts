@@ -100,7 +100,7 @@ describe('ErasureService.eraseSubject', () => {
     });
 
     expect(prisma.reservation.updateMany).toHaveBeenCalledWith({
-      where: { customerPhone: '+336****1111' },
+      where: { customerPhone: { in: ['+336****1111'] } },
       data: {
         customerName: 'ANON',
         customerPhone: null,
@@ -110,6 +110,31 @@ describe('ErasureService.eraseSubject', () => {
       },
     });
     expect(result.reservationsAnonymized).toBe(3);
+  });
+
+  it('efface aussi les lignes enregistrées au format national « 06… »', async () => {
+    (prisma.reservation.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'res-1' });
+    (prisma.customerConsent.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (prisma.$transaction as ReturnType<typeof vi.fn>).mockImplementation(
+      async (fn: (tx: { reservation: typeof prisma.reservation }) => unknown) => fn(prisma),
+    );
+    (prisma.reservation.updateMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 1 });
+
+    await service.eraseSubject({
+      subject: '+33612345678',
+      reason: 'GDPR right to erasure',
+      actor: 'admin:hamza',
+    });
+
+    expect(prisma.reservation.findFirst).toHaveBeenCalledWith({
+      where: { customerPhone: { in: expect.arrayContaining(['+33612345678', '0612345678']) } },
+      select: { id: true },
+    });
+    expect(prisma.reservation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { customerPhone: { in: expect.arrayContaining(['+33612345678', '0612345678']) } },
+      }),
+    );
   });
 
   it('anonymise les messages d appels (Message a customerPhone/customerName)', async () => {

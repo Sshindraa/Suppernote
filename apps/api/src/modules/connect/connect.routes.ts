@@ -589,7 +589,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
           .send({ error: 'Invalid query', details: queryParse.error.format() });
       }
 
-      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug);
+      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug, { forBooking: true });
       if (!restaurant) {
         return reply.status(404).send({ error: 'Restaurant not found or not published' });
       }
@@ -640,7 +640,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
           .send({ holdId: '', holdToken: '', expiresAt: '', status: 'pending' });
       }
 
-      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug);
+      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug, { forBooking: true });
       if (!restaurant) {
         return reply.status(404).send({ error: 'Restaurant not found or not published' });
       }
@@ -808,7 +808,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(202).send({ reservationId: '', status: 'confirmed' });
       }
 
-      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug);
+      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug, { forBooking: true });
       if (!restaurant) {
         return reply.status(404).send({ error: 'Restaurant not found or not published' });
       }
@@ -1378,7 +1378,7 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
 
       const { date, time, partySize, customer, preferredSectionId, source } = bodyParse.data;
 
-      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug);
+      const restaurant = await canal.getPublishedBySlug(slugParse.data.slug, { forBooking: true });
       if (!restaurant) {
         return reply.status(404).send({ error: 'Restaurant not found or not published' });
       }

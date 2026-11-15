@@ -150,6 +150,7 @@ export class AvailabilityService {
           ? { name: { contains: args.restaurantName.trim(), mode: 'insensitive' as const } }
           : {}),
         agenticOptIn: true,
+        siteStatus: { notIn: ['ARCHIVED', 'SUSPENDED'] },
         exposureSettings: {
           is: {
             mcpEnabled: true,
@@ -249,6 +250,7 @@ export class AvailabilityService {
           ? { name: { contains: args.restaurantName.trim(), mode: 'insensitive' as const } }
           : {}),
         agenticOptIn: true,
+        siteStatus: { notIn: ['ARCHIVED', 'SUSPENDED'] },
         exposureSettings: { is: { mcpEnabled: true } },
         ...(args.cuisineType && args.cuisineType.length > 0
           ? { cuisineType: { hasSome: args.cuisineType } }

@@ -277,7 +277,10 @@ export default function PrivacyPage() {
             </p>
             <ul className="mt-3 list-disc space-y-1 pl-6 text-muted-foreground">
               <li>Prénom et nom (pour personnaliser la confirmation)</li>
-              <li>Numéro de téléphone au format international (pour le SMS de confirmation)</li>
+              <li>
+                Numéro de téléphone au format international (pour vous joindre au sujet de votre
+                réservation)
+              </li>
               <li>Adresse e-mail (optionnelle, pour une confirmation par e-mail)</li>
               <li>Demandes spéciales éventuelles (allergies, accès, etc.)</li>
               <li>

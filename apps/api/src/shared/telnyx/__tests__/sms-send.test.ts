@@ -13,6 +13,22 @@ describe('SMS adapter error boundary', () => {
     vi.clearAllMocks();
   });
 
+  it('routes SMS to Brevo only when SMS_PROVIDER=brevo', async () => {
+    vi.stubEnv('SMS_PROVIDER', 'brevo');
+    vi.stubEnv('BREVO_API_KEY', 'test-brevo-key-not-real');
+    const create = vi.spyOn(telnyx.messages, 'create');
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messageId: 77 }), { status: 201 }));
+    await expect(sendSms('+33600000000', 'Fixture message')).resolves.toMatchObject({
+      outcome: 'success',
+      provider: 'brevo',
+      providerMessageId: '77',
+    });
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it('uses a dedicated SMS sender without changing the voice sender', async () => {
     vi.stubEnv('TELNYX_SMS_FROM', 'SOKAR');
     vi.stubEnv('TELNYX_FROM_NUMBER', '+33100000000');

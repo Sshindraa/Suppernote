@@ -473,7 +473,7 @@ export class McpToolRegistry {
 
     const start = performance.now();
     try {
-      const exposure = await this.getMcpExposure(input.restaurantId, ctx);
+      const exposure = await this.getMcpExposure(input.restaurantId, ctx, { booking: true });
       if (!exposure.ok) return exposure.error;
 
       const range = parseMcpDateRange({
@@ -553,7 +553,7 @@ export class McpToolRegistry {
     const cleanSpecialRequests = sanitizeSpecialRequests(input.specialRequests);
 
     try {
-      const exposure = await this.getMcpExposure(input.restaurantId, ctx);
+      const exposure = await this.getMcpExposure(input.restaurantId, ctx, { booking: true });
       if (!exposure.ok) return exposure.error;
 
       const range = parseMcpDateRange({
@@ -660,7 +660,7 @@ export class McpToolRegistry {
     if (!rl.allowed) return toolError('Rate limit exceeded', 'RATE_LIMITED');
 
     try {
-      const exposure = await this.getMcpExposure(input.restaurantId, ctx);
+      const exposure = await this.getMcpExposure(input.restaurantId, ctx, { booking: true });
       if (!exposure.ok) return exposure.error;
       const range = parseMcpDateRange({
         start: input.slotStart,
@@ -726,7 +726,7 @@ export class McpToolRegistry {
     const rl = await this.rateLimiter.check(ctx.clientId, 'join_waiting_list');
     if (!rl.allowed) return toolError('Rate limit exceeded', 'RATE_LIMITED');
     try {
-      const exposure = await this.getMcpExposure(input.restaurantId, ctx);
+      const exposure = await this.getMcpExposure(input.restaurantId, ctx, { booking: true });
       if (!exposure.ok) return exposure.error;
       const range = parseMcpDateRange({
         start: input.slotStart,
@@ -1021,9 +1021,11 @@ export class McpToolRegistry {
     }
   }
 
+  /** `booking` : nouvelle réservation ; un site suspendu ou archivé répond comme « non trouvé ». */
   private async getMcpExposure(
     restaurantId: string,
     ctx: ToolContext,
+    options?: { booking?: boolean },
   ): Promise<
     | {
         ok: true;
@@ -1045,6 +1047,7 @@ export class McpToolRegistry {
         id: restaurantId,
         agenticOptIn: true,
         exposureSettings: { is: { mcpEnabled: true } },
+        ...(options?.booking ? { siteStatus: { notIn: ['ARCHIVED', 'SUSPENDED'] } } : {}),
       },
       select: {
         timezone: true,

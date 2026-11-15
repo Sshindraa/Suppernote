@@ -7,6 +7,7 @@ import {
 } from '../../shared/queue/notification-idempotency';
 import { lookupResendEmail } from '../../shared/email';
 import { lookupTelnyxMessage, sendSms } from '../../shared/telnyx/client';
+import { isBrevoMessageId, lookupBrevoSms } from '../../shared/brevo/sms-client';
 import {
   sendSenderReceipt,
   sendRecipientGiftCard,
@@ -341,7 +342,12 @@ export async function reconcileGiftCardDelivery(
   const outcome =
     delivery.channel === 'email'
       ? await lookupResendEmail(delivery.providerMessageId)
-      : await lookupTelnyxMessage(delivery.providerMessageId);
+      : isBrevoMessageId(delivery.providerMessageId)
+        ? await lookupBrevoSms(
+            (await import('../../shared/redis/client')).redisQueue,
+            delivery.providerMessageId,
+          )
+        : await lookupTelnyxMessage(delivery.providerMessageId);
   if (outcome !== 'unknown')
     await prisma.giftCardDelivery.updateMany({
       where: { id: delivery.id, restaurantId: delivery.restaurantId, status: 'UNKNOWN' },

@@ -42,7 +42,7 @@ const DATA_CATEGORIES = [
     category: 'Données de vos clients finaux',
     examples: 'Nom, téléphone, adresse e-mail et historique des réservations.',
     purpose:
-      'Prise, gestion et annulation des réservations. Envoi de SMS de confirmation. Suivi des préférences (allergies, VIP).',
+      'Prise, gestion et annulation des réservations. Envoi des confirmations par e-mail ou SMS. Suivi des préférences (allergies, VIP).',
     legalBasis: PRIVACY_DOCUMENT.reservationProcessing,
     retention: PRIVACY_RETENTION.reservations,
   },

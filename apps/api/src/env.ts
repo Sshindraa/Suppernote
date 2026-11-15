@@ -315,6 +315,13 @@ const EnvSchema = z
     TELNYX_PUBLIC_KEY: z.string().optional(),
     TELNYX_FROM_NUMBER: z.string().optional(),
     TELNYX_SMS_FROM: z.string().optional(),
+    // Fournisseur global d'envoi des SMS (pas de réglage par restaurant). Voir email-sms-deliverability.md.
+    SMS_PROVIDER: z.enum(['telnyx', 'brevo']).default('telnyx'),
+    BREVO_API_KEY: z.string().optional(),
+    // Expéditeur alphanumérique validé chez Brevo : 11 caractères maximum.
+    BREVO_SMS_SENDER: z.string().max(11).optional(),
+    // Secret de l'URL du webhook de livraison Brevo (Brevo ne signe pas ses webhooks).
+    BREVO_SMS_WEBHOOK_SECRET: z.string().min(32).optional(),
     // Profil Telnyx utilisé pour les SMS transactionnels et leurs webhooks.
     // Le numéro expéditeur doit aussi être affecté à ce profil côté Telnyx.
     TELNYX_MESSAGING_PROFILE_ID: z.string().optional(),

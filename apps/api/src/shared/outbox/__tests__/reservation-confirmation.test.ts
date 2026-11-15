@@ -21,7 +21,7 @@ describe('transactional reservation confirmation intent', () => {
   }
   it('writes an ID-only intent through the caller transaction and deterministic key', async () => {
     const tx = transaction();
-    await enqueueReservationConfirmation(tx, reservation);
+    await enqueueReservationConfirmation(tx, { ...reservation, channel: 'ADMIN' });
     expect(enqueue).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
@@ -40,8 +40,9 @@ describe('transactional reservation confirmation intent', () => {
     },
   );
   it('respects disabled confirmations and missing phones', async () => {
-    await enqueueReservationConfirmation(transaction(false), reservation);
-    await enqueueReservationConfirmation(transaction(), { ...reservation, customerPhone: null });
+    const admin = { ...reservation, channel: 'ADMIN' };
+    await enqueueReservationConfirmation(transaction(false), admin);
+    await enqueueReservationConfirmation(transaction(), { ...admin, customerPhone: null });
     expect(enqueue).not.toHaveBeenCalled();
   });
   it('queues both confirmation intents for ADMIN and respects the SMS setting', async () => {
@@ -65,18 +66,44 @@ describe('transactional reservation confirmation intent', () => {
     ]);
   });
 
-  it.each(['MCP', 'PHONE'])(
-    'does not change the existing notification contract of %s',
-    async (channel) => {
-      await enqueueReservationConfirmation(transaction(), { ...reservation, channel });
-      expect(enqueue).not.toHaveBeenCalled();
-    },
-  );
+  it('queues only the e-mail for WEB, even with the SMS setting on', async () => {
+    const queued = await enqueueReservationConfirmation(transaction(), {
+      ...reservation,
+      customerEmail: 'client@example.com',
+    });
+    expect(queued).toBe(true);
+    expect(vi.mocked(enqueue).mock.calls.map(([, event]) => event.topic)).toEqual([
+      'reservation-confirmation-email',
+    ]);
+  });
+  it('queues the e-mail for MCP when the assistant provided one, never an SMS', async () => {
+    await enqueueReservationConfirmation(transaction(), {
+      ...reservation,
+      channel: 'MCP',
+      customerEmail: 'client@example.com',
+    });
+    expect(vi.mocked(enqueue).mock.calls.map(([, event]) => event.topic)).toEqual([
+      'reservation-confirmation-email',
+    ]);
+    vi.mocked(enqueue).mockClear();
+    expect(
+      await enqueueReservationConfirmation(transaction(), { ...reservation, channel: 'MCP' }),
+    ).toBe(false);
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+  it('leaves PHONE to the voice confirmation path', async () => {
+    await enqueueReservationConfirmation(transaction(), {
+      ...reservation,
+      channel: 'PHONE',
+      customerEmail: 'client@example.com',
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+  });
   it('propagates intent persistence failure so creation can roll back', async () => {
     vi.mocked(enqueue).mockRejectedValueOnce(new Error('outbox unavailable'));
-    await expect(enqueueReservationConfirmation(transaction(), reservation)).rejects.toThrow(
-      'outbox unavailable',
-    );
+    await expect(
+      enqueueReservationConfirmation(transaction(), { ...reservation, channel: 'ADMIN' }),
+    ).rejects.toThrow('outbox unavailable');
   });
 });
 

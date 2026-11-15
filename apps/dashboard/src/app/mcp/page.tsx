@@ -98,7 +98,7 @@ const SCOPES = [
   {
     name: 'mcp:reserve',
     description:
-      "Création de réservations nominatives. Déclenche l'envoi d'un SMS de confirmation.",
+      "Création de réservations nominatives. Envoie une confirmation par e-mail si l'adresse est fournie.",
   },
   {
     name: 'mcp:cancel',

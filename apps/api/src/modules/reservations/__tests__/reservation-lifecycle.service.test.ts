@@ -77,12 +77,14 @@ describe('ReservationLifecycleService', () => {
     vi.restoreAllMocks();
   });
 
-  it('queues confirmation atomically when a pending WEB booking is approved', async () => {
+  it('queues the e-mail confirmation atomically when a pending WEB booking is approved', async () => {
     const { prisma, tx } = makePrisma();
     const previous = makeReservation({
       state: 'PENDING',
       channel: 'WEB',
       customerPhone: '+33600000000',
+      customerEmail: 'client@example.invalid',
+      isTest: false,
     });
     const current = { ...previous, state: 'CONFIRMED' };
     tx.reservation.findUnique.mockResolvedValue(previous);
@@ -99,9 +101,15 @@ describe('ReservationLifecycleService', () => {
     expect(tx.outboxEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          topic: 'reservation-confirmation',
+          topic: 'reservation-confirmation-email',
           payload: { reservationId: previous.id },
         }),
+      }),
+    );
+    // Réservation en ligne : jamais de SMS de confirmation.
+    expect(tx.outboxEvent.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ topic: 'reservation-confirmation' }),
       }),
     );
   });

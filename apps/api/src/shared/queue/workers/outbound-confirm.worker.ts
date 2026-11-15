@@ -23,7 +23,7 @@ import { recordNotificationProviderResult } from '../../observability/metrics';
 import type { MessagingUsageContext } from '../../../modules/usage/messaging-usage.service';
 import { isSlotStartPast, utcToZonedParts } from '../../timezone/restaurant-time';
 import { buildConfirmationText } from '../../messaging/confirmation-text';
-import { reservationManagementUrl } from '../../../modules/reservations/reservation-management';
+import { reservationShortManagementUrl } from '../../../modules/reservations/reservation-short-code';
 import {
   isCardGuaranteeSmsJob,
   processCardGuaranteeSmsJob,
@@ -95,6 +95,8 @@ export async function processOutboundConfirmJob(
       channel: true,
       customerEmail: true,
       isTest: true,
+      managementShortCode: true,
+      managementShortCodePhone: true,
       restaurant: { select: { name: true, timezone: true, smsConfirmEnabled: true } },
     },
   });
@@ -161,7 +163,7 @@ export async function processOutboundConfirmJob(
       date,
       local.time,
       reservation.partySize,
-      reservationManagementUrl(reservation),
+      await reservationShortManagementUrl(deps.db, reservation),
     );
     const usageContext: MessagingUsageContext | undefined = reservation.restaurantId
       ? {

@@ -10,7 +10,7 @@ type ManagedReservation = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = 86_400_000;
 
-function secret(): Buffer | undefined {
+export function secret(): Buffer | undefined {
   const value = process.env.RESERVATION_MANAGEMENT_SECRET;
   return value && /^[a-f0-9]{64}$/i.test(value) ? Buffer.from(value, 'hex') : undefined;
 }

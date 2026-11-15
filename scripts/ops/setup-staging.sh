@@ -94,7 +94,7 @@ if [ "${ENV_READY}" = false ]; then
   echo "     - Stripe : pk_test / sk_test."
   echo "     - Telnyx / ElevenLabs / Cartesia : LAISSER VIDE (voice désactivée)."
   echo "     - DATABASE_URL doit pointer sur ${DB_NAME}."
-  echo "     - REDIS_URL doit utiliser db=3 (isolé de prod db=0/1/2)."
+  echo "     - REDIS_URL doit viser le Redis du staging : redis://127.0.0.1:6380/0."
   echo ""
   echo "   Relancez ce script après avoir rempli les .env."
   exit 0

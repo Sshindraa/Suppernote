@@ -10,7 +10,7 @@ import {
   registerMarketingOptOut,
 } from './marketing-opt-out.service';
 
-export type MarketingProvider = 'telnyx' | 'resend';
+export type MarketingProvider = 'telnyx' | 'brevo' | 'resend';
 
 export type MarketingProviderEnvironment = Record<string, string | undefined>;
 
@@ -61,11 +61,14 @@ export function getMarketingProviderReadiness(
   environment: MarketingProviderEnvironment = process.env,
 ): MarketingProviderReadiness {
   const sendsEnabled = environment.MARKETING_SENDS_ENABLED === 'true';
-  const sms = channelReadiness(
-    environment,
-    ['TELNYX_API_KEY', 'TELNYX_FROM_NUMBER'],
-    ['TELNYX_PUBLIC_KEY'],
-  );
+  const sms =
+    environment.SMS_PROVIDER?.trim().toLowerCase() === 'brevo'
+      ? channelReadiness(environment, ['BREVO_API_KEY'], ['BREVO_SMS_WEBHOOK_SECRET'])
+      : channelReadiness(
+          environment,
+          ['TELNYX_API_KEY', 'TELNYX_FROM_NUMBER'],
+          ['TELNYX_PUBLIC_KEY'],
+        );
   const email = channelReadiness(
     environment,
     ['RESEND_API_KEY', 'MARKETING_EMAIL_FROM'],
@@ -156,6 +159,20 @@ export function normalizeMarketingProviderEvent(
   >,
 ): ProviderTransition | null {
   const errorCode = sanitizeProviderError(input.errorCode);
+
+  if (input.provider === 'brevo') {
+    // Le webhook Brevo transmet déjà le statut normalisé (`normalizeBrevoSmsEvent`).
+    switch (input.providerStatus) {
+      case 'delivered':
+        return { status: MarketingMessageStatus.DELIVERED };
+      case 'delivery_failed':
+        return { status: MarketingMessageStatus.FAILED, ...(errorCode ? { errorCode } : {}) };
+      case 'sent':
+        return { status: MarketingMessageStatus.SENT };
+      default:
+        return null;
+    }
+  }
 
   if (input.provider === 'telnyx') {
     if (input.eventType === 'message.sent') {

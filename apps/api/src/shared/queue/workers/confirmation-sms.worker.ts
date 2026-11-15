@@ -89,7 +89,7 @@ async function requeueUnknownClaim(
   reconciliationQueue: NotificationReconciliationQueue | undefined,
   claimKey: string,
   record: {
-    provider?: 'telnyx' | 'resend' | 'meta';
+    provider?: 'telnyx' | 'brevo' | 'resend' | 'meta';
     channel?: 'sms' | 'whatsapp' | 'email';
     providerMessageId?: string;
   },

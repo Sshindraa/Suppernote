@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { BRAND_SLOGAN } from '@suppernote/shared';
 import localFont from 'next/font/local';
 import PricingSection from '@/app/PricingSection';
 import FaqSection from '@/app/FaqSection';
@@ -128,7 +127,8 @@ export default function HomePage() {
               Le chef de rang numérique de votre restaurant
             </h1>
             <p className="day-hero-muted mt-6 max-w-[34em] leading-relaxed lg:text-lg">
-              {BRAND_SLOGAN}
+              Retrouvez dans un même carnet les réservations prises en ligne, par téléphone et en
+              salle. Préparez votre service avec le plan de salle et l’historique de vos clients.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
               <Link

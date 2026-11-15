@@ -28,7 +28,10 @@ import { ConsentService } from './consent.service';
 import { AuditLogService } from '../agentic-reservations/core/audit-log.service';
 import { trackRgpdEvent } from '../analytics/events.service';
 import { observeReservationMutation } from '../../shared/observability/reservation-contract';
-import { normalizeCustomerPhone } from '../customers/customer-crm.service';
+import {
+  customerPhoneLookupValues,
+  normalizeCustomerPhone,
+} from '../customers/customer-crm.service';
 import { IdentityVerificationError } from './identity-verification.service';
 import {
   isMarketingOptedOut,
@@ -85,22 +88,27 @@ export class ErasureService {
     verificationJti?: string;
   }): Promise<ErasureResult> {
     const subjectHash = ConsentService.hashSubject(args.subject);
+    // Même périmètre que l'export : le numéro peut être stocké en « +33… » ou en « 06… ».
+    const subjectPhones = { in: customerPhoneLookupValues(args.subject) };
+    const subjectHashes = {
+      in: customerPhoneLookupValues(args.subject).map((phone) => ConsentService.hashSubject(phone)),
+    };
     const erasedAt = new Date();
 
     // 1. Vérifier qu'on a au moins une trace du sujet (sinon 404).
     // On matche par téléphone car Reservation n'a pas de colonne subjectHash
     // (le hash vit dans CustomerConsent).
     const sampleReservation = await this.prisma.reservation.findFirst({
-      where: { customerPhone: args.subject },
+      where: { customerPhone: subjectPhones },
       select: { id: true },
     });
     // tenant-scoping: global — droit du sujet vérifié sur tous ses établissements.
     const sampleCall = await this.prisma.call.findFirst({
-      where: { callerPhone: args.subject },
+      where: { callerPhone: subjectPhones },
       select: { id: true },
     });
     const sampleConsent = await this.prisma.customerConsent.findFirst({
-      where: { subjectHash },
+      where: { subjectHash: subjectHashes },
       select: { id: true },
     });
 
@@ -113,11 +121,11 @@ export class ErasureService {
           where: normalizedPhone
             ? {
                 OR: [
-                  { phone: args.subject },
+                  { phone: subjectPhones },
                   { identities: { some: { type: 'PHONE', normalizedValue: normalizedPhone } } },
                 ],
               }
-            : { phone: args.subject },
+            : { phone: subjectPhones },
           select: { id: true, restaurantId: true, phone: true },
         })) ?? [])
       : [];
@@ -233,12 +241,12 @@ export class ErasureService {
         }
       }
       const reservationWhere = crmCustomerIds.length
-        ? { OR: [{ customerPhone: args.subject }, { customerId: { in: crmCustomerIds } }] }
-        : { customerPhone: args.subject };
+        ? { OR: [{ customerPhone: subjectPhones }, { customerId: { in: crmCustomerIds } }] }
+        : { customerPhone: subjectPhones };
 
       // tenant-scoping: global — appels du sujet vérifié et de ses réservations.
       const callWhere = {
-        OR: [{ callerPhone: args.subject }, { reservation: { is: reservationWhere } }],
+        OR: [{ callerPhone: subjectPhones }, { reservation: { is: reservationWhere } }],
       };
       const candidates = await tx.call.findMany({ where: callWhere, select: { id: true } });
       for (const id of candidates.map((call) => call.id).sort()) {
@@ -307,9 +315,9 @@ export class ErasureService {
                   { reservation: { customerId: { in: crmCustomerIds } } },
                 ]
               : []),
-            { customer: { phone: args.subject } },
-            { reservation: { customerPhone: args.subject } },
-            { customerPhone: args.subject },
+            { customer: { phone: subjectPhones } },
+            { reservation: { customerPhone: subjectPhones } },
+            { customerPhone: subjectPhones },
           ],
         };
         experienceReservationsDetached = (
@@ -328,7 +336,7 @@ export class ErasureService {
       if (txWithCrm.waitingListEntry) {
         await txWithCrm.waitingListEntry.updateMany({
           where: {
-            OR: [{ customerPhone: args.subject }, { customerPhoneNormalized: args.subject }],
+            OR: [{ customerPhone: subjectPhones }, { customerPhoneNormalized: subjectPhones }],
           },
           data: {
             customerFirstName: 'ANON',
@@ -472,7 +480,7 @@ export class ErasureService {
         ).count;
       }
       const messageResult = await tx.message.updateMany({
-        where: { OR: [{ customerPhone: args.subject }, { callId: { in: callIds } }] },
+        where: { OR: [{ customerPhone: subjectPhones }, { callId: { in: callIds } }] },
         data: { customerPhone: null, customerName: 'ANON', content: '[effacé]' },
       });
       // tenant-scoping: global — identifiants issus des appels du sujet vérifié.
@@ -497,12 +505,14 @@ export class ErasureService {
       // tenant-scoping: global — effacement RGPD d'un sujet sur tous les restaurants.
       await tx.customerConsent.updateMany({
         where: {
-          OR: [{ subjectHash }, { customerId: { in: crmCustomerIds } }],
+          OR: [{ subjectHash: subjectHashes }, { customerId: { in: crmCustomerIds } }],
           marketingOptIn: true,
         },
         data: { marketingOptIn: false },
       });
-      consentsRetained = await tx.customerConsent.count({ where: { subjectHash } });
+      consentsRetained = await tx.customerConsent.count({
+        where: { subjectHash: subjectHashes },
+      });
       await this.audit.record(
         {
           event: 'rgpd_erasure',

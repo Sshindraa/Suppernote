@@ -633,6 +633,58 @@ describe('customer CRM routes', () => {
     });
   });
 
+  it('masque notes et occasion dans les conflits de fusion si le rôle ne peut pas les lire', async () => {
+    const app = await getApp();
+    vi.mocked(db.restaurant.findUnique).mockResolvedValue({
+      plan: 'PRO',
+      crmSensitiveNoteRoles: 'OWNER',
+    } as never);
+    const customer = (id: string, notes: string, specialOccasion: string) => ({
+      id,
+      restaurantId: 'test-rest-1',
+      name: id === 'target' ? 'Cible' : 'Source',
+      phone: id === 'target' ? '+33611111111' : '+33622222222',
+      emailNormalized: null,
+      birthMonth: null,
+      birthDay: null,
+      preferredLocale: null,
+      mergedIntoId: null,
+      archivedAt: null,
+      isVip: false,
+      notes,
+      specialOccasion,
+      lastSeenAt: null,
+      lastCallAt: null,
+      partySizeTypical: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      identities: [],
+      preferences: [],
+      metricSnapshot: null,
+      tagAssignments: [],
+    });
+    vi.mocked(db.customer.findMany).mockResolvedValue([
+      customer('target', 'Note privée cible', 'Anniversaire cible'),
+      customer('source', 'Note privée source', 'Anniversaire source'),
+    ] as never);
+
+    const preview = await app.inject({
+      method: 'POST',
+      url: '/crm/customers/target/merge-preview',
+      headers: { authorization: 'Bearer test', 'x-test-site-role': 'MANAGER' },
+      payload: { sourceCustomerIds: ['source'] },
+    });
+    expect(preview.statusCode).toBe(200);
+    const fields = preview
+      .json()
+      .data.conflicts.profileFields.map((conflict: { field: string }) => conflict.field);
+    expect(fields).toContain('name');
+    expect(fields).not.toContain('notes');
+    expect(fields).not.toContain('specialOccasion');
+    expect(preview.body).not.toContain('Note privée');
+    expect(preview.body).not.toContain('Anniversaire');
+  });
+
   it('réserve la fusion au propriétaire et laisse le manager prévisualiser', async () => {
     const app = await getApp();
     vi.mocked(db.restaurant.findUnique).mockResolvedValue({ plan: 'PRO' } as never);

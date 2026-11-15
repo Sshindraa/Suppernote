@@ -118,11 +118,23 @@ describe('dead-letter payload', () => {
     expect(parseDeadLetterPayload({ originalQueue: 'sms-client' })).toBeNull();
   });
 
-  it('redacte les clés sensibles sans toucher au reste', () => {
-    expect(redactJobData({ phone: '+33612345678', password: 'p', ok: 1 })).toEqual({
-      phone: '+33612345678',
+  it('redacte les secrets et les données personnelles sans toucher au reste', () => {
+    expect(
+      redactJobData({
+        phone: '+33612345678',
+        password: 'p',
+        ok: 1,
+        reservation: { customerName: 'Jeanne', guestEmail: 'j@x.fr', partySize: 2 },
+        to: '+33600000000',
+        restaurantId: 'r-1',
+      }),
+    ).toEqual({
+      phone: REDACTED,
       password: REDACTED,
       ok: 1,
+      reservation: { customerName: REDACTED, guestEmail: REDACTED, partySize: 2 },
+      to: REDACTED,
+      restaurantId: 'r-1',
     });
   });
 });

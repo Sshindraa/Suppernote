@@ -80,7 +80,11 @@ function dimensionKey(input: {
 }
 
 function csvCell(value: unknown): string {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  let text = String(value ?? '');
+  // Un texte commençant par = + - @ ou une tabulation devient une formule dans un tableur ;
+  // les montants négatifs (« -1.20 ») restent des nombres.
+  if (/^\s*[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function rowValue(

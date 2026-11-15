@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useReverification } from '@clerk/nextjs';
 import type { StripeConnectInstance } from '@stripe/connect-js';
 import { ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js';
@@ -163,7 +163,8 @@ export function GiftCardStripeOnboarding({
   }, [restaurantId, post, attempt, initialSession, managedTestPublishableKey]);
 
   // Le thème peut changer pendant la configuration : Stripe reçoit les nouvelles couleurs.
-  useEffect(() => {
+  // useLayoutEffect : l’observateur est branché dans le même rendu que le formulaire, sans trou.
+  useLayoutEffect(() => {
     if (!instance) return;
     const observer = new MutationObserver(() =>
       instance.update({ appearance: connectAppearance(container.current) }),

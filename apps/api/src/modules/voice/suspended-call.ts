@@ -31,20 +31,26 @@ export interface SuspendedCallActions {
   answer(callControlId: string, clientState: string): Promise<void>;
   speak(callControlId: string, text: string, clientState: string): Promise<void>;
   hangup(callControlId: string): Promise<void>;
+  transfer(callControlId: string, to: string): Promise<void>;
 }
 
-export type SuspendedCallOutcome = 'spoken' | 'hung_up' | 'ignored';
+export type SuspendedCallOutcome = 'spoken' | 'hung_up' | 'transferred' | 'ignored';
 
 export function isSuspendedCall(state: Record<string, unknown> | null): boolean {
   return state?.kind === SUSPENDED_CALL_KIND;
 }
 
-function encodeState(restaurantName: string | null | undefined, busy = false): string {
+function encodeState(
+  restaurantName: string | null | undefined,
+  busy = false,
+  transferTo?: string,
+): string {
   return Buffer.from(
     JSON.stringify({
       kind: SUSPENDED_CALL_KIND,
       name: restaurantName?.slice(0, 80) ?? null,
       ...(busy ? { busy: true } : {}),
+      ...(transferTo ? { transferTo } : {}),
     }),
   ).toString('base64');
 }
@@ -54,9 +60,12 @@ export async function answerSuspendedCall(
   callControlId: string,
   restaurantName: string | null | undefined,
   actions: SuspendedCallActions = telnyxSuspendedCallActions,
-  options: { busy?: boolean } = {},
+  options: { busy?: boolean; transferTo?: string } = {},
 ): Promise<void> {
-  await actions.answer(callControlId, encodeState(restaurantName, options.busy));
+  await actions.answer(
+    callControlId,
+    encodeState(restaurantName, options.busy, options.transferTo),
+  );
 }
 
 export async function handleSuspendedCallEvent(
@@ -67,7 +76,18 @@ export async function handleSuspendedCallEvent(
 ): Promise<SuspendedCallOutcome> {
   switch (eventType) {
     case 'call.answered': {
+      // Site suspendu ou archivé : pas d'agent vocal, l'appel part directement chez le gérant.
       const name = typeof state.name === 'string' ? state.name : null;
+      if (typeof state.transferTo === 'string' && state.transferTo) {
+        try {
+          await actions.transfer(callControlId, state.transferTo);
+          return 'transferred';
+        } catch {
+          // Transfert refusé : un message court plutôt qu'un silence, puis raccroché.
+          await actions.speak(callControlId, suspendedCallMessage(name), encodeState(name));
+          return 'spoken';
+        }
+      }
       const busy = state.busy === true;
       await actions.speak(
         callControlId,
@@ -112,4 +132,5 @@ export const telnyxSuspendedCallActions: SuspendedCallActions = {
       client_state: clientState,
     }),
   hangup: (callControlId) => postCallAction(callControlId, 'hangup', {}),
+  transfer: (callControlId, to) => postCallAction(callControlId, 'transfer', { to }),
 };

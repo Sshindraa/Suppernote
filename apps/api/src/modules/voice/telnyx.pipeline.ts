@@ -31,6 +31,7 @@ import { isVoicePipelineEnabled } from '../../shared/configcat';
 import { isBillingSuspended } from '../billing/billing.service';
 import { recordWebhookOutcome } from '../../shared/observability/webhook-health';
 import { answerSuspendedCall, handleSuspendedCallEvent, isSuspendedCall } from './suspended-call';
+import { db } from '../../shared/db/client';
 import { isAtCallCapacity } from './call-capacity';
 import { telnyxFetch } from '../../shared/telnyx/http-agent';
 
@@ -194,7 +195,7 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
         // Avant : recordMonthlyCall → isVoicePipelineEnabled → lookupOrCreate
         //         (3 awaits séquentiels = ~50-150ms cumulés)
         // Après : Promise.all des 3 en parallèle = max(3) au lieu de sum(3)
-        const [, voiceEnabled, billingSuspended, customer] = await Promise.all([
+        const [, voiceEnabled, billingSuspended, customer, site] = await Promise.all([
           RestaurantService.recordMonthlyCall(ctx.id),
           isVoicePipelineEnabled(ctx.id),
           isBillingSuspended(ctx.id),
@@ -203,6 +204,8 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
                 CustomerService.withVoiceProfile(ctx.id, caller),
               )
             : Promise.resolve(null),
+          // Lu sans cache : le contexte d'appel est gardé 5 minutes et ne porte pas ce statut.
+          db.restaurant.findUnique({ where: { id: ctx.id }, select: { siteStatus: true } }),
         ]);
 
         // Kill switch — drop the call before any expensive work (DB write,
@@ -213,6 +216,31 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
             { restaurantId: ctx.id, callId: payload.call_control_id },
             'Voice pipeline killed by feature flag — dropping call',
           );
+          return reply.send({ result: 'ok' });
+        }
+
+        // Site suspendu ou archivé : Léa est désactivée, l'appel part directement chez le gérant.
+        // Sans numéro de gérant (ou s'il renverrait vers cette même ligne), message court puis raccroché.
+        if (site?.siteStatus === 'SUSPENDED' || site?.siteStatus === 'ARCHIVED') {
+          const manager = ctx.managerPhone?.trim();
+          const transferTo = manager && manager !== payload.to?.trim() ? manager : undefined;
+          app.log.warn(
+            {
+              restaurantId: ctx.id,
+              callId: payload.call_control_id,
+              siteStatus: site.siteStatus,
+              transfer: Boolean(transferTo),
+            },
+            'Inactive site — voice agent off, call sent to the manager',
+          );
+          try {
+            await answerSuspendedCall(payload.call_control_id, ctx.name, undefined, { transferTo });
+          } catch (err) {
+            app.log.error(
+              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
+              'Inactive site call answer failed',
+            );
+          }
           return reply.send({ result: 'ok' });
         }
 

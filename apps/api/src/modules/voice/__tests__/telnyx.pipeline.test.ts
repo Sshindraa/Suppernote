@@ -485,6 +485,31 @@ describe('POST /voice/telnyx — call.initiated', () => {
     expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
   });
 
+  it.each(['SUSPENDED', 'ARCHIVED'] as const)(
+    'site %s : pas de session vocale, l’appel est transféré au gérant',
+    async (siteStatus) => {
+      mockLoadContext.mockResolvedValue({ ...makeRestaurantCtx(), managerPhone: '+33611111111' });
+      mockRecordMonthlyCall.mockResolvedValue(undefined);
+      mockIsVoicePipelineEnabled.mockResolvedValue(true);
+      vi.mocked(db.restaurant.findUnique).mockResolvedValueOnce({ siteStatus } as never);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/voice/telnyx',
+        payload: makeInitiatedPayload(),
+      });
+
+      expect(res.statusCode).toBe(200);
+      const [path, init] = mockTelnyxFetch.mock.calls[0] as [string, { body: string }];
+      expect(path).toBe('/v2/calls/cc-1/actions/answer');
+      const state = JSON.parse(
+        Buffer.from(JSON.parse(init.body).client_state, 'base64').toString('utf8'),
+      );
+      expect(state).toMatchObject({ kind: 'billing_suspended_call', transferTo: '+33611111111' });
+      expect(CallSessionManager.getInstance().get('cc-1')).toBeUndefined();
+    },
+  );
+
   it('plays a busy message instead of a voice session when the call capacity is reached', async () => {
     mockLoadContext.mockResolvedValue(makeRestaurantCtx());
     mockRecordMonthlyCall.mockResolvedValue(undefined);

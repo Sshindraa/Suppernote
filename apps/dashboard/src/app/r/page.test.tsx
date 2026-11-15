@@ -280,7 +280,7 @@ describe('Ma reservation', () => {
     expect(summary).toHaveTextContent(String(next.getDate()));
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('shows only seven shortcut days and accepts a date two months away in the calendar', async () => {
+  it('shows every bookable day in one strip and accepts a date two months away in the calendar', async () => {
     vi.stubGlobal('fetch', vi.fn());
     render(<ReservationView demo />);
     await screen.findByText('Restaurant Exemple');
@@ -290,7 +290,7 @@ describe('Ma reservation', () => {
       name: 'Choisir une date dans le calendrier',
     });
     const shortcutPattern = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/i;
-    expect(screen.getAllByRole('button', { name: shortcutPattern })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: shortcutPattern }).length).toBeGreaterThan(7);
     const later = new Date();
     later.setDate(later.getDate() + 60);
     fireEvent.click(calendar);
@@ -307,7 +307,7 @@ describe('Ma reservation', () => {
     fireEvent.click(within(picker).getByRole('button', { name: label }));
     const next = await screen.findByRole('button', { name: 'Continuer · 19h30' });
     await waitFor(() => expect(next).toBeEnabled());
-    expect(screen.getAllByRole('button', { name: shortcutPattern })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: shortcutPattern }).length).toBeGreaterThan(7);
     fireEvent.click(next);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -316,21 +316,21 @@ describe('Ma reservation', () => {
     );
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('browses weeks without changing the booking and opens the existing cancellation confirmation', async () => {
+  it('browses days without changing the booking and opens the existing cancellation confirmation', async () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
     render(<ReservationView demo />);
     await screen.findByText('Restaurant Exemple');
     fireEvent.click(document.querySelector('details > summary')!);
     fireEvent.click(screen.getByRole('button', { name: 'Modifier la réservation' }));
-    const browse = await screen.findByRole('button', { name: 'Semaine suivante' });
+    const browse = await screen.findByRole('button', { name: 'Jours suivants' });
     fireEvent.click(browse);
     expect(
       screen.getByRole('button', {
         name: 'Continuer',
       }),
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Semaine précédente' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Jours précédents' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Annuler ma réservation' }));
     expect(await screen.findByText('Annuler votre réservation ?')).toBeInTheDocument();
     expect(document.querySelector('dl')).toHaveTextContent('19:30');

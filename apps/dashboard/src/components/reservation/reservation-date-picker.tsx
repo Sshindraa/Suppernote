@@ -28,12 +28,18 @@ export function ReservationDatePicker({
   max,
   onChange,
   theme,
+  label,
+  openAt,
 }: {
   value: string | null;
   min: string;
   max: string;
   onChange: (value: string) => void;
   theme: CSSProperties;
+  /** Plain-text trigger (e.g. the month in view) instead of the date pill. */
+  label?: string;
+  /** Month shown on open, when it differs from the selected date's. */
+  openAt?: string;
 }) {
   const clamp = (value: string) => (value < min ? min : value > max ? max : value);
   const [open, setOpen] = useState(false);
@@ -93,24 +99,27 @@ export function ReservationDatePicker({
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => {
-            const initial = clamp(value ?? min);
+            const initial = clamp(openAt ?? value ?? min);
             setMonth(day(initial));
             setFocused(initial);
           }}
           className={cn(
-            'inline-flex min-h-11 items-center gap-2 rounded-full border border-[hsl(var(--reservation-line))] bg-[hsl(var(--reservation-panel)/0.65)] px-3 text-xs font-semibold text-[hsl(var(--reservation-ink))] transition-all duration-200 hover:bg-[hsl(var(--reservation-panel))]',
+            label
+              ? 'inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm font-bold text-[hsl(var(--reservation-ink))] transition-all duration-200 hover:bg-[hsl(var(--reservation-line)/0.5)]'
+              : 'inline-flex min-h-11 items-center gap-2 rounded-full border border-[hsl(var(--reservation-line))] bg-[hsl(var(--reservation-panel)/0.65)] px-3 text-xs font-semibold text-[hsl(var(--reservation-ink))] transition-all duration-200 hover:bg-[hsl(var(--reservation-panel))]',
             focusStyle,
           )}
         >
-          <CalendarDays size={14} aria-hidden="true" />
-          {value
-            ? new Intl.DateTimeFormat('fr-FR', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              }).format(day(value))
-            : 'Autre date'}
-          <ChevronDown size={13} aria-hidden="true" />
+          {!label && <CalendarDays size={14} aria-hidden="true" />}
+          {label ??
+            (value
+              ? new Intl.DateTimeFormat('fr-FR', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                }).format(day(value))
+              : 'Autre date')}
+          <ChevronDown size={label ? 15 : 13} aria-hidden="true" />
         </button>
       </DialogTrigger>
       <DialogContent

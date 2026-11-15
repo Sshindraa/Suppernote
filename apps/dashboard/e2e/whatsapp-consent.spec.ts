@@ -68,7 +68,7 @@ test('WhatsApp choice and withdrawal are explicit and do not send provider traff
     await page.locator('body').evaluate((node) => node.clientWidth),
   );
   await page.screenshot({ path: testInfo.outputPath('whatsapp-choice.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Valider la réservation' }).click();
+  await page.getByRole('button', { name: 'Réserver ma table' }).click();
   await expect(page.getByText('Confirmée')).toBeVisible();
   await page.locator('summary').filter({ hasText: 'Modifier ou annuler' }).click();
   await page.getByText('Préférences de rappel').click();

@@ -228,7 +228,7 @@ test.describe('Widget réservation public', () => {
     const customerPhone = page.getByLabel('Téléphone *');
     await customerName.fill('Alice Martin');
     await customerPhone.fill('0600000000');
-    await page.getByRole('button', { name: 'Retour aux créneaux' }).click();
+    await page.getByRole('button', { name: 'Modifier le créneau' }).click();
 
     const groupAvailability = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -269,7 +269,7 @@ test.describe('Widget réservation public', () => {
 
     await expect(customerName).toHaveValue('Alice Martin');
     await expect(customerPhone).toHaveValue('0600000000');
-    await page.getByRole('button', { name: 'Valider la réservation' }).click();
+    await page.getByRole('button', { name: 'Réserver ma table' }).click();
     await expect(page.getByText('Confirmée', { exact: true })).toBeVisible();
     expect(holdPayload).toMatchObject({
       date: secondDateParam,

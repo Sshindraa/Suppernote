@@ -3,6 +3,7 @@ import { render, waitFor, act, fireEvent } from '@testing-library/react';
 import { getGiftCardOrigin } from '@/lib/gift-card-origin';
 import ReservationWidget from './page';
 import { getParentOrigin } from './post-message-security';
+import { MARKETING_CONSENT_COMBINED_VERSION } from '@suppernote/shared';
 
 // ---------------------------------------------------------------------------
 // Mocks next/navigation + next/link (le widget embarqué les utilise).
@@ -333,7 +334,7 @@ describe('présélection Connect', () => {
       target: { value: 'Alice Martin' },
     });
     fireEvent.change(widget.getByLabelText('Téléphone *'), { target: { value: '0600000000' } });
-    fireEvent.click(widget.getByRole('button', { name: 'Valider la réservation' }));
+    fireEvent.click(widget.getByRole('button', { name: 'Réserver ma table' }));
 
     expect(await widget.findByText(TOO_SOON)).toBeTruthy();
     expect(
@@ -709,7 +710,7 @@ describe('réservation publique sur le widget réellement servi par /book', () =
       target: { value: 'Recette Suppernote' },
     });
     fireEvent.change(widget.getByLabelText('Téléphone *'), { target: { value: '0600000000' } });
-    fireEvent.click(widget.getByRole('button', { name: 'Valider la réservation' }));
+    fireEvent.click(widget.getByRole('button', { name: 'Réserver ma table' }));
     return { widget, fetchSpy };
   }
 
@@ -956,8 +957,7 @@ describe('consentement marketing et liste d’attente', () => {
       target: { value: 'Alice Martin' },
     });
     fireEvent.change(widget.getByLabelText('Téléphone *'), { target: { value: '0600000000' } });
-    if (email)
-      fireEvent.change(widget.getByLabelText(/Adresse Email/), { target: { value: email } });
+    if (email) fireEvent.change(widget.getByLabelText(/E-mail/), { target: { value: email } });
   }
 
   function bodyOf(fetchSpy: ReturnType<typeof vi.fn>, suffix: string) {
@@ -965,22 +965,23 @@ describe('consentement marketing et liste d’attente', () => {
     return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
   }
 
-  it('n’envoie que les accords cochés, jamais pré-cochés', async () => {
+  it('une seule case, jamais pré-cochée, vaut pour l’e-mail et le SMS saisis', async () => {
     const { fetchSpy } = bookingFetch();
     const widget = render(<ReservationWidget />);
     await fillContact(widget, 'alice@example.com');
 
-    const email = widget.getByRole('checkbox', { name: /e-mail/i }) as HTMLInputElement;
-    const sms = widget.getByRole('checkbox', { name: /SMS/i }) as HTMLInputElement;
-    expect(email.checked).toBe(false);
-    expect(sms.checked).toBe(false);
-    fireEvent.click(email);
-    fireEvent.click(widget.getByRole('button', { name: 'Valider la réservation' }));
+    const consent = widget.getByRole('checkbox', {
+      name: /par e-mail et par SMS/,
+    }) as HTMLInputElement;
+    expect(consent.checked).toBe(false);
+    fireEvent.click(consent);
+    fireEvent.click(widget.getByRole('button', { name: 'Réserver ma table' }));
 
     await waitFor(() => expect(bodyOf(fetchSpy, '/confirm').marketingConsent).toBeDefined());
     expect(bodyOf(fetchSpy, '/confirm').marketingConsent).toEqual({
       email: true,
-      version: expect.any(String),
+      sms: true,
+      version: MARKETING_CONSENT_COMBINED_VERSION,
     });
   });
 
@@ -992,7 +993,7 @@ describe('consentement marketing et liste d’attente', () => {
     } as unknown as Response);
     const widget = render(<ReservationWidget />);
     await fillContact(widget);
-    fireEvent.click(widget.getByRole('button', { name: 'Valider la réservation' }));
+    fireEvent.click(widget.getByRole('button', { name: 'Réserver ma table' }));
 
     fireEvent.click(await widget.findByRole('button', { name: "Rejoindre la liste d'attente" }));
     expect(await widget.findByText(/position indicative/)).toBeTruthy();

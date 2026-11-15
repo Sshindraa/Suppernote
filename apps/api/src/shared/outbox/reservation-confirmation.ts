@@ -13,13 +13,13 @@ export async function enqueueReservationConfirmation(
     isTest?: boolean;
   },
 ): Promise<boolean> {
-  const confirmationChannel = reservation.channel === 'WEB' || reservation.channel === 'ADMIN';
-  if (
-    confirmationChannel &&
-    reservation.state === 'CONFIRMED' &&
-    reservation.customerEmail &&
-    !reservation.isTest
-  ) {
+  // Confirmation par e-mail pour le web, l'équipe et les assistants IA (MCP) ; SMS en plus
+  // seulement pour une réservation créée par l'équipe. Le téléphone a son propre envoi SMS.
+  const emailChannel = ['WEB', 'ADMIN', 'MCP'].includes(reservation.channel);
+  const smsChannel = reservation.channel === 'ADMIN';
+  if (reservation.state !== 'CONFIRMED') return false;
+  let queued = false;
+  if (emailChannel && reservation.customerEmail && !reservation.isTest) {
     await enqueue(tx, {
       restaurantId: reservation.restaurantId,
       topic: 'reservation-confirmation-email',
@@ -29,15 +29,14 @@ export async function enqueueReservationConfirmation(
       idempotencyKey: `reservation-confirmation-email:${reservation.id}`,
       payload: { reservationId: reservation.id },
     });
+    queued = true;
   }
-  // Voice keeps its existing confirmation path; do not open messaging on MCP/other integrations.
-  if (!confirmationChannel || reservation.state !== 'CONFIRMED' || !reservation.customerPhone)
-    return false;
+  if (!smsChannel || !reservation.customerPhone) return queued;
   const restaurant = await tx.restaurant.findUnique({
     where: { id: reservation.restaurantId },
     select: { smsConfirmEnabled: true },
   });
-  if (restaurant?.smsConfirmEnabled !== true) return false;
+  if (restaurant?.smsConfirmEnabled !== true) return queued;
   await enqueue(tx, {
     restaurantId: reservation.restaurantId,
     topic: 'reservation-confirmation',

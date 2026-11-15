@@ -145,7 +145,7 @@ async function requeueUnknown(
 }
 
 /**
- * Envoie la confirmation e-mail d'une réservation WEB confirmée. Idempotent : un claim par
+ * Envoie la confirmation e-mail d'une réservation confirmée (web, équipe ou assistant IA). Idempotent : un claim par
  * réservation, puis un audit `CONFIRMATION_EMAIL_SENT`. Aucune adresse n'est journalisée.
  */
 export async function processReservationConfirmationEmail(
@@ -171,7 +171,11 @@ export async function processReservationConfirmationEmail(
       restaurant: { select: { name: true, timezone: true } },
     },
   });
-  if (!reservation || !['WEB', 'ADMIN'].includes(reservation.channel) || reservation.isTest) {
+  if (
+    !reservation ||
+    !['WEB', 'ADMIN', 'MCP'].includes(reservation.channel) ||
+    reservation.isTest
+  ) {
     return skipped(args.reservationId, 'not-eligible');
   }
   if (reservation.status !== 'CONFIRMED' || reservation.state !== 'CONFIRMED') {

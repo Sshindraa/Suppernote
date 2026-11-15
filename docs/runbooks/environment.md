@@ -1173,13 +1173,13 @@ nécessaires activées et la configuration vérifiée de bout en bout.
 
 ### Bloc 3 : appel de test sortant (provisioning)
 
-| Réglage                | Où le renseigner                        | Lu par                              | Utilité                                                                                    |
-| ---------------------- | --------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `TELNYX_FROM_NUMBER`   | secret `TELNYX_FROM_NUMBER_STAGING`     | `shared/telnyx/client`              | Numéro émetteur de l'appel de test (format E.164)                                          |
-| `TELNYX_SMS_FROM`      | optionnel                               | `shared/telnyx/client`              | Expéditeur SMS (numéro du profil de messagerie ou `SOKAR`) ; défaut : `TELNYX_FROM_NUMBER` |
-| `EMAIL_REPLY_TO`       | optionnel                               | `shared/email`                      | Adresse de réponse des e-mails ; défaut : `hello@suppernote.com`                           |
-| `TELNYX_CONNECTION_ID` | variable `TELNYX_CONNECTION_ID_STAGING` | `shared/telnyx/client`              | Application d'appel utilisée pour l'appel sortant (même que le bloc 2)                     |
-| `PUBLIC_API_URL`       | variable `PUBLIC_API_URL_STAGING`       | `admin/provisioning`, `restaurants` | Base des URL de webhook. Sans elle, le repli est la production                             |
+| Réglage                | Où le renseigner                        | Lu par                              | Utilité                                                                                         |
+| ---------------------- | --------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `TELNYX_FROM_NUMBER`   | secret `TELNYX_FROM_NUMBER_STAGING`     | `shared/telnyx/client`              | Numéro émetteur de l'appel de test (format E.164)                                               |
+| `TELNYX_SMS_FROM`      | optionnel                               | `shared/telnyx/client`              | Expéditeur SMS (numéro du profil de messagerie ou `SUPPERNOTE`) ; défaut : `TELNYX_FROM_NUMBER` |
+| `EMAIL_REPLY_TO`       | optionnel                               | `shared/email`                      | Adresse de réponse des e-mails ; défaut : `hello@suppernote.com`                                |
+| `TELNYX_CONNECTION_ID` | variable `TELNYX_CONNECTION_ID_STAGING` | `shared/telnyx/client`              | Application d'appel utilisée pour l'appel sortant (même que le bloc 2)                          |
+| `PUBLIC_API_URL`       | variable `PUBLIC_API_URL_STAGING`       | `admin/provisioning`, `restaurants` | Base des URL de webhook. Sans elle, le repli est la production                                  |
 
 Le code de l'appel de test est corrigé dans cette livraison : `connection_id` est transmis, le webhook est
 `${PUBLIC_API_URL}/voice/telnyx`, et le message de test est joué au décroché puis l'appel est raccroché.

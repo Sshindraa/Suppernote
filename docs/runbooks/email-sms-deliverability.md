@@ -5,7 +5,7 @@ Audit du 17 octobre 2026 (production). Les constats SMS de cette date sont histo
 ## SMS en production — 24 octobre 2026
 
 - Relevé en lecture seule : API et workers en ligne, `/health` et `/livez` verts ;
-  `TELNYX_SMS_FROM=SOKAR` et profil de messagerie configurés.
+  `TELNYX_SMS_FROM=SUPPERNOTE` et profil de messagerie configurés.
 - `smsConfirmEnabled=false` sur les trois restaurants après désactivation de deux
   fiches dormantes sans slug public ni réservation ; Chez Suppernote démo était déjà
   off. `WHATSAPP_ENABLED=false` et `MARKETING_WHATSAPP_ENABLED=false`.
@@ -65,7 +65,7 @@ Le code accepte désormais `TELNYX_SMS_FROM`, distinct du numéro d'appel.
 1. Dans la console Telnyx, profil « Sokar transactional » : activer un identifiant alphanumérique
    `SOKAR` (vérifier les conditions françaises affichées par Telnyx).
 2. Dans `/opt/sokar/apps/api/.env` (et staging) : `TELNYX_MESSAGING_PROFILE_ID=<id du profil>` et
-   `TELNYX_SMS_FROM=SOKAR`, puis redémarrer l'API et les workers.
+   `TELNYX_SMS_FROM=SUPPERNOTE`, puis redémarrer l'API et les workers.
 3. Envoyer un SMS de test vers un téléphone de l'équipe et vérifier sa réception.
 
 Un identifiant alphanumérique ne reçoit pas de réponse : les clients ne peuvent plus répondre OUI

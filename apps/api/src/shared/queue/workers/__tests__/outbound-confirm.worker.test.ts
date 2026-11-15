@@ -150,7 +150,7 @@ describe('outbound-confirm.worker', () => {
     vi.mocked(sendSms).mockResolvedValue(undefined);
   });
 
-  it('includes personal access in the existing single-segment SMS, without another send', async () => {
+  it('never puts the management link in the SMS, which operators silently drop', async () => {
     vi.stubEnv('RESERVATION_MANAGEMENT_ENABLED', 'true');
     vi.stubEnv('RESERVATION_MANAGEMENT_SECRET', randomBytes(32).toString('hex'));
     vi.stubEnv('DASHBOARD_URL', 'https://staging.suppernote.com');
@@ -167,7 +167,8 @@ describe('outbound-confirm.worker', () => {
 
     expect(sendSms).toHaveBeenCalledTimes(1);
     const message = vi.mocked(sendSms).mock.calls[0][1];
-    expect(message).toContain('https://staging.suppernote.com/r#');
+    expect(message).not.toContain('https://');
+    expect(message).toContain('appelez');
     expect(countSmsSegments(message)).toBe(1);
   });
 

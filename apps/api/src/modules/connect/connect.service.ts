@@ -44,12 +44,15 @@ export class ConnectService {
    */
   async getPublishedBySlug(
     slug: string,
-    options?: { preview?: boolean },
+    options?: { preview?: boolean; forBooking?: boolean },
   ): Promise<PublicRestaurantDto | null> {
     const isPreview = options?.preview === true;
+    // forBooking : nouvelle réservation (hold, confirm, disponibilités, file d'attente).
+    // Le cache ne porte pas siteStatus, on lit donc la base pour refuser un site suspendu.
+    const isBooking = options?.forBooking === true;
     const cacheKey = `${CACHE_KEY_PREFIX}${slug}`;
 
-    if (!isPreview) {
+    if (!isPreview && !isBooking) {
       try {
         const cached = await this.redis.get(cacheKey);
         if (cached) {
@@ -86,6 +89,13 @@ export class ConnectService {
       if (!isPublicConnectPage(restaurant)) {
         return null;
       }
+    }
+    // Site suspendu ou archivé : aucune nouvelle réservation, réponse identique à « non publié ».
+    if (
+      isBooking &&
+      (restaurant.siteStatus === 'SUSPENDED' || restaurant.siteStatus === 'ARCHIVED')
+    ) {
+      return null;
     }
 
     const dto = this.toPublicDto(restaurant);

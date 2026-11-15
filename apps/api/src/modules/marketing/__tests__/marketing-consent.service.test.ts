@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MarketingPermissionStatus } from '@prisma/client';
 import {
+  buildCombinedMarketingConsentProof,
   buildMarketingConsentLabel,
   buildMarketingConsentProof,
+  MARKETING_CONSENT_COMBINED_VERSION,
   MARKETING_CONSENT_VERSION,
 } from '@suppernote/shared';
 import { db } from '../../../shared/db/client';
@@ -94,6 +96,26 @@ describe('recordBookingMarketingConsent', () => {
       proof: buildMarketingConsentProof('EMAIL', 'Chez Suppernote'),
       occurredAt: OCCURRED_AT,
     });
+  });
+
+  it('records the single-box wording for each ticked channel', async () => {
+    const result = await recordBookingMarketingConsent({
+      ...base,
+      consent: { email: true, sms: true, version: MARKETING_CONSENT_COMBINED_VERSION },
+      email: 'client@example.com',
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result).toEqual({ EMAIL: 'RECORDED', SMS: 'RECORDED' });
+    for (const channel of ['EMAIL', 'SMS'] as const) {
+      expect(upsertMarketingPermission).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel,
+          proofVersion: MARKETING_CONSENT_COMBINED_VERSION,
+          proof: buildCombinedMarketingConsentProof(channel, ['EMAIL', 'SMS'], 'Chez Suppernote'),
+        }),
+      );
+    }
   });
 
   it('records an SMS opt-in without needing an e-mail address', async () => {

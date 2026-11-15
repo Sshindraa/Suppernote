@@ -220,7 +220,11 @@ describe('réservations sans SMS de confirmation', () => {
     // Grâce de 30 min.
     expect(where.createdAt.lte.toISOString()).toBe('2026-07-22T11:30:00.000Z');
     expect(where.customerPhone).toEqual({ not: null });
-    expect(where.restaurant).toEqual({ smsConfirmEnabled: true });
+    // Seulement les réservations qui reçoivent vraiment un SMS : jamais le web avec e-mail ni le MCP.
+    expect(where.OR).toEqual([
+      { channel: { in: ['PHONE', 'ADMIN'] }, restaurant: { smsConfirmEnabled: true } },
+      { channel: 'WEB', isTest: false, OR: [{ customerEmail: null }, { customerEmail: '' }] },
+    ]);
     expect(where.state).toBe('CONFIRMED');
     expect(where.auditLog).toEqual({ none: { event: CONFIRMATION_SMS_SENT_EVENT } });
   });

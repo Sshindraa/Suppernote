@@ -41,6 +41,29 @@ export function buildMarketingConsentProof(
   return `${MARKETING_CONSENT_VERSION}|${channel}|${buildMarketingConsentLabel(channel, restaurantName)}`;
 }
 
+/**
+ * One box for every channel the form can reach (book page). Its sentence names those channels, so it
+ * has its own version: the proof of each channel keeps the exact sentence the customer ticked.
+ */
+export const MARKETING_CONSENT_COMBINED_VERSION = 'marketing-consent-combined-2026-11-15';
+
+export function buildCombinedMarketingConsentLabel(
+  channels: readonly MarketingConsentChannel[],
+  restaurantName: string,
+): string {
+  const ordered = MARKETING_CONSENT_CHANNELS.filter((channel) => channels.includes(channel));
+  const wording = ordered.map((channel) => CHANNEL_WORDING[channel]).join(' et ');
+  return `Recevoir les offres et actualités ${restaurantLabel(restaurantName)} ${wording}`;
+}
+
+export function buildCombinedMarketingConsentProof(
+  channel: MarketingConsentChannel,
+  channels: readonly MarketingConsentChannel[],
+  restaurantName: string,
+): string {
+  return `${MARKETING_CONSENT_COMBINED_VERSION}|${channel}|${buildCombinedMarketingConsentLabel(channels, restaurantName)}`;
+}
+
 /** How a consent collected outside a form was obtained, chosen by the restaurant team. */
 export const MARKETING_CONSENT_COLLECTION_METHODS = ['IN_PERSON', 'PHONE', 'PAPER'] as const;
 export type MarketingConsentCollectionMethod =

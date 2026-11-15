@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCombinedMarketingConsentLabel,
+  buildCombinedMarketingConsentProof,
   buildMarketingConsentLabel,
   buildMarketingConsentProof,
   describeMarketingConsentSource,
   MARKETING_CONSENT_CHANNELS,
   MARKETING_CONSENT_COLLECTION_LABELS,
   MARKETING_CONSENT_COLLECTION_METHODS,
+  MARKETING_CONSENT_COMBINED_VERSION,
   MARKETING_CONSENT_VERSION,
 } from '../marketing-consent';
 
@@ -17,6 +20,19 @@ describe('marketing consent wording', () => {
     expect(buildMarketingConsentLabel('SMS', 'Chez Suppernote')).toBe(
       'Recevoir les offres et actualités du restaurant Chez Suppernote par SMS',
     );
+  });
+
+  it('names every channel of the single box, in a fixed order', () => {
+    expect(buildCombinedMarketingConsentLabel(['SMS', 'EMAIL'], 'Chez Suppernote')).toBe(
+      'Recevoir les offres et actualités du restaurant Chez Suppernote par e-mail et par SMS',
+    );
+    expect(buildCombinedMarketingConsentLabel(['SMS'], 'Chez Suppernote')).toBe(
+      buildMarketingConsentLabel('SMS', 'Chez Suppernote'),
+    );
+    expect(buildCombinedMarketingConsentProof('SMS', ['EMAIL', 'SMS'], 'Chez Suppernote')).toBe(
+      `${MARKETING_CONSENT_COMBINED_VERSION}|SMS|Recevoir les offres et actualités du restaurant Chez Suppernote par e-mail et par SMS`,
+    );
+    expect(MARKETING_CONSENT_COMBINED_VERSION).not.toBe(MARKETING_CONSENT_VERSION);
   });
 
   it('falls back to a neutral name when the restaurant has none', () => {

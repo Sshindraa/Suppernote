@@ -16,7 +16,7 @@
  * le process API lui-même.
  */
 
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { queues } from '../queue/queues';
 import { logger } from '../logger/pino';
 
@@ -328,6 +328,18 @@ export interface ReservationMissingSms {
  * `since` est le marqueur de démarrage du check (Redis, posé au premier tick)
  * pour ne pas flaguer les réservations antérieures à l'existence de l'audit.
  */
+/**
+ * Réservations qui doivent recevoir le SMS de confirmation : téléphone ou équipe quand le restaurant
+ * a smsConfirmEnabled, et web sans e-mail hors test (le SMS part alors quel que soit le réglage).
+ * Le web avec e-mail, le MCP et l'API n'en reçoivent jamais : les compter ferait de fausses alertes.
+ */
+export const CONFIRMATION_SMS_EXPECTED: Prisma.ReservationWhereInput = {
+  OR: [
+    { channel: { in: ['PHONE', 'ADMIN'] }, restaurant: { smsConfirmEnabled: true } },
+    { channel: 'WEB', isTest: false, OR: [{ customerEmail: null }, { customerEmail: '' }] },
+  ],
+};
+
 export async function findReservationsWithoutConfirmationSms(
   db: PrismaClient,
   since: Date,
@@ -343,7 +355,7 @@ export async function findReservationsWithoutConfirmationSms(
     where: {
       createdAt: { gte: windowStart, lte: graceEnd },
       customerPhone: { not: null },
-      restaurant: { smsConfirmEnabled: true },
+      ...CONFIRMATION_SMS_EXPECTED,
       // Une demande PENDING ne doit pas être signalée comme un SMS manquant :
       // elle n'est pas encore confirmée côté métier.
       state: 'CONFIRMED',

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import ReservationView, { type Reservation } from '@/app/r/reservation-view';
+import reservationViewStyles from '@/app/r/reservation-view.module.css';
 import { ReservationDatePicker } from './reservation-date-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getGiftCardOrigin } from '@/lib/gift-card-origin';
@@ -11,10 +12,10 @@ import { getErrorMessage } from '@/types/api';
 import { getParentOrigin } from '@/app/widget/[restaurantId]/post-message-security';
 import {
   bookingSlotsOf,
-  buildMarketingConsentLabel,
+  buildCombinedMarketingConsentLabel,
   CARD_GUARANTEE_ACCEPT_LABEL,
   cardGuaranteeNotice,
-  MARKETING_CONSENT_VERSION,
+  MARKETING_CONSENT_COMBINED_VERSION,
   type CardGuaranteeTerms,
   normalizeOpeningHours,
   type MarketingConsentChannel,
@@ -59,7 +60,6 @@ const reservationTheme: CSSProperties & Record<`--${string}`, string> = {
 };
 
 const FRENCH_DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-const FRENCH_DAYS_SHORT = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 const FRENCH_MONTHS = [
   'Janvier',
   'Février',
@@ -356,7 +356,6 @@ export default function ReservationWidget({
       : null,
   );
   const [selectionNotice, setSelectionNotice] = useState('');
-  const [weekOffset, setWeekOffset] = useState<number | null>(null);
   const [chosenService, setChosenService] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'party' | 'date' | 'time'>('party');
   const [availabilityRefreshing, setAvailabilityRefreshing] = useState(false);
@@ -366,16 +365,17 @@ export default function ReservationWidget({
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const dateSectionRef = useRef<HTMLDivElement | null>(null);
   const timeSectionRef = useRef<HTMLDivElement | null>(null);
+  const dateStripRef = useRef<HTMLDivElement | null>(null);
+  // Mois des jours visibles dans la bande (AAAA-MM), mis à jour au défilement.
+  const [visibleMonth, setVisibleMonth] = useState('');
 
   // Contact details
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
-  // Jamais pré-cochées ; une case n'apparaît qu'avec la coordonnée correspondante.
-  const [marketingConsent, setMarketingConsent] = useState<
-    Record<MarketingConsentChannel, boolean>
-  >({ EMAIL: false, SMS: false });
+  // Jamais pré-cochée ; la case vaut pour les canaux dont la coordonnée est saisie.
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   // Liste d'attente : proposée quand le créneau choisi vient d'être pris (409 sur le hold).
   // Créneau refusé (date|heure|couverts) : l'offre disparaît dès que le choix change.
@@ -510,38 +510,46 @@ export default function ReservationWidget({
     last.setDate(last.getDate() + 89);
     return { min: formatDateParam(first), max: modification?.maxDate ?? formatDateParam(last) };
   }, [modification]);
-  // One week of shortcuts; the date field gives access to the following months.
+  // Every bookable day in one strip; the calendar button jumps further.
   const days = useMemo(() => {
-    const first = new Date(`${dateBounds.min}T12:00:00`);
-    const selected = selectedDate ? formatDateParam(selectedDate) : dateBounds.min;
-    const distance = Math.max(
-      0,
-      Math.round(
-        (Date.parse(`${selected}T12:00:00Z`) - Date.parse(`${dateBounds.min}T12:00:00Z`)) /
-          86400000,
-      ),
-    );
-    first.setDate(first.getDate() + (weekOffset ?? Math.floor(distance / 7)) * 7);
     const result: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(first);
-      date.setDate(date.getDate() + i);
-      if (formatDateParam(date) <= dateBounds.max) result.push(date);
+    const date = new Date(`${dateBounds.min}T12:00:00`);
+    while (formatDateParam(date) <= dateBounds.max) {
+      result.push(new Date(date));
+      date.setDate(date.getDate() + 1);
     }
     return result;
-  }, [selectedDate, dateBounds, weekOffset]);
+  }, [dateBounds]);
 
-  function moveWeek(offset: number) {
-    const current = Math.round(
-      (Date.parse(`${formatDateParam(days[0])}T12:00:00Z`) -
-        Date.parse(`${dateBounds.min}T12:00:00Z`)) /
-        (7 * 86400000),
-    );
-    const maximum = Math.floor(
-      (Date.parse(`${dateBounds.max}T12:00:00Z`) - Date.parse(`${dateBounds.min}T12:00:00Z`)) /
-        (7 * 86400000),
-    );
-    setWeekOffset(Math.min(maximum, Math.max(0, current + offset)));
+  // The chosen day stays in view, without scrolling the page itself.
+  const selectedDateKey = selectedDate ? formatDateParam(selectedDate) : '';
+  useEffect(() => {
+    const strip = dateStripRef.current;
+    const chip = strip?.querySelector<HTMLElement>(`[data-date="${selectedDateKey}"]`);
+    if (!strip || !chip) return;
+    const left = chip.offsetLeft - (strip.clientWidth - chip.clientWidth) / 2;
+    strip.scrollTo?.({ left: Math.max(0, left), behavior: 'smooth' });
+  }, [selectedDateKey, step]);
+
+  function trackVisibleMonth() {
+    const strip = dateStripRef.current;
+    if (!strip) return;
+    const chips = Array.from(strip.querySelectorAll<HTMLElement>('[data-date]'));
+    const first = chips.find((chip) => chip.offsetLeft + chip.clientWidth / 2 >= strip.scrollLeft);
+    const month = first?.dataset.date?.slice(0, 7);
+    if (month) setVisibleMonth(month);
+  }
+  const shownMonth = visibleMonth || (selectedDateKey || dateBounds.min).slice(0, 7);
+  const shownMonthDate = new Date(`${shownMonth}-01T12:00:00`);
+  const shownMonthLabel = `${FRENCH_MONTHS[shownMonthDate.getMonth()]}${
+    shownMonthDate.getFullYear() !== new Date().getFullYear()
+      ? ` ${shownMonthDate.getFullYear()}`
+      : ''
+  }`;
+
+  function scrollDates(direction: -1 | 1) {
+    const strip = dateStripRef.current;
+    strip?.scrollBy?.({ left: direction * strip.clientWidth, behavior: 'smooth' });
   }
 
   // Créneaux de 30 min de chaque service, jusqu'à sa dernière réservation
@@ -681,6 +689,12 @@ export default function ReservationWidget({
   const selectedPillClass = `${modification ? 'scale-100' : 'scale-105'} border-[hsl(var(--reservation-ink))] bg-[hsl(var(--reservation-ink))] text-[hsl(var(--reservation-panel))] shadow-lg shadow-black/10 hover:bg-[hsl(var(--reservation-ink))] hover:text-[hsl(var(--reservation-panel))]`;
   const fieldClass =
     'h-[3.25rem] w-full rounded-2xl border border-white/60 bg-white/38 px-5 text-sm font-medium text-[hsl(var(--reservation-ink))] shadow-inner outline-none backdrop-blur-2xl transition-all duration-200 placeholder:text-[hsl(var(--reservation-muted))] focus:border-white/80 focus:bg-white/62 focus:ring-2 focus:ring-[hsl(var(--reservation-accent)/0.18)]';
+
+  const contactFieldClass =
+    'rounded-2xl border border-white/60 bg-white/38 px-4 pb-2 pt-2.5 shadow-inner backdrop-blur-2xl transition-all duration-200 focus-within:border-white/80 focus-within:bg-white/62 focus-within:ring-2 focus-within:ring-[hsl(var(--reservation-accent)/0.18)]';
+  const contactLabelClass = 'block text-[11px] font-semibold text-[hsl(var(--reservation-soft))]';
+  const contactInputClass =
+    'w-full bg-transparent text-[15px] font-medium text-[hsl(var(--reservation-ink))] outline-none placeholder:text-[hsl(var(--reservation-muted))]';
 
   const backgroundClass =
     'relative min-h-screen overflow-hidden bg-[hsl(var(--reservation-bg))] font-sans text-[hsl(var(--reservation-ink))] antialiased';
@@ -834,8 +848,8 @@ export default function ReservationWidget({
     try {
       const phone = toInternationalPhone(customerPhone);
       // Une case cochée dont la coordonnée a ensuite été effacée n'est pas envoyée.
-      const consentEmail = marketingConsent.EMAIL && consentChannels.includes('EMAIL');
-      const consentSms = marketingConsent.SMS && consentChannels.includes('SMS');
+      const consentEmail = marketingOptIn && consentChannels.includes('EMAIL');
+      const consentSms = marketingOptIn && consentChannels.includes('SMS');
       // Public bookings use a signed hold, never the internal service endpoint.
       const path = `public/r/${encodeURIComponent(restaurant.slug || restaurantId)}`;
       const testFields = testBooking ? { testBookingToken } : {};
@@ -875,7 +889,7 @@ export default function ReservationWidget({
               marketingConsent: {
                 ...(consentEmail ? { email: true } : {}),
                 ...(consentSms ? { sms: true } : {}),
-                version: MARKETING_CONSENT_VERSION,
+                version: MARKETING_CONSENT_COMBINED_VERSION,
               },
             }
           : {}),
@@ -1049,12 +1063,18 @@ export default function ReservationWidget({
     FALLBACK_RESTAURANT_IMAGE;
   const cardImage =
     restaurant?.imageUrl || restaurant?.coverImageUrl || restaurantImage || FALLBACK_DISH_IMAGE;
+  // La photo du haut de page ne doit pas se répéter dans la carte récapitulative.
+  const summaryImage = [
+    ...(restaurant?.galleryImages ?? []),
+    restaurant?.imageUrl,
+    restaurant?.coverImageUrl,
+  ].find((img) => img && img !== restaurantImage && img !== FALLBACK_RESTAURANT_IMAGE);
   const restaurantSubtitle =
     restaurant?.cuisine && restaurant?.city
       ? `${restaurant.cuisine} · ${restaurant.city}`
       : restaurant?.tags?.length
         ? restaurant.tags.slice(0, 3).join(' · ')
-        : restaurant?.city || restaurant?.address || 'Dîner · Terrasse · Cocktails';
+        : restaurant?.city || restaurant?.address || '';
   const selectedDateLong = selectedDate ? formatLongFrenchDate(selectedDate) : 'Date à choisir';
   const selectedDateShort = selectedDate ? formatShortFrenchDate(selectedDate) : 'Date';
   const hasService = timeSlots.length > 0;
@@ -1139,7 +1159,7 @@ export default function ReservationWidget({
           ? 'Confirmer la modification'
           : cardGuarantee
             ? 'Continuer vers l’enregistrement de la carte'
-            : 'Valider la réservation';
+            : 'Réserver ma table';
   const unchanged = Boolean(
     modification &&
     selectedDate &&
@@ -1255,48 +1275,41 @@ export default function ReservationWidget({
     return (
       <ReservationView
         confirmation={bookingConfirmation ?? undefined}
+        notice={
+          testBooking
+            ? undefined
+            : customerEmail.trim()
+              ? `Confirmation envoyée par e-mail à ${customerEmail.trim()}.`
+              : `Confirmation envoyée par SMS au ${customerPhone.trim()}.`
+        }
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => {
-                requestedSlotRef.current = null;
-                setSelectionNotice('');
-                setSuccess(false);
-                setStep(1);
-                setSelectedTime('');
-                setCustomerName('');
-                setCustomerPhone('');
-                setCustomerEmail('');
-                setPartySize(2);
-                setError('');
-                setConfirmedReservation(null);
-                setWhatsappOptIn(false);
-                setSelectedDate(new Date());
-              }}
-              className="min-h-11 text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
-            >
-              Faire une autre réservation
-            </button>
-            {!isEmbedded && (
+            {testBooking && !isEmbedded && (
               <Link
-                href={`/restaurant/${restaurant.slug ?? restaurantId}${testBooking ? `?${new URLSearchParams({ testBooking: testBookingToken })}` : ''}`}
+                href={`/restaurant/${restaurant.slug ?? restaurantId}?${new URLSearchParams({ testBooking: testBookingToken })}`}
                 className="min-h-11 content-center text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
               >
                 Retour
               </Link>
             )}
-            {!testBooking && restaurant.giftCardEnabled !== false && (
-              <button
-                type="button"
-                onClick={() => setShowGiftCard(true)}
-                className="min-h-11 text-xs text-muted-foreground underline underline-offset-4 transition-all duration-200 hover:text-foreground"
-              >
-                Offrir une carte cadeau
-              </button>
-            )}
             {giftCardOverlay}
           </>
+        }
+        footer={
+          !testBooking && restaurant.giftCardEnabled !== false ? (
+            <button
+              type="button"
+              onClick={() => setShowGiftCard(true)}
+              className={reservationViewStyles.giftCard}
+            >
+              <Gift size={18} aria-hidden="true" className="shrink-0" />
+              <span className="flex-1">
+                <span className="block font-medium">Offrir une carte cadeau</span>
+                <span className="block text-muted-foreground">Un repas chez {restaurant.name}</span>
+              </span>
+              <ChevronRight size={16} aria-hidden="true" className="shrink-0" />
+            </button>
+          ) : undefined
         }
       />
     );
@@ -1362,9 +1375,11 @@ export default function ReservationWidget({
               </a>
             )
           ) : (
-            <p className="mt-3 text-sm font-medium text-[hsl(var(--reservation-panel)/0.85)]">
-              {restaurantSubtitle}
-            </p>
+            restaurantSubtitle && (
+              <p className="mt-3 text-sm font-medium text-[hsl(var(--reservation-panel)/0.85)]">
+                {restaurantSubtitle}
+              </p>
+            )
           )}
         </div>
         <section
@@ -1455,135 +1470,157 @@ export default function ReservationWidget({
               >
                 {/* Colonne gauche */}
                 <div className="space-y-3 sm:space-y-4 lg:space-y-3">
-                  <>
-                    <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-[hsl(var(--reservation-line)/0.72)] p-3 shadow-sm backdrop-blur-2xl sm:rounded-[2rem] sm:p-4 lg:rounded-[1.35rem] lg:p-3">
-                      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[hsl(var(--reservation-glow)/0.16)] blur-2xl" />
-                      <p className="pb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))] sm:text-xs">
-                        {step === 2
-                          ? modification
-                            ? 'Votre nouveau choix'
-                            : 'Résumé'
-                          : 'Votre réservation'}
-                      </p>
-                      <div className="relative flex items-center gap-3">
-                        <div
-                          className="h-24 w-24 shrink-0 rounded-[1.45rem] bg-cover bg-center shadow-sm sm:h-28 sm:w-28 sm:rounded-[1.6rem] lg:h-[4.9rem] lg:w-[4.9rem] lg:rounded-[1.1rem]"
-                          style={{ backgroundImage: `url("${cardImage}")` }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          {!(modification && step === 2) && (
-                            <span
-                              className={cn(
-                                'inline-flex rounded-full bg-white/75 px-3 py-1 text-[11px] font-extrabold text-[hsl(var(--reservation-ink))] shadow-sm backdrop-blur-xl',
-                                reservationStatus === 'Confirmée'
-                                  ? 'bg-[hsl(var(--reservation-confirmed-bg))] text-[hsl(var(--reservation-confirmed))]'
-                                  : reservationStatus === 'Créneaux disponibles'
-                                    ? 'text-[hsl(var(--reservation-success))]'
-                                    : reservationStatus === 'Fermé'
-                                      ? 'text-[hsl(var(--reservation-soft))]'
-                                      : reservationStatus === 'Complet'
-                                        ? 'text-red-600'
-                                        : 'text-[hsl(var(--reservation-ink))]',
-                              )}
-                            >
-                              {reservationStatus}
-                            </span>
-                          )}
-                          <h2 className="mt-2 line-clamp-2 text-[17px] font-black leading-tight tracking-[-0.03em] text-[hsl(var(--reservation-ink))] sm:text-lg lg:text-[15px]">
-                            {reservationTitle}
-                          </h2>
-                          <p className="mt-1 text-[12px] font-semibold leading-snug text-[hsl(var(--reservation-soft))] sm:text-sm lg:text-xs">
-                            {modification ? (
-                              <>
-                                <span className="block">{selectedDateLong}</span>
-                                <span className="block whitespace-nowrap">
-                                  {partySize} {partySize > 1 ? 'personnes' : 'personne'}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                {selectedDateLong} ·{' '}
-                                <span className="whitespace-nowrap">
-                                  {partySize} {partySize > 1 ? 'personnes' : 'personne'}
-                                </span>
-                              </>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
+                  {step === 2 && !modification ? (
                     <div
                       className={cn(
-                        'hidden grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)] items-start gap-3 rounded-[1.4rem] border border-white/60 bg-white/40 p-3 shadow-sm backdrop-blur-2xl sm:grid lg:rounded-[1.1rem] lg:p-3',
-                        modification && step === 2 && 'grid-cols-1',
+                        'relative flex flex-col justify-between gap-6 overflow-hidden rounded-[1.75rem] bg-[hsl(var(--reservation-ink))] bg-cover bg-center p-4 text-white shadow-sm lg:h-full lg:min-h-[20rem] lg:rounded-[1.35rem] lg:p-5',
+                        'min-h-[10.5rem] sm:min-h-[13rem]',
                       )}
+                      style={
+                        summaryImage ? { backgroundImage: `url("${summaryImage}")` } : undefined
+                      }
                     >
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))]">
-                          Ambiance
+                      {summaryImage && (
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+                      )}
+                      {step === 2 && !modification ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStep(1);
+                            setError('');
+                          }}
+                          className="relative inline-flex items-center gap-1.5 self-start rounded-full bg-black/30 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-xl transition-all duration-200 hover:bg-black/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        >
+                          <ChevronLeft size={15} aria-hidden="true" />
+                          Modifier le créneau
+                        </button>
+                      ) : null}
+                      <div className="relative">
+                        <p className="text-xs font-semibold text-white/75">{restaurant?.name}</p>
+                        <p className="mt-1 font-serif text-[1.65rem] leading-tight sm:text-3xl">
+                          {selectedDateLong}
                         </p>
-                        <div className="mt-2 flex items-center">
-                          {(restaurant?.galleryImages?.length
-                            ? restaurant.galleryImages.slice(0, 3)
-                            : [cardImage, restaurantImage, FALLBACK_DISH_IMAGE]
-                          ).map((img, idx) => (
-                            <div
-                              key={idx}
-                              className="-mr-2 h-8 w-8 rounded-full border-2 border-white/80 bg-cover bg-center shadow-sm lg:h-7 lg:w-7"
-                              style={{ backgroundImage: `url("${img}")` }}
-                            />
-                          ))}
-                          <span className="ml-3 text-[11px] font-extrabold text-[hsl(var(--reservation-soft))]">
-                            {restaurant?.tags?.slice(0, 2).join(' · ') || 'Terrasse'}
-                          </span>
-                        </div>
+                        {selectedTime ? (
+                          <p className="font-serif text-[1.65rem] leading-tight sm:text-3xl">
+                            {selectedTime.replace(':', 'h')}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm font-medium text-white/75">
+                            {reservationStatus}
+                          </p>
+                        )}
+                        <p className="mt-2 text-sm font-medium text-white/80">
+                          {partySize} {partySize > 1 ? 'personnes' : 'personne'}
+                        </p>
                       </div>
-                      {!(modification && step === 2) && (
-                        <>
-                          <div className="min-h-12 w-px self-stretch bg-[hsl(var(--reservation-line))]" />
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))]">
-                              Votre date
-                            </p>
-                            <p className="mt-2 text-sm font-black leading-tight text-[hsl(var(--reservation-ink))]">
-                              {selectedDateShort}
-                            </p>
-                            <p className="text-xs font-semibold text-[hsl(var(--reservation-soft))]">
-                              {partySize} pers.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-[hsl(var(--reservation-line)/0.72)] p-3 shadow-sm backdrop-blur-2xl sm:rounded-[2rem] sm:p-4 lg:rounded-[1.35rem] lg:p-3">
+                        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[hsl(var(--reservation-glow)/0.16)] blur-2xl" />
+                        <p className="pb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))] sm:text-xs">
+                          {step === 2
+                            ? modification
+                              ? 'Votre nouveau choix'
+                              : 'Résumé'
+                            : 'Votre réservation'}
+                        </p>
+                        <div className="relative flex items-center gap-3">
+                          <div
+                            className="h-24 w-24 shrink-0 rounded-[1.45rem] bg-cover bg-center shadow-sm sm:h-28 sm:w-28 sm:rounded-[1.6rem] lg:h-[4.9rem] lg:w-[4.9rem] lg:rounded-[1.1rem]"
+                            style={{ backgroundImage: `url("${cardImage}")` }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            {!(modification && step === 2) && (
+                              <span
+                                className={cn(
+                                  'inline-flex rounded-full bg-white/75 px-3 py-1 text-[11px] font-extrabold text-[hsl(var(--reservation-ink))] shadow-sm backdrop-blur-xl',
+                                  reservationStatus === 'Confirmée'
+                                    ? 'bg-[hsl(var(--reservation-confirmed-bg))] text-[hsl(var(--reservation-confirmed))]'
+                                    : reservationStatus === 'Créneaux disponibles'
+                                      ? 'text-[hsl(var(--reservation-success))]'
+                                      : reservationStatus === 'Fermé'
+                                        ? 'text-[hsl(var(--reservation-soft))]'
+                                        : reservationStatus === 'Complet'
+                                          ? 'text-red-600'
+                                          : 'text-[hsl(var(--reservation-ink))]',
+                                )}
+                              >
+                                {reservationStatus}
+                              </span>
+                            )}
+                            <h2 className="mt-2 line-clamp-2 text-[17px] font-black leading-tight tracking-[-0.03em] text-[hsl(var(--reservation-ink))] sm:text-lg lg:text-[15px]">
+                              {reservationTitle}
+                            </h2>
+                            <p className="mt-1 text-[12px] font-semibold leading-snug text-[hsl(var(--reservation-soft))] sm:text-sm lg:text-xs">
+                              {modification ? (
+                                <>
+                                  <span className="block">{selectedDateLong}</span>
+                                  <span className="block whitespace-nowrap">
+                                    {partySize} {partySize > 1 ? 'personnes' : 'personne'}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {selectedDateLong} ·{' '}
+                                  <span className="whitespace-nowrap">
+                                    {partySize} {partySize > 1 ? 'personnes' : 'personne'}
+                                  </span>
+                                </>
+                              )}
                             </p>
                           </div>
-                        </>
-                      )}
-                    </div>
-
-                    {step === 2 && !modification && (
-                      <div className={cn(glassCardClass, 'flex overflow-hidden')}>
-                        <div className="flex w-[6.5rem] flex-col items-center justify-center border-r border-white/50 bg-white/24 p-3 text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[hsl(var(--reservation-muted))]">
-                            {selectedDate && FRENCH_DAYS[selectedDate.getDay()].substring(0, 3)}
-                          </span>
-                          <span className="my-0.5 text-3xl font-black tracking-normal text-[hsl(var(--reservation-ink))]">
-                            {selectedDate?.getDate()}
-                          </span>
-                          <span className="text-[11px] font-semibold text-[hsl(var(--reservation-soft))]">
-                            {selectedTime.replace(':', 'h')}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1 p-4">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[hsl(var(--reservation-accent))]">
-                            Résumé
-                          </p>
-                          <h4 className="mt-1 truncate text-sm font-extrabold text-[hsl(var(--reservation-ink))]">
-                            {restaurant?.name}
-                          </h4>
-                          <p className="mt-1 text-xs font-semibold text-[hsl(var(--reservation-soft))]">
-                            {partySize} personne(s)
-                          </p>
                         </div>
                       </div>
-                    )}
-                  </>
+
+                      <div
+                        className={cn(
+                          'hidden grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)] items-start gap-3 rounded-[1.4rem] border border-white/60 bg-white/40 p-3 shadow-sm backdrop-blur-2xl sm:grid lg:rounded-[1.1rem] lg:p-3',
+                          modification && step === 2 && 'grid-cols-1',
+                        )}
+                      >
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))]">
+                            Ambiance
+                          </p>
+                          <div className="mt-2 flex items-center">
+                            {(restaurant?.galleryImages?.length
+                              ? restaurant.galleryImages.slice(0, 3)
+                              : [cardImage, restaurantImage, FALLBACK_DISH_IMAGE]
+                            ).map((img, idx) => (
+                              <div
+                                key={idx}
+                                className="-mr-2 h-8 w-8 rounded-full border-2 border-white/80 bg-cover bg-center shadow-sm lg:h-7 lg:w-7"
+                                style={{ backgroundImage: `url("${img}")` }}
+                              />
+                            ))}
+                            {restaurant?.tags?.length ? (
+                              <span className="ml-3 text-[11px] font-extrabold text-[hsl(var(--reservation-soft))]">
+                                {restaurant.tags.slice(0, 2).join(' · ')}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        {!(modification && step === 2) && (
+                          <>
+                            <div className="min-h-12 w-px self-stretch bg-[hsl(var(--reservation-line))]" />
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[hsl(var(--reservation-soft))]">
+                                Votre date
+                              </p>
+                              <p className="mt-2 text-sm font-black leading-tight text-[hsl(var(--reservation-ink))]">
+                                {selectedDateShort}
+                              </p>
+                              <p className="text-xs font-semibold text-[hsl(var(--reservation-soft))]">
+                                {partySize} pers.
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Colonne droite */}
@@ -1709,17 +1746,10 @@ export default function ReservationWidget({
                             <CalendarIcon size={13} /> Sélectionner la date
                           </span>
                           <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              aria-label="Semaine précédente"
-                              disabled={!days.length || formatDateParam(days[0]) <= dateBounds.min}
-                              onClick={() => moveWeek(-1)}
-                              className="flex h-11 w-9 items-center justify-center rounded-full text-[hsl(var(--reservation-soft))] transition-all duration-200 hover:bg-[hsl(var(--reservation-line)/0.5)] disabled:opacity-30"
-                            >
-                              <ChevronLeft size={16} />
-                            </button>
                             <ReservationDatePicker
                               theme={reservationTheme}
+                              label={shownMonthLabel}
+                              openAt={`${shownMonth}-01`}
                               min={dateBounds.min}
                               max={dateBounds.max}
                               value={selectedDate ? formatDateParam(selectedDate) : null}
@@ -1729,88 +1759,121 @@ export default function ReservationWidget({
                                 requestedSlotRef.current = null;
                                 setSelectionNotice('');
                                 setSelectedDate(date);
-                                setWeekOffset(null);
                                 if (!modification) setSelectedTime('');
                                 setError('');
                                 setActiveSection('time');
                               }}
                             />
-                            <button
-                              type="button"
-                              aria-label="Semaine suivante"
-                              disabled={
-                                !days.length ||
-                                formatDateParam(days[days.length - 1]) >= dateBounds.max
-                              }
-                              onClick={() => moveWeek(1)}
-                              className="flex h-11 w-9 items-center justify-center rounded-full text-[hsl(var(--reservation-soft))] transition-all duration-200 hover:bg-[hsl(var(--reservation-line)/0.5)] disabled:opacity-30"
-                            >
-                              <ChevronRight size={16} />
-                            </button>
                           </div>
                         </div>
-                        <div className="scrollbar-none flex snap-x gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-7 lg:gap-1.5 lg:overflow-visible lg:pb-0">
-                          {days.map((date, idx) => {
-                            const isSelected = selectedDate?.toDateString() === date.toDateString();
-                            const dateSlots = getSlotsForDate(date);
-                            const isOpen = Boolean(modification) || dateSlots.length > 0;
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                aria-label={`${formatLongFrenchDate(date)} ${modification ? '' : isOpen ? 'ouvert' : 'fermé'}`}
-                                aria-pressed={isSelected}
-                                onClick={() => {
-                                  triggerHaptic();
-                                  requestedSlotRef.current = null;
-                                  setSelectionNotice('');
-                                  setSelectedDate(date);
-                                  if (!modification) setSelectedTime('');
-                                  setError('');
-                                  setActiveSection('time');
-                                  setTimeout(() => {
-                                    timeSectionRef.current?.scrollIntoView?.({
-                                      behavior: 'smooth',
-                                      block: 'nearest',
-                                    });
-                                  }, 80);
-                                }}
-                                aria-disabled={!isOpen}
-                                className={cn(
-                                  'relative flex h-[4.4rem] min-w-[4.75rem] shrink-0 snap-center flex-col items-center justify-center overflow-hidden rounded-[1.35rem] text-center transition-all duration-200 active:scale-95 sm:h-[4.8rem] sm:min-w-[5rem] sm:rounded-[1.45rem] lg:h-11 lg:min-w-0 lg:rounded-xl',
-                                  softPillClass,
-                                  !isOpen && !isSelected
-                                    ? 'text-[hsl(var(--reservation-soft))] opacity-70'
-                                    : '',
-                                  isSelected
-                                    ? 'border-[hsl(var(--reservation-ink))] bg-[hsl(var(--reservation-ink))] text-[hsl(var(--reservation-panel))] shadow-lg shadow-black/10 hover:bg-[hsl(var(--reservation-ink))] hover:text-[hsl(var(--reservation-panel))]'
-                                    : '',
-                                )}
-                              >
-                                {!modification && isOpen && !isSelected && (
-                                  <span className="absolute bottom-2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[hsl(var(--reservation-glow))] lg:bottom-auto lg:left-auto lg:right-1.5 lg:top-1.5 lg:h-1 lg:w-1 lg:translate-x-0" />
-                                )}
-                                {!isOpen && !isSelected && (
-                                  <span className="absolute bottom-2 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-black/15 lg:bottom-auto lg:left-auto lg:right-1.5 lg:top-1.5 lg:w-2 lg:translate-x-0" />
-                                )}
-                                <span
+                        <div className="relative sm:px-9">
+                          <button
+                            type="button"
+                            aria-label="Jours précédents"
+                            onClick={() => scrollDates(-1)}
+                            className="absolute left-0 top-1/2 z-10 hidden h-8 w-8 sm:flex -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-[hsl(var(--reservation-wash))] text-[hsl(var(--reservation-ink))] shadow-md transition-all duration-200 hover:scale-105"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Jours suivants"
+                            onClick={() => scrollDates(1)}
+                            className="absolute right-0 top-1/2 z-10 hidden h-8 w-8 sm:flex -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-[hsl(var(--reservation-wash))] text-[hsl(var(--reservation-ink))] shadow-md transition-all duration-200 hover:scale-105"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                          <div
+                            ref={dateStripRef}
+                            onScroll={trackVisibleMonth}
+                            className="scrollbar-none relative flex snap-x gap-1 overflow-x-auto scroll-px-1 px-1 py-1"
+                          >
+                            {days.map((date, idx) => {
+                              const isSelected =
+                                selectedDate?.toDateString() === date.toDateString();
+                              const dateSlots = getSlotsForDate(date);
+                              const isOpen = Boolean(modification) || dateSlots.length > 0;
+                              const closed = !isOpen && !isSelected;
+                              const dayOffset = Math.round(
+                                (Date.parse(`${formatDateParam(date)}T12:00:00Z`) -
+                                  Date.parse(`${formatDateParam(new Date())}T12:00:00Z`)) /
+                                  86400000,
+                              );
+                              const dayLabel =
+                                dayOffset === 0
+                                  ? 'Auj.'
+                                  : dayOffset === 1
+                                    ? 'Demain'
+                                    : `${FRENCH_DAYS[date.getDay()].slice(0, 3)}.`;
+                              return (
+                                <button
+                                  key={idx}
+                                  data-date={formatDateParam(date)}
+                                  type="button"
+                                  aria-label={`${formatLongFrenchDate(date)} ${modification ? '' : isOpen ? 'ouvert' : 'fermé'}`}
+                                  aria-pressed={isSelected}
+                                  onClick={() => {
+                                    triggerHaptic();
+                                    requestedSlotRef.current = null;
+                                    setSelectionNotice('');
+                                    setSelectedDate(date);
+                                    if (!modification) setSelectedTime('');
+                                    setError('');
+                                    setActiveSection('time');
+                                    setTimeout(() => {
+                                      timeSectionRef.current?.scrollIntoView?.({
+                                        behavior: 'smooth',
+                                        block: 'nearest',
+                                      });
+                                    }, 80);
+                                  }}
+                                  aria-disabled={!isOpen}
                                   className={cn(
-                                    'text-[22px] font-bold leading-none tracking-normal sm:text-2xl sm:leading-none lg:text-lg lg:leading-none',
-                                    isSelected
-                                      ? 'text-[hsl(var(--reservation-panel))]'
-                                      : isOpen
-                                        ? 'text-[hsl(var(--reservation-ink))]'
-                                        : 'text-[hsl(var(--reservation-soft))]',
+                                    'relative flex h-[4.4rem] w-[3.6rem] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl text-center transition-all duration-200 hover:bg-[hsl(var(--reservation-line)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--reservation-accent)/0.3)] active:scale-95 sm:w-[calc((100%-1.5rem)/7)] lg:h-[4rem]',
+                                    isSelected &&
+                                      'bg-[hsl(var(--reservation-ink))] text-[hsl(var(--reservation-panel))] shadow-md shadow-black/10 hover:bg-[hsl(var(--reservation-ink))]',
                                   )}
                                 >
-                                  {date.getDate()}
-                                </span>
-                                <span className="mt-1 text-[10px] font-semibold uppercase leading-none tracking-[0.08em] opacity-75">
-                                  {FRENCH_DAYS_SHORT[date.getDay()]}
-                                </span>
-                              </button>
-                            );
-                          })}
+                                  <span
+                                    className={cn(
+                                      'text-[11px] font-semibold leading-none',
+                                      isSelected
+                                        ? 'text-[hsl(var(--reservation-panel)/0.8)]'
+                                        : 'text-[hsl(var(--reservation-soft))]',
+                                    )}
+                                  >
+                                    {dayLabel}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      'text-[22px] font-bold leading-none lg:text-xl',
+                                      isSelected
+                                        ? 'text-[hsl(var(--reservation-panel))]'
+                                        : closed
+                                          ? 'text-[hsl(var(--reservation-muted))] line-through decoration-1'
+                                          : 'text-[hsl(var(--reservation-ink))]',
+                                    )}
+                                  >
+                                    {date.getDate()}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      'h-3 text-[10px] font-medium leading-3',
+                                      isSelected
+                                        ? 'text-[hsl(var(--reservation-panel)/0.7)]'
+                                        : 'text-[hsl(var(--reservation-muted))]',
+                                    )}
+                                  >
+                                    {closed
+                                      ? 'Fermé'
+                                      : date.getDate() === 1
+                                        ? FRENCH_MONTHS_SHORT[date.getMonth()]
+                                        : ''}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                       <div
@@ -1954,22 +2017,23 @@ export default function ReservationWidget({
                   ) : (
                     <div className="animate-in fade-in duration-200 motion-reduce:animate-none space-y-3">
                       {!modification && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setStep(1);
-                            setError('');
-                          }}
-                          className={cn(
-                            'inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-all duration-200',
-                            modification
-                              ? '-ml-3 text-xs text-[hsl(var(--reservation-soft))] hover:text-[hsl(var(--reservation-ink))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--reservation-accent))]'
-                              : softPillClass,
-                          )}
-                        >
-                          <ChevronLeft size={18} />
-                          Retour aux créneaux
-                        </button>
+                        <div className="space-y-1 pb-1">
+                          <ol className="flex items-center gap-2 text-[11px] font-semibold text-[hsl(var(--reservation-muted))]">
+                            <li className="flex items-center gap-1 text-[hsl(var(--reservation-success))]">
+                              <CheckCircle2 size={13} aria-hidden="true" />
+                              Créneau
+                            </li>
+                            <li aria-hidden="true">—</li>
+                            <li aria-current="step" className="text-[hsl(var(--reservation-ink))]">
+                              Coordonnées
+                            </li>
+                            <li aria-hidden="true">—</li>
+                            <li>Confirmé</li>
+                          </ol>
+                          <h3 className="text-xl font-black tracking-[-0.02em] text-[hsl(var(--reservation-ink))]">
+                            Vos coordonnées
+                          </h3>
+                        </div>
                       )}
 
                       {modification ? (
@@ -2046,50 +2110,53 @@ export default function ReservationWidget({
                         </div>
                       ) : (
                         <>
-                          <div className="space-y-1.5">
-                            <label htmlFor="customerName" className={cn(labelClass, 'ml-2')}>
-                              <User size={12} />
+                          <div className={contactFieldClass}>
+                            <label htmlFor="customerName" className={contactLabelClass}>
                               Nom complet *
                             </label>
                             <input
                               id="customerName"
+                              autoComplete="name"
                               value={customerName}
                               onChange={(e) => setCustomerName(e.target.value)}
                               placeholder="Alice Martin"
                               required
-                              className={fieldClass}
+                              className={contactInputClass}
                             />
                           </div>
 
-                          <div className="space-y-1.5">
-                            <label htmlFor="customerPhone" className={cn(labelClass, 'ml-2')}>
-                              <Phone size={12} />
-                              Téléphone *
-                            </label>
-                            <input
-                              id="customerPhone"
-                              type="tel"
-                              value={customerPhone}
-                              onChange={(e) => setCustomerPhone(e.target.value)}
-                              placeholder="0612345678"
-                              required
-                              className={fieldClass}
-                            />
-                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className={contactFieldClass}>
+                              <label htmlFor="customerPhone" className={contactLabelClass}>
+                                Téléphone *
+                              </label>
+                              <input
+                                id="customerPhone"
+                                type="tel"
+                                autoComplete="tel"
+                                inputMode="tel"
+                                value={customerPhone}
+                                onChange={(e) => setCustomerPhone(e.target.value)}
+                                placeholder="06 12 34 56 78"
+                                required
+                                className={contactInputClass}
+                              />
+                            </div>
 
-                          <div className="space-y-1.5">
-                            <label htmlFor="customerEmail" className={cn(labelClass, 'ml-2')}>
-                              <Mail size={12} />
-                              Adresse Email (optionnel)
-                            </label>
-                            <input
-                              id="customerEmail"
-                              type="email"
-                              value={customerEmail}
-                              onChange={(e) => setCustomerEmail(e.target.value)}
-                              placeholder="client@suppernote.com"
-                              className={fieldClass}
-                            />
+                            <div className={contactFieldClass}>
+                              <label htmlFor="customerEmail" className={contactLabelClass}>
+                                E-mail (facultatif)
+                              </label>
+                              <input
+                                id="customerEmail"
+                                type="email"
+                                autoComplete="email"
+                                value={customerEmail}
+                                onChange={(e) => setCustomerEmail(e.target.value)}
+                                placeholder="alice@exemple.fr"
+                                className={contactInputClass}
+                              />
+                            </div>
                           </div>
                         </>
                       )}
@@ -2116,39 +2183,23 @@ export default function ReservationWidget({
                     )}
 
                   {step === 2 && !modification && !testBooking && consentChannels.length > 0 && (
-                    <fieldset className="space-y-3 text-sm text-[hsl(var(--reservation-ink))]">
-                      <legend className="font-semibold">Offres et actualités (facultatif)</legend>
-                      {consentChannels.map((channel) => (
-                        <label key={channel} className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            name={`marketing-consent-${channel.toLowerCase()}`}
-                            checked={marketingConsent[channel]}
-                            onChange={(event) =>
-                              setMarketingConsent((current) => ({
-                                ...current,
-                                [channel]: event.target.checked,
-                              }))
-                            }
-                            disabled={submitting}
-                            className="mt-1 h-4 w-4 shrink-0 transition-all duration-200"
-                          />
-                          <span>{buildMarketingConsentLabel(channel, restaurant?.name ?? '')}</span>
-                        </label>
-                      ))}
-                      <p className="text-xs text-[hsl(var(--reservation-soft))]">
-                        Facultatif, sans effet sur votre réservation. Désinscription possible à tout
-                        moment.{' '}
-                        <a
-                          href="/privacy"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline transition-all duration-200 hover:text-[hsl(var(--reservation-ink))]"
-                        >
-                          Informations sur le traitement de vos données
-                        </a>
-                      </p>
-                    </fieldset>
+                    <label className="flex items-start gap-3 text-sm text-[hsl(var(--reservation-ink))]">
+                      <input
+                        type="checkbox"
+                        name="marketing-consent"
+                        checked={marketingOptIn}
+                        onChange={(event) => setMarketingOptIn(event.target.checked)}
+                        disabled={submitting}
+                        className="mt-0.5 h-4 w-4 shrink-0 transition-all duration-200"
+                      />
+                      <span>
+                        {buildCombinedMarketingConsentLabel(
+                          consentChannels,
+                          restaurant?.name ?? '',
+                        )}{' '}
+                        <span className="text-[hsl(var(--reservation-soft))]">(facultatif)</span>
+                      </span>
+                    </label>
                   )}
 
                   {step === 2 && !modification && cardGuarantee && (
@@ -2188,17 +2239,6 @@ export default function ReservationWidget({
                           </a>
                         </p>
                       )}
-                    </div>
-                  )}
-
-                  {step === 2 && !modification && selectedDate && selectedTime && (
-                    <div className="rounded-2xl border border-white/70 bg-white/45 p-3 text-sm font-semibold text-[hsl(var(--reservation-soft))] shadow-sm backdrop-blur-2xl">
-                      <p className="font-black text-[hsl(var(--reservation-ink))]">
-                        {selectedDateLong} · {selectedTime.replace(':', 'h')}
-                      </p>
-                      <p>
-                        {partySize} {partySize > 1 ? 'personnes' : 'personne'} · {restaurant?.name}
-                      </p>
                     </div>
                   )}
 
@@ -2277,19 +2317,30 @@ export default function ReservationWidget({
                       </p>
                     ) : (
                       <p className="mt-2 px-4 text-center text-[11px] font-medium leading-relaxed text-[hsl(var(--reservation-soft))] lg:mt-1">
-                        {step === 1
-                          ? isOriginalSelection
-                            ? 'Choisissez un autre jour, un autre horaire ou un autre nombre de personnes.'
-                            : availabilityError
-                              ? 'La disponibilité n’a pas pu être vérifiée. Réessayez.'
-                              : (!hasService || isFullyBooked) && nextOpeningDay
-                                ? `Prochain jour ouvert : ${nextOpeningDayLabel}. Les places restent à vérifier.`
-                                : !hasService || isFullyBooked
-                                  ? 'Essayez une autre date ou une autre taille de table.'
-                                  : 'Sélectionnez un horaire pour continuer.'
-                          : modification
-                            ? 'Aucun changement avant votre confirmation.'
-                            : 'Les notifications dépendent des options du restaurant.'}
+                        {step === 1 ? (
+                          isOriginalSelection ? (
+                            'Choisissez un autre jour, un autre horaire ou un autre nombre de personnes.'
+                          ) : availabilityError ? (
+                            'La disponibilité n’a pas pu être vérifiée. Réessayez.'
+                          ) : (!hasService || isFullyBooked) && nextOpeningDay ? (
+                            `Prochain jour ouvert : ${nextOpeningDayLabel}. Les places restent à vérifier.`
+                          ) : !hasService || isFullyBooked ? (
+                            'Essayez une autre date ou une autre taille de table.'
+                          ) : (
+                            'Sélectionnez un horaire pour continuer.'
+                          )
+                        ) : modification ? (
+                          'Aucun changement avant votre confirmation.'
+                        ) : (
+                          <a
+                            href="/privacy"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline transition-all duration-200 hover:text-[hsl(var(--reservation-ink))]"
+                          >
+                            Traitement de vos données
+                          </a>
+                        )}
                       </p>
                     )}
                   </div>
@@ -2308,16 +2359,19 @@ export default function ReservationWidget({
 
             {/* Bouton « Offrir une carte cadeau » — footer du bottom sheet.
                 Ouvre un overlay qui embed la page Connect /widget/[slug]/gift-card. */}
-            {!modification && !testBooking && restaurant?.giftCardEnabled !== false && (
-              <button
-                type="button"
-                onClick={() => setShowGiftCard(true)}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-full border border-[hsl(var(--reservation-line))] bg-white/70 py-2.5 text-[13px] font-bold text-[hsl(var(--reservation-ink))] shadow-sm transition-all duration-200 hover:bg-white active:scale-[0.98] lg:mt-0 lg:py-2 lg:text-[12px]"
-              >
-                <Gift size={15} className="text-[hsl(var(--reservation-glow))]" />
-                Offrir une carte cadeau
-              </button>
-            )}
+            {!modification &&
+              step !== 2 &&
+              !testBooking &&
+              restaurant?.giftCardEnabled !== false && (
+                <button
+                  type="button"
+                  onClick={() => setShowGiftCard(true)}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-full border border-[hsl(var(--reservation-line))] bg-white/70 py-2.5 text-[13px] font-bold text-[hsl(var(--reservation-ink))] shadow-sm transition-all duration-200 hover:bg-white active:scale-[0.98] lg:mt-0 lg:py-2 lg:text-[12px]"
+                >
+                  <Gift size={15} className="text-[hsl(var(--reservation-glow))]" />
+                  Offrir une carte cadeau
+                </button>
+              )}
           </div>
         </section>
 

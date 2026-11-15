@@ -26,7 +26,7 @@ describe('Ma reservation', () => {
     );
     expect(await screen.findByText('Confirmée')).toBeInTheDocument();
     expect(screen.getByText('Restaurant Exemple')).toBeInTheDocument();
-    expect(screen.getByText('19:00')).toBeInTheDocument();
+    expect(screen.getByText('19h00')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
   it('loads management actions directly in the confirmation without navigating', async () => {
@@ -92,10 +92,11 @@ describe('Ma reservation', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^3 personnes$/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Choisir le créneau 20h00' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer · 20h00' }));
-    expect(screen.getByText('19h30', { selector: 'dd span' })).toBeInTheDocument();
+    // Le carton garde l'heure actuelle tant que la modification n'est pas confirmée.
+    expect(screen.getAllByText('19h30', { selector: 'dd span' })).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByText('20:00')).toBeInTheDocument();
+    expect(screen.getByText('20h00')).toBeInTheDocument();
     expect(document.querySelector('dl')).toHaveTextContent('3personnes');
     fireEvent.click(screen.getByRole('button', { name: 'Annuler la réservation' }));
     expect(screen.getByText('Annuler votre réservation ?')).toBeInTheDocument();
@@ -275,12 +276,12 @@ describe('Ma reservation', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent(new RegExp(french, 'i'));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByText('19:30')).toBeInTheDocument();
+    expect(screen.getByText('19h30')).toBeInTheDocument();
     const summary = document.querySelector('dl')!;
     expect(summary).toHaveTextContent(String(next.getDate()));
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('shows only seven shortcut days and accepts a date two months away in the calendar', async () => {
+  it('shows every bookable day in one strip and accepts a date two months away in the calendar', async () => {
     vi.stubGlobal('fetch', vi.fn());
     render(<ReservationView demo />);
     await screen.findByText('Restaurant Exemple');
@@ -290,7 +291,7 @@ describe('Ma reservation', () => {
       name: 'Choisir une date dans le calendrier',
     });
     const shortcutPattern = /^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/i;
-    expect(screen.getAllByRole('button', { name: shortcutPattern })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: shortcutPattern }).length).toBeGreaterThan(7);
     const later = new Date();
     later.setDate(later.getDate() + 60);
     fireEvent.click(calendar);
@@ -307,7 +308,7 @@ describe('Ma reservation', () => {
     fireEvent.click(within(picker).getByRole('button', { name: label }));
     const next = await screen.findByRole('button', { name: 'Continuer · 19h30' });
     await waitFor(() => expect(next).toBeEnabled());
-    expect(screen.getAllByRole('button', { name: shortcutPattern })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: shortcutPattern }).length).toBeGreaterThan(7);
     fireEvent.click(next);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -316,24 +317,24 @@ describe('Ma reservation', () => {
     );
     expect(fetch).not.toHaveBeenCalled();
   });
-  it('browses weeks without changing the booking and opens the existing cancellation confirmation', async () => {
+  it('browses days without changing the booking and opens the existing cancellation confirmation', async () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
     render(<ReservationView demo />);
     await screen.findByText('Restaurant Exemple');
     fireEvent.click(document.querySelector('details > summary')!);
     fireEvent.click(screen.getByRole('button', { name: 'Modifier la réservation' }));
-    const browse = await screen.findByRole('button', { name: 'Semaine suivante' });
+    const browse = await screen.findByRole('button', { name: 'Jours suivants' });
     fireEvent.click(browse);
     expect(
       screen.getByRole('button', {
         name: 'Continuer',
       }),
     ).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Semaine précédente' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Jours précédents' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Annuler ma réservation' }));
     expect(await screen.findByText('Annuler votre réservation ?')).toBeInTheDocument();
-    expect(document.querySelector('dl')).toHaveTextContent('19:30');
+    expect(document.querySelector('dl')).toHaveTextContent('19h30');
     fireEvent.click(screen.getByRole('button', { name: 'Conserver ma réservation' }));
     expect(screen.getByText('Confirmée')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
@@ -362,7 +363,7 @@ describe('Ma reservation', () => {
     fireEvent.click(document.querySelector('details > summary')!);
     fireEvent.click(screen.getByRole('button', { name: 'Modifier la réservation' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Choisir le créneau 20h00' }));
-    expect(document.querySelector('dl')).toHaveTextContent('19:00');
+    expect(document.querySelector('dl')).toHaveTextContent('19h00');
     expect(fetch.mock.calls.map((call) => JSON.parse(call[1].body).action)).toEqual([
       'view',
       'view',
@@ -373,7 +374,7 @@ describe('Ma reservation', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByText('20:00')).toBeInTheDocument();
+    expect(screen.getByText('20h00')).toBeInTheDocument();
     expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({
       token,
       action: 'modify',
@@ -404,7 +405,7 @@ describe('Ma reservation', () => {
     expect(fetch.mock.calls.every((call) => JSON.parse(call[1].body).action !== 'modify')).toBe(
       true,
     );
-    expect(document.querySelector('dl')).toHaveTextContent('19:00');
+    expect(document.querySelector('dl')).toHaveTextContent('19h00');
   });
   it('recovers an applied modification after a lost response without sending it twice', async () => {
     const initial = { ...data, modification: { available: true, message: 'Conservée' } };
@@ -432,7 +433,7 @@ describe('Ma reservation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuer · 20h00' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer la modification' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByText('20:00')).toBeInTheDocument();
+    expect(screen.getByText('20h00')).toBeInTheDocument();
     expect(
       fetch.mock.calls.filter((call) => JSON.parse(call[1].body).action === 'modify'),
     ).toHaveLength(1);
@@ -465,7 +466,7 @@ describe('Ma reservation', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'La modification n’a pas pu être confirmée',
     );
-    expect(document.querySelector('dl')).toHaveTextContent('19:00');
+    expect(document.querySelector('dl')).toHaveTextContent('19h00');
     expect(
       fetch.mock.calls.filter((call) => JSON.parse(call[1].body).action === 'modify'),
     ).toHaveLength(1);

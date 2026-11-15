@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import { redisQueue } from '../../redis/client';
 import { sendSms } from '../../telnyx/client';
 import { db } from '../../db/client';
+import { isWebConfirmationSmsFallback } from '../../outbox/reservation-confirmation';
 import { setupWorkerListeners, jobLogger } from './helper';
 import { CONFIRMATION_SMS_SENT_EVENT } from '../../observability/system-checks';
 import { queues } from '../queues';
@@ -91,6 +92,9 @@ export async function processOutboundConfirmJob(
       createdAt: true,
       startsAt: true,
       partySize: true,
+      channel: true,
+      customerEmail: true,
+      isTest: true,
       restaurant: { select: { name: true, timezone: true, smsConfirmEnabled: true } },
     },
   });
@@ -109,7 +113,7 @@ export async function processOutboundConfirmJob(
   const startsAt = reservation.startsAt ?? reservation.reservedAt;
   if (
     !reservation.customerPhone ||
-    !reservation.restaurant.smsConfirmEnabled ||
+    (!reservation.restaurant.smsConfirmEnabled && !isWebConfirmationSmsFallback(reservation)) ||
     isSlotStartPast(startsAt)
   ) {
     log.info({ reservationId: data.reservationId }, 'confirmation SMS skipped: no longer eligible');

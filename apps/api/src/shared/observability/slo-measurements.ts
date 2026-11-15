@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import {
   CALLS_GRACE_MINUTES,
   CALLS_WINDOW_HOURS,
+  CONFIRMATION_SMS_EXPECTED,
   CONFIRMATION_SMS_SENT_EVENT,
   SMS_GRACE_MINUTES,
   SMS_WINDOW_HOURS,
@@ -51,7 +52,7 @@ export async function measureReservationConfirmationCoverage(
   const base: Prisma.ReservationWhereInput = {
     createdAt: { gte: windowStart, lte: graceEnd },
     customerPhone: { not: null },
-    restaurant: { smsConfirmEnabled: true },
+    ...CONFIRMATION_SMS_EXPECTED,
     state: 'CONFIRMED',
   };
 

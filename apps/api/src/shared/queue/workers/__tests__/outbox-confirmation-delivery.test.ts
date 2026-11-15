@@ -87,6 +87,36 @@ describe('confirmation outbox delivery', () => {
       vi.mocked(queues.smsClient.add).mock.calls[1],
     );
   });
+  it('keeps the WEB fallback SMS when the restaurant turned SMS off, not with an e-mail', async () => {
+    vi.mocked(db.outboxEvent.findUnique).mockResolvedValue({
+      restaurantId: 'rest-1',
+      topic: 'reservation-confirmation',
+      aggregateId: 'res-1',
+      payload: { reservationId: 'res-1' },
+    } as never);
+    const booking = {
+      id: 'res-1',
+      status: 'CONFIRMED',
+      state: 'CONFIRMED',
+      channel: 'WEB',
+      customerEmail: null,
+      isTest: false,
+      customerPhone: '+33600000000',
+      customerName: 'Example',
+      reservedAt: new Date('2099-07-02T17:00:00Z'),
+      partySize: 2,
+      restaurant: { name: 'Example', timezone: 'Europe/Paris', smsConfirmEnabled: false },
+    };
+    vi.mocked(db.reservation.findUnique).mockResolvedValueOnce(booking as never);
+    await processOutboxDeliveryJob(job);
+    expect(queues.smsClient.add).toHaveBeenCalledTimes(1);
+    vi.mocked(db.reservation.findUnique).mockResolvedValueOnce({
+      ...booking,
+      customerEmail: 'client@example.com',
+    } as never);
+    await processOutboxDeliveryJob(job);
+    expect(queues.smsClient.add).toHaveBeenCalledTimes(1);
+  });
   it('rejects an aggregate/payload mismatch', async () => {
     vi.mocked(db.outboxEvent.findUnique).mockResolvedValue({
       restaurantId: 'rest-1',

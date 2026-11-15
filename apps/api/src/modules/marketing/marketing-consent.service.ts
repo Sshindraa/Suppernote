@@ -1,6 +1,8 @@
 import { MarketingPermissionStatus, type MarketingPermission } from '@prisma/client';
 import {
+  buildCombinedMarketingConsentProof,
   buildMarketingConsentProof,
+  MARKETING_CONSENT_COMBINED_VERSION,
   MARKETING_CONSENT_VERSION,
   type MarketingConsentChannel,
   type MarketingConsentCollectionMethod,
@@ -85,6 +87,8 @@ async function grantChannel(args: {
   channel: MarketingConsentChannel;
   source: BookingConsentSource;
   occurredAt: Date;
+  proofVersion: string;
+  proof: string;
 }): Promise<'RECORDED' | 'ALREADY_GRANTED'> {
   const existing = await db.marketingPermission.findFirst({
     where: {
@@ -96,7 +100,7 @@ async function grantChannel(args: {
   });
   if (
     existing?.status === MarketingPermissionStatus.OPTED_IN &&
-    existing.proofVersion === MARKETING_CONSENT_VERSION
+    existing.proofVersion === args.proofVersion
   ) {
     return 'ALREADY_GRANTED';
   }
@@ -106,8 +110,8 @@ async function grantChannel(args: {
     channel: args.channel,
     status: MarketingPermissionStatus.OPTED_IN,
     source: args.source,
-    proofVersion: MARKETING_CONSENT_VERSION,
-    proof: buildMarketingConsentProof(args.channel, args.restaurantName),
+    proofVersion: args.proofVersion,
+    proof: args.proof,
     liftsOpposition: true,
     occurredAt: args.occurredAt,
   });
@@ -134,7 +138,8 @@ export async function recordBookingMarketingConsent(args: {
   if (args.consent?.sms === true) requested.push('SMS');
   if (requested.length === 0) return result;
 
-  if (args.consent?.version !== MARKETING_CONSENT_VERSION) {
+  const version = args.consent?.version;
+  if (version !== MARKETING_CONSENT_VERSION && version !== MARKETING_CONSENT_COMBINED_VERSION) {
     // An outdated page showed other wording: nothing is recorded rather than a proof that
     // would not match what the customer read.
     for (const channel of requested) result[channel] = 'VERSION_MISMATCH';
@@ -170,6 +175,12 @@ export async function recordBookingMarketingConsent(args: {
         channel,
         source: args.source,
         occurredAt,
+        proofVersion: version,
+        // The single box ticks every channel it named, so the ticked channels rebuild its sentence.
+        proof:
+          version === MARKETING_CONSENT_COMBINED_VERSION
+            ? buildCombinedMarketingConsentProof(channel, requested, args.restaurantName)
+            : buildMarketingConsentProof(channel, args.restaurantName),
       });
     } catch (error) {
       result[channel] = 'FAILED';
@@ -315,5 +326,7 @@ export async function recordConfirmationEmailConsent(args: {
     channel: 'EMAIL',
     source: 'CONFIRMATION_EMAIL',
     occurredAt: args.occurredAt ?? new Date(),
+    proofVersion: MARKETING_CONSENT_VERSION,
+    proof: buildMarketingConsentProof('EMAIL', restaurantName),
   });
 }

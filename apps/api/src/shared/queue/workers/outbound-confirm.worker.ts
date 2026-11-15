@@ -23,7 +23,6 @@ import { recordNotificationProviderResult } from '../../observability/metrics';
 import type { MessagingUsageContext } from '../../../modules/usage/messaging-usage.service';
 import { isSlotStartPast, utcToZonedParts } from '../../timezone/restaurant-time';
 import { buildConfirmationText } from '../../messaging/confirmation-text';
-import { reservationManagementUrl } from '../../../modules/reservations/reservation-management';
 import {
   isCardGuaranteeSmsJob,
   processCardGuaranteeSmsJob,
@@ -156,12 +155,15 @@ export async function processOutboundConfirmJob(
   }
 
   try {
+    // Pas de lien de gestion dans le SMS : le long jeton signé (/r#…) fait supprimer le message
+    // en silence par certains opérateurs (SFR/RED/Bouygues, test du 2026-11-15) alors que Brevo
+    // reçoit « livré ». Le lien reste dans l'e-mail et l'écran de confirmation.
+    // shortcut: SMS sans lien ; à remplacer par un lien court testé sur les opérateurs.
     const message = buildConfirmationText(
       reservation.restaurant.name,
       date,
       local.time,
       reservation.partySize,
-      reservationManagementUrl(reservation),
     );
     const usageContext: MessagingUsageContext | undefined = reservation.restaurantId
       ? {

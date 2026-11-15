@@ -426,7 +426,7 @@ export default function ReservationView({
                           setCancelError('');
                           setCancelOpen(true);
                         }}
-                        className="min-h-11 rounded-none border-0 bg-transparent px-0 text-xs font-normal text-destructive/80 underline decoration-destructive/30 underline-offset-4 shadow-none transition-all duration-200 hover:bg-transparent hover:text-destructive hover:decoration-destructive/70"
+                        className="min-h-11 rounded-none border-0 bg-transparent px-0 text-xs font-normal text-foreground/80 underline decoration-foreground/30 underline-offset-4 shadow-none transition-all duration-200 hover:bg-transparent hover:text-foreground hover:decoration-foreground/70"
                       >
                         Annuler la réservation
                       </Button>

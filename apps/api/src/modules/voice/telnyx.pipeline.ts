@@ -219,28 +219,20 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
           return reply.send({ result: 'ok' });
         }
 
-        // Site suspendu ou archivé : Léa est désactivée, l'appel part directement chez le gérant.
-        // Sans numéro de gérant (ou s'il renverrait vers cette même ligne), message court puis raccroché.
-        if (site?.siteStatus === 'SUSPENDED' || site?.siteStatus === 'ARCHIVED') {
-          const manager = ctx.managerPhone?.trim();
-          const transferTo = manager && manager !== payload.to?.trim() ? manager : undefined;
+        // Site suspendu ou archivé, ou abonnement terminé : Suppernote ne décroche pas.
+        // Aucune session vocale ; l'appel reste au restaurant (renvoi ou messagerie de sa ligne).
+        const inactiveSite = site?.siteStatus === 'SUSPENDED' || site?.siteStatus === 'ARCHIVED';
+        if (inactiveSite || billingSuspended) {
           app.log.warn(
             {
               restaurantId: ctx.id,
               callId: payload.call_control_id,
-              siteStatus: site.siteStatus,
-              transfer: Boolean(transferTo),
+              reason: inactiveSite
+                ? `site_${site?.siteStatus?.toLowerCase()}`
+                : 'billing_suspended',
             },
-            'Inactive site — voice agent off, call sent to the manager',
+            'Inactive restaurant — call not answered by Suppernote',
           );
-          try {
-            await answerSuspendedCall(payload.call_control_id, ctx.name, undefined, { transferTo });
-          } catch (err) {
-            app.log.error(
-              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
-              'Inactive site call answer failed',
-            );
-          }
           return reply.send({ result: 'ok' });
         }
 
@@ -258,25 +250,6 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
             app.log.error(
               { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
               'Busy call answer failed',
-            );
-          }
-          return reply.send({ result: 'ok' });
-        }
-
-        // Ended subscription (trial without a card, cancellation, unpaid): no voice session.
-        // The restaurant may still forward its line here, so the caller hears a short message in
-        // the restaurant's name instead of silence, then Suppernote hangs up.
-        if (billingSuspended) {
-          app.log.warn(
-            { restaurantId: ctx.id, callId: payload.call_control_id },
-            'Billing suspended — short message then hang up',
-          );
-          try {
-            await answerSuspendedCall(payload.call_control_id, ctx.name);
-          } catch (err) {
-            app.log.error(
-              { err: err instanceof Error ? err.message : String(err), restaurantId: ctx.id },
-              'Suspended call answer failed',
             );
           }
           return reply.send({ result: 'ok' });

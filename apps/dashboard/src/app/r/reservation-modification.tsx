@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import ReservationWidget, {
@@ -188,7 +188,7 @@ export function ReservationModification<T extends Booking>({
         className="min-h-11 w-fit justify-start gap-3 rounded-none border-0 bg-transparent px-0 text-sm font-medium text-foreground shadow-none transition-all duration-200 hover:gap-4 hover:bg-transparent hover:text-foreground/80"
       >
         {loading ? 'Ouverture…' : 'Modifier la réservation'}
-        <ArrowUpRight className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
+        <Pencil className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
       </Button>
       {error && (
         <p role="alert" className="text-sm">

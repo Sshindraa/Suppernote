@@ -1074,7 +1074,7 @@ export default function ReservationWidget({
       ? `${restaurant.cuisine} · ${restaurant.city}`
       : restaurant?.tags?.length
         ? restaurant.tags.slice(0, 3).join(' · ')
-        : restaurant?.city || restaurant?.address || 'Dîner · Terrasse · Cocktails';
+        : restaurant?.city || restaurant?.address || '';
   const selectedDateLong = selectedDate ? formatLongFrenchDate(selectedDate) : 'Date à choisir';
   const selectedDateShort = selectedDate ? formatShortFrenchDate(selectedDate) : 'Date';
   const hasService = timeSlots.length > 0;
@@ -1375,9 +1375,11 @@ export default function ReservationWidget({
               </a>
             )
           ) : (
-            <p className="mt-3 text-sm font-medium text-[hsl(var(--reservation-panel)/0.85)]">
-              {restaurantSubtitle}
-            </p>
+            restaurantSubtitle && (
+              <p className="mt-3 text-sm font-medium text-[hsl(var(--reservation-panel)/0.85)]">
+                {restaurantSubtitle}
+              </p>
+            )
           )}
         </div>
         <section
@@ -1593,9 +1595,11 @@ export default function ReservationWidget({
                                 style={{ backgroundImage: `url("${img}")` }}
                               />
                             ))}
-                            <span className="ml-3 text-[11px] font-extrabold text-[hsl(var(--reservation-soft))]">
-                              {restaurant?.tags?.slice(0, 2).join(' · ') || 'Terrasse'}
-                            </span>
+                            {restaurant?.tags?.length ? (
+                              <span className="ml-3 text-[11px] font-extrabold text-[hsl(var(--reservation-soft))]">
+                                {restaurant.tags.slice(0, 2).join(' · ')}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         {!(modification && step === 2) && (

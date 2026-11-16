@@ -35,10 +35,12 @@ describe('catalogue des fonctionnalités', () => {
     const planned = CATALOG_FEATURES.filter((feature) => feature.status === 'prévu');
     const labels = planned.map((feature) => feature.label);
 
-    expect(labels).toEqual(expect.arrayContaining(['Réservation depuis ChatGPT et Claude']));
-    expect(
-      CATALOG_FEATURES.filter((feature) => feature.status === 'disponible').map((f) => f.label),
-    ).toEqual(expect.arrayContaining(['Synchronisation ZenChef, TheFork, Lightspeed']));
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        'Réservation depuis ChatGPT et Claude',
+        'Connexion aux logiciels de caisse',
+      ]),
+    );
   });
 
   it('ne présente comme disponible ni la comparaison consolidée ni le partage des profils clients', () => {

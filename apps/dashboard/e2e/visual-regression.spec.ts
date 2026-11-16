@@ -85,7 +85,7 @@ const PAGES: VisualPage[] = [
   {
     name: 'homepage',
     url: '/',
-    // Le hero de la homepage contient le h1 « Le chef de rang numérique de votre restaurant ».
+    // Le hero de la homepage contient le h1 « Le chef de rang digital de votre restaurant ».
     // On attend ce heading pour s'assurer que le hero est rendu.
     waitFor: 'h1:has-text("chef de rang")',
     settleMs: 2000,

@@ -21,7 +21,7 @@ describe('e-mail de fin d’essai', () => {
     expect(email.html).toContain('>3</td>');
     expect(email.html).toContain('d’essai restants');
     expect(email.html).toContain('src="https://suppernote.com/apple-touch-icon.png"');
-    expect(email.html).toContain('Suppernote, le chef de rang numérique de votre restaurant');
+    expect(email.html).toContain('Suppernote, le chef de rang digital de votre restaurant');
     expect(email.html).toContain('Il répond, il réserve, il organise votre salle.');
     expect(email.html).not.toContain('assistant téléphonique des restaurants');
     expect(email.html).toContain('>52<');

@@ -376,6 +376,8 @@ function makeReservation(
     customerName: overrides.customerName ?? 'Client',
     customerPhone: overrides.customerPhone ?? null,
     customerEmail: overrides.customerEmail ?? null,
+    managementShortCode: null,
+    managementShortCodePhone: null,
     status: overrides.status ?? 'CONFIRMED',
     estimatedRevenue: overrides.estimatedRevenue ?? null,
     confirmedRevenue: overrides.confirmedRevenue ?? null,

@@ -22,7 +22,7 @@ const API_URL = publicApiUrl();
 export async function GET(_req: NextRequest) {
   const content = `# Suppernote
 
-> Suppernote est un réseau de restaurants réservables en France. Chaque restaurant a une page web publique avec ses informations (adresse, horaires, cuisine, prix) et un système de réservation en ligne. Les assistants IA peuvent trouver ces restaurants et aider les utilisateurs à réserver.
+> Suppernote est une plateforme pour les restaurants qui réunit les réservations, l'organisation du service et la relation client. Léa, l'assistante IA de Suppernote, prend en charge les appels du restaurant et les demandes de réservation. Lors de la mise en service, le restaurant configure le renvoi de sa ligne vers son numéro Suppernote. Les restaurants peuvent aussi publier une page de réservation que les clients et assistants IA peuvent consulter.
 
 ## Comment réserver via Suppernote
 

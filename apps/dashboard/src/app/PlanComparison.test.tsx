@@ -23,13 +23,13 @@ describe('PlanComparison', () => {
     }
   });
 
-  it('marque disponible une intégration livrée, incluse à partir de Pro', () => {
+  it('marque prévue la connexion aux logiciels de caisse à partir de Pro', () => {
     render(<PlanComparison />);
-    const row = rowFor('Synchronisation ZenChef, TheFork, Lightspeed');
+    const row = rowFor('Connexion aux logiciels de caisse');
 
-    expect(within(row).getAllByText('Inclus')).toHaveLength(2);
+    expect(within(row).getAllByText('Bientôt')).toHaveLength(2);
     expect(within(row).getByText('Non inclus')).toBeInTheDocument();
-    expect(within(row).queryByText('Bientôt')).not.toBeInTheDocument();
+    expect(within(row).queryByText('Inclus')).not.toBeInTheDocument();
   });
 
   it('marque disponible une fonctionnalité livrée, incluse dans les trois formules', () => {

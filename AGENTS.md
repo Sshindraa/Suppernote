@@ -127,6 +127,7 @@ Safe path: `redactPii()`.
 - Interactive elements should include `transition-all duration-200`.
 - Marketing pages should stay static when possible (`○`, not `ƒ`).
 - See `docs/architecture/dashboard.md` for the full style and CSS rules.
+- Public site pages (home, feature, SEO, pricing): read `docs/architecture/marketing-site.md` first. The home page is the only visual reference.
 
 ## Security & deployment
 

@@ -1,110 +1,49 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowUpRight } from 'lucide-react';
-import MobileNav from '@/components/MobileNav';
-import { cn } from '@/lib/utils';
 import PricingPlans from '@/app/PricingPlans';
 import PricingDetails from '@/app/PricingDetails';
+import MarketingShell from '@/app/MarketingShell';
 import { PRICING_METADATA } from '@/app/marketing-metadata';
-import '../brand-palette.css';
 
 export const metadata = PRICING_METADATA;
 
-/* ===== COMPONENT ===== */
-
 export default function PricingPage() {
   return (
-    <div className="pricing-root brand-palette">
-      {/* Floating navbar */}
-      <div className="fixed left-1/2 top-5 z-50 -translate-x-1/2 flex items-center">
-        <nav className="flex items-center gap-2 rounded-full border border-white/10 bg-black/85 px-3 py-2 shadow-2xl backdrop-blur-xl">
-          {/* Logo inside navbar on mobile */}
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 md:hidden pl-1 hover:opacity-80 transition-opacity"
-          >
-            <Image
-              src="/logo-nav.png"
-              alt="Suppernote"
-              width={28}
-              height={28}
-              className="h-7 w-7"
-            />
-          </Link>
-
-          <div className="hidden items-center gap-1 md:flex">
-            {[
-              { label: 'Accueil', href: '/' },
-              { label: 'Services', href: '/#services' },
-              { label: 'Tarifs', href: '/pricing' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors duration-200',
-                  item.href === '/pricing'
-                    ? 'text-foreground bg-foreground/10'
-                    : 'text-foreground/60 hover:bg-foreground/5 hover:text-foreground',
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
+    <MarketingShell>
+      <main className="day-deep relative z-10 flex w-full flex-col items-center">
+        <section className="day-paper w-full px-5 pb-10 pt-32 text-center sm:px-8 lg:pt-40">
+          <div className="mx-auto max-w-3xl">
+            <p className="day-hero-muted mb-5 text-sm font-semibold">Les formules Suppernote</p>
+            <h1 className="text-balance font-brand text-[2.5rem] font-medium leading-[1.04] tracking-tight lg:text-[clamp(3.25rem,5vw,5rem)]">
+              L’accueil commence avant le premier couvert.
+            </h1>
+            <p className="day-hero-muted mx-auto mt-6 max-w-[34em] leading-relaxed lg:text-lg">
+              Le téléphone sonne pendant le service. Une réservation arrive du web ou se prend en
+              salle. Suppernote les réunit dans votre planning pour que l’équipe retrouve les bonnes
+              informations au bon moment.
+            </p>
           </div>
-          <Link
-            href="/register"
-            className="hidden md:inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/10 bg-foreground/5 px-4 py-1.5 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 hover:bg-foreground hover:text-background hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] active:scale-[0.98]"
-          >
-            Créer mon compte
-            <ArrowUpRight size={14} />
-          </Link>
+        </section>
 
-          {/* Mobile hamburger inside the navbar */}
-          <MobileNav buttonStyle="flat" />
-        </nav>
-      </div>
+        {/* ---- CARDS ---- */}
+        <section
+          className="relative z-[2] mx-auto max-w-[1180px] px-5 pb-28 md:px-8 md:pb-8 md:-mt-7"
+          aria-label="Formules et facturation"
+        >
+          {/* Ambient glow behind cards */}
+          <div
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/3 h-[600px] w-[900px] rounded-full -z-10"
+            style={{
+              background:
+                'radial-gradient(circle, hsl(var(--pricing-accent) / 0.18), transparent 70%)',
+              filter: 'blur(80px)',
+            }}
+          />
+          <div className="flex flex-col items-center pb-8 pt-4 md:pb-10 md:pt-10">
+            <PricingPlans haptic showComparison />
+          </div>
+        </section>
 
-      {/* ---- HERO ---- */}
-      <section className="pricing-hero">
-        <div className="mx-auto max-w-3xl px-5 text-center">
-          <p className="mb-4 text-sm font-semibold text-pricing-accent">Les formules Suppernote</p>
-          <h1 className="text-4xl font-semibold leading-tight md:text-6xl">
-            L’accueil commence avant le premier couvert.
-          </h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-            Le téléphone sonne pendant le service. Une réservation arrive du web ou se prend en
-            salle. Suppernote les réunit dans votre planning pour que l’équipe retrouve les bonnes
-            informations au bon moment.
-          </p>
-        </div>
-      </section>
-
-      {/* ---- CARDS ---- */}
-      <section
-        className="relative z-[2] mx-auto max-w-[1180px] px-5 pb-28 md:px-8 md:pb-8 md:-mt-7"
-        aria-label="Formules et facturation"
-      >
-        {/* Ambient glow behind cards */}
-        <div
-          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/3 h-[600px] w-[900px] rounded-full -z-10"
-          style={{
-            background:
-              'radial-gradient(circle, hsl(var(--pricing-accent) / 0.18), transparent 70%)',
-            filter: 'blur(80px)',
-          }}
-        />
-        <div className="flex flex-col items-center pb-8 pt-4 md:pb-10 md:pt-10">
-          <PricingPlans haptic showComparison />
-        </div>
-      </section>
-
-      <PricingDetails />
-
-      {/* ---- FOOTER ---- */}
-      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} Suppernote. Tous droits réservés.
-      </footer>
-    </div>
+        <PricingDetails />
+      </main>
+    </MarketingShell>
   );
 }

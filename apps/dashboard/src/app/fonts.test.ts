@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const pagePath = resolve(__dirname, './page.tsx');
+const pagePath = resolve(__dirname, './MarketingShell.tsx');
 const fontsDirectory = resolve(__dirname, './fonts');
 
 describe('Dashboard font loading', () => {

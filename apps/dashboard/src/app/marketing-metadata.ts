@@ -26,8 +26,11 @@ function pageMetadata(path: string, title: string, description: string): Metadat
 
 export const HOME_METADATA = pageMetadata(
   '/',
-  'Logiciel de réservation pour restaurants | Suppernote',
-  'Centralisez les réservations en ligne, par téléphone et en salle. Gérez votre plan de salle et consultez l’historique de vos clients. Demandez une démo.',
+  // Titre court pour Google (≈ 55 caractères) ; les mots-clés « réservation en ligne » et
+  // « plan de salle » restent dans la description et l'accroche de la page. « Assistant
+  // téléphonique » vit sur sa propre page (/solutions/assistant-telephonique-restaurant).
+  'Suppernote — Chef de rang digital : réservations restaurant',
+  'Le chef de rang numérique de votre restaurant : il répond aux appels, prend les réservations en ligne et organise le plan de salle. Démonstration sur demande.',
 );
 
 export const PRICING_METADATA = pageMetadata(

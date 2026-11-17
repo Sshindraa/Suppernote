@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import {
   ANNUAL_DISCOUNT_PERCENT,
   PRICING_CATALOG,
@@ -150,7 +151,7 @@ const questions = [
 export default function PricingDetails() {
   return (
     <div className="relative z-10 mx-auto max-w-[1180px] px-5 pb-20 md:px-8">
-      <h2 className="mb-3 text-3xl font-semibold text-foreground">
+      <h2 className="mb-3 font-brand text-3xl font-medium tracking-tight lg:text-4xl">
         Comparez selon votre quotidien.
       </h2>
       <p className="mb-8 text-muted-foreground">
@@ -203,13 +204,21 @@ export default function PricingDetails() {
         réponse ni disponibilité 7j/7 n’est promis.
       </p>
       <section className="mt-16" aria-labelledby="pricing-faq">
-        <h2 id="pricing-faq" className="mb-6 text-3xl font-semibold">
+        <h2
+          id="pricing-faq"
+          className="mb-6 font-brand text-3xl font-medium tracking-tight lg:text-4xl"
+        >
           Avant de choisir.
         </h2>
         {questions.map(([question, answer]) => (
-          <details key={question} className="border-b border-border py-5">
-            <summary className="cursor-pointer text-lg font-medium transition-all duration-200 hover:text-pricing-accent">
+          <details key={question} className="group border-b border-border py-5">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-medium transition-all duration-200 hover:text-pricing-accent [&::-webkit-details-marker]:hidden">
               {question}
+              <ChevronDown
+                size={18}
+                aria-hidden="true"
+                className="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+              />
             </summary>
             <p className="mt-4 max-w-3xl leading-relaxed text-muted-foreground">{answer}</p>
           </details>

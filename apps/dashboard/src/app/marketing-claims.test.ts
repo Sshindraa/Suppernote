@@ -89,6 +89,15 @@ describe('pages publiques', () => {
     expect(source).not.toMatch(/\b(bg|from|via|to)-black\b|\[#[0-9a-fA-F]{3,8}\]/);
   });
 
+  it.each(MARKETING_COPY.map(rel))('%s écrit ses titres h1 et h2 en serif de marque', (file) => {
+    const source = readFileSync(join(APP_DIR, file), 'utf8');
+    const headings = [...source.matchAll(/<h[12]\b[^>]*className="([^"]*)"/g)].map(
+      ([, cls]) => cls,
+    );
+
+    expect(headings.filter((cls) => !cls.includes('font-brand'))).toEqual([]);
+  });
+
   it.each([...MARKETING_COPY.map(rel), ...OTHER_PUBLIC_COPY])(
     '%s ne reprend aucune affirmation sans preuve ni terme hors marque',
     (file) => {

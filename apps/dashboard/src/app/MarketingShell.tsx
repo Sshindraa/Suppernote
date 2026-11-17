@@ -51,7 +51,7 @@ export default function MarketingShell({ children }: { children: React.ReactNode
 
       <Link
         href="/"
-        className="fixed left-4 top-5 z-50 hidden h-[52px] md:flex items-center gap-2 rounded-full transition-all duration-200 hover:opacity-80 sm:left-6"
+        className="fixed left-4 top-5 z-50 hidden h-[52px] lg:flex items-center gap-2 rounded-full transition-all duration-200 hover:opacity-80 sm:left-6"
       >
         <Image
           src="/logo-nav.png"
@@ -72,7 +72,7 @@ export default function MarketingShell({ children }: { children: React.ReactNode
           {/* Logo inside navbar on mobile */}
           <Link
             href="/"
-            className="flex items-center gap-1.5 md:hidden pl-1 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1.5 lg:hidden pl-1 hover:opacity-80 transition-opacity"
           >
             <Image
               src="/logo-nav.png"
@@ -83,7 +83,7 @@ export default function MarketingShell({ children }: { children: React.ReactNode
             />
             <span className="font-brand text-sm">Suppernote</span>
           </Link>
-          <span className="h-4 w-px bg-current opacity-15 md:hidden mx-1" />
+          <span className="h-4 w-px bg-current opacity-15 lg:hidden mx-1" />
 
           <div className="hidden items-center gap-1 md:flex">
             <FeaturesMenu />
@@ -91,7 +91,7 @@ export default function MarketingShell({ children }: { children: React.ReactNode
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-full px-3 py-1.5 text-sm transition-all duration-200 hover:bg-foreground/5"
+                className="whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-all duration-200 hover:bg-foreground/5"
               >
                 {item.label}
               </Link>

@@ -120,7 +120,7 @@ export default function ServiceDaySection() {
               </figure>
               <h2
                 id="equipe-title"
-                className="mt-6 text-balance font-display text-3xl font-semibold leading-[1.15] tracking-tight lg:text-4xl"
+                className="mt-6 text-balance font-brand text-3xl font-medium leading-[1.15] tracking-tight lg:text-4xl"
               >
                 Plus de présence en salle. Moins de dispersion.
               </h2>

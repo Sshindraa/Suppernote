@@ -1,6 +1,8 @@
 import { MarketingPermissionStatus, type MarketingPermission } from '@prisma/client';
 import {
   buildCombinedMarketingConsentProof,
+  buildEmailMarketingConsentProof,
+  MARKETING_CONSENT_EMAIL_VERSION,
   buildMarketingConsentProof,
   MARKETING_CONSENT_COMBINED_VERSION,
   MARKETING_CONSENT_VERSION,
@@ -135,11 +137,18 @@ export async function recordBookingMarketingConsent(args: {
   const result: BookingConsentResult = { EMAIL: 'NOT_REQUESTED', SMS: 'NOT_REQUESTED' };
   const requested: MarketingConsentChannel[] = [];
   if (args.consent?.email === true) requested.push('EMAIL');
-  if (args.consent?.sms === true) requested.push('SMS');
+  // La version e-mail seule n'enregistre jamais de SMS, même si le client en envoie un.
+  if (args.consent?.sms === true && args.consent?.version !== MARKETING_CONSENT_EMAIL_VERSION) {
+    requested.push('SMS');
+  }
   if (requested.length === 0) return result;
 
   const version = args.consent?.version;
-  if (version !== MARKETING_CONSENT_VERSION && version !== MARKETING_CONSENT_COMBINED_VERSION) {
+  if (
+    version !== MARKETING_CONSENT_VERSION &&
+    version !== MARKETING_CONSENT_COMBINED_VERSION &&
+    version !== MARKETING_CONSENT_EMAIL_VERSION
+  ) {
     // An outdated page showed other wording: nothing is recorded rather than a proof that
     // would not match what the customer read.
     for (const channel of requested) result[channel] = 'VERSION_MISMATCH';
@@ -178,9 +187,11 @@ export async function recordBookingMarketingConsent(args: {
         proofVersion: version,
         // The single box ticks every channel it named, so the ticked channels rebuild its sentence.
         proof:
-          version === MARKETING_CONSENT_COMBINED_VERSION
-            ? buildCombinedMarketingConsentProof(channel, requested, args.restaurantName)
-            : buildMarketingConsentProof(channel, args.restaurantName),
+          version === MARKETING_CONSENT_EMAIL_VERSION
+            ? buildEmailMarketingConsentProof(args.restaurantName)
+            : version === MARKETING_CONSENT_COMBINED_VERSION
+              ? buildCombinedMarketingConsentProof(channel, requested, args.restaurantName)
+              : buildMarketingConsentProof(channel, args.restaurantName),
       });
     } catch (error) {
       result[channel] = 'FAILED';

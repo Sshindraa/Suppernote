@@ -12,10 +12,10 @@ import { getErrorMessage } from '@/types/api';
 import { getParentOrigin } from '@/app/widget/[restaurantId]/post-message-security';
 import {
   bookingSlotsOf,
-  buildCombinedMarketingConsentLabel,
+  buildEmailMarketingConsentLabel,
   CARD_GUARANTEE_ACCEPT_LABEL,
   cardGuaranteeNotice,
-  MARKETING_CONSENT_COMBINED_VERSION,
+  MARKETING_CONSENT_EMAIL_VERSION,
   type CardGuaranteeTerms,
   normalizeOpeningHours,
   type MarketingConsentChannel,
@@ -849,7 +849,6 @@ export default function ReservationWidget({
       const phone = toInternationalPhone(customerPhone);
       // Une case cochée dont la coordonnée a ensuite été effacée n'est pas envoyée.
       const consentEmail = marketingOptIn && consentChannels.includes('EMAIL');
-      const consentSms = marketingOptIn && consentChannels.includes('SMS');
       // Public bookings use a signed hold, never the internal service endpoint.
       const path = `public/r/${encodeURIComponent(restaurant.slug || restaurantId)}`;
       const testFields = testBooking ? { testBookingToken } : {};
@@ -884,12 +883,11 @@ export default function ReservationWidget({
             }
           : {}),
         ...(!testBooking && marketingAttributionToken ? { marketingAttributionToken } : {}),
-        ...(!testBooking && (consentEmail || consentSms)
+        ...(!testBooking && consentEmail
           ? {
               marketingConsent: {
-                ...(consentEmail ? { email: true } : {}),
-                ...(consentSms ? { sms: true } : {}),
-                version: MARKETING_CONSENT_COMBINED_VERSION,
+                email: true,
+                version: MARKETING_CONSENT_EMAIL_VERSION,
               },
             }
           : {}),
@@ -2182,25 +2180,25 @@ export default function ReservationWidget({
                       </label>
                     )}
 
-                  {step === 2 && !modification && !testBooking && consentChannels.length > 0 && (
-                    <label className="flex items-start gap-3 text-sm text-[hsl(var(--reservation-ink))]">
-                      <input
-                        type="checkbox"
-                        name="marketing-consent"
-                        checked={marketingOptIn}
-                        onChange={(event) => setMarketingOptIn(event.target.checked)}
-                        disabled={submitting}
-                        className="mt-0.5 h-4 w-4 shrink-0 transition-all duration-200"
-                      />
-                      <span>
-                        {buildCombinedMarketingConsentLabel(
-                          consentChannels,
-                          restaurant?.name ?? '',
-                        )}{' '}
-                        <span className="text-[hsl(var(--reservation-soft))]">(facultatif)</span>
-                      </span>
-                    </label>
-                  )}
+                  {step === 2 &&
+                    !modification &&
+                    !testBooking &&
+                    consentChannels.includes('EMAIL') && (
+                      <label className="flex items-start gap-3 text-sm text-[hsl(var(--reservation-ink))]">
+                        <input
+                          type="checkbox"
+                          name="marketing-consent"
+                          checked={marketingOptIn}
+                          onChange={(event) => setMarketingOptIn(event.target.checked)}
+                          disabled={submitting}
+                          className="mt-0.5 h-4 w-4 shrink-0 transition-all duration-200"
+                        />
+                        <span>
+                          {buildEmailMarketingConsentLabel(restaurant?.name ?? '')}{' '}
+                          <span className="text-[hsl(var(--reservation-soft))]">(facultatif)</span>
+                        </span>
+                      </label>
+                    )}
 
                   {step === 2 && !modification && cardGuarantee && (
                     <div className="space-y-3 rounded-2xl border border-[hsl(var(--reservation-line))] bg-white/60 p-4 text-sm text-[hsl(var(--reservation-ink))]">

@@ -3,7 +3,7 @@ import { render, waitFor, act, fireEvent } from '@testing-library/react';
 import { getGiftCardOrigin } from '@/lib/gift-card-origin';
 import ReservationWidget from './page';
 import { getParentOrigin } from './post-message-security';
-import { MARKETING_CONSENT_COMBINED_VERSION } from '@suppernote/shared';
+import { MARKETING_CONSENT_EMAIL_VERSION } from '@suppernote/shared';
 
 // ---------------------------------------------------------------------------
 // Mocks next/navigation + next/link (le widget embarqué les utilise).
@@ -963,13 +963,13 @@ describe('consentement marketing et liste d’attente', () => {
     return JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
   }
 
-  it('une seule case, jamais pré-cochée, vaut pour l’e-mail et le SMS saisis', async () => {
+  it('une seule case e-mail, jamais pré-cochée, sans SMS', async () => {
     const { fetchSpy } = bookingFetch();
     const widget = render(<ReservationWidget />);
     await fillContact(widget, 'alice@example.com');
 
     const consent = widget.getByRole('checkbox', {
-      name: /par e-mail et par SMS/,
+      name: /par e-mail\./,
     }) as HTMLInputElement;
     expect(consent.checked).toBe(false);
     fireEvent.click(consent);
@@ -978,8 +978,7 @@ describe('consentement marketing et liste d’attente', () => {
     await waitFor(() => expect(bodyOf(fetchSpy, '/confirm').marketingConsent).toBeDefined());
     expect(bodyOf(fetchSpy, '/confirm').marketingConsent).toEqual({
       email: true,
-      sms: true,
-      version: MARKETING_CONSENT_COMBINED_VERSION,
+      version: MARKETING_CONSENT_EMAIL_VERSION,
     });
   });
 

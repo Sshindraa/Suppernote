@@ -202,7 +202,7 @@
     if (isOpen) return;
     ensureModal();
     if (typeof dialog.showModal !== 'function') {
-      location.replace(fallbackUrl(trigger));
+      location.href = fallbackUrl(trigger);
       return;
     }
     lastTrigger = trigger;

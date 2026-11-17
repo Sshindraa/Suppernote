@@ -14,11 +14,17 @@ import { db } from '../../../shared/db/client';
 import { redisCache } from '../../../shared/redis/client';
 import { logger } from '../../../shared/logger/pino';
 import { requireOrg } from '../../../plugins/clerk';
-import { HeartbeatSchema, readHeartbeats, recordHeartbeat } from './embed-heartbeat.store';
+import {
+  HeartbeatSchema,
+  originFromHeader,
+  readHeartbeats,
+  recordHeartbeat,
+} from './embed-heartbeat.store';
 import { inspectWebsite } from './website-check.service';
 
 export const EMBED_HEARTBEAT_PATH = '/public/embed/heartbeat';
 const HEARTBEAT_RATE_MAX_PER_MINUTE = 30;
+const WEBSITE_CHECK_RATE_MAX_PER_MINUTE = 10;
 const ANY_ORIGIN_CORS = { origin: '*', credentials: false };
 
 const WebsiteCheckBodySchema = z.object({
@@ -83,7 +89,9 @@ export async function embedCheckRoutes(app: FastifyInstance): Promise<void> {
               where: { slug: input.slug },
               select: { id: true },
             });
-            if (restaurant) await recordHeartbeat(redisCache, restaurant.id, input);
+            // L'en-tête Origin est posé par le navigateur : il prime sur le champ du corps.
+            const origin = originFromHeader(req.headers.origin) ?? input.origin;
+            if (restaurant) await recordHeartbeat(redisCache, restaurant.id, { ...input, origin });
           } catch (err) {
             logger.warn(
               { err: err instanceof Error ? err.name : 'unknown' },
@@ -96,26 +104,41 @@ export async function embedCheckRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.post('/dashboard/website-check', { preHandler: requireOrg() }, async (req, reply) => {
-    const body = WebsiteCheckBodySchema.safeParse(req.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'url required' });
-    }
-    const restaurantId = req.restaurantId as string;
-    const restaurant = await db.restaurant.findUnique({
-      where: { id: restaurantId },
-      select: { slug: true },
-    });
-    if (!restaurant) {
-      return reply.status(404).send({ error: 'Restaurant not found' });
-    }
-    const [inspection, heartbeats] = await Promise.all([
-      inspectWebsite(body.data.url, restaurant.slug ?? ''),
-      readHeartbeats(redisCache, restaurantId),
-    ]);
-    logger.info({ fetchError: inspection.fetchError }, 'dashboard website check');
-    return reply.send({ ...inspection, heartbeats });
-  });
+  // Le serveur lit l'URL demandée : bornage par restaurant pour qu'une boucle ne serve pas de proxy.
+  app.post(
+    '/dashboard/website-check',
+    {
+      preHandler: requireOrg(),
+      config: {
+        rateLimit: {
+          max: WEBSITE_CHECK_RATE_MAX_PER_MINUTE,
+          timeWindow: '1 minute',
+          hook: 'preHandler',
+          keyGenerator: (req: FastifyRequest) => `website-check:${String(req.restaurantId)}`,
+        },
+      },
+    },
+    async (req, reply) => {
+      const body = WebsiteCheckBodySchema.safeParse(req.body);
+      if (!body.success) {
+        return reply.status(400).send({ error: 'url required' });
+      }
+      const restaurantId = req.restaurantId as string;
+      const restaurant = await db.restaurant.findUnique({
+        where: { id: restaurantId },
+        select: { slug: true },
+      });
+      if (!restaurant) {
+        return reply.status(404).send({ error: 'Restaurant not found' });
+      }
+      const [inspection, heartbeats] = await Promise.all([
+        inspectWebsite(body.data.url, restaurant.slug ?? ''),
+        readHeartbeats(redisCache, restaurantId),
+      ]);
+      logger.info({ fetchError: inspection.fetchError }, 'dashboard website check');
+      return reply.send({ ...inspection, heartbeats });
+    },
+  );
 
   app.get(
     '/dashboard/website-check/heartbeats',

@@ -22,8 +22,7 @@ Object.assign(redisCache, {
     hashOf(key).set(field, value);
     return 1;
   }),
-  hexists: vi.fn(async (key: string, field: string) => (hashOf(key).has(field) ? 1 : 0)),
-  hlen: vi.fn(async (key: string) => hashOf(key).size),
+  hdel: vi.fn(async (key: string, field: string) => (hashOf(key).delete(field) ? 1 : 0)),
   hgetall: vi.fn(async (key: string) => Object.fromEntries(hashOf(key))),
   expire: vi.fn(async () => 1),
 });
@@ -168,6 +167,48 @@ describe('POST /public/embed/heartbeat', () => {
       .mocked(redisCache.hset)
       .mock.calls.filter(([key]) => key === 'embed:heartbeat:rest-rate');
     expect(writes).toHaveLength(30);
+  });
+
+  it("prend l'origine de l'en-tête Origin, et celle du corps en secours", async () => {
+    await app.inject({
+      method: 'POST',
+      url: HEARTBEAT_URL,
+      headers: { 'content-type': 'text/plain', origin: 'https://www.chez-x.fr' },
+      payload: JSON.stringify(heartbeat({ origin: 'https://evil.example' })),
+    });
+    expect(store.hashes.get(CHEZ_X_KEY)!.has('https://www.chez-x.fr')).toBe(true);
+    expect(store.hashes.get(CHEZ_X_KEY)!.has('https://evil.example')).toBe(false);
+
+    await app.inject({
+      method: 'POST',
+      url: HEARTBEAT_URL,
+      headers: { 'content-type': 'text/plain', origin: 'null' },
+      payload: JSON.stringify(heartbeat({ origin: 'https://fallback.chez-x.fr' })),
+    });
+    expect(store.hashes.get(CHEZ_X_KEY)!.has('https://fallback.chez-x.fr')).toBe(true);
+  });
+});
+
+describe('dashboard website-check — débit', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mockRestaurants();
+    app = await getApp();
+  });
+
+  it('limite à 10 appels par minute et par restaurant', async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/dashboard/website-check',
+        headers: { ...AUTH, 'x-test-restaurant-id': 'rate-rest' },
+        payload: { url: 'http://127.0.0.1/' },
+      });
+      statuses.push(res.statusCode);
+    }
+    expect(statuses.slice(0, 10).every((status) => status !== 429)).toBe(true);
+    expect(statuses[10]).toBe(429);
   });
 });
 

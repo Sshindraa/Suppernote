@@ -9,7 +9,7 @@ export const HEARTBEAT_TTL_SECONDS = 30 * 24 * 60 * 60;
 /** Plafond d'origines par restaurant : évite qu'un tiers gonfle le hash avec des origines inventées. */
 export const HEARTBEAT_MAX_ORIGINS = 50;
 
-export type HeartbeatRedis = Pick<Redis, 'hset' | 'hgetall' | 'hlen' | 'hexists' | 'expire'>;
+export type HeartbeatRedis = Pick<Redis, 'hset' | 'hgetall' | 'hdel' | 'expire'>;
 
 export interface EmbedHeartbeat {
   origin: string;
@@ -46,6 +46,35 @@ export function heartbeatKey(restaurantId: string): string {
   return `embed:heartbeat:${restaurantId}`;
 }
 
+/** Origine de l'en-tête `Origin` (non falsifiable par un navigateur), ou undefined si absente/invalide. */
+export function originFromHeader(value: string | undefined): string | undefined {
+  if (!value || !isHttpUrl(value)) return undefined;
+  return new URL(value).origin;
+}
+
+function instantOf(json: string): string {
+  try {
+    const { at } = JSON.parse(json) as { at?: unknown };
+    return typeof at === 'string' ? at : '';
+  } catch {
+    return '';
+  }
+}
+
+/** Origine la plus ancienne (`at` minimal). Une entrée illisible est considérée la plus ancienne. */
+export function oldestOrigin(entries: Record<string, string>): string | undefined {
+  let oldest: string | undefined;
+  let oldestAt = '';
+  for (const [origin, json] of Object.entries(entries)) {
+    const at = instantOf(json);
+    if (oldest === undefined || at < oldestAt) {
+      oldest = origin;
+      oldestAt = at;
+    }
+  }
+  return oldest;
+}
+
 export async function recordHeartbeat(
   redis: HeartbeatRedis,
   restaurantId: string,
@@ -53,8 +82,12 @@ export async function recordHeartbeat(
   now: Date = new Date(),
 ): Promise<void> {
   const key = heartbeatKey(restaurantId);
-  const isKnownOrigin = await redis.hexists(key, input.origin);
-  if (!isKnownOrigin && (await redis.hlen(key)) >= HEARTBEAT_MAX_ORIGINS) return;
+  const entries = await redis.hgetall(key);
+  // Plafond atteint : on remplace la plus ancienne plutôt que d'ignorer la vraie origine.
+  if (!(input.origin in entries) && Object.keys(entries).length >= HEARTBEAT_MAX_ORIGINS) {
+    const evicted = oldestOrigin(entries);
+    if (evicted !== undefined) await redis.hdel(key, evicted);
+  }
   await redis.hset(
     key,
     input.origin,

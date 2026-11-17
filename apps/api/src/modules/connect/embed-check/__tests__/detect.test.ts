@@ -81,8 +81,8 @@ describe('extractBookingLinks', () => {
 
   it('ignore mailto, javascript et les liens sans rapport avec la réservation', () => {
     const hrefs = links.map((link) => link.href);
-    expect(hrefs.some((href) => href.startsWith('mailto:'))).toBe(false);
-    expect(hrefs.some((href) => href.startsWith('javascript:'))).toBe(false);
+    // Contrôle sur le protocole analysé, pas sur un préfixe de chaîne.
+    expect(hrefs.every((href) => ['http:', 'https:'].includes(new URL(href).protocol))).toBe(true);
     expect(hrefs).not.toContain('https://chez-x.fr/carte');
   });
 

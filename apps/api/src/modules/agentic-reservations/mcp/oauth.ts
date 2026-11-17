@@ -1090,7 +1090,116 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
  * Next.js qui charge normalement ces polices via `next/font`. On reprend donc
  * les mêmes familles ici, avec des fallbacks système si le CDN est bloqué.
  */
-const SUPPERNOTE_FONT_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>`;
+const SUPPERNOTE_FONT_HEAD = `<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>`;
+
+// Habillage commun des pages OAuth : tokens .day-home de apps/dashboard/src/app/brand-palette.css.
+const DAY_PAGE_CSS = `
+    :root {
+      color-scheme: dark;
+      --day-paper: 216 43% 10%;
+      --day-panel: 216 40% 14%;
+      --day-lit: 34 49% 79%;
+      --day-muted: 212 30% 71%;
+      --day-ink: 40 20% 94%;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    button { font: inherit; }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 40px 16px;
+      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: hsl(var(--day-ink));
+      background-color: hsl(var(--day-paper));
+      background-image:
+        radial-gradient(ellipse 30% 36% at 50% 40%, hsl(210 40% 75% / 0.08), transparent 100%),
+        radial-gradient(ellipse 55% 50% at 50% 40%, hsl(213 28% 52% / 0.20), transparent 100%);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .plan { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .plan * { fill: none; stroke: hsl(var(--day-muted) / 0.06); stroke-width: 1.25; }
+    .plan .lit { stroke: hsl(var(--day-lit) / 0.22); }
+    main { position: relative; width: 100%; max-width: 380px; }
+    .card {
+      background: hsl(var(--day-panel));
+      border: 1px solid hsl(0 0% 100% / 0.08);
+      border-radius: 12px;
+      padding: 32px 28px 24px;
+      box-shadow: 0 1px 0 hsl(0 0% 100% / 0.04) inset, 0 24px 60px hsl(218 50% 4% / 0.5);
+    }
+    .pair { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 22px; }
+    .tile {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      border: 1px solid hsl(0 0% 100% / 0.10);
+    }
+    .tile-client {
+      background: hsl(var(--day-ink));
+      color: hsl(var(--day-paper));
+      font-family: 'Fraunces', ui-serif, Georgia, serif;
+      font-size: 20px;
+    }
+    .tile-us { background: hsl(var(--day-paper)); }
+    .tile-us img { display: block; width: 24px; height: 24px; object-fit: contain; }
+    .dots { display: flex; gap: 4px; }
+    .dots i { width: 3px; height: 3px; border-radius: 50%; background: hsl(var(--day-muted) / 0.5); }
+    h1 {
+      font-family: 'Fraunces', ui-serif, Georgia, serif;
+      font-weight: 400;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    .only { margin-top: 8px; text-align: center; font-size: 13px; color: hsl(var(--day-muted)); }
+    .only strong { font-weight: 500; color: hsl(var(--day-ink)); }
+    ul {
+      list-style: none;
+      display: grid;
+      gap: 14px;
+      margin: 24px 0 28px;
+      padding: 18px 16px;
+      border-radius: 8px;
+      background: hsl(var(--day-paper) / 0.6);
+    }
+    li { display: flex; gap: 12px; align-items: center; font-size: 14px; line-height: 1.4; }
+    li svg { flex: 0 0 auto; width: 16px; height: 16px; color: hsl(var(--day-muted)); }
+    li em { font-style: normal; color: hsl(var(--day-lit)); }
+    .btn {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 200ms;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:focus-visible { outline: 2px solid hsl(var(--day-muted)); outline-offset: 2px; }
+    .btn-approve { background: hsl(var(--day-ink)); color: hsl(var(--day-paper)); border: 0; }
+    .btn-approve:hover { background: hsl(var(--day-lit)); }
+    .btn-deny { background: transparent; border: 0; color: hsl(var(--day-muted)); font-weight: 500; margin-top: 6px; }
+    .btn-deny:hover { color: hsl(var(--day-ink)); }
+    .foot { margin-top: 18px; text-align: center; font-size: 12px; color: hsl(var(--day-muted) / 0.8); }
+    .foot b { font-weight: 500; color: hsl(var(--day-muted)); }`;
+
+// Plan de salle de l'accueil, en filigrane.
+const DAY_PLAN_SVG = `<svg class="plan" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <circle cx="150" cy="170" r="34"/><circle cx="290" cy="170" r="34"/>
+    <rect x="110" y="300" width="80" height="80" rx="8"/><rect x="250" y="300" width="80" height="80" rx="8"/>
+    <rect x="110" y="460" width="220" height="70" rx="8"/>
+    <circle cx="150" cy="660" r="34"/><circle cx="290" cy="660" r="34"/>
+    <circle cx="1150" cy="190" r="34"/><circle cx="1290" cy="190" r="34"/>
+    <rect x="1110" y="320" width="80" height="80" rx="8"/><rect class="lit" x="1250" y="320" width="80" height="80" rx="8"/>
+    <rect x="1110" y="480" width="220" height="70" rx="8"/>
+    <circle cx="1150" cy="690" r="34"/><circle cx="1290" cy="690" r="34"/>
+  </svg>`;
 
 function renderConsentPage(params: {
   clientName: string;
@@ -1116,245 +1225,56 @@ function renderConsentPage(params: {
     csrfToken,
   } = params;
   const grantedScopes = new Set(scope.split(' '));
+  const clientInitial = clientName.trim().charAt(0).toUpperCase() || '?';
+  let redirectHost = '';
+  try {
+    redirectHost = new URL(redirectUri).host;
+  } catch {
+    // redirect_uri déjà validé en amont ; sans hôte lisible, on n'affiche pas la ligne de retour.
+  }
 
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Suppernote — Connexion MCP</title>
+  <title>Connecter ${escapeHtml(clientName)} — Suppernote</title>
   ${SUPPERNOTE_FONT_HEAD}
   <style>
-    :root { color-scheme: dark; --suppernote-ink: #0f172a; --suppernote-blue: #0284c7; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    button, input { font: inherit; }
-    body {
-      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--suppernote-ink);
-      background-image: radial-gradient(circle at 15% 10%, rgba(2, 132, 199, 0.15), transparent 34%), radial-gradient(circle at 85% 90%, rgba(2, 132, 199, 0.08), transparent 36%);
-      color: #fafafa;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 28px 18px;
-    }
-    .card {
-      position: relative;
-      overflow: hidden;
-      background: rgba(20, 20, 20, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 24px;
-      padding: 36px;
-      max-width: 560px;
-      width: 100%;
-      margin: auto;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
-    }
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 12%;
-      right: 12%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--suppernote-blue), transparent);
-    }
-    .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 28px;
-    }
-    .logo img {
-      display: block;
-      width: 34px;
-      height: 34px;
-      object-fit: contain;
-      mix-blend-mode: screen;
-    }
-    .logo span {
-      color: #fafafa;
-      font-size: 22px;
-      font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-      font-weight: 700;
-      letter-spacing: -0.04em;
-    }
-    .eyebrow {
-      color: #a3a3a3;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      margin-bottom: 14px;
-      text-transform: uppercase;
-    }
-    .provider {
-      align-items: center;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 999px;
-      color: #e5e5e5;
-      display: inline-flex;
-      font-size: 13px;
-      gap: 8px;
-      margin-bottom: 18px;
-      max-width: 100%;
-      padding: 7px 11px;
-    }
-    .provider span:last-child {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .provider-dot {
-      background: var(--suppernote-blue);
-      border-radius: 50%;
-      box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
-      flex: 0 0 auto;
-      height: 6px;
-      width: 6px;
-    }
-    h1 {
-      font-size: clamp(24px, 4vw, 30px);
-      font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-      font-weight: 650;
-      letter-spacing: -0.035em;
-      line-height: 1.12;
-      margin-bottom: 12px;
-    }
-    .lead {
-      color: #a3a3a3;
-      font-size: 15px;
-      line-height: 1.6;
-      margin-bottom: 26px;
-    }
-    .lead strong {
-      color: #f5f5f5;
-      font-weight: 600;
-    }
-    .permissions {
-      background: rgba(0, 0, 0, 0.18);
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      border-radius: 16px;
-      margin-bottom: 18px;
-      padding: 8px 16px;
-    }
-    .permissions-title {
-      color: #d4d4d4;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 10px 0 4px;
-      text-transform: uppercase;
-    }
-    .scope-item {
-      align-items: center;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-      color: #e5e5e5;
-      display: flex;
-      font-size: 14px;
-      gap: 11px;
-      padding: 13px 0;
-    }
-    .scope-item:last-child { border-bottom: 0; }
-    .scope-icon {
-      align-items: center;
-      background: rgba(2, 132, 199, 0.14);
-      border: 1px solid rgba(2, 132, 199, 0.28);
-      border-radius: 8px;
-      color: var(--suppernote-blue);
-      display: inline-flex;
-      flex: 0 0 auto;
-      font-size: 13px;
-      font-weight: 800;
-      height: 24px;
-      justify-content: center;
-      width: 24px;
-    }
-    .security {
-      align-items: center;
-      color: #8f8f8f;
-      display: flex;
-      font-size: 12px;
-      gap: 8px;
-      line-height: 1.4;
-      margin-bottom: 24px;
-    }
-    .security-dot {
-      background: #4ade80;
-      border-radius: 50%;
-      box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.10);
-      flex: 0 0 auto;
-      height: 6px;
-      width: 6px;
-    }
-    .actions {
-      display: flex;
-      gap: 12px;
-    }
-    button {
-      flex: 1;
-      padding: 12px 20px;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, background 0.2s, border-color 0.2s;
-    }
-    button:hover { transform: translateY(-1px); }
-    .btn-approve {
-      background: var(--suppernote-blue);
-      color: #fff;
-    }
-    .btn-approve:hover { opacity: 0.9; }
-    .btn-deny {
-      flex: 0 0 auto;
-      background: transparent;
-      color: #a3a3a3;
-      border: 1px solid #333;
-      padding: 12px 20px;
-    }
-    .btn-deny:hover { border-color: #555; color: #fafafa; }
-    @media (max-width: 520px) {
-      .card { padding: 28px 22px; border-radius: 20px; }
-      .actions { flex-direction: column-reverse; }
-      .btn-deny { flex: 1; }
-    }
+${DAY_PAGE_CSS}
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo"><img src="${escapeAttr(getBrandIconUrl())}" alt="" /><span>Suppernote</span></div>
-    <div class="eyebrow">Connexion sécurisée</div>
-    <div class="provider"><span class="provider-dot"></span><span>${escapeHtml(clientName)}</span></div>
-    <h1>Autoriser l’accès à Suppernote&nbsp;?</h1>
-    <p class="lead"><strong>${escapeHtml(clientName)}</strong> demande l’accès à Suppernote pour rechercher des restaurants et gérer vos réservations.</p>
-    ${restaurantName ? `<p class="lead">Accès limité au restaurant <strong>${escapeHtml(restaurantName)}</strong>.</p>` : '<p class="lead">Accès aux restaurants qui ont activé MCP.</p>'}
-
-    <div class="permissions">
-      <div class="permissions-title">Cette connexion permettra de</div>
-      ${grantedScopes.has('mcp:read') ? '<div class="scope-item"><span class="scope-icon">✓</span><span>Rechercher des restaurants et vérifier les disponibilités</span></div>' : ''}
-      ${grantedScopes.has('mcp:reserve') ? '<div class="scope-item"><span class="scope-icon">✓</span><span>Créer des réservations</span></div>' : ''}
-      ${grantedScopes.has('mcp:cancel') ? '<div class="scope-item"><span class="scope-icon">✓</span><span>Annuler des réservations</span></div>' : ''}
-    </div>
-
-    <div class="security"><span class="security-dot"></span><span>Connexion protégée par OAuth 2.0 et PKCE.</span></div>
-
-    <form method="POST" action="/oauth/authorize">
-      <input type="hidden" name="action" value="approve"/>
-      <input type="hidden" name="client_id" value="${escapeAttr(clientId)}"/>
-      <input type="hidden" name="redirect_uri" value="${escapeAttr(redirectUri)}"/>
-      <input type="hidden" name="state" value="${escapeAttr(state)}"/>
-      <input type="hidden" name="scope" value="${escapeAttr(scope)}"/>
-      <input type="hidden" name="code_challenge" value="${escapeAttr(codeChallenge)}"/>
-      <input type="hidden" name="code_challenge_method" value="${escapeAttr(codeChallengeMethod)}"/>
-      <input type="hidden" name="csrf_token" value="${escapeAttr(csrfToken)}"/>
-      <div class="actions">
-        <button type="submit" class="btn-approve">Autoriser l’accès</button>
-        <button type="submit" name="action" value="deny" class="btn-deny">Refuser</button>
+  ${DAY_PLAN_SVG}
+  <main>
+    <div class="card">
+      <div class="pair">
+        <div class="tile tile-client" aria-hidden="true">${escapeHtml(clientInitial)}</div>
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="tile tile-us"><img src="${escapeAttr(getBrandIconUrl())}" alt="Suppernote" /></div>
       </div>
-    </form>
-  </div>
+      <h1>Connecter ${escapeHtml(clientName)} à Suppernote</h1>
+      ${restaurantName ? `<p class="only">Uniquement pour <strong>${escapeHtml(restaurantName)}</strong></p>` : ''}
+      <ul>
+        ${grantedScopes.has('mcp:read') ? '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Chercher restaurants et créneaux</li>' : ''}
+        ${grantedScopes.has('mcp:reserve') ? '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Réserver et modifier pour vous</li>' : ''}
+        ${grantedScopes.has('mcp:cancel') ? '<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg><span>Annuler <em>ses réservations uniquement</em></span></li>' : ''}
+      </ul>
+      <form method="POST" action="/oauth/authorize">
+        <input type="hidden" name="action" value="approve"/>
+        <input type="hidden" name="client_id" value="${escapeAttr(clientId)}"/>
+        <input type="hidden" name="redirect_uri" value="${escapeAttr(redirectUri)}"/>
+        <input type="hidden" name="state" value="${escapeAttr(state)}"/>
+        <input type="hidden" name="scope" value="${escapeAttr(scope)}"/>
+        <input type="hidden" name="code_challenge" value="${escapeAttr(codeChallenge)}"/>
+        <input type="hidden" name="code_challenge_method" value="${escapeAttr(codeChallengeMethod)}"/>
+        <input type="hidden" name="csrf_token" value="${escapeAttr(csrfToken)}"/>
+        <button type="submit" class="btn btn-approve">Autoriser</button>
+        <button type="submit" name="action" value="deny" class="btn btn-deny">Refuser</button>
+      </form>
+    </div>
+    ${redirectHost ? `<p class="foot">Retour vers <b>${escapeHtml(redirectHost)}</b></p>` : ''}
+  </main>
 </body>
 </html>`;
 }
@@ -1365,129 +1285,27 @@ function renderError(title: string, message: string): string {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Suppernote — Erreur</title>
+  <title>${escapeHtml(title)} — Suppernote</title>
   ${SUPPERNOTE_FONT_HEAD}
   <style>
-    :root { color-scheme: dark; --suppernote-ink: #0f172a; --suppernote-blue: #0284c7; }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    button, input { font: inherit; }
-    body {
-      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--suppernote-ink);
-      background-image: radial-gradient(circle at 15% 10%, rgba(2, 132, 199, 0.15), transparent 34%), radial-gradient(circle at 85% 90%, rgba(2, 132, 199, 0.08), transparent 36%);
-      color: #fafafa;
-      display: flex;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 28px 18px;
-    }
-    .card {
-      position: relative;
-      overflow: hidden;
-      background: rgba(20, 20, 20, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 24px;
-      padding: 36px;
-      max-width: 520px;
-      width: 100%;
-      margin: auto;
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
-    }
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 12%;
-      right: 12%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--suppernote-blue), transparent);
-    }
-    .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 28px;
-    }
-    .logo img {
-      display: block;
-      width: 34px;
-      height: 34px;
-      object-fit: contain;
-      mix-blend-mode: screen;
-    }
-    .logo span {
-      color: #fafafa;
-      font-size: 22px;
-      font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-      font-weight: 700;
-      letter-spacing: -0.04em;
-    }
-    .eyebrow {
-      color: #a3a3a3;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      margin-bottom: 16px;
-      text-transform: uppercase;
-    }
-    .status {
-      align-items: center;
-      background: rgba(248, 113, 113, 0.10);
-      border: 1px solid rgba(248, 113, 113, 0.18);
-      border-radius: 14px;
-      color: #fb7185;
-      display: inline-flex;
-      font-size: 20px;
-      font-weight: 800;
-      height: 44px;
-      justify-content: center;
-      margin-bottom: 20px;
-      width: 44px;
-    }
-    h1 {
-      color: #f8fafc;
-      font-size: clamp(24px, 4vw, 30px);
-      font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-      font-weight: 650;
-      letter-spacing: -0.035em;
-      line-height: 1.12;
-      margin-bottom: 12px;
-    }
-    p { color: #a3a3a3; font-size: 15px; line-height: 1.6; margin-bottom: 26px; }
-    .actions { display: flex; gap: 12px; }
-    .btn {
-      align-items: center;
-      background: var(--suppernote-blue);
-      border: 0;
-      border-radius: 10px;
-      color: #fff;
-      display: inline-flex;
-      font-size: 14px;
-      font-weight: 650;
-      justify-content: center;
-      padding: 12px 18px;
-      text-decoration: none;
-      transition: transform 0.2s, background 0.2s;
-    }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .hint { color: #737373; font-size: 12px; line-height: 1.5; margin-top: 18px; }
-    @media (max-width: 520px) {
-      .card { padding: 28px 22px; border-radius: 20px; }
-      .actions { flex-direction: column; }
-      .btn { width: 100%; }
-    }
+${DAY_PAGE_CSS}
+    .msg { margin-top: 10px; text-align: center; font-size: 14px; line-height: 1.5; color: hsl(var(--day-muted)); overflow-wrap: anywhere; }
+    .btn-home { display: grid; place-items: center; margin-top: 28px; text-decoration: none; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo"><img src="${escapeAttr(getBrandIconUrl())}" alt="" /><span>Suppernote</span></div>
-    <div class="eyebrow">Suppernote / Connexion</div>
-    <div class="status" aria-hidden="true">!</div>
-    <h1>${escapeHtml(title)}</h1>
-    <p>${escapeHtml(message)}</p>
-    <div class="actions"><a class="btn" href="${escapeAttr(getPublicSiteUrl())}">Retourner sur Suppernote</a></div>
-    <div class="hint">Si vous êtes arrivé depuis un assistant, relancez la connexion depuis celui-ci.</div>
-  </div>
+  ${DAY_PLAN_SVG}
+  <main>
+    <div class="card">
+      <div class="pair">
+        <div class="tile tile-us"><img src="${escapeAttr(getBrandIconUrl())}" alt="Suppernote" /></div>
+      </div>
+      <h1>${escapeHtml(title)}</h1>
+      ${message ? `<p class="msg">${escapeHtml(message)}</p>` : ''}
+      <a class="btn btn-approve btn-home" href="${escapeAttr(getPublicSiteUrl())}">Retourner sur Suppernote</a>
+    </div>
+    <p class="foot">Venu d’un assistant&nbsp;? Relancez la connexion depuis celui-ci.</p>
+  </main>
 </body>
 </html>`;
 }

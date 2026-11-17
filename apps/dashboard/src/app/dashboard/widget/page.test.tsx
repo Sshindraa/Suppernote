@@ -238,6 +238,32 @@ describe('parcours d’installation du widget', () => {
     );
   });
 
+  it('affiche le script « Garder vos boutons » en mode modal', async () => {
+    await analyseSite(
+      analysis({
+        bookingLinks: [
+          {
+            href: 'https://www.chez-suppernote.fr/reserver',
+            text: 'Réserver',
+            target: 'suppernote',
+          },
+        ],
+      }),
+    );
+
+    const script = await screen.findByText(
+      /^<script src="[^"]*\/embed\.js" data-slug="chez-suppernote-demo"(?: data-host="[^"]*")? data-mode="modal" defer><\/script>$/,
+    );
+    expect(script.tagName).toBe('CODE');
+  });
+
+  it('garde le snippet formulaire inchangé, sans data-mode', async () => {
+    render(<WidgetIntegrationPage />);
+
+    const snippetInput = (await screen.findByLabelText('Code du widget')) as HTMLTextAreaElement;
+    expect(snippetInput.value).not.toContain('data-mode');
+  });
+
   it('présélectionne le formulaire quand aucun bouton Réserver n’est trouvé', async () => {
     await analyseSite(analysis());
 

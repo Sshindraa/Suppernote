@@ -116,7 +116,8 @@ export function buildBookingUrl(slug: string): string {
 /** Ligne à ajouter une seule fois sur le site pour que les boutons « Réserver » ouvrent la fenêtre. */
 export function buildEmbedScriptLine(slug: string): string {
   const hostAttr = WIDGET_HOST === PROD_WIDGET_HOST ? '' : ` data-host="${WIDGET_HOST}"`;
-  return `<script src="${WIDGET_HOST}/embed.js" data-slug="${slug}"${hostAttr} defer></script>`;
+  // data-mode="modal" : sans cet attribut, embed.js reste en mode formulaire intégré.
+  return `<script src="${WIDGET_HOST}/embed.js" data-slug="${slug}"${hostAttr} data-mode="modal" defer></script>`;
 }
 
 /** Sans réponse de secours, on suit l'analyse : des boutons trouvés → on les garde. */

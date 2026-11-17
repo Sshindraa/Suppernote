@@ -107,6 +107,28 @@ describe('OAuth MCP integration flow', () => {
     clientSecret = body.client_secret;
   });
 
+  it('POST /oauth/register keeps an https logo_uri and ignores any other', async () => {
+    const app = await getApp();
+    const register = (logo_uri: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/oauth/register',
+        headers: { 'content-type': 'application/json' },
+        payload: {
+          client_name: 'logo-client',
+          logo_uri,
+          redirect_uris: [REDIRECT_URI],
+          token_endpoint_auth_method: 'none',
+        },
+      });
+    const https = await register('https://example.com/logo.png');
+    expect(https.statusCode).toBe(201);
+    expect(https.json().logo_uri).toBe('https://example.com/logo.png');
+    const script = await register('javascript:alert(1)');
+    expect(script.statusCode).toBe(201);
+    expect(script.json().logo_uri).toBeUndefined();
+  });
+
   // ── 3. Authorize (consent page) ──────────────────────
   it('GET /oauth/authorize returns consent HTML', async () => {
     // Mock: at least one restaurant with MCP enabled
@@ -132,6 +154,8 @@ describe('OAuth MCP integration flow', () => {
     expect(res.body).not.toContain('#0369a1');
     expect(res.body).not.toContain('#38bdf8');
     expect(res.body).not.toContain('Restaurant connect'); // no restaurant block
+    // Claude reconnu par son URI de redirection : logo hébergé par Suppernote.
+    expect(res.body).toContain('/oauth-clients/claude.png');
 
     // Extract CSRF token from the hidden input
     const csrfMatch = res.body.match(/name="csrf_token" value="([^"]+)"/);

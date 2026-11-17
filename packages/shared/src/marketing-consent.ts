@@ -64,6 +64,21 @@ export function buildCombinedMarketingConsentProof(
   return `${MARKETING_CONSENT_COMBINED_VERSION}|${channel}|${buildCombinedMarketingConsentLabel(channels, restaurantName)}`;
 }
 
+/**
+ * Version actuelle : une seule case, e-mail seul (décision du 17/11/2026). Les SMS ne sont plus
+ * proposés dans le formulaire. Les preuves des versions précédentes gardent leur texte.
+ */
+export const MARKETING_CONSENT_EMAIL_VERSION = 'marketing-consent-email-2026-11-17';
+
+/** La phrase affichée à côté de la case e-mail, et enregistrée telle quelle comme preuve. */
+export function buildEmailMarketingConsentLabel(restaurantName: string): string {
+  return `Recevoir les offres, nouveautés et événements ${restaurantLabel(restaurantName)} par e-mail. Vous pouvez retirer votre accord à tout moment, par le lien de désinscription présent dans chaque message.`;
+}
+
+export function buildEmailMarketingConsentProof(restaurantName: string): string {
+  return `${MARKETING_CONSENT_EMAIL_VERSION}|EMAIL|${buildEmailMarketingConsentLabel(restaurantName)}`;
+}
+
 /** How a consent collected outside a form was obtained, chosen by the restaurant team. */
 export const MARKETING_CONSENT_COLLECTION_METHODS = ['IN_PERSON', 'PHONE', 'PAPER'] as const;
 export type MarketingConsentCollectionMethod =

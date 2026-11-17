@@ -139,12 +139,12 @@ DTO public et le bouton « Annuler la reservation » dans « Modifier ou annuler
 Le client voit les conditions puis confirme explicitement dans un dialogue.
 La fermeture du dialogue et la lecture du lien ne modifient rien.
 
-L’onboarding stocke actuellement `capacitySpecials.cancellationPolicy` en texte.
-Les nouveaux snapshots de reservation figent les presets exacts 2/24/48 heures,
+L’onboarding et Parametres > Annulation stockent `capacitySpecials.cancellationPolicy`
+en texte. Les nouveaux snapshots de reservation figent les presets exacts 2/24/48 heures,
 leur texte et la version (`source=onboarding-v1`). Les creations voix et agentic/
-Connect les enregistrent. Le delai fixe historique de deux heures ne doit pas
-servir a autoriser une annulation : anciens snapshots sans source fiable,
-conditions absentes/libres, absence d’annulation gratuite, acomptes/garanties,
+Connect les enregistrent. Sans regle renseignee, le snapshot fige le preset 2 heures
+(`DEFAULT_CANCELLATION_POLICY`, decision du 2026-11-17). Renvoient au restaurant :
+anciens snapshots sans source fiable, conditions libres, absence d’annulation gratuite, acomptes/garanties,
 cartes cadeaux, experiences, evenements et distribution externe renvoient au
 restaurant. Aucune condition actuelle n’est retroactive sur une ancienne resa.
 

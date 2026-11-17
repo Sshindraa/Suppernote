@@ -8,6 +8,7 @@
 
 ## TODOs actifs
 
+- [ ] SEO migration : vérifier que le rapport Search Console a rattrapé les inspections du 16/11 et que l’URL racine Clerk sort de l’index ; `noindex` déjà présent, test Google en direct non concluant. Voir Journal du 16/11.
 - [ ] Réponses SMS/WhatsApp Telnyx : définir une corrélation fiable et qualifier la revue opérateur en staging ; voir `docs/runbooks/inbound-reply-review.md`.
 - [ ] CRM #659 : migration corrective qualifiée en staging ; surveiller les rafales même client avant promotion ; PR sans auto-merge.
 
@@ -18,7 +19,7 @@
 - [ ] Marketing : avant tout envoi réel, rouvrir l'effacement et l'opposition, et mentionner le ciblage selon l'historique dans la notice client (`privacy-client-annex.md`).
 - [ ] RGPD #616 : vérification/export rouverts en prod ; effacement et opposition restent bloqués (503). Examiner les journaux ; demandes manuelles : privacy@suppernote.com.
 
-- [ ] Notifications : #484 qualifiée staging/off prod; WEB/outbox/WhatsApp locaux. Annulation/modification #485–#487 actives et qualifiées staging; liens off prod. Après délai : contact, aucun frais auto.
+- [ ] Notifications : #484 qualifiée staging/off prod; WEB/outbox/WhatsApp locaux. Annulation/modification #485–#487 actives et qualifiées staging. Prod (17/11) : lien de gestion actif (e-mail + SMS court `/r/<code>`, testé sur téléphone) ; annulation/modification autonomes off, à décider avec la règle d'annulation tardive. Après délai : contact, aucun frais auto.
 - [ ] Audit notifications local : qualifier retries ciblés, claims et réparations avec Redis/fournisseurs en staging ; autres sujets outbox manuels.
 - [ ] Audit entrées publiques local : OAuth/limites Redis, clés MCP et dédup SMS/WhatsApp locaux ; qualifier Postgres, Redis et Telnyx en staging. L’isolation des réponses sur numéro partagé n’est pas garantie ; voir `docs/runbooks/inbound-reply-review.md`. RGPD suit le TODO dédié.
 - [ ] WhatsApp : flags off ; WEB avec consentement, téléphone SMS seul. Callbacks Meta (7 j/ID, sinon revue manuelle) ; qualifier fournisseur, abonnement et staging. Voir `whatsapp-reservation-activation.md`.

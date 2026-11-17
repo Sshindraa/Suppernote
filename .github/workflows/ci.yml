@@ -131,6 +131,7 @@ jobs:
           bash scripts/ops/test-sync-env.sh
           bash scripts/ops/test-deploy-common.sh
           bash scripts/ops/test-apply-redis-config.sh
+          bash scripts/ops/test-apply-staging-demo-fixtures.sh
 
       - name: Migration safety guard
         # Échoue si une migration ajoutée par la branche contient un DROP /

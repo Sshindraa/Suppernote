@@ -106,6 +106,8 @@ describe('/embed.js — comportement', () => {
     delete (document as Partial<Document> & { currentScript?: unknown }).currentScript;
     delete (navigator as Partial<Navigator> & { sendBeacon?: unknown }).sendBeacon;
     document.getElementById('suppernote-embed-style')?.remove();
+    // Certains tests laissent la fenêtre ouverte : on rend le scroll de la page.
+    document.documentElement.style.overflow = '';
     delete (window as Partial<Window> & { dataLayer?: unknown[] }).dataLayer;
     vi.useRealTimers();
     document.body.replaceChildren();
@@ -131,6 +133,24 @@ describe('/embed.js — comportement', () => {
       const script = runEmbed({}, '<p>Pas de bouton</p>');
       expect((script.nextElementSibling as HTMLIFrameElement).tagName).toBe('IFRAME');
       expect(document.querySelector('dialog')).toBeNull();
+    });
+
+    it('sans data-mode, lien présent : iframe inline toujours insérée, et le clic ouvre la fenêtre', () => {
+      const script = runEmbed(
+        {},
+        '<a id="cta" href="https://suppernote.com/restaurant/demo">Réserver</a>',
+      );
+      expect((script.nextElementSibling as HTMLIFrameElement).tagName).toBe('IFRAME');
+      click(document.getElementById('cta')!);
+      expect(isOpen()).toBe(true);
+    });
+
+    it('data-mode="modal" : pas d’iframe inline', () => {
+      const script = runEmbed(
+        { 'data-mode': 'modal' },
+        '<a id="cta" href="https://suppernote.com/restaurant/demo">Réserver</a>',
+      );
+      expect(script.nextElementSibling).toBeNull();
     });
   });
 
@@ -181,11 +201,24 @@ describe('/embed.js — comportement', () => {
       expect(isOpen()).toBe(false);
     });
 
-    it('secours : sans réponse du widget après 3 s, la page se recharge sur le lien', () => {
+    it('bouton fermé nativement (close-watcher) : nettoyage idempotent, scroll rendu, réouverture possible', () => {
+      runEmbed({}, LINK);
+      click(document.getElementById('cta')!);
+      const dialog = document.querySelector('dialog')!;
+      expect(document.documentElement.style.overflow).toBe('hidden');
+      dialog.removeAttribute('open');
+      dialog.dispatchEvent(new Event('close'));
+      dialog.dispatchEvent(new Event('close'));
+      expect(document.documentElement.style.overflow).toBe('');
+      click(document.getElementById('cta')!);
+      expect(isOpen()).toBe(true);
+    });
+
+    it('secours : sans réponse du widget après 5 s, la page se recharge sur le lien', () => {
       vi.useFakeTimers();
       runEmbed({}, LINK);
       click(document.getElementById('cta')!);
-      vi.advanceTimersByTime(2999);
+      vi.advanceTimersByTime(4999);
       expect(isOpen()).toBe(true);
       vi.advanceTimersByTime(1);
       expect(isOpen()).toBe(false);
@@ -264,9 +297,9 @@ describe('/embed.js — comportement', () => {
   });
 
   describe('signal d’installation (heartbeat)', () => {
-    it('envoie le payload attendu vers l’API de la prod', () => {
+    it('envoie le payload attendu vers l’API de la prod (data-mode="modal")', () => {
       runEmbed(
-        {},
+        { 'data-mode': 'modal' },
         '<button data-suppernote-book>R</button><a href="https://suppernote.com/widget/demo">W</a>',
       );
       expect(beacon).toHaveBeenCalledTimes(1);
@@ -279,6 +312,12 @@ describe('/embed.js — comportement', () => {
         mode: 'modal',
         buttons: 2,
       });
+    });
+
+    it('sans data-mode : mode "inline" dans le heartbeat, avec le nombre de boutons', () => {
+      runEmbed({}, '<button data-suppernote-book>R</button>');
+      const [, payload] = beacon.mock.calls[0] as unknown as [string, string];
+      expect(JSON.parse(payload)).toMatchObject({ mode: 'inline', buttons: 1 });
     });
 
     it('pas d’envoi sur localhost sans data-api-host', () => {

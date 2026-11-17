@@ -5,13 +5,11 @@
  *   <script src="https://suppernote.com/embed.js" data-slug="chez-suppernote-demo"
  *           data-primary="#0f172a" data-accent="#f97316"></script>
  *
- * Mode inline (défaut sans déclencheur, ou data-mode="inline") : injecte un iframe
- * responsive vers /widget/:slug, redimensionné via postMessage.
- *
- * Mode modal (data-mode="modal", ou automatique dès qu'un bouton
- * [data-suppernote-book] ou un lien vers /restaurant/:slug ou /widget/:slug existe) :
- * le clic ouvre le widget dans un <dialog> par-dessus la page. Le restaurant
- * garde son bouton « Réserver » et sa navigation.
+ * Sans data-mode : injecte l'iframe inline (comportement historique, synchrone).
+ * Si la page contient un déclencheur (bouton [data-suppernote-book] ou lien vers
+ * /restaurant/:slug ou /widget/:slug), le clic ouvre en plus le widget dans un
+ * <dialog> par-dessus la page.
+ * data-mode="inline" : iframe seule. data-mode="modal" : fenêtre seule.
  */
 (function () {
   const script = document.currentScript;
@@ -185,19 +183,30 @@
       e.preventDefault();
       close(false);
     });
+    // Fermeture native (close-watcher de Chrome : 2e Échap sans activation, pas de
+    // « cancel ») : nettoyage idempotent. L'attribut open (= dialog.open) filtre les
+    // événements close différés d'une réouverture rapide.
+    dialog.addEventListener('close', () => {
+      if (!dialog.hasAttribute('open')) close(false);
+    });
     window.addEventListener('popstate', onPopState);
     window.addEventListener('message', onMessage);
+  }
+
+  // Page de secours : le lien lui-même, ou la page restaurant pour un bouton.
+  function fallbackUrl(trigger) {
+    return trigger.tagName === 'A' ? trigger.href : host + '/restaurant/' + encSlug;
   }
 
   function open(trigger) {
     if (isOpen) return;
     ensureModal();
     if (typeof dialog.showModal !== 'function') {
-      location.href = widgetUrl(trigger, false);
+      location.replace(fallbackUrl(trigger));
       return;
     }
     lastTrigger = trigger;
-    fallbackHref = trigger.tagName === 'A' ? trigger.href : widgetUrl(trigger, false);
+    fallbackHref = fallbackUrl(trigger);
     setFrameUrl(trigger);
     isOpen = true;
     prevOverflow = document.documentElement.style.overflow;
@@ -205,10 +214,11 @@
     dialog.showModal();
     history.pushState({ suppernoteEmbed: true }, '');
     pushed = true;
-    if (!ready) timer = setTimeout(fallback, 3000);
+    if (!ready) timer = setTimeout(fallback, 5000);
   }
 
   // fromPop : la fermeture vient du bouton retour (l'historique a déjà reculé).
+  // Idempotent : sans effet si la fenêtre est déjà fermée.
   function close(fromPop) {
     if (!isOpen) return;
     isOpen = false;
@@ -223,11 +233,12 @@
     if (lastTrigger && lastTrigger.isConnected) lastTrigger.focus();
   }
 
-  // Le widget ne répond pas dans les 3 s : on laisse le navigateur ouvrir la page.
+  // Le widget ne répond pas dans les 5 s : on remplace l'entrée factice par la page
+  // de réservation (retour arrière cohérent).
   function fallback() {
     const href = fallbackHref;
     close(true);
-    location.href = href;
+    location.replace(href);
   }
 
   function onPopState() {
@@ -299,21 +310,19 @@
     }
   }
 
-  function start() {
+  // Modal et heartbeat attendent le DOM pour voir les déclencheurs.
+  function setupModalAndHeartbeat() {
     const requested = script.getAttribute('data-mode');
     const buttons = countTriggers();
-    const mode =
-      requested === 'inline' ? 'inline' : requested === 'modal' || buttons > 0 ? 'modal' : 'inline';
-    if (mode === 'modal') initModal();
-    else mountInline();
-    sendHeartbeat(mode, buttons);
+    if (requested === 'modal' || (requested !== 'inline' && buttons > 0)) initModal();
+    sendHeartbeat(requested === 'modal' ? 'modal' : 'inline', buttons);
   }
 
-  // Le mode inline reste synchrone (rétrocompatibilité). Le mode auto attend le DOM
-  // pour voir les déclencheurs.
-  if (script.getAttribute('data-mode') !== 'inline' && document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
+  // Rétrocompatibilité : l'iframe inline est insérée de façon synchrone, comme avant.
+  if (script.getAttribute('data-mode') !== 'modal') mountInline();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupModalAndHeartbeat, { once: true });
   } else {
-    start();
+    setupModalAndHeartbeat();
   }
 })();

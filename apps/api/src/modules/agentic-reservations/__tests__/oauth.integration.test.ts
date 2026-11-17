@@ -124,10 +124,10 @@ describe('OAuth MCP integration flow', () => {
     expect(res.headers['content-type']).toContain('text/html');
     expect(res.body).toContain('Autoriser');
     expect(res.body).toContain('/icon.svg');
-    expect(res.body).toContain('<span>Suppernote</span>');
+    expect(res.body).toContain('alt="Suppernote"');
     expect(res.body).toContain('Plus+Jakarta+Sans');
-    expect(res.body).toContain("font-family: 'Outfit'");
-    expect(res.body).toContain('--suppernote-blue: #0284c7');
+    expect(res.body).toContain("font-family: 'Fraunces'");
+    expect(res.body).toContain('--day-paper: 216 43% 10%');
     expect(res.body).not.toContain('#f97316');
     expect(res.body).not.toContain('#0369a1');
     expect(res.body).not.toContain('#38bdf8');
@@ -558,10 +558,10 @@ describe('OAuth MCP integration flow', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain('Autoriser');
     expect(res.body).toContain('/icon.svg');
-    expect(res.body).toContain('<span>Suppernote</span>');
+    expect(res.body).toContain('alt="Suppernote"');
     expect(res.body).toContain('Plus+Jakarta+Sans');
-    expect(res.body).toContain("font-family: 'Outfit'");
-    expect(res.body).toContain('--suppernote-blue: #0284c7');
+    expect(res.body).toContain("font-family: 'Fraunces'");
+    expect(res.body).toContain('--day-paper: 216 43% 10%');
     expect(res.body).not.toContain('#f97316');
     expect(res.body).not.toContain('#0369a1');
     expect(res.body).not.toContain('#38bdf8');

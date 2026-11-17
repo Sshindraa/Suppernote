@@ -287,3 +287,8 @@
     radial-gradient(ellipse 22% 36% at 55% 42%, hsl(210 40% 75% / 0.16), transparent 100%),
     radial-gradient(ellipse 45% 40% at 60% 42%, hsl(213 28% 52% / 0.32), transparent 100%);
 }
+
+/* Une page dans MarketingShell a déjà son menu : l'en-tête générique (components/header.tsx) s'efface. */
+body:has(.day-home) .ios-fixed-header {
+  display: none;
+}

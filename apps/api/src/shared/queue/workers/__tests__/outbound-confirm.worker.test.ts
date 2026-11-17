@@ -101,6 +101,7 @@ function makeDependencies(
 ) {
   const db = {
     reservation: {
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       findUnique: vi.fn().mockResolvedValue(
         reservation
           ? {
@@ -167,8 +168,7 @@ describe('outbound-confirm.worker', () => {
 
     expect(sendSms).toHaveBeenCalledTimes(1);
     const message = vi.mocked(sendSms).mock.calls[0][1];
-    expect(message).not.toContain('https://');
-    expect(message).toContain('appelez');
+    expect(message).toMatch(/https:\/\/staging\.suppernote\.com\/r\/[A-Za-z0-9]{8}$/);
     expect(countSmsSegments(message)).toBe(1);
   });
 

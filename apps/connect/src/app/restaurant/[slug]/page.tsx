@@ -91,7 +91,8 @@ export async function generateMetadata({
     !isPreview &&
     testBooking === undefined &&
     localPreview === undefined &&
-    (restaurant.slug === SUPPERNOTE_DEMO_SLUG || !isDemo);
+    // Restaurant fictif : ouvert aux prospects par lien, jamais proposé aux moteurs (décision 2026-11-17).
+    !isDemo;
   const title = isDemo
     ? `${restaurant.name} — Restaurant de démonstration`
     : `${restaurant.name} — Réservation en ligne à ${restaurant.address.city}`;

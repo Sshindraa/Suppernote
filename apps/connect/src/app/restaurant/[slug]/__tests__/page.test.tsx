@@ -221,7 +221,7 @@ describe('page restaurant Connect : « aujourd’hui »', () => {
 
 describe('indexabilité des fiches', () => {
   it.each([
-    ['chez-suppernote-demo', true],
+    ['chez-suppernote-demo', false],
     ['chez-sokar-demo', false],
     ['chez-sokar-bistrot-paris', false],
     ['chez-sokar', true],

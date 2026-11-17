@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchCityPage, fetchPublicRestaurant, fetchPublicRestaurants } from '../api-client';
+import {
+  fetchAvailability,
+  fetchCityPage,
+  fetchPublicRestaurant,
+  fetchPublicRestaurants,
+} from '../api-client';
 
 function mockFetch(status: number, body: unknown = {}) {
   vi.stubGlobal(
@@ -45,5 +50,33 @@ describe('api-client Connect : limitation ≠ introuvable', () => {
       limit: 12,
     });
     vi.unstubAllEnvs();
+  });
+});
+
+describe('disponibilités de la fiche restaurant', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('redemande les créneaux sans cache et signale une panne après une réponse vide', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ slots: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 503 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const args = { date: '2026-11-17', partySize: 2 };
+
+    await expect(fetchAvailability('chez-suppernote-demo', args)).resolves.toEqual({ slots: [] });
+    await expect(fetchAvailability('chez-suppernote-demo', args)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.any(String), {
+      cache: 'no-store',
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it('signale également un service qui ne répond pas', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('timeout', 'TimeoutError')));
+    await expect(
+      fetchAvailability('chez-suppernote-demo', { date: '2026-11-17', partySize: 2 }),
+    ).resolves.toBeNull();
   });
 });

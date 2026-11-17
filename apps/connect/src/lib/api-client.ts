@@ -155,7 +155,6 @@ export async function fetchWidgetRestaurant(
 export async function fetchAvailability(
   slug: string,
   args: { date: string; partySize: number },
-  options: { revalidate?: number } = {},
 ): Promise<AvailabilityDto | null> {
   try {
     const params = new URLSearchParams({
@@ -163,7 +162,8 @@ export async function fetchAvailability(
       partySize: String(args.partySize),
     });
     const res = await fetch(`${await getApiUrl()}/public/r/${slug}/availability?${params}`, {
-      next: { revalidate: options.revalidate ?? 30 },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) {
       return null;

@@ -17,7 +17,7 @@
  */
 
 import type { Metadata } from 'next';
-import { isConnectDemoSlug } from '@suppernote/shared';
+import { isConnectDemoSlug, SUPPERNOTE_DEMO_SLUG } from '@suppernote/shared';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -30,13 +30,14 @@ import { PageViewTracker } from '@/components/page-view-tracker';
 import { isValidSlug } from '@/lib/widget-colors';
 import { todayInTimezone } from '@/lib/restaurant-day';
 import { parseTestBookingToken, TEST_BOOKING_BANNER } from '@/lib/test-booking';
+import { DemoRestaurant } from './demo-restaurant';
 
 const SITE_URL = process.env.SITE_URL ?? 'https://suppernote.com';
 
 export const dynamicParams = true;
 // Rendue à chaque visite : la page lit `?preview`, `?testBooking` et `?source`, et affiche les
 // créneaux du jour. Next répond `no-store` et ni nginx ni Cloudflare ne la cachent ; seules les
-// lectures API sont gardées en cache (60 s, 30 s pour les créneaux).
+// informations du restaurant sont gardées en cache, pas les créneaux.
 // shortcut: un rendu complet par visite, à revoir si le trafic SEO monte (paramètres côté client,
 // aperçu sur une route à part, puis cache de page).
 export const dynamic = 'force-dynamic';
@@ -69,10 +70,10 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<{ preview?: string; testBooking?: string; localPreview?: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { preview } = await searchParams;
+  const { preview, testBooking, localPreview } = await searchParams;
   const isPreview = preview === '1';
   const restaurant = await fetchPublicRestaurant(slug, { preview: isPreview });
 
@@ -86,8 +87,13 @@ export async function generateMetadata({
   const cuisine = restaurant.cuisineTypes[0] ?? 'Restaurant';
   const canonical = `${SITE_URL}/restaurant/${restaurant.slug}`;
   const isDemo = isConnectDemoSlug(restaurant.slug);
+  const indexable =
+    !isPreview &&
+    testBooking === undefined &&
+    localPreview === undefined &&
+    (restaurant.slug === SUPPERNOTE_DEMO_SLUG || !isDemo);
   const title = isDemo
-    ? `${restaurant.name} — Démonstration Suppernote`
+    ? `${restaurant.name} — Restaurant de démonstration`
     : `${restaurant.name} — Réservation en ligne à ${restaurant.address.city}`;
   const description = isDemo
     ? 'Établissement fictif de démonstration Suppernote. Les réservations servent uniquement aux essais.'
@@ -107,10 +113,10 @@ export async function generateMetadata({
       images: restaurant.images.cover ? [{ url: restaurant.images.cover }] : [],
     },
     robots: {
-      index: !isPreview && !isConnectDemoSlug(restaurant.slug),
+      index: indexable,
       follow: true,
       googleBot: {
-        index: !isPreview && !isConnectDemoSlug(restaurant.slug),
+        index: indexable,
         follow: true,
         'max-snippet': -1,
         'max-image-preview': 'large',
@@ -157,6 +163,7 @@ export default async function RestaurantPage({
     utm_campaign?: string;
     preview?: string;
     testBooking?: string;
+    localPreview?: string;
   }>;
 }) {
   const { slug } = await params;
@@ -177,6 +184,11 @@ export default async function RestaurantPage({
   if (!restaurant) {
     notFound();
   }
+
+  const isDemo = restaurant.slug === SUPPERNOTE_DEMO_SLUG;
+  const coverImage =
+    restaurant.images.cover ??
+    (isDemo ? '/connect-assets/demo/chez-suppernote-bistrot.png' : undefined);
 
   // Track page_view côté client (en ISR, le server-side ne s'exécute qu'au revalidate)
   // PageViewTracker est un composant client qui track au mount — chaque visite est comptée
@@ -214,15 +226,14 @@ export default async function RestaurantPage({
   }, []);
 
   // Disponibilités inline (Phase 2) : aperçu des créneaux du jour pour
-  // éviter le clic supplémentaire vers /book. ISR 30s côté API (cache Next 30s).
+  // éviter le clic supplémentaire vers /book. Les créneaux sont lus à chaque visite.
   // Le jour CHEZ le restaurant, pas le jour UTC (entre minuit et 2 h à Paris, ce dernier retarde d'un jour).
   const today = todayInTimezone(restaurant.timezone);
   const previewPartySize = 2;
-  const availability = await fetchAvailability(
-    restaurant.slug,
-    { date: today, partySize: previewPartySize },
-    { revalidate: 30 },
-  );
+  const availability = await fetchAvailability(restaurant.slug, {
+    date: today,
+    partySize: previewPartySize,
+  });
   const availableSlots = availability?.slots.filter((s) => s.available).slice(0, 4) ?? [];
   const previewShown = availableSlots.length > 0;
   let hasBookableExperiences = false;
@@ -260,6 +271,33 @@ export default async function RestaurantPage({
       },
     ],
   };
+
+  if (restaurant.slug === SUPPERNOTE_DEMO_SLUG) {
+    return (
+      <>
+        {!isTestBooking && (
+          <PageViewTracker
+            restaurantId={restaurant.id}
+            restaurantSlug={restaurant.slug}
+            city={restaurant.address.city}
+            source={sp.source}
+            utmSource={sp.utm_source}
+            utmMedium={sp.utm_medium}
+            utmCampaign={sp.utm_campaign}
+          />
+        )}
+        <DemoRestaurant
+          restaurant={restaurant}
+          availability={availability}
+          today={today}
+          bookQuerySuffix={bookQuerySuffix}
+          isTestBooking={isTestBooking}
+          localPreview={process.env.NODE_ENV !== 'production' && sp.localPreview === '1'}
+          source={sp.source}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -308,8 +346,12 @@ export default async function RestaurantPage({
                 · {restaurant.aggregateRating.reviewCount} avis Google
               </p>
             )}
-            {restaurant.description && (
-              <p className="mt-3 text-lg text-muted-foreground">{restaurant.description}</p>
+            {(isDemo || restaurant.description) && (
+              <p className="mt-3 text-lg text-muted-foreground">
+                {isDemo
+                  ? 'Un bistrot de quartier imaginé à Lyon, où une cuisine française de saison se découvre dans une atmosphère conviviale. Une table fictive pour découvrir la réservation en ligne Suppernote.'
+                  : restaurant.description}
+              </p>
             )}
 
             {/* CTA principal — au-dessus de la ligne de flottaison (acceptance T5) */}
@@ -327,16 +369,25 @@ export default async function RestaurantPage({
             </div>
           </header>
 
-          {restaurant.images.cover && (
+          {coverImage && (
             <figure className="mb-8 overflow-hidden rounded-xl">
               <Image
-                src={restaurant.images.cover}
-                alt={`Vue du restaurant ${restaurant.name} à ${restaurant.address.city}`}
+                src={coverImage}
+                alt={
+                  isDemo
+                    ? 'Illustration d’un bistrot fictif à Lyon'
+                    : `Vue du restaurant ${restaurant.name} à ${restaurant.address.city}`
+                }
                 width={1200}
                 height={320}
                 className="h-64 w-full object-cover sm:h-80"
                 priority
               />
+              {isDemo && !restaurant.images.cover && (
+                <figcaption className="mt-2 text-xs text-muted-foreground">
+                  Illustration générée par IA · Restaurant fictif
+                </figcaption>
+              )}
             </figure>
           )}
 
@@ -360,7 +411,12 @@ export default async function RestaurantPage({
           {/* Disponibilités inline (Phase 2) — aperçu des créneaux du jour */}
           <section className="mb-8 rounded-xl border border-border bg-background p-6">
             <h2 className="mb-3 text-xl font-semibold text-ink">Disponibilités aujourd&apos;hui</h2>
-            {availableSlots.length > 0 ? (
+            {availability === null ? (
+              <p className="text-sm text-muted-foreground">
+                Les disponibilités sont momentanément indisponibles. Veuillez réessayer dans
+                quelques instants.
+              </p>
+            ) : availableSlots.length > 0 ? (
               <>
                 <p className="mb-3 text-sm text-muted-foreground">
                   Table de {previewPartySize} — {availableSlots.length} créneau
@@ -404,25 +460,33 @@ export default async function RestaurantPage({
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Adresse</dt>
                 <dd>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue underline hover:no-underline"
-                  >
-                    {restaurant.address.line1}
-                  </a>
+                  {isDemo ? (
+                    <span>Lyon · adresse fictive</span>
+                  ) : (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue underline hover:no-underline"
+                    >
+                      {restaurant.address.line1}
+                    </a>
+                  )}
                 </dd>
               </div>
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Téléphone</dt>
                 <dd>
-                  <a
-                    href={`tel:${restaurant.phone}`}
-                    className="text-blue underline hover:no-underline"
-                  >
-                    {restaurant.phone}
-                  </a>
+                  {isDemo ? (
+                    <span>Non disponible · démonstration</span>
+                  ) : (
+                    <a
+                      href={`tel:${restaurant.phone}`}
+                      className="text-blue underline hover:no-underline"
+                    >
+                      {restaurant.phone}
+                    </a>
+                  )}
                 </dd>
               </div>
               {restaurant.cuisineTypes.length > 0 && (
@@ -442,7 +506,9 @@ export default async function RestaurantPage({
 
           {hoursGrouped.length > 0 && (
             <section className="mb-8 rounded-xl border border-border bg-background p-6">
-              <h2 className="mb-3 text-xl font-semibold text-ink">Horaires</h2>
+              <h2 className="mb-3 text-xl font-semibold text-ink">
+                {isDemo ? 'Horaires de démonstration' : 'Horaires'}
+              </h2>
               <ul className="space-y-1 text-ink">
                 {hoursGrouped.map((g) => (
                   <li key={g.day} className="flex justify-between">

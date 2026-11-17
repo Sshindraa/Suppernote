@@ -28,24 +28,8 @@ import {
   parseReservationManagementToken,
   verifyReservationManagementToken,
 } from './reservation-management';
-import { resolveReservationShortCode } from './reservation-short-code';
 
 export async function reservationManagementRoutes(app: FastifyInstance) {
-  // Résout un code court du SMS (/r/<code>) vers le fragment signé, sans exposer le code au-delà.
-  app.get(
-    '/public/reservation-short-link/:code',
-    { logLevel: 'silent', config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
-    async (req, reply) => {
-      reply.header('Cache-Control', 'no-store').header('Referrer-Policy', 'no-referrer');
-      const { code } = req.params as { code: string };
-      const token = isReservationManagementEnabled()
-        ? await resolveReservationShortCode(db, code)
-        : undefined;
-      if (!token) return reply.code(404).send({ error: 'Lien invalide ou expiré.' });
-      return reply.send({ token });
-    },
-  );
-
   app.post(
     '/public/reservation-management',
     {

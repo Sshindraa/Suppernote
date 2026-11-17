@@ -31,7 +31,10 @@ import {
   Languages,
   ListOrdered,
   ShieldCheck,
+  CalendarX,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CANCELLATION_PRESETS } from '@/features/onboarding/steps/floor-config';
 import { SYSTEM_PROMPT_EXTRA_MAX_LENGTH } from '@/constants/ui';
 import { SiteManagementCard } from '@/features/sites/site-management-card';
 import { TeamCard } from '@/features/team/team-card';
@@ -122,6 +125,10 @@ export default function SettingsPage() {
   const [waitingListMaxEntriesPerSlot, setWaitingListMaxEntriesPerSlot] = useState<number>(10);
   const [savingWaitingList, setSavingWaitingList] = useState(false);
   const [savedWaitingList, setSavedWaitingList] = useState(false);
+  // Vide = règle par défaut côté API (2 h avant) ; une ancienne règle libre reste affichée.
+  const [cancellationPolicy, setCancellationPolicy] = useState('');
+  const [savingCancellation, setSavingCancellation] = useState(false);
+  const [savedCancellation, setSavedCancellation] = useState(false);
 
   // Cartes cadeaux
   const [giftCardEnabled, setGiftCardEnabled] = useState(false);
@@ -223,6 +230,9 @@ export default function SettingsPage() {
         }
         const specials = (data.exposureSettings?.capacitySpecials ?? {}) as CapacitySpecials;
         setCapacitySpecials(specials);
+        setCancellationPolicy(
+          typeof specials.cancellationPolicy === 'string' ? specials.cancellationPolicy.trim() : '',
+        );
         setWaitingListEnabled(specials.waitingListEnabled === true);
         setWaitingListMaxEntriesPerSlot(
           typeof specials.waitingListMaxEntriesPerSlot === 'number'
@@ -384,6 +394,24 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleCancellationSave(text: string) {
+    setCancellationPolicy(text);
+    setSavingCancellation(true);
+    setSavedCancellation(false);
+    setError('');
+
+    try {
+      const nextSpecials: CapacitySpecials = { ...capacitySpecials, cancellationPolicy: text };
+      await patch(`restaurants/${orgId}`, { capacitySpecials: nextSpecials });
+      setCapacitySpecials(nextSpecials);
+      setSavedCancellation(true);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Erreur lors de la sauvegarde des conditions d'annulation"));
+    } finally {
+      setSavingCancellation(false);
+    }
+  }
+
   async function handleGiftCardToggle(enabled: boolean) {
     setGiftCardEnabled(enabled);
     setSavingGiftCard(true);
@@ -474,6 +502,7 @@ export default function SettingsPage() {
     ['settings-crm', 'CRM', canManageCrmPrivacy],
     ['settings-display', 'Affichage', true],
     ['settings-plan', 'Abonnement', true],
+    ['settings-cancellation', 'Annulation', true],
     ['settings-waiting-list', 'File d’attente', true],
     ['settings-gift-cards', 'Cartes cadeaux', true],
     ['settings-agent', 'Assistant', true],
@@ -798,6 +827,67 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Conditions d'annulation */}
+      <Card
+        id="settings-cancellation"
+        className="suppernote-card scroll-mt-24 transition-all duration-200"
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarX size={18} />
+            Annulation
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Avant ce délai, vos clients annulent ou modifient eux-mêmes depuis le lien de leur
+            confirmation. Après, ils vous contactent. Aucun frais n&apos;est prélevé
+            automatiquement. Le choix s&apos;applique aux nouvelles réservations.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div
+            role="radiogroup"
+            aria-label="Conditions d'annulation"
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            {CANCELLATION_PRESETS.map((preset) => {
+              const selected =
+                preset.text === cancellationPolicy || (!cancellationPolicy && preset.id === '2h');
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={savingCancellation}
+                  onClick={() => void handleCancellationSave(preset.text)}
+                  className={cn(
+                    'rounded-xl border p-4 text-left text-sm font-medium transition-all duration-200',
+                    selected
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-secondary text-muted-foreground hover:bg-accent',
+                  )}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+          {cancellationPolicy &&
+            !CANCELLATION_PRESETS.some((preset) => preset.text === cancellationPolicy) && (
+              <p className="text-sm text-muted-foreground">
+                Règle actuelle : « {cancellationPolicy} ». Vos clients doivent vous contacter pour
+                annuler. Choisissez un délai pour leur permettre d&apos;annuler eux-mêmes.
+              </p>
+            )}
+          {savedCancellation && (
+            <span className="flex items-center gap-1 text-sm text-primary">
+              <CheckCircle2 size={16} />
+              Enregistré
+            </span>
+          )}
         </CardContent>
       </Card>
 

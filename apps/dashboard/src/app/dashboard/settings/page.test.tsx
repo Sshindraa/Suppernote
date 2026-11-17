@@ -118,6 +118,31 @@ describe('SettingsPage', () => {
     expect(mocks.patch).not.toHaveBeenCalled();
   });
 
+  it('annulation : 2 h avant par défaut, et un autre délai garde les autres réglages', async () => {
+    loadSucceeds();
+    render(<SettingsPage />);
+    await screen.findByDisplayValue('Le Bistrot');
+
+    expect(screen.getByRole('radio', { name: 'Gratuite jusqu’à 2 h avant' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Gratuite jusqu’à 24 h avant' }));
+
+    await waitFor(() => {
+      expect(mocks.patch).toHaveBeenCalledWith('restaurants/org_test', {
+        capacitySpecials: {
+          waitingListEnabled: true,
+          cancellationPolicy: "Annulation gratuite jusqu'à 24 heures avant le service.",
+        },
+      });
+    });
+    expect(screen.getByRole('radio', { name: 'Gratuite jusqu’à 24 h avant' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+
   it('masque la carte des notes CRM quand le CRM avancé est fermé pour ce compte', async () => {
     loadSucceeds('closed');
     render(<SettingsPage />);

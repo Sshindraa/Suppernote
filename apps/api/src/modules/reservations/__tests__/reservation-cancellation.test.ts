@@ -1,6 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { snapshotCancellationPolicy } from '../../../shared/reservations/cancellation-policy';
+import {
+  DEFAULT_CANCELLATION_POLICY,
+  snapshotCancellationPolicy,
+} from '../../../shared/reservations/cancellation-policy';
 import {
   cancellationOffer,
   verifyCancellationOffer,
@@ -54,7 +57,6 @@ describe('frozen onboarding cancellation conditions', () => {
     null,
     {},
     { freeUntilMinutesBefore: 120, version: 'old' },
-    snapshotCancellationPolicy({}, 'v1'),
     snapshotCancellationPolicy({ cancellationPolicy: 'Pas d’annulation gratuite.' }, 'v1'),
     snapshotCancellationPolicy({ cancellationPolicy: 'Autres conditions' }, 'v1'),
   ])('requires restaurant review for legacy, missing or custom terms: %j', (snap) => {
@@ -62,6 +64,17 @@ describe('frozen onboarding cancellation conditions', () => {
       cancellationOffer({ ...row, cancellationPolicySnap: snap }, 'bearer', 'Europe/Paris', now)
         .available,
     ).toBe(false);
+  });
+  it('applies the 2-hour default when the restaurant has no rule', () => {
+    for (const specials of [{}, null, { cancellationPolicy: '   ' }]) {
+      const snap = snapshotCancellationPolicy(specials, 'v1');
+      expect(snap).toMatchObject({
+        selfService: 'free_before_deadline',
+        freeUntilMinutesBefore: 120,
+      });
+      expect(snap.terms).toBe(DEFAULT_CANCELLATION_POLICY);
+    }
+    expect(snapshotCancellationPolicy({ depositRequired: true }, 'v1').selfService).toBe('contact');
   });
   it('does not authorize a financial booking, even before the deadline', () => {
     expect(

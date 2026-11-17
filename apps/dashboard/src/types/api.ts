@@ -416,6 +416,7 @@ export interface CapacitySpecials {
   defaultServiceDurationMinutes?: number;
   waitingListEnabled?: boolean;
   waitingListMaxEntriesPerSlot?: number;
+  cancellationPolicy?: string;
 }
 
 export interface RestaurantExposureSettings {

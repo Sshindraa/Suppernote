@@ -1,3 +1,6 @@
+/** Règle appliquée quand le restaurant n'en a choisi aucune (décision du 2026-11-17). */
+export const DEFAULT_CANCELLATION_POLICY = "Annulation gratuite jusqu'à 2 heures avant le service.";
+
 /** Freeze the exact onboarding condition; arbitrary prose never authorizes a charge. */
 export function snapshotCancellationPolicy(specials: unknown, version: string) {
   const settings =
@@ -5,9 +8,9 @@ export function snapshotCancellationPolicy(specials: unknown, version: string) {
       ? (specials as Record<string, unknown>)
       : {};
   const text =
-    typeof settings.cancellationPolicy === 'string'
+    (typeof settings.cancellationPolicy === 'string'
       ? settings.cancellationPolicy.trim().slice(0, 280)
-      : '';
+      : '') || DEFAULT_CANCELLATION_POLICY;
   // Exact existing onboarding presets only. Custom terms require restaurant review.
   const hours = [2, 24, 48].find(
     (value) => text === `Annulation gratuite jusqu'à ${value} heures avant le service.`,

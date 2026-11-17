@@ -73,7 +73,16 @@ const BOOKING_TARGET_LABELS: Record<BookingTarget, string> = {
   other: 'un autre service',
 };
 
-const COMPETITOR_LABELS: Record<string, string> = { zenchef: 'Zenchef', thefork: 'TheFork' };
+// Outils de réservation concurrents, reconnus dans bookingLinks ou dans providers (clés en minuscules).
+// Une Map plutôt qu'un objet : « constructor » ne doit pas être pris pour un outil.
+const COMPETITOR_LABELS = new Map<string, string>([
+  ['zenchef', 'Zenchef'],
+  ['thefork', 'TheFork'],
+  ['sevenrooms', 'SevenRooms'],
+  ['resy', 'Resy'],
+  ['opentable', 'OpenTable'],
+  ['guestonline', 'Guestonline'],
+]);
 
 const OTHER_GUIDE = [
   'Collez le code juste avant la balise </body> de vos pages.',
@@ -139,7 +148,7 @@ export function findCompetitors(analysis: WebsiteCheckResult): string[] {
     ...analysis.bookingLinks.map((link) => link.target),
     ...analysis.providers.map((provider) => provider.toLowerCase()),
   ];
-  const labels = keys.flatMap((key) => (COMPETITOR_LABELS[key] ? [COMPETITOR_LABELS[key]] : []));
+  const labels = keys.flatMap((key) => COMPETITOR_LABELS.get(key) ?? []);
   return [...new Set(labels)];
 }
 

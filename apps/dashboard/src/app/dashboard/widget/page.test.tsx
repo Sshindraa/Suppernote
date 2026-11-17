@@ -292,6 +292,25 @@ describe('parcours d’installation du widget', () => {
     ).toBeInTheDocument();
   });
 
+  it('avertit aussi pour SevenRooms, Resy, OpenTable et Guestonline listés dans providers', async () => {
+    await analyseSite(
+      analysis({ providers: ['sevenrooms', 'Resy', 'opentable', 'guestonline', 'constructor'] }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Retirez l’ancien module SevenRooms pour éviter des réservations en double.',
+      ),
+    ).toBeInTheDocument();
+    for (const name of ['Resy', 'OpenTable', 'Guestonline']) {
+      expect(
+        screen.getByText(`Retirez l’ancien module ${name} pour éviter des réservations en double.`),
+      ).toBeInTheDocument();
+    }
+    // « constructor » n'est pas un concurrent : seulement les 4 avertissements attendus.
+    expect(screen.getAllByText(/Retirez l’ancien module/)).toHaveLength(4);
+  });
+
   it('avertit quand le site bloque l’affichage dans une autre page', async () => {
     await analyseSite(analysis({ framingBlocked: true }));
 

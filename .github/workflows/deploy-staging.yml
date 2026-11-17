@@ -316,8 +316,12 @@ jobs:
       - name: Verify rollback health
         if: always() && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')
         run: |
-          sleep 5
-          curl -fsS https://api-staging.suppernote.com/livez || exit 1
+          # Le redémarrage de l'API après rollback prend quelques secondes : on réessaie.
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 5 https://api-staging.suppernote.com/livez; then exit 0; fi
+            sleep 2
+          done
+          exit 1
 
       - name: Restore current staging release
         if: always() && (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main')

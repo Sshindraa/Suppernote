@@ -46,7 +46,8 @@ const PROVIDER_PATTERNS: Array<[ReservationProvider, RegExp]> = [
   ['guestonline', /guestonline/i],
 ];
 
-const BOOKING_HINT = /r[ée]serv|book|\btable/i;
+// Limites de mot : « book » ne doit pas matcher « facebook » ni « notebook ».
+const BOOKING_HINT = /r[ée]serv|\bbook(?:ing|ings)?\b|\btables?\b/i;
 
 /** Lit un attribut dans une balise ouvrante (`name="…"` ou `name='…'`), sans confondre data-name. */
 function attr(tag: string, name: string): string | undefined {

@@ -51,6 +51,7 @@ import { rgpdRoutes } from './modules/rgpd/rgpd.routes';
 import { observabilityRoutes } from './shared/observability/observability.routes';
 import { httpRequestsTotal } from './shared/observability/metrics';
 import { connectRoutes } from './modules/connect/connect.routes';
+import { embedCheckRoutes } from './modules/connect/embed-check/embed-check.routes';
 import { floorPlanRoutes } from './modules/floor-plan/floor-plan.routes';
 import { giftCardRoutes } from './modules/gift-cards/gift-card.routes';
 import { giftCardPackRoutes } from './modules/gift-cards/gift-card-pack.routes';
@@ -279,6 +280,7 @@ export async function buildApp() {
   await app.register(openaiReserveRoutes);
   await app.register(rgpdRoutes);
   await app.register(connectRoutes);
+  await app.register(embedCheckRoutes);
   await app.register(floorPlanRoutes);
   await app.register(giftCardRoutes);
   await app.register(giftCardPackRoutes);

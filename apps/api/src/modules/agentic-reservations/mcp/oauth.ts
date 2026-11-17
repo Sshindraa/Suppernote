@@ -159,6 +159,7 @@ type RegisteredClient = {
   clientSecretHash: string | null; // SHA-256 hash, jamais le plaintext
   redirectUris: string[];
   clientName: string;
+  logoUri?: string; // logo_uri RFC 7591, https uniquement
   createdAt: string;
   tokenEndpointAuthMethod: 'client_secret_basic' | 'client_secret_post' | 'none';
   grantTypes: string[];
@@ -232,6 +233,30 @@ const KNOWN_REDIRECT_PATTERNS: { pattern: RegExp; name: string }[] = [
   { pattern: /^http:\/\/localhost:\d+\/callback$/, name: 'Claude Code' },
   { pattern: /^http:\/\/127\.0\.0\.1:\d+\/callback$/, name: 'Claude Code' },
 ];
+
+// Logos hébergés par Suppernote (apps/dashboard/public/oauth-clients/), choisis par l'URI de
+// redirection et non par le client : un client tiers ne peut pas emprunter ces logos.
+// Pas de logo pour localhost : n'importe quelle application locale peut l'utiliser.
+const KNOWN_CLIENT_LOGOS: Record<string, string> = {
+  Claude: 'claude.png',
+  ChatGPT: 'chatgpt.png',
+};
+
+function knownClientLogoUrl(redirectUri: string): string | null {
+  const file = KNOWN_CLIENT_LOGOS[matchKnownRedirect(redirectUri) ?? ''];
+  if (!file || /^http:\/\/(localhost|127\.0\.0\.1)/.test(redirectUri)) return null;
+  return `${getPublicSiteUrl()}/oauth-clients/${file}`;
+}
+
+/** logo_uri facultatif : on garde une URL https raisonnable, sinon on l'ignore sans refuser. */
+function normalizeLogoUri(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048) return undefined;
+  try {
+    return new URL(value).protocol === 'https:' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function matchKnownRedirect(uri: string): string | null {
   for (const entry of KNOWN_REDIRECT_PATTERNS) {
@@ -438,6 +463,7 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
     }
     const body = req.body as {
       client_name?: string;
+      logo_uri?: unknown;
       redirect_uris?: string[];
       token_endpoint_auth_method?: string;
       grant_types?: string[];
@@ -478,6 +504,7 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
       clientSecretHash,
       redirectUris,
       clientName: body.client_name || 'mcp-client',
+      logoUri: normalizeLogoUri(body.logo_uri),
       createdAt: new Date().toISOString(),
       tokenEndpointAuthMethod,
       grantTypes,
@@ -491,6 +518,7 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send({
       client_id: clientId,
       client_name: client.clientName,
+      ...(client.logoUri ? { logo_uri: client.logoUri } : {}),
       redirect_uris: client.redirectUris,
       token_endpoint_auth_method: client.tokenEndpointAuthMethod,
       grant_types: client.grantTypes,
@@ -665,6 +693,7 @@ export async function oauthRoutes(app: FastifyInstance): Promise<void> {
       return reply.type('text/html').send(
         renderConsentPage({
           clientName: clientName,
+          clientLogoUrl: knownClientLogoUrl(query.redirect_uri) ?? client?.logoUri ?? null,
           clientId: query.client_id,
           redirectUri: query.redirect_uri,
           state: query.state || '',
@@ -1143,7 +1172,10 @@ const DAY_PAGE_CSS = `
       color: hsl(var(--day-paper));
       font-family: 'Fraunces', ui-serif, Georgia, serif;
       font-size: 20px;
+      overflow: hidden;
     }
+    .tile-client img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .tile-client img ~ span { display: none; }
     .tile-us { background: hsl(var(--day-paper)); }
     .tile-us img { display: block; width: 24px; height: 24px; object-fit: contain; }
     .dots { display: flex; gap: 4px; }
@@ -1203,6 +1235,7 @@ const DAY_PLAN_SVG = `<svg class="plan" viewBox="0 0 1440 900" preserveAspectRat
 
 function renderConsentPage(params: {
   clientName: string;
+  clientLogoUrl: string | null;
   clientId: string;
   redirectUri: string;
   state: string;
@@ -1215,6 +1248,7 @@ function renderConsentPage(params: {
 }): string {
   const {
     clientName,
+    clientLogoUrl,
     clientId,
     redirectUri,
     state,
@@ -1249,7 +1283,7 @@ ${DAY_PAGE_CSS}
   <main>
     <div class="card">
       <div class="pair">
-        <div class="tile tile-client" aria-hidden="true">${escapeHtml(clientInitial)}</div>
+        <div class="tile tile-client" aria-hidden="true">${clientLogoUrl ? `<img src="${escapeAttr(clientLogoUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()"/>` : ''}<span>${escapeHtml(clientInitial)}</span></div>
         <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="tile tile-us"><img src="${escapeAttr(getBrandIconUrl())}" alt="Suppernote" /></div>
       </div>

@@ -44,6 +44,22 @@
 - After setup: fill `.env` with staging keys. N'activer que les providers voice nécessaires à la
   campagne prévue, puis vérifier leur health check avant le premier déploiement.
 
+## Fiches de démo Paris (réglages reproductibles)
+
+Les fiches `chez-sokar-bistrot-paris`, `chez-sokar-neo-paris`, `chez-sokar-ramen-paris`, `chez-sokar-tapas-paris` et `chez-sokar-veggie-paris` doivent rester réservables par l'assistant (MCP). Leurs réglages (plan « Salle principale » avec 3 tables, horaires, capacité, créneaux exposés, MCP activé) ne viennent pas du seed : un reseed les efface. `scripts/ops/staging-demo-fixtures.sql` les réapplique.
+
+- **Quand** : après un reseed de staging, ou si les fiches ne sortent plus en recherche MCP par leur nom exact.
+- **Comment** :
+
+```zsh
+cd /opt/sokar-staging
+export DATABASE_URL="$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2-)"
+bash scripts/ops/apply-staging-demo-fixtures.sh
+```
+
+- **Résultat attendu** : `Contrôle final OK : fiches=5 plans=5 tables=15`.
+- **Garanties** : le wrapper refuse toute base autre que `sokar_staging`, et le SQL refait la même garde. Le script est idempotent, ne supprime rien (ni DROP, TRUNCATE ni DELETE) et ne change ni nom, ni slug, ni `site_status`, ni `connect_published` : les fiches restent masquées des recherches générales (`isHiddenDemoRestaurant`). Il copie horaires, capacité et créneaux depuis `chez-suppernote-demo` ; si cette fiche manque, rien n'est appliqué.
+
 ## Manual commands
 
 ```zsh

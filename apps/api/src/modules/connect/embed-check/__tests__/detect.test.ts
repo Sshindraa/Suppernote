@@ -98,6 +98,27 @@ describe('extractBookingLinks', () => {
   });
 });
 
+describe('extractBookingLinks — limites de mot', () => {
+  const anchor = (href: string, text: string) => `<a href="${href}">${text}</a>`;
+
+  it.each([
+    ['https://www.facebook.com/WordPress/', 'Visit our Facebook page'],
+    ['https://example.fr/notebook', 'Notebook'],
+  ])('ignore %s (« book » dans un autre mot)', (href, text) => {
+    expect(extractBookingLinks(anchor(href, text), PAGE)).toEqual([]);
+  });
+
+  it.each([
+    ['https://example.fr/booking/', 'Vérifier'],
+    ['https://example.fr/?book=1', 'Ici'],
+    ['https://example.fr/a', 'Book a table'],
+    ['https://example.fr/b', 'Réserver'],
+    ['https://example.fr/c', 'Réservation'],
+  ])('garde %s (« %s »)', (href, text) => {
+    expect(extractBookingLinks(anchor(href, text), PAGE)).toHaveLength(1);
+  });
+});
+
 describe('detectEmbedScript', () => {
   it('trouve embed.js Suppernote et compare le data-slug', () => {
     expect(detectEmbedScript(WORDPRESS_PAGE, PAGE, 'chez-x')).toEqual({

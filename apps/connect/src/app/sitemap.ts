@@ -15,7 +15,7 @@
  */
 
 import type { MetadataRoute } from 'next';
-import { isConnectDemoSlug } from '@suppernote/shared';
+import { isConnectDemoSlug, SUPPERNOTE_DEMO_SLUG } from '@suppernote/shared';
 import { fetchSitemapSources } from '@/lib/api-client';
 
 const SITE_URL = process.env.SITE_URL ?? 'https://suppernote.com';
@@ -29,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { restaurants: slugs, cities } = await fetchSitemapSources();
 
   const restaurantUrls: MetadataRoute.Sitemap = slugs
-    .filter((entry) => !isConnectDemoSlug(entry.slug))
+    .filter((entry) => entry.slug === SUPPERNOTE_DEMO_SLUG || !isConnectDemoSlug(entry.slug))
     .map((entry) => ({
       url: `${SITE_URL}/restaurant/${entry.slug}`,
       lastModified: new Date(entry.updatedAt ?? entry.publishedAt),

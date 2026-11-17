@@ -18,26 +18,6 @@ import type { PublicRestaurantDto } from '../connect.types';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { MARKETING_CONSENT_VERSION } from '@suppernote/shared';
 
-/**
- * Copie volontaire de l'invariant de publication (cf. `PUBLIC_CONNECT_WHERE`).
- * Le test doit énoncer le contrat indépendamment de l'implémentation : s'appuyer
- * sur la constante rendrait le contrôle insensible à la suppression d'une
- * condition, ce qui est précisément la dérive à détecter.
- */
-const EXPECTED_PUBLIC_PREDICATE = {
-  exposureSettings: { connectPublished: true },
-  publishedAt: { not: null },
-  slug: {
-    not: null,
-    notIn: expect.arrayContaining([
-      'chez-suppernote-demo',
-      'chez-sokar-demo',
-      'chez-sokar-bistrot-paris',
-    ]),
-  },
-  agenticOptIn: true,
-};
-
 vi.mock('../../marketing/marketing-consent.service', () => ({
   recordBookingMarketingConsent: vi
     .fn()
@@ -377,8 +357,38 @@ describe('Suppernote Connect — Routes publiques', () => {
       // Le sitemap doit annoncer exactement les fiches que la page détail
       // accepte de rendre : sinon il promet des URL en 404.
       expect(vi.mocked(db.restaurant.findMany)).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining(EXPECTED_PUBLIC_PREDICATE) }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            exposureSettings: { connectPublished: true },
+            publishedAt: { not: null },
+            agenticOptIn: true,
+            slug: { not: null },
+            siteStatus: { notIn: ['ARCHIVED', 'SUSPENDED'] },
+            OR: [
+              {
+                slug: {
+                  notIn: expect.arrayContaining([
+                    'chez-suppernote-demo',
+                    'chez-sokar-bistrot-paris',
+                  ]),
+                },
+              },
+              { slug: { in: expect.arrayContaining(['chez-suppernote-demo', 'chez-sokar-demo']) } },
+            ],
+          }),
+        }),
       );
+    });
+
+    it('ne publie qu’une URL canonique si les deux slugs de démo coexistent', async () => {
+      vi.mocked(db.restaurant.findMany).mockResolvedValue([
+        { slug: 'chez-suppernote-demo', updatedAt: new Date(), publishedAt: new Date() },
+        { slug: 'chez-sokar-demo', updatedAt: new Date(), publishedAt: new Date() },
+      ] as unknown as Awaited<ReturnType<typeof db.restaurant.findMany>>);
+      const res = await app.inject({ method: 'GET', url: '/public/sitemap-data' });
+      expect(res.json().restaurants.map((row: { slug: string }) => row.slug)).toEqual([
+        'chez-suppernote-demo',
+      ]);
     });
 
     it('filtre les slugs null', async () => {

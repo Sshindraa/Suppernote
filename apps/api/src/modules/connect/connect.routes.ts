@@ -26,7 +26,9 @@ import {
 import { createWhatsAppReminderConsent, withdrawWhatsAppReminderConsent } from './whatsapp-consent';
 import {
   canonicalDemoSlug,
+  CONNECT_DEMO_SLUGS,
   getDemoSlugAlias,
+  OFFICIAL_DEMO_SLUGS,
   slugifyCity,
   slugifyCuisine,
 } from '@suppernote/shared';
@@ -338,7 +340,14 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
     },
     async (_req, reply) => {
       const rows = await db.restaurant.findMany({
-        where: DISCOVERABLE_CONNECT_WHERE,
+        where: {
+          ...DISCOVERABLE_CONNECT_WHERE,
+          slug: { not: null },
+          OR: [
+            { slug: { notIn: [...CONNECT_DEMO_SLUGS] } },
+            { slug: { in: [...OFFICIAL_DEMO_SLUGS] } },
+          ],
+        },
         select: {
           slug: true,
           updatedAt: true,
@@ -346,8 +355,15 @@ export async function connectRoutes(app: FastifyInstance): Promise<void> {
         },
         orderBy: { updatedAt: 'desc' },
       });
+      const seenSlugs = new Set<string>();
       const restaurants = rows
         .filter((r): r is typeof r & { slug: string } => r.slug !== null)
+        .filter((r) => {
+          const slug = canonicalDemoSlug(r.slug);
+          if (seenSlugs.has(slug)) return false;
+          seenSlugs.add(slug);
+          return true;
+        })
         .map((r) => ({
           slug: canonicalDemoSlug(r.slug),
           updatedAt: (r.updatedAt ?? new Date()).toISOString(),

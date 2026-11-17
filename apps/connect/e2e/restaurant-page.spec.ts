@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  *
  * Test la page la plus simple de Connect : la fiche restaurant publique.
  * Vérifie que la page charge, que le nom du restaurant s'affiche, que les
- * informations pratiques (adresse, téléphone) sont présentes, et que le CTA
+ * informations pratiques de la démo sont présentes, et que le CTA
  * "Réserver une table" est visible.
  *
  * Nécessite l'API Fastify (localhost:4000 en dev, 4100 en staging) + DB seedée
@@ -56,20 +56,17 @@ test.describe('Page restaurant publique', () => {
     await expect(cta).toBeVisible();
   });
 
-  test('affiche les informations du restaurant (adresse et téléphone)', async ({ page }) => {
+  test('identifie les informations fictives sans liens vers un lieu réel', async ({ page }) => {
     await page.goto(`/restaurant/${RESTAURANT_SLUG}`);
 
     // Section "Informations"
     const infoHeading = page.getByRole('heading', { name: /informations/i });
     await expect(infoHeading).toBeVisible();
 
-    // L'adresse est un lien vers Google Maps
-    const addressLink = page.getByRole('link', { name: /maps/i });
-    // L'adresse contient au moins un lien dans la section informations
-    // On vérifie que le label "Adresse" est présent
-    await expect(page.getByText('Adresse')).toBeVisible();
-    // Le téléphone est un lien tel:
-    await expect(page.getByText('Téléphone')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Adresse', exact: true })).toBeVisible();
+    await expect(page.getByText(/adresse fictive/i)).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+    await expect(page.locator('a[href*="google.com/maps"]')).toHaveCount(0);
   });
 
   test('affiche la section disponibilités ou horaires', async ({ page }) => {

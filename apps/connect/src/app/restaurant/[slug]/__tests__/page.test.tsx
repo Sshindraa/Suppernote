@@ -5,6 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
 import type { PublicRestaurantDto } from '@/lib/api-client';
 
 const mocks = vi.hoisted(() => ({
@@ -57,6 +58,114 @@ async function render(overrides: Partial<PublicRestaurantDto> = {}) {
 }
 
 const askedDate = () => mocks.fetchAvailability.mock.calls[0][1].date as string;
+
+describe('aperçu des disponibilités', () => {
+  it.each([
+    [null, 'Les disponibilités sont momentanément indisponibles.', 'Aucun créneau disponible'],
+    [{ slots: [] }, 'Aucun créneau disponible', 'momentanément indisponibles'],
+  ])('distingue une panne d’une liste vide', async (availability, expected, absent) => {
+    mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
+    mocks.fetchAvailability.mockResolvedValue(availability);
+    const page = await RestaurantPage({
+      params: Promise.resolve({ slug: restaurant.slug }),
+      searchParams: Promise.resolve({}),
+    });
+    const html = renderToStaticMarkup(page);
+
+    expect(html).toContain(expected);
+    expect(html).not.toContain(absent);
+  });
+});
+
+describe('coordonnées de la fiche de démonstration', () => {
+  it('ne présente pas les autres restaurants de test comme Chez Suppernote', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue({
+      ...restaurant,
+      slug: 'chez-sokar-bistrot-paris',
+      name: 'Bistrot de Paris',
+      address: { ...restaurant.address, city: 'Paris' },
+    });
+    mocks.fetchAvailability.mockResolvedValue({ slots: [] });
+    const html = renderToStaticMarkup(
+      await RestaurantPage({
+        params: Promise.resolve({ slug: 'chez-sokar-bistrot-paris' }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(html).toContain('Bistrot de Paris');
+    expect(html).not.toContain('Un bistrot de quartier imaginé à Lyon');
+    expect(html).not.toContain('Bistrot de démonstration');
+  });
+
+  it('indique les jours fermés quand les horaires sont renseignés', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue({
+      ...restaurant,
+      openingHours: [{ day: 'tuesday', open: '12:00', close: '22:00' }],
+    });
+    mocks.fetchAvailability.mockResolvedValue({ slots: [] });
+    const page = await RestaurantPage({
+      params: Promise.resolve({ slug: restaurant.slug }),
+      searchParams: Promise.resolve({}),
+    });
+    const html = renderToStaticMarkup(page);
+    expect(html).toMatch(/Lundi<\/dt><dd>Fermé/);
+    expect(html).toMatch(/Mardi<\/dt><dd><span>12:00–22:00/);
+    expect(html).toMatch(/Dimanche<\/dt><dd>Fermé/);
+  });
+
+  it('signale et désactive la réservation dans l’aperçu local uniquement', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
+    mocks.fetchAvailability.mockResolvedValue({ slots: [] });
+    const params = {
+      params: Promise.resolve({ slug: restaurant.slug }),
+      searchParams: Promise.resolve({ localPreview: '1' }),
+    };
+    vi.stubEnv('NODE_ENV', 'development');
+    try {
+      const html = renderToStaticMarkup(await RestaurantPage(params));
+      expect(html).toContain('La réservation n’est pas disponible dans cet aperçu local.');
+      expect(html).toContain('Réservation indisponible');
+      expect(html).not.toContain('href="/book/');
+      vi.stubEnv('NODE_ENV', 'production');
+      const productionHtml = renderToStaticMarkup(await RestaurantPage(params));
+      expect(productionHtml).toContain('href="/book/');
+      expect(productionHtml).not.toContain(
+        'La réservation n’est pas disponible dans cet aperçu local.',
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('présente les coordonnées fictives sans liens vers un téléphone ou une carte', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
+    mocks.fetchAvailability.mockResolvedValue({ slots: [] });
+    const page = await RestaurantPage({
+      params: Promise.resolve({ slug: 'chez-suppernote-demo' }),
+      searchParams: Promise.resolve({}),
+    });
+    const html = renderToStaticMarkup(page);
+
+    expect(html).toMatch(/adresse fictive/i);
+    expect(html).toContain('Illustration générée par IA');
+    expect(html).not.toContain('tel:+33102030405');
+    expect(html).not.toContain('google.com/maps/search');
+    expect(html).not.toContain('application/ld+json');
+  });
+
+  it('conserve les liens pour un restaurant réel', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue({ ...restaurant, slug: 'bistrot-reel' });
+    mocks.fetchAvailability.mockResolvedValue({ slots: [] });
+    const page = await RestaurantPage({
+      params: Promise.resolve({ slug: 'bistrot-reel' }),
+      searchParams: Promise.resolve({}),
+    });
+    const html = renderToStaticMarkup(page);
+
+    expect(html).toContain('tel:+33102030405');
+    expect(html).toContain('google.com/maps/search');
+  });
+});
 
 describe('page restaurant Connect : « aujourd’hui »', () => {
   beforeEach(() => {
@@ -112,7 +221,8 @@ describe('page restaurant Connect : « aujourd’hui »', () => {
 
 describe('indexabilité des fiches', () => {
   it.each([
-    ['chez-suppernote-demo', false],
+    ['chez-suppernote-demo', true],
+    ['chez-sokar-demo', false],
     ['chez-sokar-bistrot-paris', false],
     ['chez-sokar', true],
   ])('%s index=%s, sans exclusion par préfixe', async (slug, index) => {
@@ -122,6 +232,31 @@ describe('indexabilité des fiches', () => {
       searchParams: Promise.resolve({}),
     });
     expect(meta.robots).toMatchObject({ index, follow: true, googleBot: { index } });
+  });
+
+  it.each([{ preview: '1' }, { testBooking: 'abc' }, { testBooking: '' }, { localPreview: '1' }])(
+    'ne permet pas l’indexation des aperçus ni des réservations test (%s)',
+    async (searchParams) => {
+      mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
+      const meta = await generateMetadata({
+        params: Promise.resolve({ slug: restaurant.slug }),
+        searchParams: Promise.resolve(searchParams),
+      });
+      expect(meta.robots).toMatchObject({ index: false, googleBot: { index: false } });
+    },
+  );
+
+  it('décrit la démo sans la présenter comme un restaurant réel', async () => {
+    mocks.fetchPublicRestaurant.mockResolvedValue(restaurant);
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: restaurant.slug }),
+      searchParams: Promise.resolve({}),
+    });
+    expect(meta.title).toMatch(/démonstration/i);
+    expect(meta.description).toContain('fictif');
+    expect(meta.alternates?.canonical).toBe(
+      'https://suppernote.com/restaurant/chez-suppernote-demo',
+    );
   });
 });
 

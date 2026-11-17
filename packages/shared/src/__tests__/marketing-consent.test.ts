@@ -3,8 +3,11 @@ import {
   buildCombinedMarketingConsentLabel,
   buildCombinedMarketingConsentProof,
   buildMarketingConsentLabel,
+  buildEmailMarketingConsentLabel,
+  buildEmailMarketingConsentProof,
   buildMarketingConsentProof,
   describeMarketingConsentSource,
+  MARKETING_CONSENT_EMAIL_VERSION,
   MARKETING_CONSENT_CHANNELS,
   MARKETING_CONSENT_COLLECTION_LABELS,
   MARKETING_CONSENT_COLLECTION_METHODS,
@@ -66,5 +69,19 @@ describe('marketing consent wording', () => {
       'Page de réservation Suppernote Connect',
     );
     expect(describeMarketingConsentSource('PILOT_INTERNAL')).toBe('PILOT_INTERNAL');
+  });
+});
+
+describe('consentement e-mail seul (17/11/2026)', () => {
+  it('affiche la phrase validée, avec le retrait et la désinscription', () => {
+    expect(buildEmailMarketingConsentLabel('Chez Suppernote')).toBe(
+      'Recevoir les offres, nouveautés et événements du restaurant Chez Suppernote par e-mail. Vous pouvez retirer votre accord à tout moment, par le lien de désinscription présent dans chaque message.',
+    );
+  });
+
+  it('enregistre une preuve qui commence par la nouvelle version et ne mentionne jamais le SMS', () => {
+    const proof = buildEmailMarketingConsentProof('Chez Suppernote');
+    expect(proof.startsWith(`${MARKETING_CONSENT_EMAIL_VERSION}|EMAIL|`)).toBe(true);
+    expect(proof).not.toContain('SMS');
   });
 });

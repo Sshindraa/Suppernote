@@ -48,7 +48,7 @@ export function DemoRestaurant({
           <a className={styles.wordmark} href="#main-content">
             Chez Suppernote<span> Bistrot de démonstration</span>
           </a>
-          <nav aria-label="Navigation du restaurant">
+          <nav className={styles.navLinks} aria-label="Navigation du restaurant">
             <a href="#informations">Horaires et lieu</a>
             <a href="#reservation">
               Réserver <span aria-hidden="true">↗</span>
@@ -111,7 +111,7 @@ export function DemoRestaurant({
                       {Object.entries(dayLabels).map(([day, label]) => {
                         const periods = restaurant.openingHours.filter((hour) => hour.day === day);
                         return (
-                          <div key={day}>
+                          <div key={day} className={styles.hoursRow}>
                             <dt>{label}</dt>
                             <dd>
                               {periods.length

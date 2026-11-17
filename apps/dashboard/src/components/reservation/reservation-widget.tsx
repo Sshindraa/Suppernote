@@ -292,6 +292,14 @@ function postWidgetResize(height: number, parentOrigin: string): void {
   for (const type of WIDGET_RESIZE_TYPES) window.parent.postMessage({ type, height }, parentOrigin);
 }
 
+/** Événements sans donnée personnelle : jamais de nom, téléphone ou identifiant de réservation. */
+function postWidgetEvent(
+  type: 'suppernote-widget-ready' | 'suppernote-booked',
+  parentOrigin: string,
+) {
+  window.parent.postMessage({ type }, parentOrigin);
+}
+
 export default function ReservationWidget({
   restaurantId,
   query: searchParams = emptyQuery,
@@ -302,7 +310,10 @@ export default function ReservationWidget({
   modification?: WidgetModification;
 }) {
   const requestedDateParam = searchParams.get('date');
-  const requestedPartySize = parseRequestedPartySize(searchParams.get('partySize'));
+  // `party` est le nom demandé par le snippet hôte ; `partySize` reste accepté (liens existants).
+  const requestedPartySize = parseRequestedPartySize(
+    searchParams.get('party') ?? searchParams.get('partySize'),
+  );
   const requestedTime = parseRequestedTime(searchParams.get('time'));
   const requestedDate = parseRequestedDate(requestedDateParam, new Date());
   const isEmbedded = Boolean(modification) || searchParams.get('embedded') === '1';
@@ -502,6 +513,21 @@ export default function ReservationWidget({
       }
     })();
   }, [restaurantId, requestedDateParam, modification]);
+
+  // Signale au site hôte que le formulaire est prêt : une fois, à l'origine validée du parent.
+  const isRestaurantReady = Boolean(restaurant);
+  useEffect(() => {
+    if (modification || !isEmbedded || !isRestaurantReady) return;
+    const parentOrigin = getParentOrigin(explicitParentOrigin);
+    if (parentOrigin) postWidgetEvent('suppernote-widget-ready', parentOrigin);
+  }, [isRestaurantReady, isEmbedded, explicitParentOrigin, modification]);
+
+  // Réservation confirmée (pas de test, pas de carte à empreinte) : même origine que le resize.
+  useEffect(() => {
+    if (!success || modification || !isEmbedded || testBooking) return;
+    const parentOrigin = getParentOrigin(explicitParentOrigin);
+    if (parentOrigin) postWidgetEvent('suppernote-booked', parentOrigin);
+  }, [success, isEmbedded, explicitParentOrigin, modification, testBooking]);
 
   const dateBounds = useMemo(() => {
     const first = new Date();

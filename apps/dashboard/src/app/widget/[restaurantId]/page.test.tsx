@@ -1003,3 +1003,119 @@ describe('consentement marketing et liste d’attente', () => {
     expect(widget.queryByText(/no_table_available/)).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Messages hôte : ready au chargement, booked après confirmation, préremplissage `party`.
+// ---------------------------------------------------------------------------
+
+describe('widget embarqué — messages hôte et préremplissage', () => {
+  /** Rend le widget embarqué ; le spy remplace window.parent.postMessage. */
+  function renderEmbedded(search: string, referrer = '') {
+    navMocks.setParams({ restaurantId: 'chez-sokar' });
+    navMocks.setSearch(search);
+    setReferrer(referrer);
+    const postMessageSpy = vi.fn();
+    vi.spyOn(window.parent, 'postMessage').mockImplementation(postMessageSpy);
+    const fetchSpy = makeFetchSpy();
+    vi.stubGlobal('fetch', fetchSpy);
+    const utils = render(<ReservationWidget />);
+    return { postMessageSpy, fetchSpy, ...utils };
+  }
+
+  it('envoie ready uniquement à parentOrigin, jamais à "*"', async () => {
+    const { postMessageSpy } = renderEmbedded(
+      'embedded=1&parentOrigin=https%3A%2F%2Fchez-hote.example',
+    );
+    await waitFor(() =>
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        { type: 'suppernote-widget-ready' },
+        'https://chez-hote.example',
+      ),
+    );
+    for (const [, target] of postMessageSpy.mock.calls) {
+      expect(target).toBe('https://chez-hote.example');
+    }
+  });
+
+  it("n'envoie aucun message hôte si parentOrigin est invalide et le referrer vide", async () => {
+    const { postMessageSpy, fetchSpy } = renderEmbedded(
+      'embedded=1&parentOrigin=javascript%3Aalert(1)',
+    );
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    const hostEvents = postMessageSpy.mock.calls.filter(
+      ([msg]) =>
+        (msg as { type?: string })?.type === 'suppernote-widget-ready' ||
+        (msg as { type?: string })?.type === 'suppernote-booked',
+    );
+    expect(hostEvents).toHaveLength(0);
+  });
+
+  it('préremplit le nombre de couverts depuis `party`', async () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    const dateValue = dateParam(date);
+    const { fetchSpy } = renderEmbedded(`embedded=1&date=${dateValue}&party=4`);
+    await waitFor(() =>
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`/availability?date=${dateValue}&partySize=4`),
+        expect.any(Object),
+      ),
+    );
+  });
+
+  it('envoie booked à parentOrigin après confirmation, sans donnée personnelle', async () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    const dateValue = dateParam(date);
+    navMocks.setParams({ restaurantId: 'chez-sokar' });
+    navMocks.setSearch(
+      new URLSearchParams({
+        embedded: '1',
+        parentOrigin: 'https://chez-hote.example',
+        date: dateValue,
+        time: '20:30',
+        party: '2',
+      }).toString(),
+    );
+    const postMessageSpy = vi.fn();
+    vi.spyOn(window.parent, 'postMessage').mockImplementation(postMessageSpy);
+    const fetchSpy = vi.fn(async (url: string) => {
+      if (url.includes('/availability'))
+        return jsonResponse({
+          restaurantId: 'r1',
+          date: dateValue,
+          partySize: 2,
+          slots: ['20:30'],
+        });
+      if (url.endsWith('/hold')) return jsonResponse({ holdToken: crypto.randomUUID() });
+      if (url.endsWith('/confirm'))
+        return jsonResponse({
+          reservationId: 'res-1',
+          status: 'confirmed',
+          managementUrl: '/r?res-1',
+        });
+      return bookingRestaurantResponse();
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const widget = render(<ReservationWidget />);
+    fireEvent.click(await widget.findByRole('button', { name: /Continuer · 20h30/ }));
+    fireEvent.change(await widget.findByLabelText('Nom complet *'), {
+      target: { value: 'Recette Suppernote' },
+    });
+    fireEvent.change(widget.getByLabelText('Téléphone *'), { target: { value: '0600000000' } });
+    fireEvent.click(widget.getByRole('button', { name: 'Réserver ma table' }));
+
+    expect(await widget.findByText('Confirmée')).toBeTruthy();
+    const booked = postMessageSpy.mock.calls.filter(
+      ([msg]) => (msg as { type?: string })?.type === 'suppernote-booked',
+    );
+    expect(booked).toEqual([[{ type: 'suppernote-booked' }, 'https://chez-hote.example']]);
+    const everything = JSON.stringify(postMessageSpy.mock.calls);
+    expect(everything).not.toContain('Recette');
+    expect(everything).not.toContain('0600000000');
+    expect(everything).not.toContain('res-1');
+  });
+});

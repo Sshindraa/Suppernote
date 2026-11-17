@@ -8,7 +8,7 @@ export const metadata = PRICING_METADATA;
 export default function PricingPage() {
   return (
     <MarketingShell>
-      <main className="day-deep relative z-10 flex w-full flex-col items-center">
+      <main className="day-deep relative z-10 w-full">
         <section className="day-paper w-full px-5 pb-10 pt-32 text-center sm:px-8 lg:pt-40">
           <div className="mx-auto max-w-3xl">
             <p className="day-hero-muted mb-5 text-sm font-semibold">Les formules Suppernote</p>

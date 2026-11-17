@@ -76,14 +76,14 @@ export default function AiAssistantsPage() {
           </ol>
 
           <section aria-labelledby="ajouter-title" className="mt-14">
-            <h2 id="ajouter-title" className="mb-5 text-xl font-semibold tracking-tight">
+            <h2 id="ajouter-title" className="mb-5 font-brand text-2xl font-medium tracking-tight">
               Ajouter Suppernote à votre assistant
             </h2>
             <AssistantSetup />
           </section>
 
           <section aria-labelledby="donnees-title" className="mt-14">
-            <h2 id="donnees-title" className="text-xl font-semibold tracking-tight">
+            <h2 id="donnees-title" className="font-brand text-2xl font-medium tracking-tight">
               Vos données
             </h2>
             <p className="mt-3 text-muted-foreground">

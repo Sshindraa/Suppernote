@@ -18,8 +18,8 @@ export default function FaqSection() {
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.08),transparent_28rem)]" />
       <div className="text-center max-w-lg mb-8 sm:mb-10 px-2">
-        <h2 className="text-xl sm:text-2xl md:text-4xl font-bold tracking-tight text-white font-display">
-          Foire Aux Questions
+        <h2 className="font-brand text-[2.5rem] font-medium leading-[1.04] tracking-tight lg:text-[clamp(2.75rem,4.8vw,4.5rem)]">
+          Foire aux questions
         </h2>
         <p className="mt-2 text-xs sm:text-sm text-white/50 leading-relaxed font-sans">
           Tout ce que vous devez savoir pour déployer Suppernote dans votre établissement.

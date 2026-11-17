@@ -42,7 +42,7 @@ describe('sitemap', () => {
     );
   });
 
-  it('inclut la démo officielle et exclut les autres fixtures', async () => {
+  it('exclut toutes les fiches fictives, démo officielle comprise', async () => {
     api.fetchSitemapSources.mockResolvedValue({
       restaurants: [
         publishedRestaurant,
@@ -54,7 +54,7 @@ describe('sitemap', () => {
     });
     const urls = (await sitemap()).map((entry) => entry.url);
     expect(urls).toContain(`${SITE}/restaurant/chez-sokar`);
-    expect(urls).toContain(`${SITE}/restaurant/chez-suppernote-demo`);
+    expect(urls).not.toContain(`${SITE}/restaurant/chez-suppernote-demo`);
     expect(urls).not.toContain(`${SITE}/restaurant/chez-sokar-demo`);
     expect(urls).not.toContain(`${SITE}/restaurant/chez-sokar-bistrot-paris`);
     expect(urls).not.toContain(`${SITE}/solutions/assistant-telephonique-restaurant`);

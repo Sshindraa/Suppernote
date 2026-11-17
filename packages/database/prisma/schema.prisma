@@ -516,11 +516,6 @@ model Reservation {
   confirmationSentAt DateTime?          @map("confirmation_sent_at")
   confirmedAt        DateTime?          @map("confirmed_at")
 
-  // Lien court de gestion dans le SMS : code aléatoire par réservation, résolu par l'API.
-  // Le téléphone n'est stocké que sous forme d'empreinte HMAC (changement = code invalide).
-  managementShortCode      String?  @unique @map("management_short_code")
-  managementShortCodePhone String?  @map("management_short_code_phone")
-
   auditLog ReservationAuditLog[]
 
   // Floor plan (P1)

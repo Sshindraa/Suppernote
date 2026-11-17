@@ -456,52 +456,6 @@ input[type='range']::-moz-range-thumb:hover {
 }
 
 /* ===== PRICING SECTION — Tokenized Glassmorphism ===== */
-.pricing-hero-title {
-  font-size: clamp(2.5rem, 4rem + 12vw, 14rem);
-  font-weight: 800;
-  letter-spacing: -0.075em;
-  line-height: 0.66;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--pricing-accent) / 0.12),
-    hsl(var(--pricing-accent-glow) / 0.72),
-    hsl(var(--foreground) / 0.2)
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  pointer-events: none;
-  user-select: none;
-  text-shadow: 0 0 56px hsl(var(--pricing-accent) / 0.45);
-}
-@media (max-width: 640px) {
-  .pricing-hero-title {
-    font-size: 2.75rem;
-    line-height: 1.1;
-    text-shadow: 0 0 24px hsl(var(--pricing-accent) / 0.3);
-  }
-}
-.pricing-hero-kicker {
-  position: absolute;
-  left: 63%;
-  top: 96px;
-  font-size: clamp(2.1rem, 4vw, 4.4rem);
-  font-weight: 700;
-  letter-spacing: -0.05em;
-  color: hsl(var(--foreground) / 0.88);
-  text-shadow: 0 0 34px hsl(var(--pricing-accent) / 0.55);
-  white-space: nowrap;
-}
-@media (max-width: 640px) {
-  .pricing-hero-kicker {
-    position: static;
-    font-size: 1.25rem;
-    margin-top: 0.5rem;
-    text-shadow: 0 0 15px hsl(var(--pricing-accent) / 0.4);
-    display: block;
-  }
-}
-
 .pricing-card {
   min-height: 27rem;
   background:

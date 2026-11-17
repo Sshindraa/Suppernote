@@ -86,7 +86,9 @@ export default function DemoRequestForm() {
           <CheckCircle2 size={20} aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Demande bien enregistrée</h2>
+          <h2 className="font-brand text-2xl font-medium text-foreground">
+            Demande bien enregistrée
+          </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Nous vous recontactons par e-mail pour convenir d’un créneau de démonstration.
           </p>

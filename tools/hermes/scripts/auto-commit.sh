@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -n "$REPO_ROOT" ] || REPO_ROOT="/Users/hamza/Projects/Sokar"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" && [ -n "$REPO_ROOT" ] || REPO_ROOT="/Users/hamza/Projects/Suppernote"
 cd "$REPO_ROOT"
 
 # ── Couleurs ──

@@ -15,12 +15,19 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   searchParams: new URLSearchParams(),
   replace: vi.fn(),
+  customerChanges: [] as unknown[],
 }));
 
 vi.mock('sonner', () => ({ toast: { success: mocks.toastSuccess, error: mocks.toastError } }));
 
 vi.mock('@/lib/api', () => ({
   useApi: () => mocks,
+}));
+
+// Le hook a sa propre requête ; la garder hors de `mocks.get` laisse les séquences de réponses intactes.
+vi.mock('@/components/reservation/customer-changes', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/reservation/customer-changes')>()),
+  useCustomerChanges: () => mocks.customerChanges,
 }));
 
 vi.mock('@/lib/useMediaQuery', () => ({
@@ -611,6 +618,26 @@ describe('ReservationsPage', () => {
     expect(
       screen.queryByRole('button', { name: 'Autres actions pour Alice' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('signale une réservation modifiée par le client, avec un bandeau', async () => {
+    mocks.get.mockResolvedValue([makeReservation({ state: 'CONFIRMED' })]);
+    mocks.customerChanges = [
+      {
+        reservationId: 'r1',
+        kind: 'modified',
+        at: new Date(2099, 5, 5, 18, 2).toISOString(),
+        customerName: 'Alice',
+        partySize: 4,
+        startsAt: new Date(2099, 5, 5, 21, 30).toISOString(),
+        previousStartsAt: new Date(2099, 5, 5, 20).toISOString(),
+        previousPartySize: 4,
+      },
+    ];
+    render(<ReservationsPage />);
+    expect(await screen.findByText('Modifiée par le client à 18:02')).toBeInTheDocument();
+    expect(screen.getByText('1 changement fait par un client')).toBeInTheDocument();
+    mocks.customerChanges = [];
   });
 
   it('termine le service via la transition canonique et recharge la réponse serveur', async () => {

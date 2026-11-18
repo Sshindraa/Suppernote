@@ -19,7 +19,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { ErasureService, ErasureSubjectNotFoundError } from './erasure.service';
 import { ExportService, ExportSubjectNotFoundError } from './export.service';
-import { ConsentService } from './consent.service';
+import { withdrawSubjectMarketing } from './marketing-withdrawal.service';
 import { PRIVACY_POLICY_TEXT, PRIVACY_POLICY_SUMMARY } from './privacy-policy';
 import {
   IdentityVerificationService,
@@ -64,7 +64,6 @@ const ExportSchema = z.object({
 export async function rgpdRoutes(app: FastifyInstance): Promise<void> {
   const erasureService = new ErasureService(db);
   const exportService = new ExportService(db);
-  const consentService = new ConsentService(db);
   const verificationService = new IdentityVerificationService(db, redisCache);
 
   // ─── 1. Demande de vérification d'identité ──────────────
@@ -247,7 +246,15 @@ export async function rgpdRoutes(app: FastifyInstance): Promise<void> {
         if (err instanceof ErasureSubjectNotFoundError) {
           return reply.status(404).send({ code: 'SUBJECT_NOT_FOUND', error: err.message });
         }
-        logger.error({ err }, 'rgpd erase failed');
+        // Transaction annulée (jeton compris) : la même demande peut être rejouée.
+        if (err instanceof Error && err.message === 'MARKETING_OPTOUT_REGISTER_UNAVAILABLE') {
+          return reply.status(503).send({
+            code: 'MARKETING_OPTOUT_REGISTER_UNAVAILABLE',
+            error: 'Opposition register unavailable, retry the request',
+          });
+        }
+        // Nom d'erreur seulement : le message Prisma peut contenir le numéro du sujet.
+        logger.error({ err: err instanceof Error ? err.name : 'unknown' }, 'rgpd erase failed');
         return reply.status(500).send({ error: 'Internal error' });
       }
     },
@@ -302,9 +309,24 @@ export async function rgpdRoutes(app: FastifyInstance): Promise<void> {
           error: 'Verified identity does not match the subject in the payload',
         });
       }
-      const subjectHash = ConsentService.hashSubject(parse.data.subject);
-      const result = await consentService.withdrawMarketingOptIn(subjectHash);
-      return reply.send({ ok: true, updated: result.count });
+      try {
+        const result = await withdrawSubjectMarketing({ prisma: db, subject: parse.data.subject });
+        return reply.send({
+          ok: true,
+          updated: result.consentsWithdrawn,
+          customersWithdrawn: result.customersWithdrawn,
+        });
+      } catch (err) {
+        // Registre d'opposition indisponible : rien n'est validé côté personne, la requête peut être rejouée.
+        if (err instanceof Error && err.message === 'MARKETING_OPTOUT_REGISTER_UNAVAILABLE') {
+          return reply.status(503).send({
+            code: 'MARKETING_OPTOUT_REGISTER_UNAVAILABLE',
+            error: 'Opposition register unavailable, retry the request',
+          });
+        }
+        logger.error({ err: err instanceof Error ? err.name : 'unknown' }, 'rgpd withdraw failed');
+        return reply.status(500).send({ error: 'Internal error' });
+      }
     },
   );
 

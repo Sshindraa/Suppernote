@@ -38,6 +38,21 @@ import {
   registerMarketingOptOut,
 } from '../marketing/marketing-opt-out.service';
 
+// Champs de payload de checkout cadeau qui identifient une personne (les montants et codes restent).
+const GIFT_CARD_CHECKOUT_PII_KEYS = [
+  'senderName',
+  'senderEmail',
+  'senderPhone',
+  'recipientName',
+  'recipientEmail',
+  'recipientPhone',
+  'creatorName',
+  'creatorEmail',
+  'contributorName',
+  'contributorEmail',
+  'message',
+];
+
 export class ErasureSubjectNotFoundError extends Error {
   constructor(message: string) {
     super(message);
@@ -66,6 +81,11 @@ export type ErasureResult = {
   marketingFrequencyWindowsRemoved: number;
   marketingAttributionLinksRemoved: number;
   marketingAutomationDispatchesRemoved: number;
+  giftCardsAnonymized: number;
+  giftCardContributionsAnonymized: number;
+  giftCardCheckoutsScrubbed: number;
+  giftCardDeliveriesCancelled: number;
+  loyaltyGrantNotesRemoved: number;
   erasedAt: Date;
 };
 
@@ -107,6 +127,12 @@ export class ErasureService {
       where: { callerPhone: subjectPhones },
       select: { id: true },
     });
+    const sampleGiftCard = this.prisma.giftCard
+      ? await this.prisma.giftCard.findFirst({
+          where: { OR: [{ senderPhone: subjectPhones }, { recipientPhone: subjectPhones }] },
+          select: { id: true },
+        })
+      : null;
     const sampleConsent = await this.prisma.customerConsent.findFirst({
       where: { subjectHash: subjectHashes },
       select: { id: true },
@@ -134,7 +160,13 @@ export class ErasureService {
       : [];
     const crmCustomerIds = crmCustomers.map((customer) => customer.id);
 
-    if (!sampleReservation && !sampleCall && !sampleConsent && crmCustomers.length === 0) {
+    if (
+      !sampleReservation &&
+      !sampleCall &&
+      !sampleGiftCard &&
+      !sampleConsent &&
+      crmCustomers.length === 0
+    ) {
       throw new ErasureSubjectNotFoundError(
         `No data found for subject hash ${subjectHash.slice(0, 8)}…`,
       );
@@ -157,6 +189,13 @@ export class ErasureService {
     let experienceReservationsDetached = 0;
     let eventOrdersDetached = 0;
     let eventWaitlistEntriesDetached = 0;
+    let giftCardIds: string[] = [];
+    let giftCardsAnonymized = 0;
+    let giftCardContributionsAnonymized = 0;
+    let giftCardCheckoutsScrubbed = 0;
+    let giftCardDeliveriesCancelled = 0;
+    let loyaltyGrantNotesRemoved = 0;
+    let subjectEmails: string[] = [];
     let callsAnonymized = 0;
     let consentsRetained = 0;
     const reservationsAnonymized = await this.prisma.$transaction(async (tx) => {
@@ -192,6 +231,9 @@ export class ErasureService {
             select: { customerId: true, channel: true, withdrawnAt: true },
           }),
         ]);
+        subjectEmails = [
+          ...new Set(contacts.map((contact) => contact.emailNormalized).filter(Boolean)),
+        ] as string[];
         for (const contact of contacts) {
           const oppositions = [
             ...complaints
@@ -305,6 +347,17 @@ export class ErasureService {
         };
         eventOrder?: { updateMany: (args: unknown) => Promise<{ count: number }> };
         eventWaitlistEntry?: { updateMany: (args: unknown) => Promise<{ count: number }> };
+        giftCard?: {
+          findMany: (args: unknown) => Promise<{ id: string }[]>;
+          updateMany: (args: unknown) => Promise<{ count: number }>;
+        };
+        giftCardContribution?: { updateMany: (args: unknown) => Promise<{ count: number }> };
+        giftCardCheckout?: {
+          findMany: (args: unknown) => Promise<{ id: string; payload: unknown }[]>;
+          update: (args: unknown) => Promise<unknown>;
+        };
+        giftCardDelivery?: { updateMany: (args: unknown) => Promise<{ count: number }> };
+        loyaltyGrant?: { updateMany: (args: unknown) => Promise<{ count: number }> };
       };
       if (txWithCrm.experienceReservation) {
         const experienceReservationWhere = {
@@ -500,6 +553,116 @@ export class ErasureService {
         },
       });
       callsAnonymized = messageResult.count + callResult.count;
+      // Cartes cadeaux : noms, contacts et messages du sujet partent ; montant, solde, code,
+      // statut et paiements restent pour la comptabilité.
+      const emailIs = (email: string) => ({ equals: email, mode: 'insensitive' as const });
+      if (txWithCrm.giftCard) {
+        const senderWhere = {
+          OR: [
+            { senderPhone: subjectPhones },
+            ...(crmCustomerIds.length > 0 ? [{ customerId: { in: crmCustomerIds } }] : []),
+            ...subjectEmails.map((email) => ({ senderEmail: emailIs(email) })),
+          ],
+        };
+        const recipientWhere = {
+          OR: [
+            { recipientPhone: subjectPhones },
+            ...subjectEmails.map((email) => ({ recipientEmail: emailIs(email) })),
+          ],
+        };
+        giftCardIds = (
+          await txWithCrm.giftCard.findMany({
+            where: { OR: [senderWhere, recipientWhere] },
+            select: { id: true },
+          })
+        ).map((card) => card.id);
+        if (giftCardIds.length > 0) {
+          await txWithCrm.giftCard.updateMany({
+            where: { id: { in: giftCardIds }, OR: senderWhere.OR },
+            data: {
+              senderName: null,
+              senderEmail: null,
+              senderPhone: null,
+              customerId: null,
+              message: null,
+            },
+          });
+          await txWithCrm.giftCard.updateMany({
+            where: { id: { in: giftCardIds }, OR: recipientWhere.OR },
+            data: {
+              recipientName: null,
+              recipientEmail: null,
+              recipientPhone: null,
+              message: null,
+            },
+          });
+          giftCardsAnonymized = giftCardIds.length;
+          // shortcut: photo personnalisée (customImageUrl) et son fichier stockage restent à supprimer à la main.
+          if (txWithCrm.giftCardDelivery) {
+            giftCardDeliveriesCancelled = (
+              await txWithCrm.giftCardDelivery.updateMany({
+                where: { giftCardId: { in: giftCardIds }, status: 'PENDING' },
+                data: { status: 'SKIPPED', lastErrorCode: 'RGPD_ERASURE' },
+              })
+            ).count;
+          }
+        }
+      }
+      if (subjectEmails.length > 0 && txWithCrm.giftCardContribution) {
+        giftCardContributionsAnonymized = (
+          await txWithCrm.giftCardContribution.updateMany({
+            where: { OR: subjectEmails.map((email) => ({ contributorEmail: emailIs(email) })) },
+            data: { contributorName: null, contributorEmail: null, message: null },
+          })
+        ).count;
+      }
+      if (txWithCrm.giftCardCheckout) {
+        // Les checkouts gardent leur montant et leur référence de paiement ; seul le payload perd les contacts.
+        // shortcut: e-mails comparés à la casse près du stockage ; une casse différente échappe à ce filtre.
+        const checkouts = await txWithCrm.giftCardCheckout.findMany({
+          where: {
+            OR: [
+              ...(giftCardIds.length > 0 ? [{ giftCardId: { in: giftCardIds } }] : []),
+              ...subjectPhones.in.flatMap((phone) =>
+                ['senderPhone', 'recipientPhone'].map((key) => ({
+                  payload: { path: [key], equals: phone },
+                })),
+              ),
+              ...subjectEmails.flatMap((email) =>
+                ['senderEmail', 'recipientEmail', 'creatorEmail', 'contributorEmail'].map(
+                  (key) => ({
+                    payload: { path: [key], equals: email },
+                  }),
+                ),
+              ),
+            ],
+          },
+          select: { id: true, payload: true },
+        });
+        for (const checkout of checkouts) {
+          const payload = checkout.payload as Record<string, unknown> | null;
+          if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue;
+          if (!Object.keys(payload).some((key) => GIFT_CARD_CHECKOUT_PII_KEYS.includes(key)))
+            continue;
+          const scrubbed = Object.fromEntries(
+            Object.entries(payload).filter(([key]) => !GIFT_CARD_CHECKOUT_PII_KEYS.includes(key)),
+          );
+          await txWithCrm.giftCardCheckout.update({
+            where: { id: checkout.id },
+            data: { payload: scrubbed },
+          });
+          giftCardCheckoutsScrubbed += 1;
+        }
+      }
+      // Fidélité : la ligne reste rattachée à la fiche archivée (sans identité), la note libre part.
+      if (crmCustomerIds.length > 0 && txWithCrm.loyaltyGrant) {
+        loyaltyGrantNotesRemoved = (
+          await txWithCrm.loyaltyGrant.updateMany({
+            where: { customerId: { in: crmCustomerIds }, redemptionNote: { not: null } },
+            data: { redemptionNote: null },
+          })
+        ).count;
+      }
       // Les consentements restent comme preuve, mais ne doivent plus autoriser de marketing si une
       // fiche est recréée à la même adresse : il faudra un nouvel accord explicite.
       // tenant-scoping: global — effacement RGPD d'un sujet sur tous les restaurants.
@@ -539,6 +702,11 @@ export class ErasureService {
             experienceReservationsDetached,
             eventOrdersDetached,
             eventWaitlistEntriesDetached,
+            giftCardsAnonymized,
+            giftCardContributionsAnonymized,
+            giftCardCheckoutsScrubbed,
+            giftCardDeliveriesCancelled,
+            loyaltyGrantNotesRemoved,
           },
         },
         tx,
@@ -588,6 +756,11 @@ export class ErasureService {
         experienceReservationsDetached,
         eventOrdersDetached,
         eventWaitlistEntriesDetached,
+        giftCardsAnonymized,
+        giftCardContributionsAnonymized,
+        giftCardCheckoutsScrubbed,
+        giftCardDeliveriesCancelled,
+        loyaltyGrantNotesRemoved,
       },
     });
 
@@ -622,6 +795,11 @@ export class ErasureService {
       experienceReservationsDetached,
       eventOrdersDetached,
       eventWaitlistEntriesDetached,
+      giftCardsAnonymized,
+      giftCardContributionsAnonymized,
+      giftCardCheckoutsScrubbed,
+      giftCardDeliveriesCancelled,
+      loyaltyGrantNotesRemoved,
       erasedAt,
     };
   }

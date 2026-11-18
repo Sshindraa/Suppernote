@@ -32,6 +32,7 @@ export async function withdrawSubjectMarketing(args: {
   const phones = customerPhoneLookupValues(args.subject);
   const subjectHashes = phones.map((phone) => ConsentService.hashSubject(phone));
 
+  // tenant-scoping: global — retrait demandé par le sujet, sur tous ses restaurants.
   const consent = await args.prisma.customerConsent.updateMany({
     where: { subjectHash: { in: subjectHashes }, marketingOptIn: true },
     data: { marketingOptIn: false },

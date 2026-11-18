@@ -349,11 +349,16 @@ export class CustomerService {
    * the team), for the agent to acknowledge in its own words. Empty otherwise.
    */
   static returningCustomerFirstName(customer: CustomerContext): string {
+    return CustomerService.returningCustomerName(customer).split(/\s+/)[0] ?? '';
+  }
+
+  /** Nom complet d'un client connu (visites passées ou VIP) ; vide sinon. Sert à pré-remplir le nom de réservation. */
+  static returningCustomerName(customer: CustomerContext): string {
     const name = knownName(customer);
     if (!name) return '';
     const pastVisits = customer.voiceProfile?.pastVisits ?? 0;
     if (pastVisits < 1 && !customer.isVip) return '';
-    return name.split(/\s+/)[0] ?? '';
+    return name;
   }
 }
 

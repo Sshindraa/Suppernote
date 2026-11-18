@@ -2,6 +2,7 @@ import { VOICE_CONVERSATION_RULES } from './conversation-rules';
 import { DEFAULT_MAX_PARTY_SIZE } from '@suppernote/config';
 import { AGENT_NAME, AGENT_TITLE } from './agent-identity';
 import { normalizeOpeningHours } from '@suppernote/shared';
+import { ambiguousDayPair, isEarlyMorning } from './stream/relative-day';
 
 type DaySlot = {
   open: string;
@@ -173,7 +174,7 @@ function buildCommonBody(ctx: SystemPromptContext, now: Date): string {
   // Returning-caller acknowledgement: a principle with the CRM voice profile
   // (see CustomerService.returningCustomerFirstName).
   const vipGreeting = ctx.returningCustomerFirstName
-    ? `\nCLIENT CONNU : l'appelant est un client que la maison connaît, prénom ${ctx.returningCustomerFirstName}. Lors de ta première réponse utile, montre-lui une seule fois, avec tes propres mots, que tu le reconnais, sans refaire l'accueil et sans deviner sa civilité (ni Monsieur ni Madame).`
+    ? `\nCLIENT CONNU : l'appelant est un client que la maison connaît, prénom ${ctx.returningCustomerFirstName}. Lors de ta première réponse utile, fais-lui sentir une seule fois, par une phrase naturelle de ta part qui rappelle sa fidélité ou ses visites, qu'il est attendu : pas d'annonce d'identification ni de formule toute faite, sans refaire l'accueil et sans deviner sa civilité (ni Monsieur ni Madame). Si le brouillon porte déjà son nom, ne le redemande pas : propose-le-lui pour accord au récapitulatif (« au nom de … ? »), en casse normale, jamais en majuscules.`
     : '';
   const groupThreshold = (ctx.maxPartySize ?? DEFAULT_MAX_PARTY_SIZE) + 1;
   const timezone = ctx.timezone ?? 'Europe/Paris';
@@ -182,13 +183,18 @@ function buildCommonBody(ctx: SystemPromptContext, now: Date): string {
     timeZone: timezone,
   }).format(now);
 
+  // Avant 5 h, « demain » est ambigu : l'appelant doit nommer le jour avant que la date ne soit fixée.
+  const earlyMorningNote = isEarlyMorning(now, timezone)
+    ? ` Il est moins de 5 h du matin à ce fuseau : « demain » peut désigner le jour en cours. Si l'appelant dit « demain », ne fixe pas la date : demande lequel des deux jours il vise, en les nommant (${ambiguousDayPair(now, timezone)} ?). Dans le récapitulatif, donne toujours le jour de la semaine, jamais « demain ».`
+    : '';
+
   const voiceGenderLine = ctx.voiceGender
     ? `- Ta voix est ${ctx.voiceGender === 'masculine' ? 'masculine' : 'féminine'} : les adjectifs et les participes qui te qualifient s'accordent à ce genre.\n`
     : '';
 
   return `Tu es l'assistant vocal chaleureux de ${ctx.name}. L'accueil a déjà été prononcé avant le premier message de l'appelant. Tu ne le répètes jamais.${vipGreeting}${buildPersonalityStyleBlock(ctx)}
 
-DATE COURANTE : nous sommes le ${currentDate}, fuseau ${timezone}. Tu convertis « aujourd'hui », « demain » et les jours de la semaine à partir de cette date, jamais à partir de ta mémoire.
+DATE COURANTE : nous sommes le ${currentDate}, fuseau ${timezone}. Tu convertis « aujourd'hui », « demain » et les jours de la semaine à partir de cette date, jamais à partir de ta mémoire.${earlyMorningNote}
 
 COMPORTEMENT :
 - Tu réponds dans la langue stable détectée du client ; le français est la langue par défaut. Si la détection est incertaine, reste en français.

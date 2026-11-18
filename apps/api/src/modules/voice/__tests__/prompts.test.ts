@@ -458,7 +458,8 @@ describe('buildSystemPrompt', () => {
 
     expect(prompt).toContain('CLIENT CONNU');
     expect(prompt).toContain('prénom Jean');
-    expect(prompt).toContain('avec tes propres mots');
+    expect(prompt).toContain('ni de formule toute faite');
+    expect(prompt).toContain('jamais en majuscules');
     expect(prompt).toContain('ni Monsieur ni Madame');
     expect(prompt).not.toContain('content de vous revoir');
   });

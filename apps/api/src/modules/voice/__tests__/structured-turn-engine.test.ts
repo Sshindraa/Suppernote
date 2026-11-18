@@ -2616,3 +2616,59 @@ describe('repli parlé quand le tour échoue (appel du 19/10, 22 h 09)', () => {
     expect(spoken()).toEqual([TECHNICAL, 'Pour quel jour ?', TECHNICAL]);
   });
 });
+
+describe('tour structuré : say vide, secours et voix hors tour', () => {
+  it('tour compris, brouillon modifié, phrase vide : relance du modèle, pas de « répéter » (appel 548c73c5)', async () => {
+    const { session, mgr, outputs } = fixture();
+    session.structuredTurn = {
+      ...createStructuredTurnState(),
+      draft: { date: TOMORROW, time: '19:00', partySize: 5, customerName: '' },
+      lastAwaiting: 'partySize',
+    };
+    const corrected = { date: TOMORROW, time: '19:00', partySize: 4, customerName: '' };
+    outputs.push(
+      turn({ interpretation: 'correction', understanding: 'clear', draft: corrected, say: '' }),
+      turn({
+        interpretation: 'correction',
+        understanding: 'clear',
+        draft: corrected,
+        awaiting: 'customerName',
+        say: 'Très bien, pour quatre. Quel nom dois-je inscrire ?',
+      }),
+    );
+
+    await processTranscriptStreaming(session, '5 non 4', mgr);
+
+    expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(2);
+    expect(spoken().join(' ')).toContain('Quel nom dois-je inscrire');
+    expect(spoken().join(' ')).not.toContain('répéter');
+  });
+
+  it('si la relance reste vide aussi, pose la question suivante du parcours au lieu de « répéter »', async () => {
+    const { session, mgr, outputs } = fixture();
+    session.structuredTurn = {
+      ...createStructuredTurnState(),
+      draft: { date: TOMORROW, time: '19:00', partySize: 5, customerName: '' },
+      lastAwaiting: 'partySize',
+    };
+    const corrected = { date: TOMORROW, time: '19:00', partySize: 4, customerName: '' };
+    outputs.push(
+      turn({ interpretation: 'correction', understanding: 'clear', draft: corrected, say: '' }),
+      turn({ interpretation: 'correction', understanding: 'clear', draft: corrected, say: '' }),
+    );
+
+    await processTranscriptStreaming(session, '5 non 4', mgr);
+
+    expect(spoken().join(' ')).toBe('Quel nom dois-je inscrire pour la réservation ?');
+  });
+
+  it('le secours hors tour passe par ElevenLabs quand sa clé est présente', async () => {
+    vi.stubEnv('ELEVENLABS_API_KEY', 'test-key');
+    const { session, mgr } = fixture();
+    // Aucune sortie scriptée : le modèle échoue, le secours est dit.
+    await processTranscriptStreaming(session, 'bonjour je voudrais réserver', mgr);
+
+    const calls = vi.mocked(speakTtsStreamed).mock.calls;
+    expect(calls.at(-1)?.[2]).toBe('elevenlabs');
+  });
+});

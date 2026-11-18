@@ -26,9 +26,10 @@ import {
   buildElevenLabsTtsRequest,
   elevenLabsTtsModel,
   elevenLabsTtsStreamingEnabled,
-  elevenLabsTtsVoiceId,
   telephonyTtsProvider,
+  type TelephonyTtsProvider,
 } from './elevenlabs-tts';
+import { getElevenLabsTtsVoiceId } from './elevenlabs-context';
 import { getTtsCached, setTtsCached } from '../tts-cache';
 import { logger } from '../../../shared/logger/pino';
 import { telnyxFetch } from '../../../shared/telnyx/http-agent';
@@ -287,7 +288,11 @@ export async function speakTelnyxNative(session: CallSession, text: string): Pro
  * suivante vérifie l'état de session à son démarrage : un barge-in annule
  * donc naturellement les fragments encore en attente.
  */
-export async function speakTtsStreamed(session: CallSession, text: string): Promise<void> {
+export async function speakTtsStreamed(
+  session: CallSession,
+  text: string,
+  provider: TelephonyTtsProvider = telephonyTtsProvider(),
+): Promise<void> {
   const debugEntry = recordDebugAgentSpeech(session, text);
   const previousPlayback = session.ttsPlayback ?? Promise.resolve();
   const generation = session.ttsGeneration ?? 0;
@@ -304,7 +309,7 @@ export async function speakTtsStreamed(session: CallSession, text: string): Prom
       const tally: FragmentFrameTally = { frames: 0 };
       let completed = false;
       try {
-        await speakTtsFragment(session, text, generation, turnId, tally);
+        await speakTtsFragment(session, text, generation, turnId, tally, provider);
         completed = isSessionActiveForTts(session, generation);
       } finally {
         settleDebugSpeech(debugEntry, tally.frames, completed);
@@ -327,6 +332,7 @@ async function speakTtsFragment(
   generation: number,
   turnId?: string,
   tally: FragmentFrameTally = { frames: 0 },
+  provider: TelephonyTtsProvider = telephonyTtsProvider(),
 ): Promise<void> {
   const language = effectiveVoiceLanguage(session);
   const cleanedText = cleanTextForTts(text, language);
@@ -358,12 +364,13 @@ async function speakTtsFragment(
 
   writeDebugLog('[speakTtsStreamed] Synthesizing one prosodic segment');
 
-  const provider = telephonyTtsProvider();
   // Libellés de logs et de Sentry : identiques à ceux d'avant la bascule pour Cartesia.
   const providerLabel = provider === 'elevenlabs' ? 'ElevenLabs' : 'Cartesia';
   const apiKey =
     provider === 'elevenlabs' ? process.env.ELEVENLABS_API_KEY : process.env.CARTESIA_API_KEY;
-  const voiceId = provider === 'elevenlabs' ? elevenLabsTtsVoiceId() : getCartesiaVoiceId(session);
+  // Même voix que les tours ElevenLabs en WebSocket : une seule voix par appel.
+  const voiceId =
+    provider === 'elevenlabs' ? getElevenLabsTtsVoiceId() : getCartesiaVoiceId(session);
   if (!apiKey || !voiceId) {
     await speakTelnyxNative(
       session,

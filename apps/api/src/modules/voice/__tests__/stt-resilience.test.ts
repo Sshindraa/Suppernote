@@ -129,6 +129,7 @@ describe('résilience STT', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       session,
       "Je suis désolé, j'ai un problème technique et je ne vous entends pas correctement. Je vous passe le restaurant.",
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
     expect(manager.handoffToManager).toHaveBeenCalledOnce();
     expect(manager.transition).toHaveBeenCalledWith(session, 'PROCESSING');
@@ -465,6 +466,7 @@ describe('résilience STT', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       session,
       "Je suis désolé, j'ai un problème technique et je ne vous entends pas correctement. Je vous passe le restaurant.",
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
   });
 
@@ -484,6 +486,7 @@ describe('résilience STT', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       session,
       "I'm sorry, I'm having a technical problem and I can't hear you clearly. I'll put you through to the restaurant.",
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
     expect(finishCall).toHaveBeenCalledWith(
       session,

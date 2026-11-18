@@ -18,6 +18,7 @@
 import type { CallSession } from './types';
 import type { CallSessionManager } from './manager';
 import { speakTtsStreamed } from './tts-handler';
+import { offTurnTtsProvider } from './elevenlabs-tts';
 import { generateRecoveryReply } from './structured-turn/engine';
 import { logger } from '../../../shared/logger/pino';
 
@@ -178,7 +179,7 @@ async function speakRecovery(
   if (!mgr.transition(session, 'SPEAKING')) return;
   session.history.push({ role: 'assistant', content: spoken });
   try {
-    await speakTtsStreamed(session, spoken);
+    await speakTtsStreamed(session, spoken, offTurnTtsProvider());
   } finally {
     if (!session.ended && session.state === 'SPEAKING') mgr.transition(session, 'LISTENING');
   }

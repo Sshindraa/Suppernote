@@ -177,8 +177,13 @@ jobs:
 
 
           # /health via api.suppernote.com
-          HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 10 "$API_PROD_URL/health" || echo "FAIL")
+          # Retente : juste après un redémarrage pm2, la première requête peut être réinitialisée.
+          for _ in $(seq 1 15); do
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 "$API_PROD_URL/health" || echo "FAIL")
+            [ "$HEALTH_STATUS" = "200" ] && break
+            sleep 4
+          done
           echo "api.suppernote.com/health → $HEALTH_STATUS"
           [ "$HEALTH_STATUS" = "200" ] || exit 1
 

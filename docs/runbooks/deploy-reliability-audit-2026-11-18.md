@@ -2,19 +2,19 @@
 
 Point 2 de la reprise. Périmètre : `scripts/deploy.sh`, `scripts/ops/deploy-common.sh`, `infra/ecosystem*.config.js`, `.github/workflows/deploy-staging.yml` et `deploy-prod.yml`, `apps/api/src/main.ts`, `apps/api/src/modules/voice/stream/shutdown-drain.ts`, et les 30 derniers runs `Deploy Staging` / `Deploy Production` (`gh run list`).
 
-Aucun déploiement ni redémarrage n'a été lancé. Une tentative de lecture seule sur le VPS a été refusée par le classifieur d'autorisation : les points marqués « non vérifié » restent à confirmer sur le VPS.
+Aucun déploiement ni redémarrage n'a été lancé. La lecture seule du VPS a été refusée à la session d'audit pendant l'audit ; la vérification du point 1 a été faite le 19/11 par la session d'audit, en lecture seule sur le VPS.
 
 ## Résumé
 
-| #   | Gravité              | Sujet                                                                                                                                                                        | Statut                                      |
-| --- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| 1   | Haute, non vérifié   | `wait_for_voice_idle` lit `/metrics` sans identifiants : si l'auth basique est active, il ne voit jamais d'appel et le redémarrage de l'API n'attend pas les appels en cours | À confirmer sur le VPS, correctif à décider |
-| 2   | Haute                | Redémarrage pm2 en mode `fork` = arrêt puis relance : une fenêtre de quelques secondes sans API à chaque déploiement (webhooks Telnyx/Stripe, SMS)                           | Structurel, pas de correctif petit          |
-| 3   | Moyenne              | Au-delà de 300 s d'attente, le déploiement continue avec des appels vivants ; ils n'ont que 25 s de grâce à l'arrêt                                                          | Connu (Journal 2026-11-08), limite assumée  |
-| 4   | Faible (corrigé ici) | Smoke tests `/health` staging et prod : une seule tentative juste après redémarrage                                                                                          | Retry ajouté (15 × 4 s)                     |
-| 5   | Faible               | Échec du 17/11 : cause réelle différente de celle du Journal, déjà corrigée dans `main`                                                                                      | Journal à corriger                          |
+| #   | Gravité                     | Sujet                                                                                                                                              | Statut                                                           |
+| --- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 1   | Faible, vérifié : non actif | `wait_for_voice_idle` lit `/metrics` sans identifiants. L'auth basique n'est pas activée sur le VPS : la fonction lit le vrai nombre d'appels      | Aucun correctif requis ; à traiter si l'auth basique est activée |
+| 2   | Haute                       | Redémarrage pm2 en mode `fork` = arrêt puis relance : une fenêtre de quelques secondes sans API à chaque déploiement (webhooks Telnyx/Stripe, SMS) | Structurel, pas de correctif petit                               |
+| 3   | Moyenne                     | Au-delà de 300 s d'attente, le déploiement continue avec des appels vivants ; ils n'ont que 25 s de grâce à l'arrêt                                | Connu (Journal 2026-11-08), limite assumée                       |
+| 4   | Faible (corrigé ici)        | Smoke tests `/health` staging et prod : une seule tentative juste après redémarrage                                                                | Retry ajouté (15 × 4 s)                                          |
+| 5   | Faible                      | Échec du 17/11 : cause réelle différente de celle du Journal, déjà corrigée dans `main`                                                            | Journal corrigé dans cette PR                                    |
 
-## 1. Haute (non vérifié) — l'attente des appels peut ne jamais attendre
+## 1. Faible, vérifié : auth basique non active
 
 `scripts/ops/deploy-common.sh`, fonction `wait_for_voice_idle` :
 
@@ -23,20 +23,9 @@ sessions="$(curl -fsS -m 3 "http://127.0.0.1:${PORT_API}/metrics" 2>/dev/null | 
 case "$sessions" in ''|*[!0-9.]*) return 0 ;; esac
 ```
 
-- `/metrics` est servi par l'API (`observability.routes.ts`), protégé par `metrics-auth.ts`. Si `METRICS_BASIC_AUTH_USER` et `METRICS_BASIC_AUTH_PASSWORD` sont définis, un appel sans identifiants reçoit 401.
-- `curl -fsS` échoue sur 401, `sessions` est vide, et la fonction rend `0` : le redémarrage a lieu **sans attendre**.
-- La présence d'auth basique en prod est probable : `infra/prometheus/prometheus.yml` scrape l'API avec ces identifiants (`docs/runbooks/observability.md`, lignes sur l'auth basique). Ce n'est pas confirmé sur le VPS.
-- Conséquence si le bug est actif : chaque déploiement coupe les appels vocaux en cours, exactement ce que le correctif du 2026-11-08 devait empêcher.
-
-**Vérification (lecture seule, à faire par toi sur le VPS) :**
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4000/metrics
-```
-
-`401` confirme le bug. `200` le contredit.
-
-**Correctif proposé (non implémenté, décision requise) :** lire `METRICS_BASIC_AUTH_*` depuis `apps/api/.env` dans une sous-shell et passer `curl -u`, puis ne jamais traiter une lecture en échec comme « zéro appel » : réessayer, et ne déployer quand même qu'à l'échéance `VOICE_DRAIN_MAX_SECONDS`. Il touche à la gestion des secrets du déploiement et doit être testé sur `scripts/ops/test-deploy-common.sh` avant d'être fusionné.
+- `/metrics` est servi par l'API (`observability.routes.ts`), protégé par `metrics-auth.ts`. Si `METRICS_BASIC_AUTH_USER` et `METRICS_BASIC_AUTH_PASSWORD` sont définis, un appel sans identifiants reçoit 401 ; `curl -fsS` échoue, `sessions` est vide, et la fonction rendrait `0` : le redémarrage n'attendrait pas.
+- **Vérifié le 19/11 par la session d'audit, en lecture seule sur le VPS** : `curl http://127.0.0.1:4000/metrics` → 200 et `:4100` → 200 ; `suppernote_voice_active_sessions 0` est exposé sur les deux ports ; `/opt/sokar/apps/api/.env` ne définit pas `METRICS_BASIC_AUTH_USER/PASSWORD`. `wait_for_voice_idle` lit donc le vrai nombre d'appels.
+- **Remarque pour plus tard :** le jour où l'auth basique sera activée, il faudra passer les identifiants à `wait_for_voice_idle` (par exemple `curl -u` depuis l'environnement de `apps/api/.env`, dans une sous-shell), et ne jamais traiter un échec de lecture comme « zéro appel » : réessayer, puis ne déployer qu'à l'échéance `VOICE_DRAIN_MAX_SECONDS`. Ce changement touche aux secrets du déploiement et doit être testé sur `scripts/ops/test-deploy-common.sh`.
 
 ## 2. Haute — le redémarrage coupe l'API quelques secondes
 
@@ -51,7 +40,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4000/metrics
 - `wait_for_voice_idle` attend au plus `VOICE_DRAIN_MAX_SECONDS` (300 s), puis déploie quand même (`log_warn`).
 - Côté process, `waitForVoiceCallsToEnd` (`shutdown-drain.ts`) donne 25 s aux appels restants, puis ferme. `kill_timeout` vaut 30 s : la marge est suffisante.
 - Un appel plus long que 25 s après le signal est coupé. Un appel qui démarre pendant la fenêtre de redémarrage est coupé aussi.
-- C'est le compromis déjà documenté le 2026-11-08 : tant que le point 1 n'est pas réglé, la protection réelle est nulle (voir point 1).
+- C'est le compromis déjà documenté le 2026-11-08. La protection est réelle aujourd'hui, l'auth basique n'étant pas activée (point 1). Elle ne couvre pas un appel encore vivant après 300 s d'attente.
 
 ## 4. Faible, corrigé — smoke tests sans nouvelle tentative
 
@@ -84,6 +73,6 @@ Dans les 30 derniers runs `Deploy Staging` : un seul échec (17/11). `Deploy Pro
 
 ## Actions
 
-1. **Toi, sur le VPS (lecture seule) :** `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4000/metrics`. Si `401`, le point 1 est confirmé : décider du correctif (sources des identifiants, fail-closed).
+1. Si l'auth basique `METRICS_BASIC_AUTH_*` est activée un jour, passer les identifiants à `wait_for_voice_idle` et ne jamais traiter un échec de lecture comme zéro appel (point 1).
 2. Décider si le point 2 (bleu/vert) est planifié.
-3. Corriger le Journal du 17/11 (cause réelle, voir point 5).
+3. Corriger le Journal du 17/11 (cause réelle, voir point 5) : fait dans cette PR.

@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const env = fs.readFileSync('/Users/hamza/Projects/Sokar/apps/api/.env', 'utf8');
+const env = fs.readFileSync('/Users/hamza/Projects/Suppernote/apps/api/.env', 'utf8');
 const key = env
   .match(/^OPENROUTER_API_KEY=(.+)$/m)?.[1]
   ?.trim()

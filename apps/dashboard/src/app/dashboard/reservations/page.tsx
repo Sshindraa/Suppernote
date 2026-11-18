@@ -51,6 +51,12 @@ import { ReservationDatePicker } from '@/components/reservation/reservation-date
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DataFetchError } from '@/components/DataFetchError';
 import {
+  CustomerChangeBadge,
+  CustomerChangesBanner,
+  latestChangeByReservation,
+  useCustomerChanges,
+} from '@/components/reservation/customer-changes';
+import {
   ServiceBadgeList,
   ServiceCardBadges,
   useServiceCards,
@@ -256,6 +262,8 @@ export default function ReservationsPage() {
   }, [highlightedId]);
 
   const serviceCards = useServiceCards(reservations.map((reservation) => reservation.id));
+  const customerChanges = useCustomerChanges();
+  const customerChangeById = latestChangeByReservation(customerChanges);
   const countedReservations = reservations.filter(
     (reservation) => !['CANCELLED', 'NO_SHOW'].includes(reservationState(reservation)),
   );
@@ -543,6 +551,7 @@ export default function ReservationsPage() {
 
       {activeTab === 'reservations' && (
         <>
+          <CustomerChangesBanner changes={customerChanges} />
           {reservationsLoading ? (
             <div className="space-y-2" aria-busy="true">
               {[1, 2, 3, 4].map((i) => (
@@ -584,6 +593,7 @@ export default function ReservationsPage() {
                         <div className="flex flex-wrap gap-1">
                           <StatusBadge status={state} />
                           {res.overbooked && <StatusPill level="action">Surbooking</StatusPill>}
+                          <CustomerChangeBadge change={customerChangeById.get(res.id)} />
                         </div>
                       }
                       primaryAction={
@@ -751,7 +761,10 @@ export default function ReservationsPage() {
                                 </TableCell>
                               )}
                               <TableCell className="py-3">
-                                <StatusBadge status={state} />
+                                <div className="flex flex-wrap gap-1">
+                                  <StatusBadge status={state} />
+                                  <CustomerChangeBadge change={customerChangeById.get(res.id)} />
+                                </div>
                               </TableCell>
                               <TableCell className="py-3">
                                 {res.tableId ? (

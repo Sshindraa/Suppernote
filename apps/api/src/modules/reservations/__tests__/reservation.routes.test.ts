@@ -142,6 +142,75 @@ describe('reservation.routes', () => {
     });
   });
 
+  describe('GET /v2/reservations/customer-changes', () => {
+    it('liste les changements faits par le client sur 24 h, pour ce restaurant seulement', async () => {
+      const app = await getApp();
+      const findMany = vi.mocked(db.reservationAuditLog.findMany).mockResolvedValue([
+        {
+          event: 'reservation_fields_changed',
+          toState: 'CONFIRMED',
+          metadata: { previousStartsAt: '2099-06-05T18:00:00.000Z', previousPartySize: 2 },
+          createdAt: new Date('2099-06-05T16:00:00Z'),
+          reservation: {
+            id: 'r1',
+            customerName: 'Alice',
+            partySize: 4,
+            startsAt: new Date('2099-06-05T19:30:00Z'),
+            reservedAt: new Date('2099-06-05T19:30:00Z'),
+          },
+        },
+        {
+          event: 'reservation_cancelled',
+          toState: 'CANCELLED',
+          metadata: {},
+          createdAt: new Date('2099-06-05T15:00:00Z'),
+          reservation: {
+            id: 'r2',
+            customerName: 'Bob',
+            partySize: 2,
+            startsAt: null,
+            reservedAt: new Date('2099-06-05T20:00:00Z'),
+          },
+        },
+      ] as never);
+      const res = await app.inject({
+        method: 'GET',
+        url: '/v2/reservations/customer-changes',
+        headers: { authorization: 'Bearer test' },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(findMany.mock.calls[0][0]?.where).toMatchObject({
+        actor: 'customer:personal-link',
+        reservation: { restaurantId: 'test-rest-1' },
+      });
+      expect(res.json()).toEqual([
+        {
+          reservationId: 'r1',
+          kind: 'modified',
+          at: '2099-06-05T16:00:00.000Z',
+          customerName: 'Alice',
+          partySize: 4,
+          startsAt: '2099-06-05T19:30:00.000Z',
+          previousStartsAt: '2099-06-05T18:00:00.000Z',
+          previousPartySize: 2,
+        },
+        {
+          reservationId: 'r2',
+          kind: 'cancelled',
+          at: '2099-06-05T15:00:00.000Z',
+          customerName: 'Bob',
+          partySize: 2,
+          startsAt: '2099-06-05T20:00:00.000Z',
+          previousStartsAt: null,
+          previousPartySize: null,
+        },
+      ]);
+      expect(
+        (await app.inject({ method: 'GET', url: '/v2/reservations/customer-changes' })).statusCode,
+      ).toBe(401);
+    });
+  });
+
   describe('GET /reservations', () => {
     it('scopes the day snapshot and requires a valid date', async () => {
       const app = await getApp();

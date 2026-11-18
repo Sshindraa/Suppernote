@@ -748,6 +748,7 @@ vi.mock('../shared/db/client', () => {
     reservationAuditLog: {
       create: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
     reservation: {
       create: vi.fn(),

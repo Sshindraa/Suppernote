@@ -1000,6 +1000,13 @@ export class ReservationService {
           metadata: {
             ...args.auditMetadata,
             source: args.auditMetadata?.source ?? 'mcp',
+            // Ancien horaire et couverts : le dashboard affiche « 20:00 → 21:30 » à l'équipe.
+            ...(capacityChanged
+              ? {
+                  previousStartsAt: (current.startsAt ?? current.reservedAt).toISOString(),
+                  previousPartySize: current.partySize,
+                }
+              : {}),
             changedFields: [
               ...(capacityChanged ? ['partySize', 'startsAt', 'endsAt', 'tableId'] : []),
               ...(nameChanged ? ['customerName'] : []),

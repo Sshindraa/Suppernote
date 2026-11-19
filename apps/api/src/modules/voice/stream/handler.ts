@@ -21,7 +21,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { buildFixedGreeting } from '../agent-identity';
+import { buildFixedGreeting, greetingSalutation } from '../agent-identity';
 import '@fastify/websocket';
 import { WebSocket } from 'ws';
 import { timingSafeEqual } from 'node:crypto';
@@ -48,7 +48,6 @@ import { observedTtsProvider } from './turn-telemetry';
 import { callFinalizationDependencies } from '../call-finalization.dependencies';
 import { getVoiceLlmRuntimeInfo } from '../llm-provider';
 import { voiceWidebandDetectedTotal } from '../../../shared/observability/metrics';
-import { resolveStyledGreeting } from './styled-greeting';
 
 /**
  * Finalisation métier d'un appel depuis le stream : le WebSocket peut se
@@ -90,8 +89,12 @@ function finalizeSessionCall(
   }
 }
 
-export function buildInitialGreeting(restaurantName: string): string {
-  return buildFixedGreeting(restaurantName);
+export function buildInitialGreeting(
+  restaurantName: string,
+  timezone = 'Europe/Paris',
+  now = new Date(),
+): string {
+  return buildFixedGreeting(restaurantName, greetingSalutation(now, timezone));
 }
 
 /**
@@ -351,13 +354,8 @@ export function handleTelnyxMessage(
       // Jouer le message d'accueil immédiatement (ne dépend pas de ElevenLabs)
       const restaurantName = extractRestaurantName(session.systemPrompt);
 
-      // Réglage « Style » / « Ton » non défaut : accueil composé par le modèle (cache Redis), sinon l'accueil fixe.
-      const fixedGreeting = buildInitialGreeting(restaurantName);
-      const greetingPromise: Promise<string> = session.greetingStyle
-        ? resolveStyledGreeting(restaurantName, session.greetingStyle).then(
-            (styled) => styled ?? fixedGreeting,
-          )
-        : Promise.resolve(fixedGreeting);
+      const fixedGreeting = buildInitialGreeting(restaurantName, session.timezone);
+      const greetingPromise: Promise<string> = Promise.resolve(fixedGreeting);
       // Avant l'accueil : l'audio de l'appelant doit être nettoyé dès ses premiers mots.
       // Démonstration navigateur : pas de leg Telnyx, donc ni suppression de bruit ni enregistrement.
       if (!session.demo) {

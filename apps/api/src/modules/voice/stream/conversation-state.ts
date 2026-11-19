@@ -468,18 +468,11 @@ export function nextDraftQuestion(
   language: VoiceLanguageCode = 'fr',
 ): string | null {
   const en = language === 'en';
-  if (!draft.date)
-    return en ? 'Which day would you like to book?' : 'Pour quel jour souhaitez-vous réserver ?';
-  if (!draft.time)
-    return en ? 'What time would you like to come?' : 'Vers quelle heure souhaitez-vous venir ?';
-  if (!draft.partySize)
-    return en
-      ? 'How many people should I book for?'
-      : 'Pour combien de personnes dois-je réserver ?';
+  if (!draft.date) return en ? 'Which day would you like to book?' : "C'est pour quel jour ?";
+  if (!draft.time) return en ? 'What time would you like to come?' : 'Vers quelle heure ?';
+  if (!draft.partySize) return en ? 'How many people should I book for?' : 'Vous serez combien ?';
   if (!draft.customerName)
-    return en
-      ? 'What name should I put the reservation under?'
-      : 'Quel nom dois-je inscrire pour la réservation ?';
+    return en ? 'What name should I put the reservation under?' : "C'est à quel nom ?";
   return null;
 }
 
@@ -527,7 +520,7 @@ export function buildLlmFailurePlan(
   const reply =
     language === 'en'
       ? "Sorry, I didn't quite catch that. Could you say it again?"
-      : "Pardon, je n'ai pas bien saisi. Pouvez-vous répéter ?";
+      : "Pardon, je n'ai pas bien entendu. Vous pouvez répéter ?";
   return buildExplicitInteractionReplyPlan(session, reply, 'open');
 }
 

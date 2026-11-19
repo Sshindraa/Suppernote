@@ -223,9 +223,7 @@ describe('conversation state', () => {
     const session = makeSession();
     recordAssistantReply(session, 'Parfait. À quel nom je réserve ?');
 
-    expect(buildPendingQuestionResponse(session, 'Oui')).toBe(
-      'Quel nom dois-je inscrire pour la réservation ?',
-    );
+    expect(buildPendingQuestionResponse(session, 'Oui')).toBe("C'est à quel nom ?");
   });
 
   it('ne transforme pas un oui de confirmation en répétition de la question', () => {
@@ -832,7 +830,7 @@ describe('réponse parlée après un échec LLM', () => {
     const session = makeSession();
 
     expect(buildLlmFailurePlan(session).reply).toBe(
-      "Pardon, je n'ai pas bien saisi. Pouvez-vous répéter ?",
+      "Pardon, je n'ai pas bien entendu. Vous pouvez répéter ?",
     );
   });
 

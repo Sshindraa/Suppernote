@@ -92,14 +92,6 @@ async function createDemoSession(
     // Même codec que la production par défaut : la démonstration restitue ce qu'entendra un client.
     codec: 'PCMA',
     demo: true,
-    ...(ctx.personality
-      ? {
-          greetingStyle: {
-            profileType: ctx.personality.profileType,
-            fillerStyle: ctx.personality.fillerStyle,
-          },
-        }
-      : {}),
     personality: ctx.personality
       ? {
           fillerStyle: (['CASUAL', 'FORMAL', 'WARM'] as const).includes(

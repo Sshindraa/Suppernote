@@ -104,9 +104,22 @@ import { sendAudioToStt, closeStt } from '../stream/stt-bridge';
 
 describe('buildInitialGreeting', () => {
   it('présente Léa, l’assistante IA, dès le décroché (règlement européen sur l’IA, article 50)', () => {
-    expect(buildInitialGreeting('Chez Michel')).toBe(
-      "Bonjour, ici Chez Michel, je suis Léa, l'assistante IA. Je vous écoute.",
-    );
+    // 12 h et 21 h à Paris : la salutation suit l'heure du restaurant, pas celle du serveur (UTC).
+    expect(
+      buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T11:00:00Z')),
+    ).toBe("Chez Michel, bonjour. Léa, l'assistante IA, je vous écoute.");
+    expect(
+      buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T20:00:00Z')),
+    ).toBe("Chez Michel, bonsoir. Léa, l'assistante IA, je vous écoute.");
+  });
+
+  it('dit « bonsoir » après minuit et « bonjour » dès 5 h', () => {
+    expect(
+      buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-18T23:16:00Z')),
+    ).toContain(', bonsoir.');
+    expect(
+      buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T04:00:00Z')),
+    ).toContain(', bonjour.');
   });
 });
 

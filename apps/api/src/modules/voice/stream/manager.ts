@@ -466,8 +466,6 @@ export class CallSessionManager {
     codec: 'PCMA' | 'PCMU' | 'L16';
     /** Appel de démonstration depuis le navigateur : aucun effet de bord réel (voir `CallSession.demo`). */
     demo?: boolean;
-    /** Style de la maison pour l'accueil composé (voir styled-greeting.ts). */
-    greetingStyle?: { profileType?: string; fillerStyle?: string };
     personality?: {
       fillerStyle: 'CASUAL' | 'FORMAL' | 'WARM';
       systemPromptExtra?: string | null;
@@ -549,7 +547,6 @@ export class CallSessionManager {
       lastActivityAt: Date.now(),
       createdAt: Date.now(),
       personality: opts.personality ?? null,
-      ...(opts.greetingStyle ? { greetingStyle: opts.greetingStyle } : {}),
       conversation: createConversationState(),
     };
     this.sessions.set(sessionIdKey(opts.callControlId), session);

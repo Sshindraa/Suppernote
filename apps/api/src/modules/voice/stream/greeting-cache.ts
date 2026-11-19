@@ -42,16 +42,18 @@ function greetingCodecProfile(): TelnyxCodecProfile {
 }
 import { normalizeVoiceLocale } from './voice-language';
 import { buildFixedGreeting } from '../agent-identity';
-import { hasStyledGreeting, resolveStyledGreeting } from './styled-greeting';
 
 /**
- * Construit le texte du greeting pour un restaurant.
- * Doit être identique à buildInitialGreeting dans handler.ts.
+ * Les deux accueils possibles d'un restaurant (« bonjour » et « bonsoir ») : ceux de buildInitialGreeting
+ * dans handler.ts, à préparer tous les deux puisque la salutation dépend de l'heure de l'appel.
  * L'appelant est informé dès le décroché qu'il parle à une IA (règlement européen sur l'IA,
  * article 50, applicable depuis le 2 août 2026).
  */
-export function buildGreetingText(restaurantName: string): string {
-  return buildFixedGreeting(restaurantName);
+export function buildGreetingTexts(restaurantName: string): string[] {
+  return [
+    buildFixedGreeting(restaurantName, 'bonjour'),
+    buildFixedGreeting(restaurantName, 'bonsoir'),
+  ];
 }
 
 /**
@@ -160,30 +162,21 @@ export async function initGreetingCache(restaurantNames?: string[]): Promise<voi
           codec: greetingCodecProfile().label,
         });
 
-  // Textes à préparer : l'accueil fixe de chaque restaurant, plus l'accueil composé quand son style
-  // n'est pas le défaut (c'est lui que l'appelant entend). Nom fourni : tests uniquement.
+  // Textes à préparer : l'accueil de chaque restaurant, avec « bonjour » et avec « bonsoir ». Nom fourni : tests.
   const texts = new Map<string, string>(); // texte -> restaurant (journaux)
+  const add = (name: string) => {
+    for (const text of buildGreetingTexts(name)) texts.set(text, name);
+  };
   if (restaurantNames) {
-    for (const name of restaurantNames) texts.set(buildGreetingText(name), name);
+    for (const name of restaurantNames) add(name);
   } else {
     try {
       // Seuls les restaurants dont le numéro est attribué reçoivent des appels (PENDING = pas encore).
       const restaurants = await db.restaurant.findMany({
         where: { provisioningStatus: { not: 'PENDING' } },
-        select: { name: true, personality: { select: { profileType: true, fillerStyle: true } } },
+        select: { name: true },
       });
-      for (const r of restaurants) {
-        if (!r.name) continue;
-        texts.set(buildGreetingText(r.name), r.name);
-        const style = r.personality;
-        if (!style || !hasStyledGreeting(style)) continue;
-        // Compose (ou relit, en prolongeant sa durée de vie) le texte ; échec = l'accueil fixe suffit.
-        const styled = await resolveStyledGreeting(r.name, style, {
-          attempts: 2,
-          timeoutMs: 4_000,
-        }).catch(() => null);
-        if (styled) texts.set(styled, r.name);
-      }
+      for (const r of restaurants) if (r.name) add(r.name);
     } catch (err) {
       logger.warn({ err }, '[greetings] Failed to load restaurants from DB');
       return;

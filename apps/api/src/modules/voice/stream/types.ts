@@ -687,8 +687,6 @@ export interface CallSession {
   interruptedReply?: InterruptedReply;
   /** Texte de l'accueil, tant qu'il peut encore être repris après une coupure sans suite. */
   greetingText?: string;
-  /** Style de la maison pour l'accueil composé (absent : accueil fixe). Voir styled-greeting.ts. */
-  greetingStyle?: { profileType?: string; fillerStyle?: string };
   /** L'accueil est en cours de lecture. */
   greetingPlaying?: boolean;
   /** L'accueil a été coupé et aucun tour n'a été traité depuis. */

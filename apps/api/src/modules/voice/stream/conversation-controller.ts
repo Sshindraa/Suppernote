@@ -2453,19 +2453,13 @@ export function buildPendingQuestionReplyPlan(
   const primary = ((): string | null => {
     switch (session.conversation.pendingQuestion) {
       case 'date':
-        return en
-          ? 'Which day would you like to book?'
-          : 'Pour quel jour souhaitez-vous réserver ?';
+        return en ? 'Which day would you like to book?' : "C'est pour quel jour ?";
       case 'time':
-        return en
-          ? 'What time would you like to come?'
-          : 'Vers quelle heure souhaitez-vous venir ?';
+        return en ? 'What time would you like to come?' : 'Vers quelle heure ?';
       case 'timeChoice':
         return en ? 'Which time would work for you?' : 'Quel horaire vous conviendrait ?';
       case 'partySize':
-        return en
-          ? 'How many people should I book for?'
-          : 'Pour combien de personnes dois-je réserver ?';
+        return en ? 'How many people should I book for?' : 'Vous serez combien ?';
       case 'partySizeConfirmation':
         return null;
       case 'customerName':
@@ -2474,9 +2468,7 @@ export function buildPendingQuestionReplyPlan(
           session.conversation.nameCollection.presentedCandidate
         )
           return null;
-        return en
-          ? 'What name should I put the reservation under?'
-          : 'Quel nom dois-je inscrire pour la réservation ?';
+        return en ? 'What name should I put the reservation under?' : "C'est à quel nom ?";
       case 'customerPhone':
         return en
           ? 'Which phone number may I use for the confirmation?'

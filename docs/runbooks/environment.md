@@ -322,11 +322,10 @@ Le juge de fin de tour passe toujours par Cerebras : son crédit reste indispens
 ```dotenv
 OPENROUTER_API_KEY=<clé OpenRouter, secret local au VPS>
 OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"        # défaut ; Jev (API decisions), juge d'évaluation, suivi de crédit
-# Hébergeurs du repli : par défaut, le code exige zéro conservation des données (`zdr`, `data_collection: deny`).
+# Hébergeurs du repli : conservation standard acceptée (décision du 19/11) ; le code n'envoie ni `zdr` ni `data_collection`.
 # VOICE_STRUCTURED_FALLBACK_MODEL="qwen/qwen3.8-27b"           # même modèle que Cerebras (banc du 20/10)
 # VOICE_STRUCTURED_FALLBACK_PROVIDER_ORDER="ModelRun"          # 0,5 s, jamais au-delà de 0,8 s sur 40 tours
 # VOICE_STRUCTURED_FALLBACK_PROVIDER_IGNORE="DekaLLM"          # jamais utilisés, même en secours (données hors pays admis)
-# VOICE_STRUCTURED_FALLBACK_ZERO_RETENTION="false"            # défaut true ; false = performance d'abord (décision du 20/10)
 # Relais GPT-6 Luna (accès prioritaire OpenAI) : 133/134 au banc, le moins « IA » à l'écoute, ~0,8 s, max 1,4 s.
 # VOICE_STRUCTURED_FALLBACK_MODEL="openai/gpt-6-luna"  VOICE_STRUCTURED_FALLBACK_PROVIDER_ORDER="openai/fast"
 # VOICE_STRUCTURED_FALLBACK_REASONING="none"   # défaut disabled ; Luna exige un effort nul

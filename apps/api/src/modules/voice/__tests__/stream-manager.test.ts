@@ -783,13 +783,13 @@ describe('CallSessionManager — provider LLM unique, circuit breaker et timeout
       expect(body.response_format).toEqual(format);
       expect(body.provider).toEqual({
         require_parameters: true,
-        zdr: true,
-        data_collection: 'deny',
         order: voiceConfig.VOICE_STRUCTURED_FALLBACK_PROVIDER_ORDER.split(',').map((name) =>
           name.trim(),
         ),
         allow_fallbacks: true,
       });
+      expect(body.provider).not.toHaveProperty('zdr');
+      expect(body.provider).not.toHaveProperty('data_collection');
       expect(body).not.toHaveProperty('reasoning_effort');
     });
 

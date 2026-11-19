@@ -178,18 +178,15 @@ function providerList(value: string | undefined): string[] {
 }
 
 /**
- * Hébergeurs OpenRouter du repli. Les appels contiennent des données personnelles (noms, numéros) :
- * par défaut, seuls les hébergeurs qui ne conservent rien et n'entraînent rien sur les requêtes
- * sont admis (`zdr`, `data_collection: deny`) ; VOICE_STRUCTURED_FALLBACK_ZERO_RETENTION=false lève
- * cette exigence. Ceux de la liste d'exclusion sont écartés même en secours.
+ * Hébergeurs OpenRouter du repli (Luna). Conservation standard des hébergeurs acceptée par Hamza le 19/11
+ * (OpenAI, Azure) : ni `zdr` ni `data_collection`, pour que l'ordre demandé soit réellement servi
+ * (avec `zdr`, seul Azure restait éligible pour Luna). Ceux de la liste d'exclusion sont écartés même en secours.
  */
 function fallbackProviderPreferences(): Record<string, unknown> {
   const order = providerList(voiceConfig.VOICE_STRUCTURED_FALLBACK_PROVIDER_ORDER);
   const ignore = providerList(voiceConfig.VOICE_STRUCTURED_FALLBACK_PROVIDER_IGNORE);
-  const zeroRetention = voiceConfig.VOICE_STRUCTURED_FALLBACK_ZERO_RETENTION !== 'false';
   return {
     require_parameters: true,
-    ...(zeroRetention ? { zdr: true, data_collection: 'deny' } : {}),
     ...(order.length ? { order, allow_fallbacks: true } : { sort: 'latency' }),
     ...(ignore.length ? { ignore } : {}),
   };

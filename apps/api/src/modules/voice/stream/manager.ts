@@ -66,6 +66,7 @@ import {
 } from './llm-alerts';
 import { armSilenceRecovery, cancelNoInputRecovery } from './no-input-recovery';
 import { createStructuredTurnStateWithName } from './structured-turn/fact-guards';
+import { foldTurnContext } from './structured-turn/prompt';
 
 function recordVoiceTransfer(
   session: CallSession,
@@ -1319,7 +1320,10 @@ export class CallSessionManager {
       signal: withRequestTimeout(opts.signal),
       body: JSON.stringify({
         model: voiceConfig.VOICE_STRUCTURED_FALLBACK_MODEL,
-        messages: mergeSystemMessages(messages),
+        // Messages tels quels : l'état du tour reste après l'historique, le premier message système est réutilisé
+        // par le cache (Luna sur Azure/OpenAI accepte plusieurs messages système).
+        // shortcut: suppose un modèle qui accepte un système hors tête ; repasser par foldTurnContext si on change de modèle.
+        messages,
         max_tokens: opts.maxTokens,
         ...(voiceConfig.VOICE_STRUCTURED_FALLBACK_SAMPLING === 'false'
           ? {}
@@ -1448,7 +1452,7 @@ export class CallSessionManager {
   ): Promise<Response> {
     const body = {
       model,
-      messages: mergeSystemMessages(messages),
+      messages: mergeSystemMessages(foldTurnContext(messages)),
       max_tokens: opts.maxTokens,
       temperature: opts.temperature,
       top_p: 0.8,

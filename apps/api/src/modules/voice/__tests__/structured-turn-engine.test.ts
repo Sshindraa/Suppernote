@@ -28,6 +28,7 @@ import { speakTtsStreamed } from '../stream/tts-handler';
 import { voiceCardGuaranteeTerms } from '../card-guarantee-facts';
 import { __resetMetrics, voiceTtsContextFailureTotal } from '../../../shared/observability/metrics';
 import { logger } from '../../../shared/logger/pino';
+import { systemOf } from './helpers/system-of';
 
 vi.mock('../stream/tts-handler', () => ({
   speakTtsStreamed: vi.fn().mockResolvedValue(undefined),
@@ -474,9 +475,12 @@ describe('tour structuré (canary)', () => {
     // Pas la phrase fixe du jour complet : le second passage reçoit le fait « aucune table ».
     expect(spoken().join(' ')).not.toMatch(/^Je n'ai plus de table/);
     expect(spoken().join(' ')).toContain('gérant');
-    const secondContext = (
-      vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[1] as Array<{ content: string }>
-    )[0].content;
+    const secondContext = systemOf(
+      vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[1] as Array<{
+        role?: string;
+        content: string;
+      }>,
+    ).content;
     expect(secondContext).toContain(
       'aucune table qui accueille 7 personnes, quel que soit le jour',
     );
@@ -537,11 +541,11 @@ describe('tour structuré (canary)', () => {
       await processTranscriptStreaming(session, 'un non 5', mgr);
 
       expect(spoken()).toEqual(['Vous avez dit cinq personnes ?']);
-      const secondContext = (
+      const secondContext = systemOf(
         vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[1] as Array<{
           content: string;
-        }>
-      )[0].content;
+        }>,
+      ).content;
       expect(secondContext).toContain('un non 5');
       expect(secondContext).toContain('4 personnes');
       expect(session.structuredTurn?.draft.partySize).toBe(4);
@@ -741,9 +745,12 @@ describe('tour structuré (canary)', () => {
 
     // Un seul appel au modèle, et le créneau est vérifié pour la réservation.
     expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(2);
-    const context = (
-      vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[1] as Array<{ content: string }>
-    )[0].content;
+    const context = systemOf(
+      vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[1] as Array<{
+        role?: string;
+        content: string;
+      }>,
+    ).content;
     expect(context).toContain('"freeSlotsByPartySize"');
     expect(context).toContain('19:00→20:00');
     expect(session.structuredTurn?.availability).toEqual({
@@ -773,9 +780,12 @@ describe('tour structuré (canary)', () => {
       customerName: '',
     });
     const secondPassContext = (mgr: CallSessionManager) =>
-      (
-        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{ content: string }>
-      )[0].content;
+      systemOf(
+        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
+          role?: string;
+          content: string;
+        }>,
+      ).content;
 
     it('ne laisse pas accepter « mardi à 20 heures » : silence, fait réel donné au second passage', async () => {
       const { session, mgr, outputs } = fixture();
@@ -827,9 +837,12 @@ describe('tour structuré (canary)', () => {
       customerName,
     });
     const secondPassContext = (mgr: CallSessionManager) =>
-      (
-        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{ content: string }>
-      )[0].content;
+      systemOf(
+        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
+          role?: string;
+          content: string;
+        }>,
+      ).content;
     const askingName = () => {
       const fx = fixture();
       const state = createStructuredTurnState();
@@ -1042,9 +1055,12 @@ describe('tour structuré (canary)', () => {
       expect(outputs).toHaveLength(0);
       expect(mgr.cleanup).not.toHaveBeenCalled();
       expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(2);
-      const context = (
-        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{ content: string }>
-      )[0].content;
+      const context = systemOf(
+        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
+          role?: string;
+          content: string;
+        }>,
+      ).content;
       expect(context).toContain('non exécutée');
       expect(context).toContain('ne prends pas congé');
       // Le second passage ne peut plus choisir de raccrocher : le schéma n'autorise que « none ».
@@ -1121,8 +1137,10 @@ describe('tour structuré (canary)', () => {
 
       expect(reply).toBe('Désolé, vous disiez ? Vers quelle heure ?');
       const messages = requestOf(mgr);
-      expect(messages[0].content).toContain('RELANCE :');
-      expect(messages[0].content).toContain('aucun mot n’a pu être reconnu'.replace('’', "'"));
+      expect(systemOf(messages).content).toContain('RELANCE :');
+      expect(systemOf(messages).content).toContain(
+        'aucun mot n’a pu être reconnu'.replace('’', "'"),
+      );
       expect(messages.at(-1)).toEqual({ role: 'user', content: '(aucune parole reconnue)' });
       // L'historique réel n'est ni complété ni modifié par la relance.
       expect(session.history).toHaveLength(2);
@@ -1157,9 +1175,12 @@ describe('tour structuré (canary)', () => {
       customerName,
     });
     const secondPassContext = (mgr: CallSessionManager) =>
-      (
-        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{ content: string }>
-      )[0].content;
+      systemOf(
+        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
+          role?: string;
+          content: string;
+        }>,
+      ).content;
     /** L'agent vient de relire « H, O, U, T » (le E de « houet » avait été perdu). */
     const afterReadBack = () => {
       const fx = fixture();
@@ -1258,9 +1279,12 @@ describe('tour structuré (canary)', () => {
       slotsBySize: { 5: slots },
     });
     const secondPassContext = (mgr: CallSessionManager) =>
-      (
-        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{ content: string }>
-      )[0].content;
+      systemOf(
+        vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
+          role?: string;
+          content: string;
+        }>,
+      ).content;
 
     it('ne promet pas le créneau, vérifie pour de bon et laisse le modèle proposer des alternatives', async () => {
       const { session, mgr, outputs } = fixture();
@@ -1787,8 +1811,8 @@ describe('tour structuré (canary)', () => {
       const secondPass = vi.mocked(mgr.streamStructuredCompletion).mock.calls[1]?.[1] as Array<{
         content: string;
       }>;
-      expect(secondPass[0].content).toContain('entendu tout le récapitulatif');
-      expect(secondPass[0].content).toContain('pour 4 personnes, au nom de Akkif');
+      expect(systemOf(secondPass).content).toContain('entendu tout le récapitulatif');
+      expect(systemOf(secondPass).content).toContain('pour 4 personnes, au nom de Akkif');
       expect(session.interruptedReply).toBeUndefined();
     });
 
@@ -2516,9 +2540,12 @@ describe('relecture du nom : les lettres isolées, vérifiées par le code (appe
     return fx;
   };
   const contextOf = (mgr: CallSessionManager, pass: number) =>
-    (
-      vi.mocked(mgr.streamStructuredCompletion).mock.calls[pass]?.[1] as Array<{ content: string }>
-    )[0].content;
+    systemOf(
+      vi.mocked(mgr.streamStructuredCompletion).mock.calls[pass]?.[1] as Array<{
+        role?: string;
+        content: string;
+      }>,
+    ).content;
 
   it('dit la relecture du modèle quand elle porte chaque lettre isolée et dans l’ordre', async () => {
     const { session, mgr, outputs } = askingName();

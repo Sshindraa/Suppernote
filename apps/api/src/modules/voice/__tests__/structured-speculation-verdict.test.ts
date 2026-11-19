@@ -101,6 +101,15 @@ describe('issue de la spéculation', () => {
     expect(classifySpeculationMiss(base, request('état A', [['assistant', 'Autre']], '6'))).toBe(
       'miss_history',
     );
+    // L'état du tour est dans un message système après l'historique : il compte comme l'état.
+    const tail = (state: string) => [
+      ...base.slice(0, -1),
+      { role: 'system' as const, content: state },
+      base.at(-1)!,
+    ];
+    expect(classifySpeculationMiss(tail('ÉTAT VÉRIFIÉ : A'), tail('ÉTAT VÉRIFIÉ : B'))).toBe(
+      'miss_state',
+    );
     expect(classifySpeculationMiss(base, request('état A', past, '6, s’il vous plaît.'))).toBe(
       'miss_transcript_format',
     );

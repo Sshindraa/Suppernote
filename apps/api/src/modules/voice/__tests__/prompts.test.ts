@@ -10,6 +10,7 @@ import {
   createStructuredTurnState,
   dayPartInTimezone,
 } from '../stream/structured-turn/fact-guards';
+import { systemOf } from './helpers/system-of';
 
 describe('buildSystemPrompt', () => {
   const baseCtx = {
@@ -29,12 +30,14 @@ describe('buildSystemPrompt', () => {
   it('partage une seule règle de continuité et de récapitulatif avec le tour structuré', () => {
     const prompt = buildSystemPrompt(baseCtx, new Date('2026-10-26T10:00:00Z'));
     for (const systemPrompt of [prompt, 'Prompt de test']) {
-      const [system] = buildStructuredTurnMessages({
-        systemPrompt,
-        history: [],
-        transcript: 'et demain, vous avez une terrasse ?',
-        state: createStructuredTurnState(),
-      });
+      const system = systemOf(
+        buildStructuredTurnMessages({
+          systemPrompt,
+          history: [],
+          transcript: 'et demain, vous avez une terrasse ?',
+          state: createStructuredTurnState(),
+        }),
+      );
       expect(system.content.split(VOICE_CONVERSATION_RULES)).toHaveLength(2);
       expect(system.content).not.toContain('la date complète seulement au récapitulatif');
       expect(system.content).toContain('Si le jour est éloigné ou ambigu');
@@ -45,15 +48,17 @@ describe('buildSystemPrompt', () => {
   });
 
   it('après opération demande uniquement la formulation, sans nouveau brouillon', () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: buildSystemPrompt(baseCtx),
-      history: [],
-      transcript: 'demain pour quatre',
-      state: createStructuredTurnState(),
-      afterAction: true,
-      understanding: true,
-      actionResult: 'La vérification a échoué. Aucun horaire vérifié.',
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: buildSystemPrompt(baseCtx),
+        history: [],
+        transcript: 'demain pour quatre',
+        state: createStructuredTurnState(),
+        afterAction: true,
+        understanding: true,
+        actionResult: 'La vérification a échoué. Aucun horaire vérifié.',
+      }),
+    );
     expect(system.content).toContain('RÉPONSE APRÈS UNE OPÉRATION TERMINÉE');
     expect(system.content).not.toContain('MODE DE RÉPONSE STRUCTURÉ');
     expect(system.content).not.toContain('COMPRÉHENSION VÉRIFIÉE');
@@ -194,13 +199,15 @@ describe('buildSystemPrompt', () => {
 
     const state = createStructuredTurnState();
     state.draft.date = '2026-09-28';
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'vous êtes ouvert à quelle heure',
-      state,
-      openingHours: hours,
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'vous êtes ouvert à quelle heure',
+        state,
+        openingHours: hours,
+      }),
+    );
     expect(system.content).toContain(
       '"dateFacts":{"date":"2026-09-28","weekday":"lundi","hours":"FERMÉ ce jour-là"}',
     );
@@ -238,12 +245,14 @@ describe('buildSystemPrompt', () => {
   });
 
   it("interdit d'annoncer une disponibilité avant le nombre de personnes (appel c5d6b07d)", () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: "est-ce que c'est possible de venir à 18 heures",
-      state: createStructuredTurnState(),
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: "est-ce que c'est possible de venir à 18 heures",
+        state: createStructuredTurnState(),
+      }),
+    );
     // Rejeu Qwen du 28/09 : « Oui, 18 heures c'est possible » dans 7 à 8 tirages sur 10
     // sans nombre de personnes ; 0 sur 10 avec cette consigne.
     expect(system.content).toContain('tant que draft.partySize vaut 0');
@@ -264,12 +273,14 @@ describe('buildSystemPrompt', () => {
     };
     const stateOf = (transcript: string, awaiting: Parameters<typeof stateAwaiting>[0]) =>
       (
-        buildStructuredTurnMessages({
-          systemPrompt: 'Prompt',
-          history: [],
-          transcript,
-          state: stateAwaiting(awaiting),
-        })[0].content as string
+        systemOf(
+          buildStructuredTurnMessages({
+            systemPrompt: 'Prompt',
+            history: [],
+            transcript,
+            state: stateAwaiting(awaiting),
+          }),
+        ).content as string
       ).split('ÉTAT VÉRIFIÉ : ')[1];
 
     const verified = JSON.parse(stateOf('au nom de a 2 s a 2 m', 'customerName').split('\n')[0]);
@@ -289,13 +300,15 @@ describe('buildSystemPrompt', () => {
   });
 
   it('donne au modèle des principes de conversation, pas des phrases (appel b686b241)', () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'je voudrais bien venir',
-      state: createStructuredTurnState(),
-      dayPart: '15 h, après-midi',
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'je voudrais bien venir',
+        state: createStructuredTurnState(),
+        dayPart: '15 h, après-midi',
+      }),
+    );
     // Rejeu Qwen sur les tours réels du 29/09 (20 tirages) : phrase d'intention sans
     // information, attente 14/20 → 20/20 ; nom épelé au récapitulatif 5/20 → 0/20 ;
     // récapitulatif 23,7 → 17 mots ; redemande à vide (60 tirages) 52/60 → 26/60 ;
@@ -310,12 +323,14 @@ describe('buildSystemPrompt', () => {
   });
 
   it('attend une correction annoncée et prend congé après la réservation (appel 8ae1e63e)', () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'demain à 14 heures non',
-      state: createStructuredTurnState(),
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'demain à 14 heures non',
+        state: createStructuredTurnState(),
+      }),
+    );
     // Rejeu Qwen sur les tours réels du 29/09 (18 h 39) : une valeur suivie d'un rejet
     // n'était jamais jugée inachevée (0/20) → 25/30 ; « salut » après « Bonne soirée »
     // rouvrait un accueil 13/20 → 0/20 (fin d'appel 7/20 → 20/20) ; témoins inchangés.
@@ -326,12 +341,14 @@ describe('buildSystemPrompt', () => {
   });
 
   it("n'ajoute aucun moment de la journée quand il n'est pas fourni", () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'bonjour',
-      state: createStructuredTurnState(),
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'bonjour',
+        state: createStructuredTurnState(),
+      }),
+    );
     expect(system.content).not.toContain('MOMENT DE LA JOURNÉE (heure locale');
   });
 
@@ -346,12 +363,14 @@ describe('buildSystemPrompt', () => {
   });
 
   it('interdit de recopier une question restée sans réponse (appel c5d6b07d)', () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'et vous avez une terrasse',
-      state: createStructuredTurnState(),
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'et vous avez une terrasse',
+        state: createStructuredTurnState(),
+      }),
+    );
     // Rejeu Qwen du 29/09, question à côté (« terrasse ») : 8/10 répétaient
     // « Vous voulez venir vers quelle heure ? » mot pour mot ; 2/10 avec cette consigne.
     expect(system.content).toContain('ne recopie jamais ta dernière phrase');
@@ -366,14 +385,16 @@ describe('buildSystemPrompt', () => {
     expect(calendar[1]).toBe('2026-09-28 lundi (demain) : FERMÉ ce jour-là');
     expect(calendar[2]).toBe('2026-09-29 mardi (après-demain) : ouvert 12:00–22:00');
 
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'on serait ouvert demain',
-      state: createStructuredTurnState(),
-      openingHours: hours,
-      today: '2026-09-27',
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'on serait ouvert demain',
+        state: createStructuredTurnState(),
+        openingHours: hours,
+        today: '2026-09-27',
+      }),
+    );
     expect(system.content).toContain('CALENDRIER (calculé');
     expect(system.content).toContain('2026-09-28 lundi (demain) : FERMÉ ce jour-là');
   });
@@ -472,12 +493,14 @@ describe('buildSystemPrompt', () => {
 describe('phrases à dire : des principes, pas des formules', () => {
   const hours = { tue: { open: '12:00', close: '22:00' } };
   const base = buildSystemPrompt({ name: 'Chez Test', openingHours: hours });
-  const [system] = buildStructuredTurnMessages({
-    systemPrompt: base,
-    history: [],
-    transcript: 'bonjour',
-    state: createStructuredTurnState(),
-  });
+  const system = systemOf(
+    buildStructuredTurnMessages({
+      systemPrompt: base,
+      history: [],
+      transcript: 'bonjour',
+      state: createStructuredTurnState(),
+    }),
+  );
   const prompt = String(system.content);
 
   it("ne donne plus de phrase de l'agent à imiter ni de formule d'accusé de réception nommée", () => {
@@ -577,12 +600,14 @@ describe('buildSystemPrompt : base sans outil', () => {
   });
 
   it("les consignes du tour structuré disent ce qu'il ne peut pas faire", () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: prompt,
-      history: [],
-      transcript: 'bonjour',
-      state: createStructuredTurnState(),
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: prompt,
+        history: [],
+        transcript: 'bonjour',
+        state: createStructuredTurnState(),
+      }),
+    );
     expect(system.content).not.toContain('prioritaire sur la section OUTILS');
     expect(system.content).toContain(
       'Tu ne peux ni annuler une réservation, ni signaler un retard, ni vendre une carte cadeau',
@@ -637,13 +662,15 @@ describe('genre de la voix', () => {
 
 describe('tour structuré : informations déjà données', () => {
   it('retient le jour, l’heure et le nombre dits dans une question, et ne les redemande pas', () => {
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'vous êtes ouvert demain',
-      state: createStructuredTurnState(),
-      openingHours: {} as never,
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'vous êtes ouvert demain',
+        state: createStructuredTurnState(),
+        openingHours: {} as never,
+      }),
+    );
     expect(system.content).toContain(
       'même dans une question sur les horaires ou les disponibilités',
     );

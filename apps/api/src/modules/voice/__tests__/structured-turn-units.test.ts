@@ -7,7 +7,7 @@ import {
   parseStructuredTurnOutput,
   type StructuredTurnOutput,
 } from '../stream/structured-turn/schema';
-import { buildStructuredTurnMessages } from '../stream/structured-turn/prompt';
+import { buildStructuredTurnMessages, foldTurnContext } from '../stream/structured-turn/prompt';
 import {
   applyProposedDraft,
   authorizeStructuredAction,
@@ -24,6 +24,7 @@ import {
   spelledNameFact,
   todayInTimezone,
 } from '../stream/structured-turn/fact-guards';
+import { systemOf } from './helpers/system-of';
 
 function output(overrides: Partial<StructuredTurnOutput> = {}): StructuredTurnOutput {
   return {
@@ -188,8 +189,9 @@ describe('vérification de compréhension', () => {
       transcript: 'bonjour',
       state: createStructuredTurnState(),
     };
-    const off = buildStructuredTurnMessages(input)[0].content as string;
-    const on = buildStructuredTurnMessages({ ...input, understanding: true })[0].content as string;
+    const off = systemOf(buildStructuredTurnMessages(input)).content as string;
+    const on = systemOf(buildStructuredTurnMessages({ ...input, understanding: true }))
+      .content as string;
     expect(off).not.toContain('COMPRÉHENSION VÉRIFIÉE');
     expect(on).toContain('COMPRÉHENSION VÉRIFIÉE');
     // Aucun guillemet français dans le bloc : pas d'exemple de formulation.
@@ -230,8 +232,8 @@ describe('ton de voix (balise d’expression ElevenLabs)', () => {
       transcript: 'bonjour',
       state: createStructuredTurnState(),
     };
-    const off = buildStructuredTurnMessages(input)[0].content as string;
-    const on = buildStructuredTurnMessages({ ...input, tone: true })[0].content as string;
+    const off = systemOf(buildStructuredTurnMessages(input)).content as string;
+    const on = systemOf(buildStructuredTurnMessages({ ...input, tone: true })).content as string;
     expect(off).not.toContain('TON DE VOIX');
     expect(on).toContain('TON DE VOIX');
     const block = on.slice(on.indexOf('TON DE VOIX'), on.indexOf('ÉTAT VÉRIFIÉ'));
@@ -773,12 +775,14 @@ describe('aucune table pour ce nombre, distinct de « complet ce jour-là » (ap
       slotsBySize: { 1: ['20:00'], 2: [], 3: [], 4: ['20:00'], 5: [], 6: [], 7: [], 8: [] },
       noTableSizes: [7, 8],
     };
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: 'Prompt',
-      history: [],
-      transcript: 'on sera sept',
-      state,
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: 'Prompt',
+        history: [],
+        transcript: 'on sera sept',
+        state,
+      }),
+    );
     const verified = JSON.parse(String(system.content).split('ÉTAT VÉRIFIÉ : ')[1].split('\n')[0]);
     expect(verified.dayAvailability.freeSlotsByPartySize).toEqual({
       '1': '20:00',
@@ -952,5 +956,49 @@ describe('formulation après une opération terminée', () => {
     expect(
       parseAfterActionOutput(JSON.stringify({ ...reply, tone: 'reassuring' }), draft)?.tone,
     ).toBe('reassuring');
+  });
+});
+
+describe('état du tour après l’historique (cache du prompt)', () => {
+  const turn = (draft: Partial<ReturnType<typeof createStructuredTurnState>['draft']>) => {
+    const state = createStructuredTurnState();
+    state.draft = { ...state.draft, ...draft };
+    return buildStructuredTurnMessages({
+      systemPrompt: 'Consignes du restaurant.',
+      history: [
+        { role: 'assistant', content: 'Pour quel jour ?' },
+        { role: 'user', content: 'demain' },
+      ],
+      transcript: '4',
+      state,
+      today: '2026-11-19',
+      dayPart: 'soir',
+    });
+  };
+
+  it('garde le premier message système identique quand l’état change', () => {
+    const before = turn({ date: '2026-11-20' });
+    const after = turn({ date: '2026-11-20', time: '14:00', partySize: 4 });
+    expect(after[0]).toEqual(before[0]);
+    expect(String(after[0].content)).not.toContain('ÉTAT VÉRIFIÉ : {');
+    expect(after.map((message) => message.role)).toEqual([
+      'system',
+      'assistant',
+      'user',
+      'system',
+      'user',
+    ]);
+    expect(String(after.at(-2)?.content)).toMatch(/^ÉTAT VÉRIFIÉ : \{.*"partySize":4/);
+    expect(after.at(-1)?.content).toBe('4');
+  });
+
+  it('Cerebras : replie l’état à la fin du premier message système, sans la phrase qui le situe', () => {
+    const messages = turn({ date: '2026-11-20' });
+    const folded = foldTurnContext(messages);
+    expect(folded.map((message) => message.role)).toEqual(['system', 'assistant', 'user', 'user']);
+    expect(String(folded[0].content)).toContain('MOMENT DE LA JOURNÉE');
+    expect(String(folded[0].content)).not.toContain('placé juste avant les derniers mots');
+    expect(String(folded[0].content).endsWith(String(messages.at(-2)?.content))).toBe(true);
+    expect(foldTurnContext(folded)).toEqual(folded);
   });
 });

@@ -15,6 +15,7 @@ import {
   summarize,
 } from '../behavior-eval/score';
 import type { BehaviorCase, BehaviorCasesFile } from '../behavior-eval/types';
+import { systemOf } from './helpers/system-of';
 
 const baseCase = (checks: BehaviorCase['checks']): BehaviorCase => ({
   id: 'cas',
@@ -413,15 +414,17 @@ describe('indépendance du banc', () => {
   // Le prompt réel reçu par le modèle, consignes de compréhension comprises.
   const prompts = [true, false].map(() => {
     const base = buildSystemPrompt({ name: 'Chez Test', openingHours: hours });
-    const [system] = buildStructuredTurnMessages({
-      systemPrompt: base,
-      history: [],
-      transcript: 'x',
-      state: createStructuredTurnState(),
-      openingHours: hours,
-      today: '2026-09-30',
-      understanding: true,
-    });
+    const system = systemOf(
+      buildStructuredTurnMessages({
+        systemPrompt: base,
+        history: [],
+        transcript: 'x',
+        state: createStructuredTurnState(),
+        openingHours: hours,
+        today: '2026-09-30',
+        understanding: true,
+      }),
+    );
     return normalize(String(system.content));
   });
   const NUMBER_WORDS: Record<number, string> = {
@@ -486,7 +489,7 @@ describe('cas réels du jeu de comportements', () => {
     for (const [index, request] of checked.entries()) {
       expect(schema(request).properties).toHaveProperty('understanding');
       expect(schema(base[index]).properties).not.toHaveProperty('understanding');
-      expect(request.messages[0].content).toContain('COMPRÉHENSION VÉRIFIÉE');
+      expect(systemOf(request.messages).content).toContain('COMPRÉHENSION VÉRIFIÉE');
     }
   });
 
@@ -523,6 +526,6 @@ describe('cas réels du jeu de comportements', () => {
 
   it('le fait du moment de la journée est bien transmis quand le cas le demande', () => {
     const request = buildRequests(file).find((r) => r.id === 'au-revoir-selon-heure');
-    expect(request?.messages[0].content).toContain('15 h, après-midi');
+    expect(systemOf(request?.messages ?? []).content).toContain('15 h, après-midi');
   });
 });

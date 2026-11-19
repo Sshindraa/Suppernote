@@ -1,6 +1,6 @@
 /**
  * Extrait au fil du streaming la valeur de la clé `say` d'un objet JSON en cours
- * de génération. Le schéma place `say` en dernier : dès que sa chaîne s'ouvre,
+ * de génération. Le schéma place `say` après les champs lus par les gardes : dès que sa chaîne s'ouvre,
  * chaque caractère décodé peut partir vers la synthèse vocale.
  */
 export class SayStreamExtractor {

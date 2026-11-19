@@ -129,16 +129,13 @@ function spokenClock(time: string): string {
 }
 
 /**
- * Confirmation dite juste après une création sans empreinte bancaire : jour, heure et nombre du brouillon
- * vérifié. Le nom n'est pas relu : l'appelant vient de l'accepter dans le récapitulatif.
+ * Confirmation dite juste après une création sans empreinte bancaire : le jour et l'heure seulement. Le nombre
+ * et le nom ne sont pas relus : l'appelant vient de les accepter au récapitulatif (appel du 18/11 : trois
+ * récapitulatifs de suite sonnaient comme un formulaire).
  */
-function confirmationSay(
-  draft: { date: string; time: string; partySize: number },
-  smsConfirmation: boolean,
-): string {
-  const party = draft.partySize === 1 ? 'une personne' : `${draft.partySize} personnes`;
-  const sms = smsConfirmation ? ' Un SMS de confirmation va vous être envoyé.' : '';
-  return `Votre réservation est confirmée : ${spokenDay(draft.date)} à ${spokenClock(draft.time)}, pour ${party}.${sms}`;
+function confirmationSay(draft: { date: string; time: string }, smsConfirmation: boolean): string {
+  const sms = smsConfirmation ? ' Vous allez recevoir un SMS de confirmation.' : '';
+  return `C'est réservé pour ${spokenDay(draft.date)} à ${spokenClock(draft.time)}.${sms}`;
 }
 
 function nearestSlots(slots: string[], time: string): string[] {

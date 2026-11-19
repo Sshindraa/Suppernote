@@ -370,14 +370,6 @@ export async function telnyxVoiceRoutes(app: FastifyInstance) {
             telnyxWs: null as unknown as import('ws').WebSocket, // Sera attaché dans le WebSocket start event
             callLegId: payload.call_leg_id,
             codec: telnyxCodec,
-            ...(ctx.personality
-              ? {
-                  greetingStyle: {
-                    profileType: ctx.personality.profileType,
-                    fillerStyle: ctx.personality.fillerStyle,
-                  },
-                }
-              : {}),
             personality: ctx.personality
               ? {
                   fillerStyle: (['CASUAL', 'FORMAL', 'WARM'] as const).includes(

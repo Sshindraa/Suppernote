@@ -1533,9 +1533,7 @@ describe('tour structuré (canary)', () => {
         'D’accord. Je confirme la réservation ?',
       ].join(' '),
     );
-    expect(spoken().at(-1)).toMatch(
-      /^Votre réservation est confirmée : \S.* à 20 h, pour 3 personnes\.$/,
-    );
+    expect(spoken().at(-1)).toMatch(/^C'est réservé pour \S.* à 20 h\.$/);
     expect(session.structuredTurn?.reservationCreated).toBe(true);
   });
 
@@ -1682,7 +1680,7 @@ describe('tour structuré (canary)', () => {
 
   describe('confirmation d’une réservation créée : un seul passage (appel du 19/11, 2,8 s)', () => {
     const draft = { date: TOMORROW, time: '20:00', partySize: 4, customerName: 'Akkif' };
-    const CONFIRMED = /^Votre réservation est confirmée : \S.* à 20 h, pour 4 personnes\.$/;
+    const CONFIRMED = /^C'est réservé pour \S.* à 20 h\.$/;
 
     function confirmingSession() {
       const fixed = fixture();
@@ -1718,7 +1716,7 @@ describe('tour structuré (canary)', () => {
       await processTranscriptStreaming(session, 'oui c’est bon', mgr);
 
       expect(spoken()).toEqual([
-        expect.stringMatching(/ pour 4 personnes\. Un SMS de confirmation va vous être envoyé\.$/),
+        expect.stringMatching(/ à 20 h\. Vous allez recevoir un SMS de confirmation\.$/),
       ]);
     });
 
@@ -2678,7 +2676,7 @@ describe('relecture du nom : les lettres isolées, vérifiées par le code (appe
 
 describe('repli parlé quand le tour échoue (appel du 19/10, 22 h 09)', () => {
   const TECHNICAL = "Désolée, j'ai eu un petit souci de mon côté. Pouvez-vous me le redire ?";
-  const NOT_UNDERSTOOD = "Pardon, je n'ai pas bien saisi. Pouvez-vous répéter ?";
+  const NOT_UNDERSTOOD = "Pardon, je n'ai pas bien entendu. Vous pouvez répéter ?";
   const ESCALATION =
     'Je rencontre un petit souci technique. Je peux vous passer le gérant ou prendre un message. Que préférez-vous ?';
 
@@ -2697,7 +2695,7 @@ describe('repli parlé quand le tour échoue (appel du 19/10, 22 h 09)', () => {
     expect(session.conversation.misunderstandingCount).toBe(0);
   });
 
-  it('sortie du modèle inexploitable : garde « je n’ai pas bien saisi »', async () => {
+  it('sortie du modèle inexploitable : garde « je n’ai pas bien entendu »', async () => {
     const { session, mgr } = fixture();
     vi.mocked(mgr.streamStructuredCompletion).mockResolvedValueOnce('pas du JSON');
 
@@ -2778,7 +2776,7 @@ describe('tour structuré : say vide, secours et voix hors tour', () => {
 
     await processTranscriptStreaming(session, '5 non 4', mgr);
 
-    expect(spoken().join(' ')).toBe('Quel nom dois-je inscrire pour la réservation ?');
+    expect(spoken().join(' ')).toBe("C'est à quel nom ?");
   });
 
   it('le secours hors tour passe par ElevenLabs quand sa clé est présente', async () => {

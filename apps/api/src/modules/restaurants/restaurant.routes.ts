@@ -48,7 +48,6 @@ import {
   QuickFloorSetupSchema,
 } from './onboarding-floor.service';
 import { invalidateRestaurantContextCache } from './restaurant.service';
-import { resolveStyledGreeting } from '../voice/stream/styled-greeting';
 import { requestGreetingWarm } from '../../shared/queue/greeting-warm';
 import { computeConnectScore } from '../connect/connect-score.service';
 import {
@@ -1074,14 +1073,6 @@ export async function restaurantRoutes(app: FastifyInstance) {
     // Invalider le cache du restaurant pour que le nouveau system prompt soit pris en compte
     const restaurant = await app.db.restaurant.findUniqueOrThrow({ where: { id } });
     await invalidateRestaurantContextCache(restaurant.phoneNumber);
-
-    // Accueil composé pour ce style : prêt avant le prochain appel (jamais bloquant en cas d'échec).
-    await resolveStyledGreeting(
-      restaurant.name,
-      { profileType: personality.profileType, fillerStyle: personality.fillerStyle },
-      { attempts: 2, timeoutMs: 4_000 },
-    ).catch(() => null);
-    requestGreetingWarm();
 
     return reply.send(personality);
   });

@@ -14,6 +14,7 @@ import {
 } from '../stream/structured-turn/prompt';
 import { createStructuredTurnState } from '../stream/structured-turn/fact-guards';
 import type { CallSession } from '../stream/types';
+import { systemOf } from './helpers/system-of';
 
 describe('désaccord sur le nombre de personnes', () => {
   it('ne retient que les nombres suivis de « personnes » ou « couverts »', () => {
@@ -70,7 +71,7 @@ describe('note du tour', () => {
       transcript: 'oui',
       state,
     });
-    expect(String(withNote[0].content)).toContain('SECONDE ÉCOUTE');
+    expect(String(systemOf(withNote).content)).toContain('SECONDE ÉCOUTE');
     expect(String(without[0].content)).not.toContain('SECONDE ÉCOUTE');
   });
 });

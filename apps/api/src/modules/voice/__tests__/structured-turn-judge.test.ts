@@ -19,6 +19,7 @@ import type { CallSession } from '../stream/types';
 import type { CallSessionManager } from '../stream/manager';
 import { speakTtsStreamed } from '../stream/tts-handler';
 import { __resetMetrics } from '../../../shared/observability/metrics';
+import { systemOf } from './helpers/system-of';
 
 vi.mock('../stream/tts-handler', () => ({
   speakTtsStreamed: vi.fn().mockResolvedValue(undefined),
@@ -195,7 +196,7 @@ describe('juge de fin de tour séparé : décision de répondre', () => {
     expect(spoken()).toEqual(['Pour quel jour ?']);
     const calls = modelCalls(mgr);
     expect(calls).toHaveLength(2);
-    const second = (calls[1][1] as Array<{ content: string }>)[0].content;
+    const second = systemOf(calls[1][1] as Array<{ role?: string; content: string }>).content;
     expect(second).toContain("L'appelant s'est tu");
   });
 

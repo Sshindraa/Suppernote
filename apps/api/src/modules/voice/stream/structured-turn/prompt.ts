@@ -251,15 +251,9 @@ export function buildStructuredTurnMessages(input: {
       : {}),
   };
   const calendar = input.today ? describeCalendar(input.today, input.openingHours) : '';
-  const system = [
-    input.systemPrompt,
-    input.systemPrompt.includes(VOICE_CONVERSATION_RULES) ? '' : VOICE_CONVERSATION_RULES,
-    input.afterAction ? AFTER_ACTION_INSTRUCTIONS : STRUCTURED_TURN_INSTRUCTIONS,
-    input.understanding && !input.afterAction ? UNDERSTANDING_INSTRUCTIONS : '',
-    input.tone ? TONE_INSTRUCTIONS : '',
-    calendar
-      ? `CALENDRIER (calculé, fait foi pour tout jour, date ou horaire ; ne le recalcule jamais toi-même) :\n${calendar}`
-      : '',
+  // Blocs propres au tour, dans un message système après l'historique : dans le premier, ils le changeaient à chaque
+  // tour, et le cache du fournisseur ne reprend que des messages entiers (mesuré le 19/11 : 0 contre 5 240 tokens).
+  const turnBlocks = [
     `ÉTAT VÉRIFIÉ : ${JSON.stringify(verified)}`,
     input.replyScope
       ? `PORTÉE DE LA RÉPONSE : ${replyScopeInstruction(input.replyScope)} Aucun fait nouveau n'est donné : draft reste exactement celui de l'ÉTAT VÉRIFIÉ jusqu'à une correction explicite.`
@@ -279,15 +273,52 @@ export function buildStructuredTurnMessages(input: {
   ]
     .filter(Boolean)
     .join('\n\n');
+  const system = [
+    input.systemPrompt,
+    input.systemPrompt.includes(VOICE_CONVERSATION_RULES) ? '' : VOICE_CONVERSATION_RULES,
+    input.afterAction ? AFTER_ACTION_INSTRUCTIONS : STRUCTURED_TURN_INSTRUCTIONS,
+    input.understanding && !input.afterAction ? UNDERSTANDING_INSTRUCTIONS : '',
+    input.tone ? TONE_INSTRUCTIONS : '',
+    calendar
+      ? `CALENDRIER (calculé, fait foi pour tout jour, date ou horaire ; ne le recalcule jamais toi-même) :\n${calendar}`
+      : '',
+    TURN_CONTEXT_LOCATION,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
   const dialogue = input.history.filter(
     (message) =>
       (message.role === 'user' || message.role === 'assistant') &&
       typeof message.content === 'string' &&
       message.content.trim(),
   );
+  const callerText = input.recovery ? RECOVERY_USER_MARKER : input.transcript;
   return [
     { role: 'system', content: system },
     ...dialogue.map((message) => ({ role: message.role, content: message.content })),
-    { role: 'user', content: input.recovery ? RECOVERY_USER_MARKER : input.transcript },
+    { role: 'system', content: turnBlocks },
+    { role: 'user', content: callerText },
+  ];
+}
+
+const TURN_CONTEXT_LOCATION =
+  "L'ÉTAT VÉRIFIÉ et les consignes propres à ce tour sont dans le message système placé juste avant les derniers mots de l'appelant. Ils font foi comme le reste de ces consignes.";
+
+/**
+ * Cerebras (Qwen) refuse un message système qui n'est pas le premier : l'état du tour reprend sa place d'avant, à la
+ * fin du premier message système, sans la phrase qui le situe ailleurs. Le prompt envoyé est celui d'avant le 19/11.
+ */
+export function foldTurnContext(messages: ChatMessage[]): ChatMessage[] {
+  const [first, ...rest] = messages;
+  const tail = rest.at(-2);
+  if (first?.role !== 'system' || tail?.role !== 'system' || rest.at(-1)?.role !== 'user') {
+    return messages;
+  }
+  const suffix = `\n\n${TURN_CONTEXT_LOCATION}`;
+  if (!first.content.endsWith(suffix)) return messages;
+  return [
+    { ...first, content: `${first.content.slice(0, -suffix.length)}\n\n${tail.content}` },
+    ...rest.slice(0, -2),
+    rest.at(-1)!,
   ];
 }

@@ -66,6 +66,7 @@ import {
 } from './llm-alerts';
 import { armSilenceRecovery, cancelNoInputRecovery } from './no-input-recovery';
 import { createStructuredTurnStateWithName } from './structured-turn/fact-guards';
+import { foldTurnContext } from './structured-turn/prompt';
 
 function recordVoiceTransfer(
   session: CallSession,
@@ -906,6 +907,7 @@ export class CallSessionManager {
       signal?: AbortSignal;
       telemetryTurnId?: string;
       maxTokens?: number;
+      kind?: LlmRequestKind;
       onDelta: (delta: string) => void;
     },
   ): Promise<{
@@ -946,6 +948,7 @@ export class CallSessionManager {
     let lastChunkAt = Date.now();
     let maxGapMs = 0;
     let firstTextMs: number | null = null;
+    let servedBy: string | undefined;
     try {
       for (;;) {
         const { done, value } = nextRead ?? (await reader.read());
@@ -964,6 +967,7 @@ export class CallSessionManager {
           if (!payload || payload === '[DONE]') continue;
           try {
             const chunk = JSON.parse(payload) as {
+              provider?: string;
               choices?: Array<{ delta?: { content?: string | null } }>;
               usage?: {
                 prompt_tokens?: number;
@@ -971,6 +975,7 @@ export class CallSessionManager {
                 prompt_tokens_details?: { cached_tokens?: number } | null;
               } | null;
             };
+            servedBy ??= chunk.provider;
             if (chunk.usage) {
               inputTokens = chunk.usage.prompt_tokens ?? inputTokens;
               cachedInputTokens =
@@ -1013,6 +1018,20 @@ export class CallSessionManager {
       inputTokens ?? estimateMessagesTokens(messages),
       outputTokens ?? estimateTokenCount(text),
       inputTokens === undefined,
+    );
+    // Requête terminée (une requête annulée lève avant) : cache et premier fragment par requête, des nombres seulement.
+    logger.info(
+      {
+        callId: session.callControlId,
+        kind: options.kind,
+        provider,
+        servedBy,
+        inputTokens,
+        cachedInputTokens,
+        firstTextMs,
+        totalMs,
+      },
+      '[llm-usage] structured request completed',
     );
     return {
       text,
@@ -1319,7 +1338,10 @@ export class CallSessionManager {
       signal: withRequestTimeout(opts.signal),
       body: JSON.stringify({
         model: voiceConfig.VOICE_STRUCTURED_FALLBACK_MODEL,
-        messages: mergeSystemMessages(messages),
+        // Messages tels quels : l'état du tour reste après l'historique, le premier message système est réutilisé
+        // par le cache (Luna sur Azure/OpenAI accepte plusieurs messages système).
+        // shortcut: suppose un modèle qui accepte un système hors tête ; repasser par foldTurnContext si on change de modèle.
+        messages,
         max_tokens: opts.maxTokens,
         ...(voiceConfig.VOICE_STRUCTURED_FALLBACK_SAMPLING === 'false'
           ? {}
@@ -1448,7 +1470,7 @@ export class CallSessionManager {
   ): Promise<Response> {
     const body = {
       model,
-      messages: mergeSystemMessages(messages),
+      messages: mergeSystemMessages(foldTurnContext(messages)),
       max_tokens: opts.maxTokens,
       temperature: opts.temperature,
       top_p: 0.8,

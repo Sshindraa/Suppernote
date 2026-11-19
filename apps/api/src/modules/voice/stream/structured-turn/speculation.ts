@@ -208,9 +208,12 @@ export function classifySpeculationMiss(
   speculated: ChatMessage[],
   actual: ChatMessage[],
 ): SpeculationOutcome {
-  const [speculatedSystem, ...speculatedRest] = speculated;
-  const [actualSystem, ...actualRest] = actual;
-  if (speculatedSystem?.content !== actualSystem?.content) return 'miss_state';
+  // L'état du tour est dans le message système qui suit l'historique : tous les messages système comptent.
+  const system = (messages: ChatMessage[]) =>
+    JSON.stringify(messages.filter((message) => message.role === 'system'));
+  if (system(speculated) !== system(actual)) return 'miss_state';
+  const speculatedRest = speculated.filter((message) => message.role !== 'system');
+  const actualRest = actual.filter((message) => message.role !== 'system');
   const speculatedLast = speculatedRest.at(-1);
   const actualLast = actualRest.at(-1);
   const speculatedHistory = JSON.stringify(speculatedRest.slice(0, -1));

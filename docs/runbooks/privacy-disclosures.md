@@ -284,6 +284,24 @@ destinataires configurés, leur contrôle d'autorisation, la persistance avant e
 et la confirmation d'acceptation fournisseur ne changent pas. 28 tests du module
 démo et TypeScript API réussis, avec SDK et base simulés ; aucun e-mail envoyé.
 
+## OpenAI via OpenRouter : conservation standard — 19 novembre 2026
+
+Décision du 19 novembre 2026 : Hamza accepte la conservation standard d'OpenAI pour
+GPT-6 Luna, modèle principal de l'assistant vocal. Faits internes, pas une attestation
+de conformité de Sokar.
+
+- Rôle : dialogue vocal (texte des échanges, dont noms et horaires cités par
+  l'appelant) envoyé à OpenAI, ou à Azure en dernier recours, par OpenRouter.
+- Configuration : l'ordre `openai/fast, openai, azure` est inchangé ; le code n'envoie
+  plus `zdr` ni `data_collection` (`fallbackProviderPreferences` dans
+  `apps/api/src/modules/voice/stream/manager.ts`). Le réglage
+  `VOICE_STRUCTURED_FALLBACK_ZERO_RETENTION=false` est en production depuis le 20 octobre
+  2026 : la décision aligne le code sur la production. Cerebras et Companion (qui garde
+  `data_collection: deny`) ne sont pas touchés.
+- À qualifier : durée de conservation et usage des contenus chez OpenAI et OpenRouter,
+  garanties de transfert vers les États-Unis, DPA applicable, mention dans la notice
+  publique. Rien de cela n'est vérifié à ce jour.
+
 ## Vérification documentaire ElevenLabs — 18 octobre 2026
 
 Décision du 18 octobre 2026 : Hamza accepte la conservation des textes chez

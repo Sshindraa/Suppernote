@@ -18,6 +18,7 @@ import { captureException } from '../../../shared/sentry/client';
 import { writeDebugLog } from './debug-log';
 import { describeTranscript } from './pii-redact';
 import { speakTtsStreamed } from './tts-handler';
+import { offTurnTtsProvider } from './elevenlabs-tts';
 import { recordVoiceTurnEvent, completeVoiceTurnInput, startVoiceTurn } from './turn-telemetry';
 import { TRANSCRIPT_DEDUPE_WINDOW_MS } from '../../../shared/constants/timeouts.js';
 import { isNameCollectionBlocking } from './conversation-state';
@@ -325,6 +326,7 @@ export function handleSttEvent(
         effectiveVoiceLanguage(session) === 'en'
           ? "Sorry, I didn't understand. Could you repeat that, please?"
           : "Désolé, je n'ai pas bien compris. Pouvez-vous répéter ?",
+        offTurnTtsProvider(),
       ).catch((err) =>
         logger.error(
           { err, callId: session.callControlId },
@@ -367,7 +369,7 @@ export function handleSttEvent(
       if (session.state === 'LISTENING') mgr.transition(session, 'PROCESSING');
       if (session.state !== 'SPEAKING') mgr.transition(session, 'SPEAKING');
       (async () => {
-        await speakTtsStreamed(session, fallbackCopy.manager);
+        await speakTtsStreamed(session, fallbackCopy.manager, offTurnTtsProvider());
         if (session.ended || session.ending) return;
         await mgr.handoffToManager(session);
         if (session.handoffInProgress || session.ended || session.ending) return;

@@ -3,6 +3,7 @@ import { WebSocket } from 'ws';
 import type { CallSession } from './types';
 import type { CallSessionManager } from './manager';
 import { speakTtsStreamed } from './tts-handler';
+import { offTurnTtsProvider } from './elevenlabs-tts';
 import { telnyxFetch } from '../../../shared/telnyx/http-agent';
 import { logger } from '../../../shared/logger/pino';
 
@@ -47,7 +48,7 @@ export async function finishCall(
   mgr.transition(session, 'CLOSING');
   session.conversation.closing = true;
   try {
-    await speakTtsStreamed(session, goodbye);
+    await speakTtsStreamed(session, goodbye, offTurnTtsProvider());
     if (session.ended) return;
     await new Promise<void>((resolve) => {
       ending.complete = resolve;

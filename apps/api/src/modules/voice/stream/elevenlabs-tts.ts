@@ -23,6 +23,14 @@ export function telephonyTtsProvider(): TelephonyTtsProvider {
 }
 
 /**
+ * Phrases hors tour (secours, au revoir) : ElevenLabs dès que sa clé est présente, comme les tours normaux
+ * (décision du 16/10 : ElevenLabs seulement). Sans clé, le fournisseur téléphone habituel.
+ */
+export function offTurnTtsProvider(env: NodeJS.ProcessEnv = process.env): TelephonyTtsProvider {
+  return env.ELEVENLABS_API_KEY?.trim() ? 'elevenlabs' : telephonyTtsProvider();
+}
+
+/**
  * Étiquette fournisseur + modèle écrite sur l'appel (`calls.tts_provider`), par ex. `elevenlabs-eleven_v4_turbo`.
  * Toute autre valeur (`telnyx-native`) est rendue telle quelle.
  */

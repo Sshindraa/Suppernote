@@ -459,9 +459,34 @@ export type LlmFailureCause = 'technical' | 'unusable';
  * Panne technique : la phrase dit que le souci vient de nous. « Je n'ai pas bien saisi » faisait croire
  * à l'appelant qu'il avait mal parlé alors que la transcription était exacte (appel du 19/10, 22 h 09).
  */
+/**
+ * Question suivante du parcours, d'après le brouillon : sert quand le modèle a compris sans répondre. Mêmes
+ * formulations que les questions de réservation existantes.
+ */
+export function nextDraftQuestion(
+  draft: { date: string; time: string; partySize: number; customerName: string },
+  language: VoiceLanguageCode = 'fr',
+): string | null {
+  const en = language === 'en';
+  if (!draft.date)
+    return en ? 'Which day would you like to book?' : 'Pour quel jour souhaitez-vous réserver ?';
+  if (!draft.time)
+    return en ? 'What time would you like to come?' : 'Vers quelle heure souhaitez-vous venir ?';
+  if (!draft.partySize)
+    return en
+      ? 'How many people should I book for?'
+      : 'Pour combien de personnes dois-je réserver ?';
+  if (!draft.customerName)
+    return en
+      ? 'What name should I put the reservation under?'
+      : 'Quel nom dois-je inscrire pour la réservation ?';
+  return null;
+}
+
 export function buildLlmFailurePlan(
   session: CallSession,
   cause: LlmFailureCause = 'unusable',
+  nextQuestion: string | null = null,
 ): AssistantReplyEmissionPlan {
   const language = effectiveVoiceLanguage(session);
   const streak = session.conversation.llmFailureStreak ?? 0;
@@ -498,6 +523,7 @@ export function buildLlmFailurePlan(
     return buildExplicitInteractionReplyPlan(session, reply, 'open');
   }
 
+  if (nextQuestion) return buildExplicitInteractionReplyPlan(session, nextQuestion, 'open');
   const reply =
     language === 'en'
       ? "Sorry, I didn't quite catch that. Could you say it again?"

@@ -68,6 +68,23 @@ export function sizesWithoutTable(
   return sizes;
 }
 
+/** Nom en casse normale (« Dupont », pas « DUPONT ») : la voix le lit comme un nom, pas lettre par lettre. */
+export function speakableName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(
+      /(^|[\s-])(\p{L})/gu,
+      (_match, separator: string, letter: string) => separator + letter.toUpperCase(),
+    );
+}
+
+/** Client reconnu : son nom est déjà au brouillon, à proposer à l'appelant au lieu de le redemander. */
+export function createStructuredTurnStateWithName(name: string): StructuredTurnState {
+  const state = createStructuredTurnState();
+  return { ...state, draft: { ...state.draft, customerName: speakableName(name) } };
+}
+
 export function createStructuredTurnState(): StructuredTurnState {
   return {
     draft: { date: '', time: '', partySize: 0, customerName: '' },

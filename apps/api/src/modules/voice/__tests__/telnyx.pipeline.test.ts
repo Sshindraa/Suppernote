@@ -47,6 +47,7 @@ vi.mock('../../customers/customer.service', () => ({
       Promise.resolve(customer),
     ),
     returningCustomerFirstName: vi.fn(() => 'Jean'),
+    returningCustomerName: vi.fn(() => 'Jean Dupont'),
     recordCallActivity: vi.fn(() => Promise.resolve()),
     incrementVisit: vi.fn(),
   },

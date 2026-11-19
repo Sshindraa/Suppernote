@@ -10,6 +10,7 @@ import type { CallSession, DebugSpeechEntry } from '../types';
 import { observeSemanticSignalsShadow } from '../turn-plan-shadow';
 import type { CallSessionManager } from '../manager';
 import { cleanTextForTts, isSessionActiveForTts, speakTtsStreamed } from '../tts-handler';
+import { offTurnTtsProvider } from '../elevenlabs-tts';
 import { createContextTtsTurn } from '../context-tts';
 import { effectiveVoiceLanguage } from '../voice-language';
 import { finishCall } from '../call-ending';
@@ -22,6 +23,7 @@ import {
 } from '../turn-telemetry';
 import {
   buildLlmFailurePlan,
+  nextDraftQuestion,
   getReservationConfirmationKey,
   voiceMaxPartySize,
 } from '../conversation-state';
@@ -673,7 +675,9 @@ export async function runStructuredTurn(
         );
         if (outcome === 'http_fallback') {
           await waitForVoiceFiller(session);
-          await speakTtsStreamed(session, spokenPhrases.join(' ')).catch(() => undefined);
+          await speakTtsStreamed(session, spokenPhrases.join(' '), offTurnTtsProvider()).catch(
+            () => undefined,
+          );
         }
       }
     }
@@ -1147,6 +1151,8 @@ export async function runStructuredTurn(
     await finishCall(session, mgr, goodbye);
   };
 
+  // Tour compris avec un brouillon modifié (voir la relance de say vide et le repli dans le catch).
+  let understoodChange = false;
   try {
     const first = await runPass(undefined, undefined, false, true);
     actionReplyInterpretation = first.output.interpretation;
@@ -1180,6 +1186,7 @@ export async function runStructuredTurn(
       replyScope ? { ...first.output, draft: state.draft } : first.output,
       { today },
     );
+    understoodChange = first.output.understanding === 'clear' && applied.changed.length > 0;
     state.draft = reconcileSpelledName(
       applied.draft,
       transcript,
@@ -1418,6 +1425,17 @@ export async function runStructuredTurn(
       }
     }
 
+    if (!final.say.trim() && !options.callerFinished && final.action === 'none' && isLive()) {
+      // Tour compris mais say vide (appel 548c73c5, « 5… non, 4 ») : le modèle est relancé une fois, l'appelant
+      // considéré comme ayant fini. Une réponse à faire, jamais « pouvez-vous répéter ».
+      const retry = await runPass(
+        actionResult ?? undefined,
+        actionResult && noHangUp ? ['none'] : undefined,
+        true,
+      );
+      if (!isLive()) return;
+      if (retry.output.say.trim()) final = retry.output;
+    }
     if (!final.say.trim() && options.callerFinished && final.action === 'none') {
       // Dernier filet de la relance : une invitation à continuer, jamais « pas compris ».
       final = { ...final, say: CALLER_FINISHED_FALLBACK, awaiting: 'open' };
@@ -1466,11 +1484,17 @@ export async function runStructuredTurn(
     // (deuxième échec d'affilée, voir buildLlmFailurePlan) ne se déclenchait plus.
     session.conversation.llmFailureStreak = (session.conversation.llmFailureStreak ?? 0) + 1;
     const cause = err instanceof UnusableTurnOutputError ? 'unusable' : 'technical';
-    const fallback = buildLlmFailurePlan(session, cause).reply;
+    // Tour compris et brouillon modifié, mais aucune réponse : on pose la question suivante du parcours au lieu de
+    // demander de répéter (la compréhension est bonne, seule la formulation a manqué).
+    const nextQuestion =
+      cause === 'unusable' && understoodChange
+        ? nextDraftQuestion(state.draft, effectiveVoiceLanguage(session))
+        : null;
+    const fallback = buildLlmFailurePlan(session, cause, nextQuestion).reply;
     session.history.push({ role: 'assistant', content: fallback });
     mgr.transition(session, 'SPEAKING');
     await waitForVoiceFiller(session);
-    await speakTtsStreamed(session, fallback);
+    await speakTtsStreamed(session, fallback, offTurnTtsProvider());
     if (isCurrentResponse()) mgr.transition(session, 'LISTENING');
   } finally {
     filler?.dispose();

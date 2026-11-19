@@ -90,6 +90,7 @@ describe('no-input recovery', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       silent,
       'Vous êtes toujours là ? Comment puis-je vous aider ?',
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
 
     const unheard = greetingOnly();
@@ -98,6 +99,7 @@ describe('no-input recovery', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       unheard,
       "Pardon, je n'ai pas bien entendu. Comment puis-je vous aider ?",
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
   });
 
@@ -111,6 +113,7 @@ describe('no-input recovery', () => {
     expect(speakTtsStreamed).toHaveBeenCalledWith(
       session,
       "Pardon, je n'ai pas bien entendu. Vous serez combien ?",
+      expect.stringMatching(/^(cartesia|elevenlabs)$/),
     );
     expect(session.history.at(-1)).toEqual({
       role: 'assistant',
@@ -174,7 +177,11 @@ describe('no-input recovery', () => {
         expect.any(AbortSignal),
       );
       expect(speakTtsStreamed).toHaveBeenCalledTimes(1);
-      expect(speakTtsStreamed).toHaveBeenCalledWith(session, 'Désolé, vous disiez ?');
+      expect(speakTtsStreamed).toHaveBeenCalledWith(
+        session,
+        'Désolé, vous disiez ?',
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
+      );
       expect(session.history.at(-1)).toEqual({
         role: 'assistant',
         content: 'Désolé, vous disiez ?',
@@ -202,6 +209,7 @@ describe('no-input recovery', () => {
       expect(speakTtsStreamed).toHaveBeenLastCalledWith(
         session,
         "Pardon, je n'ai pas bien entendu. Vous serez combien ?",
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
       );
 
       vi.mocked(generateRecoveryReply).mockRejectedValue(new Error('modèle indisponible'));
@@ -211,6 +219,7 @@ describe('no-input recovery', () => {
       expect(speakTtsStreamed).toHaveBeenLastCalledWith(
         failing,
         "Pardon, je n'ai pas bien entendu. Vous serez combien ?",
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
       );
     });
 
@@ -268,6 +277,7 @@ describe('no-input recovery', () => {
       expect(speakTtsStreamed).toHaveBeenCalledWith(
         session,
         "Pardon, je n'ai pas bien entendu. Vous serez combien ?",
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
       );
       expect(seenSignal?.aborted).toBe(true);
     });
@@ -283,7 +293,11 @@ describe('no-input recovery', () => {
       scheduleUnheardRecovery(session, makeManager());
       await vi.advanceTimersByTimeAsync(UNHEARD_GRACE_MS + recoveryMaxWaitMs());
       expect(speakTtsStreamed).toHaveBeenCalledTimes(1);
-      expect(speakTtsStreamed).toHaveBeenCalledWith(session, 'Désolé, vous disiez ?');
+      expect(speakTtsStreamed).toHaveBeenCalledWith(
+        session,
+        'Désolé, vous disiez ?',
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
+      );
     });
 
     it('le délai maximum se règle et reste borné', () => {
@@ -303,6 +317,7 @@ describe('no-input recovery', () => {
       expect(speakTtsStreamed).toHaveBeenCalledWith(
         session,
         "Pardon, je n'ai pas bien entendu. Vous serez combien ?",
+        expect.stringMatching(/^(cartesia|elevenlabs)$/),
       );
     });
   });

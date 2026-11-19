@@ -65,6 +65,7 @@ import {
   type LlmTurnFailureCause,
 } from './llm-alerts';
 import { armSilenceRecovery, cancelNoInputRecovery } from './no-input-recovery';
+import { createStructuredTurnStateWithName } from './structured-turn/fact-guards';
 
 function recordVoiceTransfer(
   session: CallSession,
@@ -460,6 +461,8 @@ export class CallSessionManager {
     giftCardMinimumAmount?: number;
     systemPrompt: string;
     isVip: boolean;
+    /** Client reconnu (nom complet) : pré-rempli dans le brouillon de réservation. */
+    knownCustomerName?: string | null;
     telnyxWs: WebSocket;
     callLegId: string;
     codec: 'PCMA' | 'PCMU' | 'L16';
@@ -506,6 +509,9 @@ export class CallSessionManager {
       ended: false,
       turnCount: 0,
       isVip: opts.isVip,
+      ...(opts.knownCustomerName
+        ? { structuredTurn: createStructuredTurnStateWithName(opts.knownCustomerName) }
+        : {}),
       telnyxWs: opts.telnyxWs,
       codec: opts.codec,
       ...(opts.demo ? { demo: true } : {}),

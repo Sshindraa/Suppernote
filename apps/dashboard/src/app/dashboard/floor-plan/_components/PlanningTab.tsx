@@ -13,6 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  CustomerChangesBanner,
+  describeCustomerChange,
+  latestChangeByReservation,
+  useCustomerChanges,
+  type CustomerChange,
+} from '@/components/reservation/customer-changes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import {
@@ -109,6 +116,7 @@ function formatSlotLabel(minutes: number): string {
 
 type ReservationCardProps = {
   reservation: PlanningReservation;
+  customerChange?: CustomerChange;
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
@@ -118,6 +126,7 @@ type ReservationCardProps = {
 
 function ReservationCard({
   reservation,
+  customerChange,
   className,
   style,
   onClick,
@@ -147,6 +156,15 @@ function ReservationCard({
         <Badge variant={stateBadgeVariant(reservation.state)} className="text-[10px] px-1.5 py-0">
           {stateLabel(reservation.state)}
         </Badge>
+        {customerChange && (
+          <Badge
+            variant="outline"
+            title={describeCustomerChange(customerChange)}
+            className="text-[10px] px-1.5 py-0"
+          >
+            {customerChange.kind === 'cancelled' ? 'Annulée' : 'Modifiée'} par le client
+          </Badge>
+        )}
       </div>
     </div>
   );
@@ -154,12 +172,19 @@ function ReservationCard({
 
 type DraggableReservationProps = {
   reservation: PlanningReservation;
+  customerChange?: CustomerChange;
   top: number;
   height: number;
   onClick: () => void;
 };
 
-function DraggableReservation({ reservation, top, height, onClick }: DraggableReservationProps) {
+function DraggableReservation({
+  reservation,
+  customerChange,
+  top,
+  height,
+  onClick,
+}: DraggableReservationProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: reservation.id,
     data: { reservation },
@@ -174,6 +199,7 @@ function DraggableReservation({ reservation, top, height, onClick }: DraggableRe
   return (
     <ReservationCard
       reservation={reservation}
+      customerChange={customerChange}
       className={cn('absolute left-1 right-1', isDragging && 'opacity-30')}
       style={style}
       onClick={onClick}
@@ -227,6 +253,8 @@ type PlanningTabProps = {
 
 export function PlanningTab({ orgId }: PlanningTabProps) {
   const { get, patch } = useApi();
+  const customerChanges = useCustomerChanges();
+  const customerChangeById = latestChangeByReservation(customerChanges);
 
   const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
@@ -474,6 +502,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
 
   return (
     <div className="space-y-6">
+      <CustomerChangesBanner changes={customerChanges} />
       {error ? (
         <div className="suppernote-error">
           <AlertCircle size={18} />
@@ -680,6 +709,7 @@ export function PlanningTab({ orgId }: PlanningTabProps) {
                           <DraggableReservation
                             key={reservation.id}
                             reservation={reservation}
+                            customerChange={customerChangeById.get(reservation.id)}
                             top={top}
                             height={height}
                             onClick={() => {

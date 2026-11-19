@@ -33,6 +33,7 @@ export const STAFF_RULES: readonly Rule[] = [
   { methods: ['GET', 'HEAD'], path: '/reservations' },
   { methods: ['GET', 'HEAD'], path: '/v2/reservations' },
   { methods: ['GET', 'HEAD'], path: '/v2/reservations/day' },
+  { methods: ['GET', 'HEAD'], path: '/v2/reservations/customer-changes' },
   { methods: ['GET', 'HEAD'], path: '/restaurants/:id/floor-plan', below: true },
   { methods: ['GET', 'HEAD'], path: '/restaurants/:id/floor-plans', below: true },
   { methods: ['GET', 'HEAD'], path: '/restaurants/:id/availability' },

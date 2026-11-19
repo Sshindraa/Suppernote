@@ -25,6 +25,7 @@ import {
 import type { CallSessionManager } from '../stream/manager';
 import { partySizeCorrectionFact } from '../stream/structured-turn/fact-guards';
 import { speakTtsStreamed } from '../stream/tts-handler';
+import { voiceCardGuaranteeTerms } from '../card-guarantee-facts';
 import { __resetMetrics, voiceTtsContextFailureTotal } from '../../../shared/observability/metrics';
 import { logger } from '../../../shared/logger/pino';
 
@@ -68,6 +69,11 @@ vi.mock('../../../shared/telnyx/http-agent', () => ({
 }));
 vi.mock('../../../shared/logger/pino', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+// Sans empreinte bancaire par défaut ; un test fixe des termes pour la voie avec empreinte.
+vi.mock('../card-guarantee-facts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../card-guarantee-facts')>()),
+  voiceCardGuaranteeTerms: vi.fn(async () => null),
 }));
 
 const RESTAURANT_ID = 'resto-structured';
@@ -1492,20 +1498,19 @@ describe('tour structuré (canary)', () => {
     const requests = vi.mocked(mgr.streamStructuredCompletion).mock.calls;
     expect(JSON.stringify(requests.at(-1)?.[1])).toContain('canResumeConfirmation');
     expect(mgr.createReservationFromConversation).not.toHaveBeenCalled();
-    outputs.push(
-      turn({ draft, interpretation: 'affirmation', action: 'create_reservation' }),
-      turn({ draft, say: 'Votre table est réservée.' }),
-    );
+    outputs.push(turn({ draft, interpretation: 'affirmation', action: 'create_reservation' }));
     await processTranscriptStreaming(session, 'Oui.', mgr);
     expect(mgr.createReservationFromConversation).toHaveBeenCalledTimes(1);
-    // Une passe par réponse, puis la confirmation du résultat réel : pas de passe de refus/recap_not_read.
-    expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(4);
-    expect(spoken().join(' ')).toBe(
+    // Une passe par réponse, la confirmation du résultat réel comprise : pas de passe de refus/recap_not_read.
+    expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(3);
+    expect(spoken().slice(0, -1).join(' ')).toBe(
       [
         'Je peux vous passer le gérant pour la terrasse. Vous le souhaitez ?',
         'D’accord. Je confirme la réservation ?',
-        'Votre table est réservée.',
       ].join(' '),
+    );
+    expect(spoken().at(-1)).toMatch(
+      /^Votre réservation est confirmée : \S.* à 20 h, pour 3 personnes\.$/,
     );
     expect(session.structuredTurn?.reservationCreated).toBe(true);
   });
@@ -1631,7 +1636,7 @@ describe('tour structuré (canary)', () => {
     expect(spoken()).toEqual(['Vous préférez le transfert ou le message ?']);
   });
 
-  it('crée la réservation après un oui au récapitulatif', async () => {
+  it('crée la réservation après un oui au récapitulatif, et la confirme sans second appel', async () => {
     const { session, mgr, outputs } = fixture();
     const draft = { date: TOMORROW, time: '20:00', partySize: 4, customerName: 'Akkif' };
     session.structuredTurn = {
@@ -1641,19 +1646,106 @@ describe('tour structuré (canary)', () => {
       lastAwaiting: 'confirmation',
       recapKey: bookingKey(draft),
     };
-    outputs.push(
-      turn({ interpretation: 'affirmation', draft, action: 'create_reservation' }),
-      turn({ draft, say: 'C’est réservé. Vous recevrez un SMS. Bonne soirée !' }),
-    );
+    outputs.push(turn({ interpretation: 'affirmation', draft, action: 'create_reservation' }));
 
     await processTranscriptStreaming(session, 'oui c’est parfait', mgr);
 
     expect(mgr.createReservationFromConversation).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[2]).toMatchObject({
-      json_schema: { name: 'voice_action_reply' },
-    });
+    expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(1);
     expect(session.structuredTurn?.reservationCreated).toBe(true);
     expect(session.conversation.confirmedReservationKey).not.toBeNull();
+  });
+
+  describe('confirmation d’une réservation créée : un seul passage (appel du 19/11, 2,8 s)', () => {
+    const draft = { date: TOMORROW, time: '20:00', partySize: 4, customerName: 'Akkif' };
+    const CONFIRMED = /^Votre réservation est confirmée : \S.* à 20 h, pour 4 personnes\.$/;
+
+    function confirmingSession() {
+      const fixed = fixture();
+      fixed.session.structuredTurn = {
+        ...createStructuredTurnState(),
+        draft,
+        availability: { date: draft.date, partySize: 4, slots: ['20:00'] },
+        lastAwaiting: 'confirmation',
+        recapKey: bookingKey(draft),
+      };
+      fixed.outputs.push(
+        turn({ interpretation: 'affirmation', draft, action: 'create_reservation' }),
+      );
+      return fixed;
+    }
+
+    it('dit la confirmation à partir du brouillon vérifié, sans second appel au modèle', async () => {
+      const { session, mgr, outputs } = confirmingSession();
+
+      await processTranscriptStreaming(session, 'oui c’est bon', mgr);
+
+      expect(outputs).toHaveLength(0);
+      expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(1);
+      expect(spoken()).toEqual([expect.stringMatching(CONFIRMED)]);
+      expect(session.history.at(-1)?.content).toBe(spoken()[0]);
+      expect(session.structuredTurn?.lastAwaiting).toBe('none');
+    });
+
+    it('ajoute le SMS de confirmation seulement quand le restaurant l’envoie', async () => {
+      const { session, mgr } = confirmingSession();
+      session.smsConfirmEnabled = true;
+
+      await processTranscriptStreaming(session, 'oui c’est bon', mgr);
+
+      expect(spoken()).toEqual([
+        expect.stringMatching(/ pour 4 personnes\. Un SMS de confirmation va vous être envoyé\.$/),
+      ]);
+    });
+
+    it('avec empreinte bancaire, la réponse reste celle du second passage', async () => {
+      vi.mocked(voiceCardGuaranteeTerms).mockResolvedValueOnce({
+        amountPerPerson: 10,
+        totalAmount: 40,
+        cancellationHours: 2,
+      } as never);
+      const { session, mgr, outputs } = confirmingSession();
+      const reply = 'Votre table est gardée. Le lien pour la carte vous arrive par SMS.';
+      outputs.push(turn({ draft, say: reply }));
+
+      await processTranscriptStreaming(session, 'oui c’est bon', mgr);
+
+      expect(mgr.streamStructuredCompletion).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(mgr.streamStructuredCompletion).mock.calls.at(-1)?.[2]).toMatchObject({
+        json_schema: { name: 'voice_action_reply' },
+      });
+      expect(spoken().join(' ')).toBe(reply);
+    });
+  });
+
+  it('dit la première phrase pendant la génération de say, avant le dernier fragment (say reste en dernier)', async () => {
+    const { session, mgr, outputs } = fixture();
+    // Fragments reçus en laissant tourner la boucle entre deux, comme le flux réel : le juge de fin de tour répond.
+    // Pour chaque fragment, le nombre d'appels TTS déjà faits est relevé avant qu'il arrive.
+    const spokenBefore: number[] = [];
+    vi.mocked(mgr.streamStructuredCompletion).mockImplementation(async (_s, _m, _f, options) => {
+      const next = outputs.shift();
+      if (!next) throw new Error('no scripted model output');
+      const json = JSON.stringify(next);
+      for (let index = 0; index < json.length; index += 7) {
+        spokenBefore.push(vi.mocked(speakTtsStreamed).mock.calls.length);
+        options.onDelta(json.slice(index, index + 7));
+        await new Promise((resolve) => setImmediate(resolve));
+      }
+      return json;
+    });
+    outputs.push(
+      turn({
+        draft: { date: TOMORROW, time: '20:00', partySize: 2, customerName: '' },
+        awaiting: 'customerName',
+        say: 'C’est possible. À quel nom ?',
+      }),
+    );
+
+    await processTranscriptStreaming(session, 'demain 20 heures pour deux', mgr);
+
+    // Le début de réponse part pendant la génération de say : sinon il attend la fin du JSON.
+    expect(spokenBefore.at(-1)).toBeGreaterThan(0);
   });
 
   describe('récapitulatif coupé par l’appelant', () => {

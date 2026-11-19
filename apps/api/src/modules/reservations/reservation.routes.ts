@@ -128,6 +128,59 @@ export async function reservationRoutes(app: FastifyInstance) {
     return reply.send(await ReservationService.findDaySnapshot(req.restaurantId!, date));
   });
 
+  // Annulations et modifications faites par le client avec son lien, sur les dernières 24 h :
+  // le restaurant n'est prévenu par aucun envoi, le dashboard les signale.
+  app.get('/v2/reservations/customer-changes', { preHandler: requireOrg() }, async (req, reply) => {
+    const logs = await db.reservationAuditLog.findMany({
+      where: {
+        actor: 'customer:personal-link',
+        createdAt: { gte: new Date(Date.now() - 86_400_000) },
+        reservation: { restaurantId: req.restaurantId! },
+        OR: [{ event: 'reservation_fields_changed' }, { toState: 'CANCELLED' }],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        event: true,
+        toState: true,
+        metadata: true,
+        createdAt: true,
+        reservation: {
+          select: {
+            id: true,
+            customerName: true,
+            partySize: true,
+            startsAt: true,
+            reservedAt: true,
+          },
+        },
+      },
+    });
+    return reply.send(
+      logs.flatMap(({ event, metadata, createdAt, reservation }) => {
+        if (!reservation) return [];
+        const meta = (metadata ?? {}) as Record<string, unknown>;
+        const modified = event === 'reservation_fields_changed';
+        return [
+          {
+            reservationId: reservation.id,
+            kind: modified ? 'modified' : 'cancelled',
+            at: createdAt.toISOString(),
+            customerName: reservation.customerName,
+            partySize: reservation.partySize,
+            startsAt: (reservation.startsAt ?? reservation.reservedAt).toISOString(),
+            previousStartsAt:
+              modified && typeof meta.previousStartsAt === 'string' ? meta.previousStartsAt : null,
+            previousPartySize:
+              modified && typeof meta.previousPartySize === 'number'
+                ? meta.previousPartySize
+                : null,
+          },
+        ];
+      }),
+    );
+  });
+
   app.get('/reservations/staff-availability', { preHandler: requireOrg() }, async (req, reply) => {
     const query = AvailabilityQuerySchema.extend({
       partySize: z.coerce.number().int().min(1).max(20),

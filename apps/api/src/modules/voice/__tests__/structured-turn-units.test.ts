@@ -239,6 +239,19 @@ describe('ton de voix (balise d’expression ElevenLabs)', () => {
   });
 });
 
+describe('ordre des champs : say reste en dernier', () => {
+  // Mesuré le 19/11 sur le banc du moteur : placer say en premier ne fait partir le premier son qu'une fois
+  // `action` lu (un fragment de gain, 217 contre 224 caractères sur 245). Les champs ci-dessous sont donc lus avant.
+  it('turnComplete, compréhension, brouillon, awaiting, action et ton précèdent say', () => {
+    const schema = buildStructuredTurnJsonSchema(undefined, { understanding: true, tone: true });
+    const keys = Object.keys(schema.properties);
+    expect(keys.at(-1)).toBe('say');
+    for (const gate of ['turnComplete', 'understanding', 'draft', 'awaiting', 'action', 'tone']) {
+      expect(keys.indexOf(gate)).toBeLessThan(keys.indexOf('say'));
+    }
+  });
+});
+
 describe('applyProposedDraft', () => {
   const today = '2026-09-26';
 

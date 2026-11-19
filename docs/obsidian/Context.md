@@ -35,3 +35,4 @@
 ## Décisions récentes
 
 - 2026-11-11 — [Tarifs] Hamza autorise l’ouverture publique Pro/Multi après qualification staging ; décision du 09/11 remplacée. Aucun pilote externe n’est attesté ; PILOTS reste OPEN et différé.
+- 2026-11-19 — [Voix, confirmation] Après une création sans empreinte, la confirmation se dit à partir du brouillon vérifié, sans second appel au modèle. Avec empreinte, le second passage reste. L'ordre des champs ne change pas : `say` reste en dernier (mesuré, gain de 7 caractères seulement).

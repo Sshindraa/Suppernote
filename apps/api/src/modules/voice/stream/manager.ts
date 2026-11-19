@@ -907,6 +907,7 @@ export class CallSessionManager {
       signal?: AbortSignal;
       telemetryTurnId?: string;
       maxTokens?: number;
+      kind?: LlmRequestKind;
       onDelta: (delta: string) => void;
     },
   ): Promise<{
@@ -947,6 +948,7 @@ export class CallSessionManager {
     let lastChunkAt = Date.now();
     let maxGapMs = 0;
     let firstTextMs: number | null = null;
+    let servedBy: string | undefined;
     try {
       for (;;) {
         const { done, value } = nextRead ?? (await reader.read());
@@ -965,6 +967,7 @@ export class CallSessionManager {
           if (!payload || payload === '[DONE]') continue;
           try {
             const chunk = JSON.parse(payload) as {
+              provider?: string;
               choices?: Array<{ delta?: { content?: string | null } }>;
               usage?: {
                 prompt_tokens?: number;
@@ -972,6 +975,7 @@ export class CallSessionManager {
                 prompt_tokens_details?: { cached_tokens?: number } | null;
               } | null;
             };
+            servedBy ??= chunk.provider;
             if (chunk.usage) {
               inputTokens = chunk.usage.prompt_tokens ?? inputTokens;
               cachedInputTokens =
@@ -1014,6 +1018,20 @@ export class CallSessionManager {
       inputTokens ?? estimateMessagesTokens(messages),
       outputTokens ?? estimateTokenCount(text),
       inputTokens === undefined,
+    );
+    // Requête terminée (une requête annulée lève avant) : cache et premier fragment par requête, des nombres seulement.
+    logger.info(
+      {
+        callId: session.callControlId,
+        kind: options.kind,
+        provider,
+        servedBy,
+        inputTokens,
+        cachedInputTokens,
+        firstTextMs,
+        totalMs,
+      },
+      '[llm-usage] structured request completed',
     );
     return {
       text,

@@ -119,6 +119,26 @@ function spokenDay(date: string): string {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+/** « 20 h » ou « 19 h 30 » pour une heure HH:MM. */
+function spokenClock(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return time;
+  return minutes ? `${hours} h ${String(minutes).padStart(2, '0')}` : `${hours} h`;
+}
+
+/**
+ * Confirmation dite juste après une création sans empreinte bancaire : jour, heure et nombre du brouillon
+ * vérifié. Le nom n'est pas relu : l'appelant vient de l'accepter dans le récapitulatif.
+ */
+function confirmationSay(
+  draft: { date: string; time: string; partySize: number },
+  smsConfirmation: boolean,
+): string {
+  const party = draft.partySize === 1 ? 'une personne' : `${draft.partySize} personnes`;
+  const sms = smsConfirmation ? ' Un SMS de confirmation va vous être envoyé.' : '';
+  return `Votre réservation est confirmée : ${spokenDay(draft.date)} à ${spokenClock(draft.time)}, pour ${party}.${sms}`;
+}
+
 function nearestSlots(slots: string[], time: string): string[] {
   if (slots.length <= MAX_SLOTS_IN_RESULT || !time) return slots.slice(0, MAX_SLOTS_IN_RESULT);
   const target = minutesOf(time);
@@ -1007,6 +1027,8 @@ export async function runStructuredTurn(
   let actionFallbackSay: string | null = null;
   // Un congé refusé : le second passage est limité à l'action « none ».
   let noHangUp = false;
+  // Réservation créée sans empreinte bancaire : sa confirmation se dit sans second passage (voir plus bas).
+  let createdPlain = false;
   // Jour fermé ou complet : un fait simple, dit tel quel sans second passage
   // (appel 0d49230d : le modèle contredisait « FERMÉ » et promettait de réserver).
   const fixed: { reply: { say: string; awaiting: StructuredTurnOutput['awaiting'] } | null } = {
@@ -1095,9 +1117,23 @@ export async function runStructuredTurn(
     // L'accord a été vérifié par les garde-fous : récapitulatif lu, accepté.
     conversation.confirmedReservationKey = getReservationConfirmationKey(session);
     const createdBefore = session.reservationCreatedAt;
+    // Même critère que la création : avec une empreinte, la phrase change (lien SMS, carte à enregistrer).
+    // Lecture en échec : on suppose l'empreinte, donc second passage comme avant.
+    const guaranteed = voiceCardGuaranteeTerms({
+      restaurantId: session.restaurantId,
+      date,
+      partySize,
+      demo: Boolean(session.demo),
+    }).then(
+      (terms) => terms !== null,
+      () => true,
+    );
     const result = await mgr.createReservationFromConversation(session);
     afterExecutedAction = true;
-    if (session.reservationCreatedAt !== createdBefore) state.reservationCreated = true;
+    if (session.reservationCreatedAt !== createdBefore) {
+      state.reservationCreated = true;
+      createdPlain = !(await guaranteed);
+    }
     return (
       result ??
       "La réservation n'a pas pu être créée : les informations ne correspondent plus au créneau vérifié."
@@ -1300,6 +1336,23 @@ export async function runStructuredTurn(
         say: fixedReply.say,
         awaiting: fixedReply.awaiting,
       };
+      actionResult = null;
+    }
+
+    // Création sans empreinte et premier passage muet : le fait est connu, un second appel ne ferait que le formuler
+    // (≈ 1,1 s mesuré le 19/11). La phrase vient du brouillon vérifié ; rien d'autre n'est dit à ce tour.
+    if (
+      actionResult &&
+      createdPlain &&
+      first.output.action === 'create_reservation' &&
+      first.output.interpretation === 'affirmation' &&
+      !first.output.say.trim()
+    ) {
+      const phrase = confirmationSay(state.draft, session.smsConfirmEnabled === true);
+      replyAwaiting = 'none';
+      recordVoiceTurnEvent(session, 'structured_turn', { pass: 1, confirmation: 'built' });
+      speakPhrase(phrase);
+      final = { ...first.output, action: 'none', say: phrase, awaiting: 'none' };
       actionResult = null;
     }
 

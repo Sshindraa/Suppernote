@@ -134,10 +134,11 @@ export function buildStructuredTurnJsonSchema(
       },
       awaiting: { type: 'string', enum: [...STRUCTURED_TURN_AWAITING] },
       action: { type: 'string', enum: [...actions] },
-      message: { type: 'string' },
       confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
       ...tone,
       say: { type: 'string' },
+      // Après say : seul take_message le remplit, et say y est vide ; avant, il retardait chaque premier son.
+      message: { type: 'string' },
     },
     required: [
       'turnComplete',
@@ -146,10 +147,10 @@ export function buildStructuredTurnJsonSchema(
       'draft',
       'awaiting',
       'action',
-      'message',
       'confidence',
       ...(options.tone ? ['tone'] : []),
       'say',
+      'message',
     ],
   } as const;
 }

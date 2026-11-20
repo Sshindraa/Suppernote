@@ -44,8 +44,8 @@ export default function ServiceDaySection() {
           <div className="mt-8 grid gap-8 md:grid-cols-3 lg:mt-10 lg:gap-12">
             <div className="relative aspect-[4/5] overflow-hidden rounded-3xl sm:aspect-[3/2] md:col-span-2">
               <Image
-                src="/marketing/equipe-en-service.webp"
-                alt="Une équipe de restaurant échange et prépare la salle avant le service."
+                src="/marketing/salle-en-service.webp"
+                alt="Une salle de brasserie en plein service : serveurs au travail, clients attablés."
                 fill
                 sizes="(min-width: 1320px) 800px, (min-width: 768px) 63vw, 100vw"
                 className="object-cover"

@@ -5,6 +5,7 @@
  * modèle pour la formulation. Aucune règle lexicale n'interprète l'appelant.
  */
 import { logVoiceDebugText } from '../debug-dialogue';
+import { prependUnheardGreeting } from '../greeting-unheard';
 import { callerSilenceMs } from '../caller-voice-activity';
 import type { CallSession, DebugSpeechEntry } from '../types';
 import { observeSemanticSignalsShadow } from '../turn-plan-shadow';
@@ -695,6 +696,8 @@ export async function runStructuredTurn(
   let proposedName = '';
   // Amorce dite à ce tour (voir amorce.ts) : elle fait partie de la réponse pour l'historique.
   let turnAmorce: string | null = null;
+  // Reste d'accueil dit en tête de cette réplique : il fait partie de ce que l'appelant a entendu.
+  let greetingRest = '';
   let replyAwaiting: StructuredTurnOutput['awaiting'] | undefined;
   const voiced = (phrase: string) =>
     nameForSpeech(nameForSpeech(phrase, state.draft.customerName), proposedName);
@@ -715,6 +718,10 @@ export async function runStructuredTurn(
     // La voix surjoue les points d'exclamation sur une phrase courte (« Avec
     // plaisiiir ! », appel 0d49230d) : ton posé côté synthèse.
     phrase = phrase.replace(/\s*!/g, '.');
+    // Accueil coupé avant l'annonce IA : elle ouvre la réplique (voix WebSocket comme HTTP, relevé, historique).
+    const withGreeting = prependUnheardGreeting(session, phrase);
+    if (withGreeting !== phrase) greetingRest = withGreeting.slice(0, -phrase.length).trim();
+    phrase = withGreeting;
     spokenPhrases.push(phrase);
     if (contextTts) {
       // Une réplique du relevé par réponse, mesurée par les trames du contexte
@@ -1513,9 +1520,9 @@ export async function runStructuredTurn(
     // L'amorce a été dite avant la phrase : elle fait partie de la réponse, sans les mots que say répétait.
     session.history.push({
       role: 'assistant',
-      content: turnAmorce
-        ? `${turnAmorce} ${sayAfterAmorce(turnAmorce, said, true) ?? said}`.trim()
-        : said,
+      content: `${greetingRest} ${
+        turnAmorce ? `${turnAmorce} ${sayAfterAmorce(turnAmorce, said, true) ?? said}` : said
+      }`.trim(),
     });
     state.lastTurnHadAmorce = Boolean(turnAmorce);
     observeSemanticSignalsShadow(session, {

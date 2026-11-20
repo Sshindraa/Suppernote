@@ -12,7 +12,20 @@ export function unheardGreeting(session: CallSession): string {
  */
 export function keepUnheardGreeting(session: CallSession): void {
   if (!session.greetingInterrupted) return;
-  session.greetingUnheard = unheardGreeting(session) || undefined;
+  session.greetingUnheard = disclosureToRepeat(session);
+}
+
+/**
+ * Seule l'annonce IA est obligatoire : la phrase qui la porte, sans le « je vous écoute » final, absurde
+ * juste avant une réponse. Rien si l'appelant l'a déjà entendue.
+ */
+function disclosureToRepeat(session: CallSession): string | undefined {
+  if (/\bIA\b/.test(session.interruptedReply?.heard ?? '')) return undefined;
+  const sentence = (session.greetingText ?? '')
+    .split(/(?<=[.!?])\s+/)
+    .find((s) => /\bIA\b/.test(s));
+  const text = sentence?.replace(/[,;]?\s*je vous écoute\s*[.!?]*$/i, '').trim();
+  return text ? `${text}.` : undefined;
 }
 
 /** Reste d'accueil à dire avant `text`, une seule fois. */

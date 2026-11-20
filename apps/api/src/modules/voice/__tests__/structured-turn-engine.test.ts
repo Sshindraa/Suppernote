@@ -28,6 +28,7 @@ import { speakTtsStreamed } from '../stream/tts-handler';
 import { voiceCardGuaranteeTerms } from '../card-guarantee-facts';
 import { __resetMetrics, voiceTtsContextFailureTotal } from '../../../shared/observability/metrics';
 import { logger } from '../../../shared/logger/pino';
+import { keepUnheardGreeting } from '../stream/greeting-unheard';
 import { systemOf } from './helpers/system-of';
 
 vi.mock('../stream/tts-handler', () => ({
@@ -2173,6 +2174,33 @@ describe('tour structuré (canary)', () => {
       expect(contextTurn.finish).toHaveBeenCalledTimes(1);
       expect(speakTtsStreamed).not.toHaveBeenCalled();
       expect(session.ttsContext).toBeNull();
+    });
+
+    it('accueil coupé avant l’annonce IA : elle ouvre la première phrase, une seule fois (sans « je vous écoute »)', async () => {
+      const { session, mgr, outputs } = fixture();
+      session.greetingText = "Chez Suppernote, bonjour. Léa, l'assistante IA, je vous écoute.";
+      session.greetingInterrupted = true;
+      session.interruptedReply = {
+        said: session.greetingText,
+        heard: 'Chez Suppernote, bonjour.',
+        unheard: "Léa, l'assistante IA, je vous écoute.",
+      };
+      keepUnheardGreeting(session);
+      outputs.push(turn({ awaiting: 'date', say: 'Bien sûr. Pour quel jour ?' }));
+      await processTranscriptStreaming(session, 'je voudrais réserver', mgr);
+      outputs.push(turn({ awaiting: 'date', say: 'Pour quel jour ?' }));
+      await processTranscriptStreaming(session, 'demain', mgr);
+
+      expect(contextTurn.push.mock.calls.map(([text]) => text)).toEqual([
+        "Léa, l'assistante IA. Bien sûr.",
+        'Pour quel jour ?',
+        'Pour quel jour ?',
+      ]);
+      expect(
+        session.history.some(
+          (m) => m.content === "Léa, l'assistante IA. Bien sûr. Pour quel jour ?",
+        ),
+      ).toBe(true);
     });
 
     it('repasse par HTTP si le contexte échoue avant tout audio, et le compte', async () => {

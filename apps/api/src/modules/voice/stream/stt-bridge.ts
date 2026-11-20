@@ -57,6 +57,7 @@ import {
 import { expectsSpelledLetters } from './structured-turn/fact-guards';
 import { cancelNoInputRecovery, scheduleUnheardRecovery } from './no-input-recovery';
 import { resumeInterruptedGreeting } from './greeting-resume';
+import { keepUnheardGreeting } from './greeting-unheard';
 import {
   closeInkParallel,
   peekReadyInkTranscript,
@@ -1231,6 +1232,7 @@ function dispatchCommittedTranscript(
   // courte. Le commit doit donc rester suffisant pour interrompre le TTS.
   if (allowBargeIn)
     handleBargeInFromTranscript(session, CallSessionManager.getInstance(), cleanTranscript, words);
+  keepUnheardGreeting(session);
   session.greetingInterrupted = false;
 
   if (spellingContinues(session, cleanTranscript)) {

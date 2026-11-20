@@ -691,6 +691,8 @@ export interface CallSession {
   greetingPlaying?: boolean;
   /** L'accueil a été coupé et aucun tour n'a été traité depuis. */
   greetingInterrupted?: boolean;
+  /** Reste de l'accueil coupé par un tour de l'appelant : dit en tête de la prochaine réplique. */
+  greetingUnheard?: string;
   /** Tour utilisateur courant, créé à la finalisation STT. */
   currentTurn: VoiceTurnTelemetry | null;
   /** Tours précédents conservés jusqu'à la finalisation de l'appel. */

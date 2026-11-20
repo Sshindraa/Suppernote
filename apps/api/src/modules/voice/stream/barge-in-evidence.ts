@@ -31,6 +31,8 @@ export interface InterruptionEvidence {
   minConfidence: number | null;
   /** Durée couverte par les mots ; null si les horodatages manquent. */
   voiceMs: number | null;
+  /** Aucune lettre latine : l'appel est en français, une transcription dans une autre écriture est du bruit (appel du 20/11 : hindi). */
+  nonLatin?: boolean;
 }
 
 export function describeInterruptionEvidence(
@@ -46,6 +48,7 @@ export function describeInterruptionEvidence(
     .filter((v): v is number => v !== undefined);
   const ends = (words ?? []).map((word) => word.end).filter((v): v is number => v !== undefined);
   return {
+    nonLatin: (tokens.length > 0 && !/\p{Script=Latin}/u.test(transcript)) || undefined,
     wordCount: tokens.length,
     minConfidence: confidences.length ? Math.min(...confidences) : null,
     voiceMs:
@@ -63,6 +66,8 @@ export function hasInterruptionEvidence(
   evidence: InterruptionEvidence,
   options: { greeting: boolean },
 ): boolean {
+  // Pendant l'accueil, une transcription sans lettre latine n'est pas la parole d'un appelant francophone.
+  if (options.greeting && evidence.nonLatin) return false;
   // Pendant l'accueil, deux mots sont aussi un souffle ou un « allô » mal transcrit (appel a663cec3).
   const shortGreetingUtterance = options.greeting && evidence.wordCount === 2;
   if (evidence.wordCount !== 1 && !shortGreetingUtterance) return true;

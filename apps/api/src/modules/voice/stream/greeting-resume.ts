@@ -5,6 +5,7 @@
  */
 import { logger } from '../../../shared/logger/pino';
 import { CallSessionManager } from './manager';
+import { unheardGreeting } from './greeting-unheard';
 import { speakTtsStreamed } from './tts-handler';
 import type { CallSession } from './types';
 
@@ -12,8 +13,7 @@ export function resumeInterruptedGreeting(session: CallSession): void {
   if (!session.greetingInterrupted || session.ended) return;
   session.greetingInterrupted = false;
   const heard = session.interruptedReply;
-  // Rien d'entendu (ou coupure non mesurée) : tout l'accueil ; tout entendu : rien à reprendre.
-  const text = heard ? heard.unheard : (session.greetingText ?? '');
+  const text = unheardGreeting(session);
   session.interruptedReply = undefined;
   if (!text.trim()) return;
   const mgr = CallSessionManager.getInstance();

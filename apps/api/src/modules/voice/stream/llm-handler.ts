@@ -32,6 +32,7 @@ import {
   hasReliableLanguageEvidence,
   normalizeVoiceLanguage,
   resolveVoiceLanguage,
+  requestedVoiceLanguage,
 } from './voice-language';
 
 const recentTranscripts = new WeakMap<
@@ -237,7 +238,14 @@ export function handleSttEvent(
         invalidatePendingVoiceResponse(session, mgr);
         startVoiceTurn(session, event.transcript);
       }
-      const detectedLanguage = normalizeVoiceLanguage(event.languageCode);
+      const requestedLanguage = requestedVoiceLanguage(event.transcript);
+      if (requestedLanguage) session.voiceLanguageLocked = true;
+      // Langue demandée : elle tient jusqu'à la fin de l'appel, sauf nouvelle demande explicite.
+      const detectedLanguage =
+        requestedLanguage ??
+        (session.voiceLanguageLocked
+          ? effectiveVoiceLanguage(session)
+          : normalizeVoiceLanguage(event.languageCode));
       if (detectedLanguage) {
         const previousLanguage = effectiveVoiceLanguage(session);
         const languageDecision = resolveVoiceLanguage(
@@ -246,6 +254,7 @@ export function handleSttEvent(
           event.transcript,
           session.turnCount,
           session.voiceLanguageCandidate,
+          Boolean(requestedLanguage),
         );
         session.voiceLanguageCandidate = languageDecision.candidate;
         if (languageDecision.accepted) {

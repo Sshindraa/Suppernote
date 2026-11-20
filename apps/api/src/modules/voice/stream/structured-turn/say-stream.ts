@@ -1,15 +1,9 @@
 /**
- * Extrait au fil du streaming la valeur d'une clé texte (`say` par défaut, ou `amorce`) d'un objet JSON en cours
+ * Extrait au fil du streaming la valeur de la clé `say` d'un objet JSON en cours
  * de génération. Le schéma place `say` après les champs lus par les gardes : dès que sa chaîne s'ouvre,
  * chaque caractère décodé peut partir vers la synthèse vocale.
  */
 export class SayStreamExtractor {
-  private readonly keyPattern: RegExp;
-
-  constructor(key = 'say') {
-    this.keyPattern = new RegExp(`"${key}"\\s*:\\s*"`);
-  }
-
   private buffer = '';
   private valueStart = -1;
   private cursor = 0;
@@ -21,7 +15,7 @@ export class SayStreamExtractor {
     this.buffer += fragment;
     if (this.done) return '';
     if (this.valueStart < 0) {
-      const match = this.keyPattern.exec(this.buffer);
+      const match = /"say"\s*:\s*"/.exec(this.buffer);
       if (!match) return '';
       this.valueStart = match.index + match[0].length;
       this.cursor = this.valueStart;
@@ -59,11 +53,6 @@ export class SayStreamExtractor {
       this.cursor++;
     }
     return decoded;
-  }
-
-  /** La chaîne de la clé est fermée : sa valeur est complète. */
-  get complete(): boolean {
-    return this.done;
   }
 
   /** JSON reçu jusqu'ici. */

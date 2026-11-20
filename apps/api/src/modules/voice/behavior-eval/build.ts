@@ -139,8 +139,6 @@ export function buildRequest(
           {
             turnCompleteOnly: testCase.callerFinished === true || testCase.recovery !== undefined,
             ...(options.understanding ? { understanding: true } : {}),
-            // Comme en appel : amorce au premier passage seulement.
-            ...(!testCase.actionResult ? { amorce: true } : {}),
           },
         ),
       },

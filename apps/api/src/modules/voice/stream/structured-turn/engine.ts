@@ -80,7 +80,6 @@ import { replyContentNotFullyHeard } from '../interrupted-reply';
 import { buildStructuredTurnMessages, type StructuredRecoveryKind } from './prompt';
 import { cancelSpeculation, startSpeculation, takeSpeculation } from './speculation';
 import { PhraseSplitter, SayStreamExtractor } from './say-stream';
-import { sayAfterAmorce, speakableAmorce } from './amorce';
 import { replyScopeOf } from './reply-scope';
 import { conversationContinuityEnabledFor } from '../feature-flags';
 import { createTurnFiller, waitForVoiceFiller } from '../voice-filler';
@@ -482,8 +481,6 @@ function passRequest(
           turnCompleteOnly: extra.callerFinished === true || extra.recovery !== undefined,
           understanding: true,
           ...(tone ? { tone } : {}),
-          // Amorce au premier passage seulement : après un fait ou une action, rien ne part avant la phrase.
-          ...(!extra.actionResult && !replyScope ? { amorce: true } : {}),
         },
       );
   return { messages, format };
@@ -693,8 +690,6 @@ export async function runStructuredTurn(
 
   // Nom que le modèle propose à ce tour (lu dans le flux avant `say`) : la voix doit aussi le recevoir en casse de nom propre.
   let proposedName = '';
-  // Amorce dite à ce tour (voir amorce.ts) : elle fait partie de la réponse pour l'historique.
-  let turnAmorce: string | null = null;
   let replyAwaiting: StructuredTurnOutput['awaiting'] | undefined;
   const voiced = (phrase: string) =>
     nameForSpeech(nameForSpeech(phrase, state.draft.customerName), proposedName);
@@ -750,13 +745,6 @@ export async function runStructuredTurn(
     const finished = options.callerFinished === true || forceFinished;
     const extractor = new SayStreamExtractor();
     const splitter = new PhraseSplitter();
-    // Amorce : lue au fil du flux, dite dès qu'elle est fermée si les règles le permettent (voir tryAmorce).
-    const amorceStream = actionResult === undefined ? new SayStreamExtractor('amorce') : null;
-    let amorceText = '';
-    let amorceSettled = amorceStream === null;
-    let amorceSaid: string | null = null;
-    let amorceDeduped = false;
-    let sayStarted = false;
     let action: string | null = null;
     let turnComplete: boolean | null = afterAction ? true : null;
     const replyDraft = { ...state.draft };
@@ -804,62 +792,47 @@ export async function runStructuredTurn(
       // que le brouillon n'a pas changé. Aucun congé ni fait réécrit ne part en streaming.
       return complete && !slotConflict && !replyScope;
     };
+    // Au revoir dit en flux comme une phrase ordinaire, mais seulement si le code accepterait le congé (mêmes gardes que
+    // pour l'action) : un congé refusé n'est jamais dit, le second passage redemande.
+    const farewellAccepted = (candidate: StructuredTurnOutput) =>
+      candidate.action === 'end_call' &&
+      candidate.confidence !== 'low' &&
+      authorizeStructuredAction(state, candidate, state.draft, {
+        maxPartySize: voiceMaxPartySize(session),
+        transcriptWords: wordCount(transcript),
+      }).allowed;
+    let streamedFarewell: boolean | null = null;
+    const streamable = () => {
+      if (action === 'none') return true;
+      if (action !== 'end_call') return false;
+      // Tous ces champs précèdent `say` dans le schéma : ils sont connus quand la phrase commence.
+      streamedFarewell ??= farewellAccepted({
+        turnComplete: true,
+        interpretation: (/"interpretation"\s*:\s*"([a-z_]+)"/.exec(extractor.raw)?.[1] ??
+          'unclear') as StructuredTurnOutput['interpretation'],
+        understanding: /"understanding"\s*:\s*"(clear|doubtful)"/.exec(extractor.raw)?.[1] as
+          | StructuredTurnOutput['understanding']
+          | undefined,
+        draft: state.draft,
+        awaiting: 'none',
+        action: 'end_call',
+        message: '',
+        confidence: (/"confidence"\s*:\s*"(high|medium|low)"/.exec(extractor.raw)?.[1] ??
+          'low') as StructuredTurnOutput['confidence'],
+        say: '',
+      });
+      return streamedFarewell;
+    };
     const drainSaid = () => {
-      if (!unsaid || action !== 'none' || !mayContinue() || !isLive()) return;
-      // La phrase commence : une amorce pas encore dite ne l'est plus. Le modèle a pu écrire say comme sa suite
-      // (« vous pensez à quelle heure ? ») : sans amorce dite, la phrase reprend une majuscule.
-      if (!sayStarted && !amorceSaid && amorceText.trim())
-        unsaid = unsaid.replace(/^\s*\p{Ll}/u, (c) => c.toUpperCase());
-      sayStarted = true;
-      amorceSettled = true;
-      if (amorceSaid && !amorceDeduped) {
-        // Le modèle a pu recommencer par les mots de l'amorce : ils ne sont pas dits deux fois.
-        const rest = sayAfterAmorce(amorceSaid, unsaid, extractor.complete);
-        if (rest === null) return;
-        amorceDeduped = true;
-        unsaid = rest;
-        if (!unsaid) return;
-      }
+      if (!unsaid || !streamable() || !mayContinue() || !isLive()) return;
       const chunk = unsaid;
       unsaid = '';
       const phrases = splitter.push(chunk);
       phrases.forEach(emit);
     };
-    const tryAmorce = () => {
-      if (amorceSettled || !amorceStream?.complete || !mayContinue() || !isLive()) return;
-      amorceSettled = true;
-      const understood = /"understanding"\s*:\s*"clear"/.test(extractor.raw);
-      // Épellation en cours ou relecture du nom : les lettres sont relues par le code, jamais en amorce.
-      const spelling =
-        state.lastAwaiting === 'customerName' || state.lastAwaiting === 'customerNameConfirmation';
-      const text =
-        understood && !spelling && !state.lastTurnHadAmorce ? speakableAmorce(amorceText) : null;
-      if (amorceText.trim()) {
-        logVoiceDebugText(session, 'amorce', {
-          text: amorceText.slice(0, 80),
-          said: Boolean(text),
-          ...(text
-            ? {}
-            : {
-                reason: !understood
-                  ? 'doubtful'
-                  : spelling
-                    ? 'spelling'
-                    : state.lastTurnHadAmorce
-                      ? 'previous_turn'
-                      : 'rules',
-              }),
-        });
-      }
-      if (!text) return;
-      amorceSaid = text;
-      turnAmorce = text;
-      speakPhrase(text);
-    };
     const judgeSettled: Promise<void> = judging
       ? startTurnEndJudge(session, mgr, transcript).then((verdict) => {
           judged = verdict;
-          tryAmorce();
           drainSaid();
         })
       : Promise.resolve();
@@ -870,7 +843,6 @@ export async function runStructuredTurn(
         markVoiceTurnLlmFirstToken(session, turnId);
       }
       const sayText = extractor.push(delta);
-      if (amorceStream && !amorceSettled) amorceText += amorceStream.push(delta);
       if (firstSayText && sayText.trim()) {
         firstSayText = false;
         recordVoiceTurnEventIfCurrent(session, turnId, 'llm_say_started', {
@@ -976,7 +948,6 @@ export async function runStructuredTurn(
           }
         }
       }
-      tryAmorce();
       drainSaid();
     };
     // Premier passage : reprendre la requête déjà lancée sur la partielle stable
@@ -1003,7 +974,6 @@ export async function runStructuredTurn(
       throw new UnusableTurnOutputError('Invalid structured turn output');
     // Le juge a une échéance propre : on l'attend ici (il tourne depuis le début du passage, souvent déjà rendu).
     await judgeSettled;
-    tryAmorce();
     drainSaid();
     const modelComplete = output.turnComplete;
     // Désaccord (le juge attend la suite, le modèle a fini) : le silence réel de l'appelant tranche (voir
@@ -1015,7 +985,6 @@ export async function runStructuredTurn(
       disagreement = await awaitCallerAfterJudgeDisagreement(session, startedAt, isLive);
       if (disagreement === 'silent') {
         judged = true;
-        tryAmorce();
         drainSaid();
       }
     }
@@ -1026,7 +995,7 @@ export async function runStructuredTurn(
     }
     let finalOutput = output;
     const wouldSpeak =
-      output.action === 'none' &&
+      (output.action === 'none' || (!replyScope && farewellAccepted(output))) &&
       (output.turnComplete || finished) &&
       !slotConflict &&
       (!replyScope ||
@@ -1122,8 +1091,8 @@ export async function runStructuredTurn(
       const offered = nearestSlots(result.slots, time);
       const requested = time
         ? result.slots.includes(time)
-          ? ` ${time} est disponible.`
-          : ` ${time} n'est pas disponible.`
+          ? ` Créneau demandé ${time} : libre.`
+          : ` Créneau demandé ${time} : pas libre.`
         : '';
       if (result.slots.length) {
         const guarantee = await guaranteeTerms;
@@ -1203,11 +1172,11 @@ export async function runStructuredTurn(
     );
   };
 
-  const endCall = async (goodbye: string) => {
+  const endCall = async (goodbye: string, alreadySpoken: boolean) => {
     await flushSpeech();
     session.history.push({ role: 'assistant', content: goodbye });
     await waitForVoiceFiller(session);
-    await finishCall(session, mgr, goodbye);
+    await finishCall(session, mgr, goodbye, alreadySpoken);
   };
 
   // Tour compris avec un brouillon modifié (voir la relance de say vide et le repli dans le catch).
@@ -1351,7 +1320,7 @@ export async function runStructuredTurn(
       switch (first.output.action) {
         case 'end_call':
           if (first.output.say.trim()) {
-            await endCall(first.output.say.trim());
+            await endCall(first.output.say.trim(), first.spoken);
             return;
           }
           actionResult =
@@ -1471,7 +1440,7 @@ export async function runStructuredTurn(
       final = second.output;
       if (!noHangUp && second.output.action === 'end_call' && second.output.confidence !== 'low') {
         if (second.output.say.trim()) {
-          await endCall(second.output.say.trim());
+          await endCall(second.output.say.trim(), second.spoken);
           return;
         }
       } else if (!second.spoken && second.output.say.trim()) {
@@ -1510,14 +1479,7 @@ export async function runStructuredTurn(
       // Les erreurs sont journalisées dans la lecture elle-même.
       prefetchDayAvailability(session, mgr, state, state.draft.date).catch(() => undefined);
     }
-    // L'amorce a été dite avant la phrase : elle fait partie de la réponse, sans les mots que say répétait.
-    session.history.push({
-      role: 'assistant',
-      content: turnAmorce
-        ? `${turnAmorce} ${sayAfterAmorce(turnAmorce, said, true) ?? said}`.trim()
-        : said,
-    });
-    state.lastTurnHadAmorce = Boolean(turnAmorce);
+    session.history.push({ role: 'assistant', content: said });
     observeSemanticSignalsShadow(session, {
       transcript,
       reply: said,

@@ -174,6 +174,22 @@ export function getInterSentencePauseMs(_previousSentence: string): number {
   return 0;
 }
 
+/**
+ * Heure dite comme au téléphone : « midi », « midi et demi », « minuit », « une heure », « 20 heures 5 » (jamais
+ * « 12 heures 30 », « 1 heures » ni « 20 heures 00 », lus mot à mot par la synthèse).
+ */
+export function spokenFrenchHour(hours: number, minutes: number): string {
+  const named = hours === 12 ? 'midi' : hours === 0 || hours === 24 ? 'minuit' : null;
+  if (named) {
+    if (minutes === 0) return named;
+    if (minutes === 30) return `${named} et demi`;
+    if (minutes === 15) return `${named} et quart`;
+    return `${named} ${minutes}`;
+  }
+  const base = hours === 1 ? 'une heure' : `${hours} heures`;
+  return minutes === 0 ? base : `${base} ${minutes}`;
+}
+
 export function cleanTextForTts(text: string, language: VoiceLanguageCode = 'fr'): string {
   let cleaned = text;
 
@@ -210,8 +226,12 @@ export function cleanTextForTts(text: string, language: VoiceLanguageCode = 'fr'
 
   // 5. Normalise les heures pour une prononciation téléphonique fluide.
   if (language === 'fr') {
-    cleaned = cleaned.replace(/\b([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)\b/gi, '$1 heures $2');
-    cleaned = cleaned.replace(/\b(\d+)\s*h\b/g, '$1 heures');
+    cleaned = cleaned.replace(/\b([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)\b/gi, (_, h, m) =>
+      spokenFrenchHour(Number(h), Number(m)),
+    );
+    cleaned = cleaned.replace(/\b([01]?\d|2[0-4])\s*h\b/g, (_, h) =>
+      spokenFrenchHour(Number(h), 0),
+    );
   }
 
   // 6. Space out alphanumeric codes (e.g. BB344719 -> B. B. 3. 4. 4. 7. 1. 9.)

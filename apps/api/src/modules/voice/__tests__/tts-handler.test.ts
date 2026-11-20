@@ -134,6 +134,12 @@ describe('prosodie TTS', () => {
     );
   });
 
+  it('dit midi, minuit et une heure comme au téléphone, sans « 00 » ni zéro initial', () => {
+    expect(cleanTextForTts('De 12 h à 14 h, ou 12h30, 12:15, 0 h, 1 h et 20:00, 20 h 05.')).toBe(
+      'De midi à 14 heures, ou midi et demi, midi et quart, minuit, une heure et 20 heures, 20 heures 5.',
+    );
+  });
+
   it('rend les numéros, abréviations et symboles non ambigus à l’oral', () => {
     expect(cleanTextForTts('Mme Martin : 06 12 34 56 78, menu à 25€ & -10%.')).toBe(
       'Madame Martin : 06, 12, 34, 56, 78, menu à 25 euros et -10 pour cent.',

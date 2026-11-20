@@ -1542,6 +1542,37 @@ export function maybeFinalizeDeepgramOnLocalSilence(
 }
 
 /**
+ * Segment final rendu SANS speech_final et sans partielle derrière (appels du 20/11 : 14:20:16 et 14:24:57,
+ * fin de parole → transcription 1,3 à 1,35 s) : plus rien n'attend Deepgram, le tour n'attendait que
+ * `UtteranceEnd`. Même seuil de silence local que `maybeFinalizeDeepgramOnLocalSilence`, mêmes exclusions
+ * (épellation) ; un fragment parti trop tôt est recollé par le tour structuré (turnComplete=false).
+ */
+export function maybeDispatchHeldDeepgramFinalOnSilence(
+  session: CallSession,
+  now = Date.now(),
+): boolean {
+  const parts = session.sttDeepgramFinalParts;
+  if (
+    !parts?.length ||
+    session.ended ||
+    session.state !== 'LISTENING' ||
+    session.sttAdapter?.id !== 'deepgram' ||
+    session.sttDeepgramPendingInterim ||
+    session.sttDeepgramFinalizeRequested ||
+    session.sttDeepgramFlushHeld
+  ) {
+    return false;
+  }
+  const text = parts.reduce((merged, part) => mergeSttTranscripts(merged, part.transcript), '');
+  const silentMs = callerSilenceMs(session, now);
+  if (!Number.isFinite(silentMs)) return false;
+  if (silentMs < callerPauseFinalizeMs(session, deepgramLocalSilenceFinalizeMs())) return false;
+  if (isSpellingTurn(session, text) || looksLikeSpelledLetters(text)) return false;
+  dispatchDeepgramFinalParts(session, 'silence_finalize');
+  return true;
+}
+
+/**
  * Silence réel de l'appelant avant la relève. 700 ms : sur les enregistrements, à 500 ms la relève
  * devance souvent un speech_final qui arrivait de lui-même ; à 700 ms elle ne sert plus qu'aux mots retenus.
  */
@@ -2270,6 +2301,7 @@ export function sendAudioToStt(session: CallSession, audioPayload: string): void
   checkFastBargeIn(session, trackCallerVoice(session, input), CallSessionManager.getInstance());
   maybeFlushDeepgramOnSilence(session);
   maybeFinalizeDeepgramOnLocalSilence(session);
+  maybeDispatchHeldDeepgramFinalOnSilence(session);
 
   if (
     !session.sttWs &&

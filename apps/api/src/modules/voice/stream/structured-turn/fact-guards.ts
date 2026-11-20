@@ -36,8 +36,6 @@ export interface StructuredTurnState {
   unansweredFragment?: string | null;
   /** Récapitulatif dont le « oui » a déjà été refusé une fois parce qu'il avait été coupé. */
   recapCutBlockedKey: string | null;
-  /** Le tour précédent a commencé par une amorce : pas deux de suite, sinon elle devient un tic. */
-  lastTurnHadAmorce?: boolean;
 }
 
 export interface DayAvailability {

@@ -27,17 +27,21 @@ export async function finishCall(
   session: CallSession,
   mgr: CallSessionManager,
   goodbye: string,
+  /** Au revoir déjà envoyé à la voix en flux : on attend sa fin au lieu de le couper et de le redire. */
+  alreadySpoken = false,
 ): Promise<void> {
   if (session.ended || session.ending) return;
-  session.abortController?.abort();
-  session.abortController = null;
-  session.responseGeneration++;
-  session.ttsGeneration++;
-  session.ttsContext?.cancel();
-  session.ttsContext = null;
-  // Flush stale audio before installing our own mark; clear also acknowledges old marks.
-  if (session.telnyxWs.readyState === WebSocket.OPEN) {
-    session.telnyxWs.send(JSON.stringify({ event: 'clear' }));
+  if (!alreadySpoken) {
+    session.abortController?.abort();
+    session.abortController = null;
+    session.responseGeneration++;
+    session.ttsGeneration++;
+    session.ttsContext?.cancel();
+    session.ttsContext = null;
+    // Flush stale audio before installing our own mark; clear also acknowledges old marks.
+    if (session.telnyxWs.readyState === WebSocket.OPEN) {
+      session.telnyxWs.send(JSON.stringify({ event: 'clear' }));
+    }
   }
   const ending = {
     markName: `goodbye-${randomUUID()}`,
@@ -48,7 +52,7 @@ export async function finishCall(
   mgr.transition(session, 'CLOSING');
   session.conversation.closing = true;
   try {
-    await speakTtsStreamed(session, goodbye, offTurnTtsProvider());
+    if (!alreadySpoken) await speakTtsStreamed(session, goodbye, offTurnTtsProvider());
     if (session.ended) return;
     await new Promise<void>((resolve) => {
       ending.complete = resolve;

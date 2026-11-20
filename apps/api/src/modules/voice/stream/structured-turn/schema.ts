@@ -6,8 +6,7 @@
  *
  * L'ordre des clés est celui du schéma (Cerebras, mode strict) : `say` vient en
  * dernier pour être lu en streaming pendant sa génération ; `turnComplete` en
- * premier pour savoir au plus tôt si l'appelant a fini de parler. `amorce` suit la lecture de compréhension : ces
- * quelques mots partent vers la voix avant que le brouillon et l'action ne soient écrits (voir engine.ts).
+ * premier pour savoir au plus tôt si l'appelant a fini de parler.
  */
 
 export const STRUCTURED_TURN_INTERPRETATIONS = [
@@ -82,8 +81,6 @@ export interface StructuredTurnOutput {
   /** Lecture littérale de ce que l'appelant a dit, avant le brouillon (seulement avec la vérification de compréhension). */
   reading?: string;
   understanding?: StructuredTurnUnderstanding;
-  /** Premiers mots dits avant le reste, repris de ce que l'appelant vient de dire ; vide le plus souvent. */
-  amorce?: string;
   interpretation: StructuredTurnInterpretation;
   draft: StructuredTurnDraft;
   awaiting: StructuredTurnAwaiting;
@@ -103,15 +100,8 @@ export const STRUCTURED_TURN_SCHEMA_NAME = 'voice_turn';
  */
 export function buildStructuredTurnJsonSchema(
   actions: readonly StructuredTurnAction[] = STRUCTURED_TURN_ACTIONS,
-  options: {
-    turnCompleteOnly?: boolean;
-    understanding?: boolean;
-    tone?: boolean;
-    amorce?: boolean;
-  } = {},
+  options: { turnCompleteOnly?: boolean; understanding?: boolean; tone?: boolean } = {},
 ) {
-  // Premier passage seulement : après une action ou un fait du code, le moteur ne dit pas d'amorce.
-  const amorce = options.amorce ? { amorce: { type: 'string' } } : {};
   // `tone` juste avant `say` : il est connu quand la phrase commence.
   const tone = options.tone ? { tone: { type: 'string', enum: [...STRUCTURED_TURN_TONES] } } : {};
   // `reading` puis `understanding` avant le brouillon : le modèle lit avant de décider.
@@ -130,7 +120,6 @@ export function buildStructuredTurnJsonSchema(
         ? { type: 'boolean', enum: [true] }
         : { type: 'boolean' },
       ...understanding,
-      ...amorce,
       interpretation: { type: 'string', enum: [...STRUCTURED_TURN_INTERPRETATIONS] },
       draft: {
         type: 'object',
@@ -154,7 +143,6 @@ export function buildStructuredTurnJsonSchema(
     required: [
       'turnComplete',
       ...(options.understanding ? ['reading', 'understanding'] : []),
-      ...(options.amorce ? ['amorce'] : []),
       'interpretation',
       'draft',
       'awaiting',
@@ -206,7 +194,6 @@ export function parseStructuredTurnOutput(raw: string): StructuredTurnOutput | n
     ...(isOneOf(STRUCTURED_TURN_UNDERSTANDING, record.understanding)
       ? { understanding: record.understanding }
       : {}),
-    ...(typeof record.amorce === 'string' ? { amorce: record.amorce } : {}),
     interpretation: record.interpretation,
     draft: {
       date: draft.date,

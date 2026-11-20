@@ -596,6 +596,8 @@ export interface CallSession {
   sttLanguageCode?: string;
   /** Langue de dialogue active pour le LLM et le TTS. */
   voiceLanguageCode?: VoiceLanguageCode;
+  /** L'appelant a demandé une langue : la détection du fournisseur STT ne la change plus. */
+  voiceLanguageLocked?: boolean;
   /**
    * Candidat de changement de langue en attente d'un second segment fiable.
    * Le fournisseur STT peut attribuer une langue différente à un fragment bruité ; on

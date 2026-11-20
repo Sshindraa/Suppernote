@@ -310,10 +310,13 @@ export function resolveVoiceLanguage(
   transcript: string,
   turnCount: number,
   candidate: VoiceLanguageCandidate | null | undefined,
+  /** Langue demandée par l'appelant en toutes lettres : elle s'applique tout de suite. */
+  explicit = false,
 ): VoiceLanguageDecision {
   if (detected === current) {
     return { language: current, candidate: null, accepted: true, changed: false };
   }
+  if (explicit) return { language: detected, candidate: null, accepted: true, changed: true };
 
   const evidence = hasReliableLanguageEvidence(transcript);
   if (!evidence) {
@@ -334,4 +337,32 @@ export function resolveVoiceLanguage(
     accepted: false,
     changed: false,
   };
+}
+
+const REQUESTABLE_LANGUAGES: Record<string, VoiceLanguageCode> = {
+  english: 'en',
+  anglais: 'en',
+  french: 'fr',
+  français: 'fr',
+  francais: 'fr',
+  spanish: 'es',
+  espagnol: 'es',
+  german: 'de',
+  allemand: 'de',
+  italian: 'it',
+  italien: 'it',
+  portuguese: 'pt',
+  portugais: 'pt',
+};
+
+/**
+ * Langue que l'appelant demande explicitement (« Can you speak English? », « vous parlez anglais ? »), ou null.
+ * shortcut: six langues et deux formulations (verbe parler + nom de langue) ; élargir si un appel réel en montre d'autres.
+ */
+export function requestedVoiceLanguage(transcript: string): VoiceLanguageCode | null {
+  const match =
+    /\b(?:speak|talk|parl(?:e|ez|er|ons)|in)\s+(?:in\s+|en\s+|le\s+)?(english|anglais|french|fran[cç]ais|spanish|espagnol|german|allemand|italian|italien|portuguese|portugais)\b/i.exec(
+      transcript.normalize('NFC'),
+    );
+  return match ? (REQUESTABLE_LANGUAGES[match[1].toLowerCase()] ?? null) : null;
 }

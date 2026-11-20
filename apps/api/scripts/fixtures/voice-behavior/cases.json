@@ -2870,6 +2870,154 @@
           "minRate": 0.8
         }
       ]
+    },
+    {
+      "id": "service-midi-demain",
+      "behavior": "service sans heure",
+      "family": "horaires",
+      "measures": "model",
+      "origin": "real",
+      "source": "appel du 20/11 : « demain midi » compris comme 12:00, Léa a proposé midi et demandé le nom alors que l'appelant voulait le service du déjeuner",
+      "history": [
+        {
+          "role": "user",
+          "content": "Bonjour, j'avais une table pour six."
+        },
+        {
+          "role": "assistant",
+          "content": "Bien sûr. C'est pour quel jour ?"
+        }
+      ],
+      "transcript": "Est-ce que vous êtes ouvert demain midi ?",
+      "draft": {
+        "partySize": 6
+      },
+      "awaiting": "date",
+      "samples": 12,
+      "checks": [
+        {
+          "kind": "field",
+          "path": "awaiting",
+          "equals": "time",
+          "minRate": 0.8
+        },
+        {
+          "kind": "draft",
+          "field": "time",
+          "equals": "",
+          "minRate": 0.9
+        }
+      ]
+    },
+    {
+      "id": "service-midi-variante",
+      "behavior": "service sans heure",
+      "family": "horaires",
+      "measures": "model",
+      "origin": "variant",
+      "source": "variante de service-midi-demain",
+      "history": [
+        {
+          "role": "user",
+          "content": "Bonjour, j'avais une table pour six."
+        },
+        {
+          "role": "assistant",
+          "content": "Bien sûr. C'est pour quel jour ?"
+        }
+      ],
+      "transcript": "Vous êtes ouvert vendredi le midi ?",
+      "draft": {
+        "partySize": 6
+      },
+      "awaiting": "date",
+      "samples": 12,
+      "checks": [
+        {
+          "kind": "field",
+          "path": "awaiting",
+          "equals": "time",
+          "minRate": 0.8
+        },
+        {
+          "kind": "draft",
+          "field": "time",
+          "equals": "",
+          "minRate": 0.9
+        }
+      ],
+      "variantOf": "service-midi-demain"
+    },
+    {
+      "id": "service-soir-variante",
+      "behavior": "service sans heure",
+      "family": "horaires",
+      "measures": "model",
+      "origin": "variant",
+      "source": "variante de service-midi-demain : « ce soir » sans heure",
+      "history": [
+        {
+          "role": "user",
+          "content": "Bonjour, j'avais une table pour six."
+        },
+        {
+          "role": "assistant",
+          "content": "Bien sûr. C'est pour quel jour ?"
+        }
+      ],
+      "transcript": "Et ce soir, vous avez de la place ?",
+      "draft": {
+        "partySize": 6
+      },
+      "awaiting": "date",
+      "samples": 12,
+      "checks": [
+        {
+          "kind": "field",
+          "path": "awaiting",
+          "equals": "time",
+          "minRate": 0.8
+        },
+        {
+          "kind": "draft",
+          "field": "time",
+          "equals": "",
+          "minRate": 0.9
+        }
+      ],
+      "variantOf": "service-midi-demain"
+    },
+    {
+      "id": "service-a-midi-heure",
+      "behavior": "service sans heure",
+      "family": "horaires",
+      "measures": "model",
+      "origin": "control",
+      "source": "témoin : « à midi » dit comme une heure reste 12:00",
+      "history": [
+        {
+          "role": "user",
+          "content": "Bonjour, j'avais une table pour six."
+        },
+        {
+          "role": "assistant",
+          "content": "Bien sûr. C'est pour quel jour ?"
+        }
+      ],
+      "transcript": "Plutôt demain à midi.",
+      "draft": {
+        "partySize": 6
+      },
+      "awaiting": "date",
+      "samples": 12,
+      "checks": [
+        {
+          "kind": "draft",
+          "field": "time",
+          "equals": "12:00",
+          "minRate": 0.85
+        }
+      ]
     }
   ],
   "profiles": {

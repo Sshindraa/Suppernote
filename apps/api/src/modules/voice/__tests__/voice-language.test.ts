@@ -3,6 +3,7 @@ import {
   hasReliableLanguageEvidence,
   normalizeVoiceLocale,
   normalizeVoiceLanguage,
+  requestedVoiceLanguage,
   resolveVoiceLanguage,
 } from '../stream/voice-language';
 
@@ -65,5 +66,23 @@ describe('voice language routing', () => {
       accepted: true,
       changed: true,
     });
+  });
+});
+
+describe('langue demandée par l’appelant', () => {
+  it('reconnaît une demande explicite', () => {
+    expect(requestedVoiceLanguage('Can you speak English?')).toBe('en');
+    expect(requestedVoiceLanguage('vous parlez anglais ?')).toBe('en');
+    expect(requestedVoiceLanguage('Could you talk in Spanish please')).toBe('es');
+  });
+
+  it('ignore une phrase qui ne demande rien', () => {
+    expect(requestedVoiceLanguage('I would like a table for four')).toBeNull();
+    expect(requestedVoiceLanguage('un menu anglais')).toBeNull();
+  });
+
+  it('applique la demande tout de suite, sans second segment', () => {
+    const decision = resolveVoiceLanguage('fr', 'en', 'Can you speak English?', 3, null, true);
+    expect(decision).toMatchObject({ language: 'en', accepted: true, changed: true });
   });
 });

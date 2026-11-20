@@ -2789,3 +2789,150 @@ describe('tour structuré : say vide, secours et voix hors tour', () => {
     expect(calls.at(-1)?.[2]).toBe('elevenlabs');
   });
 });
+
+describe('amorce : premiers mots dits avant le reste (appel du 18/11)', () => {
+  // L'ordre des clés est celui du schéma : l'amorce suit la lecture, avant le brouillon et l'action.
+  function withAmorce(
+    amorce: string,
+    overrides: Partial<StructuredTurnOutput> = {},
+    understanding: 'clear' | 'doubtful' = 'clear',
+  ) {
+    const { turnComplete, ...rest } = turn(overrides);
+    return {
+      turnComplete,
+      reading: 'lecture',
+      understanding,
+      amorce,
+      ...rest,
+    } as StructuredTurnOutput;
+  }
+  const draft = { date: TOMORROW, time: '20:00', partySize: 0, customerName: '' };
+
+  function setup() {
+    const ctx = fixture();
+    ctx.session.structuredTurn = {
+      ...createStructuredTurnState(),
+      draft: { ...draft, time: '' },
+      lastAwaiting: 'time',
+    };
+    return ctx;
+  }
+
+  it('dit l’amorce en premier, sans répéter ses mots dans la phrase', async () => {
+    const { session, mgr, outputs } = setup();
+    outputs.push(
+      withAmorce('Vers 20 h', {
+        draft,
+        awaiting: 'partySize',
+        say: 'Vers 20 h, vous serez combien ?',
+      }),
+    );
+
+    await processTranscriptStreaming(session, 'plutôt vers 20 h', mgr);
+
+    expect(spoken()[0]).toBe('Vers 20 h.');
+    expect(spoken().join(' ')).toBe('Vers 20 h. vous serez combien ?');
+    expect(session.history.at(-1)?.content).toBe('Vers 20 h. vous serez combien ?');
+    expect(session.structuredTurn?.lastTurnHadAmorce).toBe(true);
+  });
+
+  it('se tait quand la compréhension est douteuse', async () => {
+    const { session, mgr, outputs } = setup();
+    outputs.push(
+      withAmorce(
+        'Vers 20 h',
+        { draft: { ...draft, time: '' }, awaiting: 'time', say: 'Pardon, à quelle heure ?' },
+        'doubtful',
+      ),
+    );
+
+    await processTranscriptStreaming(session, 'plutôt vers vingt', mgr);
+
+    expect(spoken().join(' ')).not.toContain('Vers 20 h');
+  });
+
+  it('ne dit rien quand l’appelant n’a pas fini', async () => {
+    vi.useFakeTimers();
+    const { session, mgr, outputs } = setup();
+    outputs.push(withAmorce('Vers 20 h', { turnComplete: false, say: '' }));
+
+    const pending = processTranscriptStreaming(session, 'plutôt vers 20 h et', mgr);
+    await vi.advanceTimersByTimeAsync(10);
+    await pending;
+    vi.useRealTimers();
+
+    expect(spoken()).toEqual([]);
+  });
+
+  it('refuse une amorce qui répond (« oui ») et jamais deux tours de suite', async () => {
+    const { session, mgr, outputs } = setup();
+    outputs.push(
+      withAmorce('Oui, 20 h', { draft, awaiting: 'partySize', say: 'Vous serez combien ?' }),
+    );
+    await processTranscriptStreaming(session, 'vers 20 h', mgr);
+    expect(spoken()).toEqual(['Vous serez combien ?']);
+
+    vi.mocked(speakTtsStreamed).mockClear();
+    session.structuredTurn = { ...session.structuredTurn!, lastTurnHadAmorce: true };
+    outputs.push(
+      withAmorce('À quatre', {
+        draft: { ...draft, partySize: 4 },
+        awaiting: 'customerName',
+        say: "C'est à quel nom ?",
+      }),
+    );
+    await processTranscriptStreaming(session, 'quatre', mgr);
+    expect(spoken()).toEqual(["C'est à quel nom ?"]);
+    expect(session.structuredTurn?.lastTurnHadAmorce).toBe(false);
+  });
+
+  it('pendant une vérification : l’amorce part, la réponse suit après le résultat', async () => {
+    const { session, mgr, outputs } = setup();
+    session.structuredTurn = {
+      ...session.structuredTurn!,
+      draft: { ...draft, time: '20:00' },
+      lastAwaiting: 'partySize',
+    };
+    outputs.push(
+      withAmorce('À quatre', {
+        draft: { ...draft, partySize: 4 },
+        action: 'check_availability',
+        say: '',
+      }),
+      turn({ awaiting: 'customerName', say: "J'ai de la place. C'est à quel nom ?" }),
+    );
+
+    await processTranscriptStreaming(session, 'on sera quatre', mgr);
+
+    expect(spoken()[0]).toBe('À quatre.');
+    expect(spoken().join(' ')).toContain("C'est à quel nom ?");
+  });
+});
+
+describe('amorce écartée : say écrit comme sa suite', () => {
+  it('reprend une majuscule', async () => {
+    const { session, mgr, outputs } = fixture();
+    session.structuredTurn = {
+      ...createStructuredTurnState(),
+      draft: { date: TOMORROW, time: '', partySize: 0, customerName: '' },
+      lastAwaiting: 'time',
+      lastTurnHadAmorce: true,
+    };
+    const { turnComplete, ...rest } = turn({
+      draft: { date: TOMORROW, time: '20:00', partySize: 0, customerName: '' },
+      awaiting: 'partySize',
+      say: 'vous serez combien ?',
+    });
+    outputs.push({
+      turnComplete,
+      reading: 'lecture',
+      understanding: 'clear',
+      amorce: 'Vers 20 h',
+      ...rest,
+    } as StructuredTurnOutput);
+
+    await processTranscriptStreaming(session, 'vers 20 h', mgr);
+
+    expect(spoken()).toEqual(['Vous serez combien ?']);
+  });
+});

@@ -67,7 +67,6 @@ import {
   addCartesiaTtsCharacters,
   addElevenLabsTtsCharacters,
 } from '../../usage/voice-usage.service';
-import { prependUnheardGreeting } from './greeting-unheard';
 import {
   recordDebugAgentSpeech,
   rememberRecentAgentSpeech,
@@ -314,7 +313,6 @@ export async function speakTtsStreamed(
   text: string,
   provider: TelephonyTtsProvider = telephonyTtsProvider(),
 ): Promise<void> {
-  text = prependUnheardGreeting(session, text);
   const debugEntry = recordDebugAgentSpeech(session, text);
   const previousPlayback = session.ttsPlayback ?? Promise.resolve();
   const generation = session.ttsGeneration ?? 0;

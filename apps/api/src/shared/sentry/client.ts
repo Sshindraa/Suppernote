@@ -52,7 +52,7 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV ?? 'development',
+    environment: process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
     release: getRelease(),
     // Performance: sample 100% of transactions in dev, 10% in production.
     // Override via env var for incidents or gradual rollouts.

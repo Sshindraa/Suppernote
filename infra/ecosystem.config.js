@@ -4,11 +4,12 @@ module.exports = {
       name: 'sokar-api',
       cwd: '/opt/sokar/apps/api',
       script: 'dist/main.js',
-      node_args: '--env-file=.env',
+      node_args: '--env-file=.env --enable-source-maps',
       env: {
         // Même valeur que max_memory_restart ci-dessous : sert au calcul du seuil d'appels simultanés.
         PROCESS_MEMORY_LIMIT_MB: '500',
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'production',
         PORT: '4000',
         HOST: '127.0.0.1',
         // Les workers tournent dans le process `sokar-workers` (R1-1) : l'API
@@ -36,9 +37,10 @@ module.exports = {
       name: 'sokar-workers',
       cwd: '/opt/sokar/apps/api',
       script: 'dist/worker.js',
-      node_args: '--env-file=.env',
+      node_args: '--env-file=.env --enable-source-maps',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'production',
         // Les workers n'écoutent pas ; la variable est là pour rendre explicite
         // que ce process porte bien les workers.
         RUN_WORKERS_IN_PROCESS: 'false',
@@ -71,6 +73,7 @@ module.exports = {
       script: 'bin/run-dashboard.sh',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'production',
         // :: = dual-stack IPv4+IPv6. Next.js middleware proxy se connecte
         // via ::1 (IPv6 localhost) ; Nginx via 127.0.0.1 (IPv4). Les deux
         // fonctionnent car :: écoute sur toutes les interfaces.
@@ -96,6 +99,7 @@ module.exports = {
       script: 'bin/run-connect.sh',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'production',
         PORT: '4002',
         HOSTNAME: '127.0.0.1',
       },

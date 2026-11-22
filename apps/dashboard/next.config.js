@@ -49,7 +49,7 @@ const sentryEnabled = !!process.env.SENTRY_AUTH_TOKEN;
 module.exports = sentryEnabled
   ? withSentryConfig(
       withNextIntl(nextConfig),
-      { silent: true, org: 'sokar', project: 'dashboard' },
+      { silent: true, org: 'suppernote', project: 'suppernote-dashboard' },
       {
         widenClientFileUpload: true,
         transpileClientSDK: false,

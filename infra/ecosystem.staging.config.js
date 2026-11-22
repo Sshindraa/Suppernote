@@ -13,11 +13,12 @@ module.exports = {
       name: 'sokar-staging-api',
       cwd: '/opt/sokar-staging/apps/api',
       script: 'dist/main.js',
-      node_args: '--env-file=.env',
+      node_args: '--env-file=.env --enable-source-maps',
       env: {
         // Même valeur que max_memory_restart ci-dessous : sert au calcul du seuil d'appels simultanés.
         PROCESS_MEMORY_LIMIT_MB: '500',
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'staging',
         PORT: '4100',
         HOST: '127.0.0.1',
         // Les workers tournent dans `sokar-staging-workers` (R1-1).
@@ -42,9 +43,10 @@ module.exports = {
       name: 'sokar-staging-workers',
       cwd: '/opt/sokar-staging/apps/api',
       script: 'dist/worker.js',
-      node_args: '--env-file=.env',
+      node_args: '--env-file=.env --enable-source-maps',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'staging',
         RUN_WORKERS_IN_PROCESS: 'false',
         // Endpoint de métriques du worker (R1-6). Port dédié côté staging pour
         // ne pas entrer en collision avec la prod sur le même VPS.
@@ -69,6 +71,7 @@ module.exports = {
       script: 'bin/run-dashboard.sh',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'staging',
         PORT: '3100',
         HOSTNAME: '::',
       },
@@ -90,6 +93,7 @@ module.exports = {
       script: 'bin/run-connect.sh',
       env: {
         NODE_ENV: 'production',
+        SENTRY_ENVIRONMENT: 'staging',
         PORT: '4102',
         HOSTNAME: '127.0.0.1',
       },

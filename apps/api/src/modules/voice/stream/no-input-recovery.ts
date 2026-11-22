@@ -176,7 +176,8 @@ async function speakRecovery(
     },
     '[voice] No-input recovery',
   );
-  if (!mgr.transition(session, 'SPEAKING')) return;
+  // LISTENING ne mène pas directement à SPEAKING : on passe par PROCESSING, comme greeting-resume.
+  if (!mgr.transition(session, 'PROCESSING') || !mgr.transition(session, 'SPEAKING')) return;
   session.history.push({ role: 'assistant', content: spoken });
   try {
     await speakTtsStreamed(session, spoken, offTurnTtsProvider());

@@ -2404,10 +2404,23 @@ describe('mot seul peu sûr : ni interruption, ni tour (appel f2200632)', () => 
     const { session, handleBargeIn } = greetingSession();
     handleNormalizedSttMessage(session, {
       type: 'partial',
-      transcript: 'allô',
-      words: [{ word: 'allô', confidence: 0.92, start: 0, end: 0.3 }],
+      transcript: 'réserver',
+      words: [{ word: 'réserver', confidence: 0.92, start: 0, end: 0.3 }],
     });
     expect(handleBargeIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('une salutation par-dessus l’accueil ne le coupe pas, même sûre', () => {
+    const { session, handleBargeIn } = greetingSession();
+    handleNormalizedSttMessage(session, {
+      type: 'partial',
+      transcript: 'oui bonjour',
+      words: [
+        { word: 'oui', confidence: 0.95, start: 0, end: 0.2 },
+        { word: 'bonjour', confidence: 0.95, start: 0.2, end: 0.6 },
+      ],
+    });
+    expect(handleBargeIn).not.toHaveBeenCalled();
   });
 
   it('le même mot validé comme texte final n’ouvre aucun tour, même hors accueil', () => {

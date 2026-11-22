@@ -91,7 +91,7 @@ describe('preuve minimale pour interrompre', () => {
     expect(hasInterruptionEvidence(evidence, { greeting: true })).toBe(false);
     expect(hasInterruptionEvidence(evidence, { greeting: false })).toBe(true);
     // Deux mots sûrs, ou une voix soutenue, coupent toujours l'accueil.
-    expect(hasInterruptionEvidence(evidenceOf('bonjour madame', 0.8), { greeting: true })).toBe(
+    expect(hasInterruptionEvidence(evidenceOf('bonjour une table', 0.8), { greeting: true })).toBe(
       true,
     );
     expect(
@@ -100,7 +100,7 @@ describe('preuve minimale pour interrompre', () => {
   });
 
   it('accepte une voix soutenue, même peu sûre', () => {
-    expect(hasInterruptionEvidence(evidenceOf('allô', 0.2, [0, 0.9]), { greeting: true })).toBe(
+    expect(hasInterruptionEvidence(evidenceOf('réserver', 0.2, [0, 0.9]), { greeting: true })).toBe(
       true,
     );
   });

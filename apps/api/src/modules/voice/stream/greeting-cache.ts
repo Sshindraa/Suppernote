@@ -1,7 +1,7 @@
 /**
  * Pré-génération des greetings audio par restaurant au boot.
  *
- * Le greeting "Bonjour, ici {restaurant}, je suis Léa, l'assistante IA. Je vous écoute." est la
+ * Le greeting "{restaurant}, Léa, l'IA du restaurant, bonjour !" est la
  * première
  * chose que le client entend. Sans cache, il faut ~400-800ms pour le
  * synthétiser via Cartesia au premier appel. En pré-générant au boot et en

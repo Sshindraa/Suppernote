@@ -5,7 +5,6 @@
  * modèle pour la formulation. Aucune règle lexicale n'interprète l'appelant.
  */
 import { logVoiceDebugText } from '../debug-dialogue';
-import { prependUnheardGreeting } from '../greeting-unheard';
 import { callerSilenceMs } from '../caller-voice-activity';
 import type { CallSession, DebugSpeechEntry } from '../types';
 import { observeSemanticSignalsShadow } from '../turn-plan-shadow';
@@ -461,6 +460,7 @@ function passRequest(
     understanding: true,
     ...(replyScope ? { replyScope } : {}),
     ...(tone ? { tone } : {}),
+    ...(session.greetingAiUnheard ? { aiNotHeard: true } : {}),
     ...extra,
   });
   // Relance après un silence (appel cdc95509) : le modèle répondait encore
@@ -691,8 +691,6 @@ export async function runStructuredTurn(
 
   // Nom que le modèle propose à ce tour (lu dans le flux avant `say`) : la voix doit aussi le recevoir en casse de nom propre.
   let proposedName = '';
-  // Reste d'accueil dit en tête de cette réplique : il fait partie de ce que l'appelant a entendu.
-  let greetingRest = '';
   let replyAwaiting: StructuredTurnOutput['awaiting'] | undefined;
   const voiced = (phrase: string) =>
     nameForSpeech(nameForSpeech(phrase, state.draft.customerName), proposedName);
@@ -713,10 +711,8 @@ export async function runStructuredTurn(
     // La voix surjoue les points d'exclamation sur une phrase courte (« Avec
     // plaisiiir ! », appel 0d49230d) : ton posé côté synthèse.
     phrase = phrase.replace(/\s*!/g, '.');
-    // Accueil coupé avant l'annonce IA : elle ouvre la réplique (voix WebSocket comme HTTP, relevé, historique).
-    const withGreeting = prependUnheardGreeting(session, phrase);
-    if (withGreeting !== phrase) greetingRest = withGreeting.slice(0, -phrase.length).trim();
-    phrase = withGreeting;
+    // La première réponse a été formulée en sachant que l'annonce IA n'a pas été entendue.
+    session.greetingAiUnheard = undefined;
     spokenPhrases.push(phrase);
     if (contextTts) {
       // Une réplique du relevé par réponse, mesurée par les trames du contexte
@@ -1486,7 +1482,7 @@ export async function runStructuredTurn(
       // Les erreurs sont journalisées dans la lecture elle-même.
       prefetchDayAvailability(session, mgr, state, state.draft.date).catch(() => undefined);
     }
-    session.history.push({ role: 'assistant', content: `${greetingRest} ${said}`.trim() });
+    session.history.push({ role: 'assistant', content: said });
     observeSemanticSignalsShadow(session, {
       transcript,
       reply: said,

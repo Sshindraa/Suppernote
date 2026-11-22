@@ -225,6 +225,8 @@ export function buildStructuredTurnMessages(input: {
   understanding?: boolean;
   /** Ton de voix (tone) demandé au modèle ; absent : comportement historique. */
   tone?: boolean;
+  /** L'accueil a été coupé avant l'annonce IA : l'appelant ne sait pas encore qu'il parle à une IA. */
+  aiNotHeard?: boolean;
   /** Deepgram et Ink-2 ont entendu un nombre de personnes différent dans la phrase de ce tour. */
   secondOpinion?: { heard: string; secondHeard: string };
 }): ChatMessage[] {
@@ -263,6 +265,9 @@ export function buildStructuredTurnMessages(input: {
       : '',
     input.secondOpinion ? buildSecondOpinionBlock(input.secondOpinion) : '',
     input.recovery ? `${RECOVERY_INSTRUCTIONS[input.recovery]}\n${RECOVERY_CONSTRAINTS}` : '',
+    input.aiNotHeard
+      ? "ANNONCE IA NON ENTENDUE : l'accueil a été coupé avant que l'appelant entende qu'il parle à une IA. Dis-le-lui naturellement dans cette réponse, en une courte incise, avant ou après ce qu'il demande ; ne t'arrête pas à cela."
+      : '',
     input.callerFinished
       ? "L'appelant s'est tu : son tour est terminé. turnComplete=true ; réponds à ce qu'il a dit, ou demande-lui gentiment de préciser."
       : '',

@@ -33,6 +33,30 @@ export interface InterruptionEvidence {
   voiceMs: number | null;
   /** Aucune lettre latine : l'appel est en français, une transcription dans une autre écriture est du bruit (appel du 20/11 : hindi). */
   nonLatin?: boolean;
+  /** Rien que des salutations (« oui », « bonjour », « allô », « oui bon » tronqué) : pas une demande (appel du 22/11). */
+  salutationOnly?: boolean;
+}
+
+/**
+ * Mots d'une salutation de réponse à l'accueil, « bon » étant un « bonjour » coupé. Liste fermée de
+ * mots outils, pas de phrases : tout autre mot est une vraie prise de parole.
+ */
+const SALUTATION_TOKENS = new Set([
+  'oui',
+  'ouais',
+  'bon',
+  'bonjour',
+  'bonsoir',
+  'salut',
+  'allo',
+  'allô',
+  'hello',
+  'madame',
+  'monsieur',
+]);
+
+export function isSalutationOnly(tokens: readonly string[]): boolean {
+  return tokens.length > 0 && tokens.every((t) => SALUTATION_TOKENS.has(t.toLowerCase()));
 }
 
 export function describeInterruptionEvidence(
@@ -49,6 +73,7 @@ export function describeInterruptionEvidence(
   const ends = (words ?? []).map((word) => word.end).filter((v): v is number => v !== undefined);
   return {
     nonLatin: (tokens.length > 0 && !/\p{Script=Latin}/u.test(transcript)) || undefined,
+    salutationOnly: isSalutationOnly(tokens) || undefined,
     wordCount: tokens.length,
     minConfidence: confidences.length ? Math.min(...confidences) : null,
     voiceMs:
@@ -68,6 +93,8 @@ export function hasInterruptionEvidence(
 ): boolean {
   // Pendant l'accueil, une transcription sans lettre latine n'est pas la parole d'un appelant francophone.
   if (options.greeting && evidence.nonLatin) return false;
+  // Une salutation par-dessus l'accueil ne le coupe pas : Léa finit sa phrase, puis écoute.
+  if (options.greeting && evidence.salutationOnly) return false;
   // Pendant l'accueil, deux mots sont aussi un souffle ou un « allô » mal transcrit (appel a663cec3).
   const shortGreetingUtterance = options.greeting && evidence.wordCount === 2;
   if (evidence.wordCount !== 1 && !shortGreetingUtterance) return true;

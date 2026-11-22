@@ -26,6 +26,7 @@ import {
   looksLikeSpelledLetters,
   maybeFlushDeepgramOnSilence,
   maybeFinalizeDeepgramOnLocalSilence,
+  maybeDispatchHeldDeepgramFinalOnSilence,
   deepgramLocalSilenceFinalizeMs,
   deepgramSilenceFlushMs,
 } from '../stream/stt-bridge';
@@ -1036,6 +1037,56 @@ describe('Deepgram final dispatch', () => {
       vi.advanceTimersByTime(600);
       expect(maybeFinalizeDeepgramOnLocalSilence(spelling.session)).toBe(false);
       expect(spelling.ws.send).not.toHaveBeenCalledWith(FINALIZE);
+    });
+  });
+
+  describe('segment final sans speech_final ni partielle (appels du 20/11, 1,3 s)', () => {
+    function heldSegment(text: string, pauses?: number[]) {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-11-20T14:20:15Z'));
+      const { session, onEvent } = deepgramSession();
+      session.sttWs = makeWsMock();
+      session.state = 'LISTENING';
+      const now = Date.now();
+      session.callerVoice = { noiseFloor: 0, voiceRun: 0, lastVoiceAt: now, lastClearVoiceAt: now };
+      if (pauses) session.callerVoice.pauses = pauses;
+      handleNormalizedSttMessage(session, { type: 'partial', transcript: text });
+      handleNormalizedSttMessage(session, {
+        type: 'final_segment',
+        transcript: text,
+        speechFinal: false,
+      });
+      return { session, onEvent };
+    }
+    afterEach(() => vi.useRealTimers());
+
+    it("clôt au seuil de silence local au lieu d'attendre UtteranceEnd", () => {
+      const { session, onEvent } = heldSegment('demain soir à vingt heures');
+      vi.advanceTimersByTime(450);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(session)).toBe(false);
+      vi.advanceTimersByTime(160);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(session)).toBe(true);
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'UtteranceEnd', finalTrigger: 'silence_finalize' }),
+      );
+    });
+
+    it("appelant qui hésite (pauses longues) : attend plus, jusqu'à 1,1 s", () => {
+      const { session } = heldSegment('plutôt', [600, 700, 800, 900, 1_400]);
+      vi.advanceTimersByTime(1_000);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(session)).toBe(false);
+      vi.advanceTimersByTime(110);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(session)).toBe(true);
+    });
+
+    it("rien pendant une épellation, ni si l'appelant a repris (partielle en attente)", () => {
+      const spelled = heldSegment('a d k i f');
+      vi.advanceTimersByTime(700);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(spelled.session)).toBe(false);
+      const resumed = heldSegment('demain soir');
+      handleNormalizedSttMessage(resumed.session, { type: 'partial', transcript: 'à vingt' });
+      vi.advanceTimersByTime(700);
+      expect(maybeDispatchHeldDeepgramFinalOnSilence(resumed.session)).toBe(false);
     });
   });
 

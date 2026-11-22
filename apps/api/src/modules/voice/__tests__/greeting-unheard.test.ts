@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { describeInterruptionEvidence, hasInterruptionEvidence } from '../stream/barge-in-evidence';
-import { keepUnheardGreeting, prependUnheardGreeting } from '../stream/greeting-unheard';
+import { keepUnheardGreeting } from '../stream/greeting-unheard';
+import { buildStructuredTurnMessages } from '../stream/structured-turn/prompt';
 import type { CallSession } from '../stream/types';
 
-const GREETING = "Chez Suppernote, bonjour. Léa, l'assistante IA, je vous écoute.";
+const GREETING = "Chez Suppernote, Léa, l'assistante IA, bonjour !";
 const accepts = (text: string) =>
   hasInterruptionEvidence(describeInterruptionEvidence(text), { greeting: true });
 
@@ -12,50 +13,60 @@ describe('accueil : transcriptions parasites du 20/11', () => {
     expect(accepts('जन्म संयोग 70.')).toBe(false);
   });
   it('la parole française par-dessus l’accueil le coupe toujours', () => {
-    expect(accepts('allô, oui bonjour')).toBe(true);
+    expect(accepts('allô, je voudrais une table')).toBe(true);
     expect(accepts('ce que je veux dire.')).toBe(true);
   });
 });
 
-describe('reste de l’accueil coupé avant l’annonce IA', () => {
-  const cut = () =>
+describe('accueil coupé avant l’annonce IA : le modèle est prévenu', () => {
+  const cut = (heard: string) =>
     ({
       greetingInterrupted: true,
       greetingText: GREETING,
-      interruptedReply: {
-        said: GREETING,
-        heard: 'Chez Suppernote, bonjour.',
-        unheard: "Léa, l'assistante IA, je vous écoute.",
-      },
+      interruptedReply: { said: GREETING, heard, unheard: '' },
     }) as unknown as CallSession;
 
-  it('ne reprend que l’annonce IA, en tête de la prochaine réplique, une seule fois', () => {
-    const session = cut();
+  it('annonce non entendue : drapeau levé ; coupure non mesurée aussi', () => {
+    const session = cut('Chez Suppernote,');
     keepUnheardGreeting(session);
-    expect(prependUnheardGreeting(session, 'Oui, pour combien ?')).toBe(
-      "Léa, l'assistante IA. Oui, pour combien ?",
-    );
-    expect(prependUnheardGreeting(session, 'Et à quelle heure ?')).toBe('Et à quelle heure ?');
-  });
-  it('coupure non mesurée : l’annonce ; annonce déjà entendue : rien', () => {
-    const unmeasured = cut();
+    expect(session.greetingAiUnheard).toBe(true);
+    const unmeasured = cut('');
     unmeasured.interruptedReply = undefined;
     keepUnheardGreeting(unmeasured);
-    expect(unmeasured.greetingUnheard).toBe("Léa, l'assistante IA.");
-    const heardAll = cut();
-    heardAll.interruptedReply = {
-      said: GREETING,
-      heard: "Chez Suppernote, bonjour. Léa, l'assistante IA,",
-      unheard: 'je vous écoute.',
-    };
-    keepUnheardGreeting(heardAll);
-    expect(heardAll.greetingUnheard).toBeUndefined();
+    expect(unmeasured.greetingAiUnheard).toBe(true);
   });
-  it('ne touche pas l’accueil encore en lecture', () => {
-    const session = cut();
-    session.greetingUnheard = 'reste';
-    session.greetingPlaying = true;
-    expect(prependUnheardGreeting(session, 'x')).toBe('x');
+  it('annonce entendue : rien à signaler', () => {
+    const session = cut("Chez Suppernote, Léa, l'assistante IA,");
+    keepUnheardGreeting(session);
+    expect(session.greetingAiUnheard).toBeUndefined();
+  });
+  it('la consigne d’état figure dans le prompt du tour, sans phrase à dire', () => {
+    const base = {
+      systemPrompt: 'Tu es Léa.',
+      history: [],
+      transcript: 'je voudrais réserver',
+      state: { draft: { customerName: '' }, lastAwaiting: 'open' },
+    } as unknown as Parameters<typeof buildStructuredTurnMessages>[0];
+    const text = (aiNotHeard: boolean) =>
+      JSON.stringify(buildStructuredTurnMessages({ ...base, aiNotHeard }));
+    expect(text(true)).toContain('ANNONCE IA NON ENTENDUE');
+    expect(text(false)).not.toContain('ANNONCE IA NON ENTENDUE');
+  });
+});
+
+describe('salutation par-dessus l’accueil : il continue', () => {
+  it.each(['oui', 'bonjour', 'oui bonjour', 'allô', 'Allô ?', 'oui bon', 'oui, bonjour madame'])(
+    '« %s » ne coupe pas',
+    (text) => expect(accepts(text)).toBe(false),
+  );
+  it.each(['je voudrais réserver', 'oui je voudrais réserver', 'bonjour une table pour deux'])(
+    '« %s » coupe',
+    (text) => expect(accepts(text)).toBe(true),
+  );
+  it('hors accueil, une salutation reste une prise de parole', () => {
+    expect(
+      hasInterruptionEvidence(describeInterruptionEvidence('oui bonjour'), { greeting: false }),
+    ).toBe(true);
   });
 });
 

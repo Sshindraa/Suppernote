@@ -15,13 +15,13 @@ export function greetingSalutation(now: Date, timezone: string): 'bonjour' | 'bo
 }
 
 /**
- * Accueil fixe, comme un serveur qui décroche : le nom de la maison, la salutation de l'heure, puis le prénom
- * et l'annonce IA en quelques mots (appel du 18/11 : l'accueil composé « Bienvenue chez…, comment puis-je vous
- * aider ? » sonnait long et artificiel).
+ * Accueil fixe, comme une hôtesse qui décroche : le nom de la maison, le prénom et l'annonce IA, puis la salutation
+ * de l'heure à la fin (appel du 22/11 : « bonjour » en tête, l'appelant répondait par-dessus avant l'annonce IA ;
+ * appel du 18/11 : l'accueil composé « Bienvenue chez…, comment puis-je vous aider ? » sonnait long).
  */
 export function buildFixedGreeting(
   restaurantName: string,
   salutation: 'bonjour' | 'bonsoir' = 'bonjour',
 ): string {
-  return `${restaurantName}, ${salutation}. ${AGENT_NAME}, ${AGENT_TITLE}, je vous écoute.`;
+  return `${restaurantName}, ${AGENT_NAME}, ${AGENT_TITLE}, ${salutation} !`;
 }

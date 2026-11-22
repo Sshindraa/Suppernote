@@ -41,7 +41,16 @@ function makeSession(overrides: Partial<CallSession> = {}): CallSession {
 
 function makeManager() {
   return {
+    // Même table que CallSessionManager.transition : LISTENING ne mène pas directement à SPEAKING.
     transition: vi.fn((session: CallSession, state: CallSession['state']) => {
+      const valid: Record<CallSession['state'], CallSession['state'][]> = {
+        IDLE: ['LISTENING', 'SPEAKING', 'CLOSING'],
+        LISTENING: ['PROCESSING', 'IDLE', 'CLOSING'],
+        PROCESSING: ['SPEAKING', 'LISTENING', 'IDLE', 'CLOSING'],
+        SPEAKING: ['LISTENING', 'IDLE', 'CLOSING'],
+        CLOSING: ['IDLE'],
+      };
+      if (!valid[session.state].includes(state)) return false;
       session.state = state;
       return true;
     }),

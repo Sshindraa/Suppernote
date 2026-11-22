@@ -1199,8 +1199,11 @@ function dispatchCommittedTranscript(
 
   // Un mot seul, peu sûr et bref est un bruit : pas de tour, l'agent continue d'écouter. Si ce bruit
   // a coupé l'accueil (coupure sur l'audio seul), l'accueil reprend où il s'était arrêté.
+  const turnEvidence = describeInterruptionEvidence(cleanTranscript, words);
   if (
-    isNoiseTurn(describeInterruptionEvidence(cleanTranscript, words), {
+    // Une salutation qui a coupé l'accueil (audio seul) n'est pas une demande : l'accueil reprend.
+    (session.greetingInterrupted && turnEvidence.salutationOnly) ||
+    isNoiseTurn(turnEvidence, {
       letterExpected: expectsSpelledLetters(session.structuredTurn?.lastAwaiting),
       transcript: cleanTranscript,
     })

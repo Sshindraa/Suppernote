@@ -107,19 +107,19 @@ describe('buildInitialGreeting', () => {
     // 12 h et 21 h à Paris : la salutation suit l'heure du restaurant, pas celle du serveur (UTC).
     expect(
       buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T11:00:00Z')),
-    ).toBe("Chez Michel, bonjour. Léa, l'assistante IA, je vous écoute.");
+    ).toBe("Chez Michel, Léa, l'assistante IA, bonjour !");
     expect(
       buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T20:00:00Z')),
-    ).toBe("Chez Michel, bonsoir. Léa, l'assistante IA, je vous écoute.");
+    ).toBe("Chez Michel, Léa, l'assistante IA, bonsoir !");
   });
 
   it('dit « bonsoir » après minuit et « bonjour » dès 5 h', () => {
     expect(
       buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-18T23:16:00Z')),
-    ).toContain(', bonsoir.');
+    ).toContain(', bonsoir !');
     expect(
       buildInitialGreeting('Chez Michel', 'Europe/Paris', new Date('2026-11-19T04:00:00Z')),
-    ).toContain(', bonjour.');
+    ).toContain(', bonjour !');
   });
 });
 

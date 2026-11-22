@@ -10,8 +10,27 @@ Tout worker qui utilise `setupWorkerListeners` déplace un job vers `dead-letter
 tentatives sont épuisées (`apps/api/src/shared/queue/workers/helper.ts`). Rien ne consomme cette
 file : un job qui y arrive n'est **jamais** rejoué automatiquement.
 
+**Exception : les jobs répétitifs.** Un job issu d'un job scheduler (`upsertJobScheduler`, id
+`repeat:<scheduler>:<horodatage>`, ou `opts.repeat`) qui épuise ses tentatives n'est **pas**
+déplacé en dead-letter : l'occurrence suivante le remplace, et rejouer une occurrence périmée n'a
+pas de sens (ex. rafraîchissement horaire `elevenlabs-subscription`). Le worker journalise un
+`warn` « Repeat job exhausted its attempts; not moved to dead-letter » et incrémente la métrique
+`suppernote_repeat_job_exhausted_total{queue,job_name}`. L'exception Sentry reste envoyée à chaque
+échec. Le job reste dans l'ensemble `failed` de sa file (visible via les compteurs
+`suppernote_queue_jobs{state="failed"}`) ; il peut déclencher `failed_jobs` à partir de 5 échecs
+cumulés dans la file.
+
+Pour savoir si un job répétitif échoue de façon répétée : surveiller
+`suppernote_repeat_job_exhausted_total` et chercher le `warn` ci-dessus dans les logs workers.
+
 Le worker `system-health` émet une alerte critique `dead_letter_backlog` dès qu'un job y est
 présent. Le détail de l'alerte pointe vers ce runbook.
+
+> Un e-mail d'alerte staging porte le libellé `[Suppernote STAGING CRITICAL]` ; la production
+> reste `[Suppernote CRITICAL]`. Staging a sa propre Redis, donc sa propre dead-letter : une entrée
+> y déclenche un digest indépendant de la production. Le libellé se déduit de `API_URL` /
+> `PUBLIC_API_URL` ou se force par `ALERT_ENV_LABEL`. Lancer `stats` sur **les deux**
+> environnements (`/opt/sokar` et `/opt/sokar-staging`) avant de conclure que la file est vide.
 
 ## Commandes
 

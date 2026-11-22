@@ -938,6 +938,7 @@ export function __resetMetrics(): void {
   telnyxMessagingEventsTotal.reset();
   brevoSmsEventsTotal.reset();
   alertsSentTotal.reset();
+  repeatJobExhaustedTotal.reset();
   queueJobsGauge.reset();
   callsMissingTranscriptGauge.reset();
   reservationsMissingSmsGauge.reset();
@@ -1182,6 +1183,17 @@ export const alertsSentTotal = new Counter({
   name: 'suppernote_alerts_sent_total',
   help: 'Total ops alerts dispatched by kind, channel and result',
   labelNames: ['kind', 'channel', 'result'] as const,
+  registers: [getRegistry()],
+});
+
+/**
+ * Jobs récurrents (job schedulers BullMQ) dont les tentatives sont épuisées. Ils ne vont pas en
+ * dead-letter : l'occurrence suivante les remplace. Labels : queue × job_name.
+ */
+export const repeatJobExhaustedTotal = new Counter({
+  name: 'suppernote_repeat_job_exhausted_total',
+  help: 'Repeat jobs that exhausted their attempts and were not sent to the dead-letter queue',
+  labelNames: ['queue', 'job_name'] as const,
   registers: [getRegistry()],
 });
 

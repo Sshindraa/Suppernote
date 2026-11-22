@@ -4,7 +4,7 @@ import { keepUnheardGreeting } from '../stream/greeting-unheard';
 import { buildStructuredTurnMessages } from '../stream/structured-turn/prompt';
 import type { CallSession } from '../stream/types';
 
-const GREETING = "Chez Suppernote, Léa, l'assistante IA, bonjour !";
+const GREETING = "Chez Suppernote, Léa, l'IA du restaurant, bonjour !";
 const accepts = (text: string) =>
   hasInterruptionEvidence(describeInterruptionEvidence(text), { greeting: true });
 
@@ -36,7 +36,7 @@ describe('accueil coupé avant l’annonce IA : le modèle est prévenu', () => 
     expect(unmeasured.greetingAiUnheard).toBe(true);
   });
   it('annonce entendue : rien à signaler', () => {
-    const session = cut("Chez Suppernote, Léa, l'assistante IA,");
+    const session = cut("Chez Suppernote, Léa, l'IA du restaurant,");
     keepUnheardGreeting(session);
     expect(session.greetingAiUnheard).toBeUndefined();
   });

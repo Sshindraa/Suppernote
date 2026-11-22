@@ -6,7 +6,7 @@ import { localHour } from './stream/relative-day';
  * et l'assistant le confirme si on le lui demande. Le prénom suit la voix actuelle, féminine.
  */
 export const AGENT_NAME = 'Léa';
-export const AGENT_TITLE = "l'assistante IA";
+export const AGENT_TITLE = "l'IA du restaurant";
 
 /** « bonsoir » de 18 h à 5 h, heure du restaurant ; « bonjour » sinon. */
 export function greetingSalutation(now: Date, timezone: string): 'bonjour' | 'bonsoir' {

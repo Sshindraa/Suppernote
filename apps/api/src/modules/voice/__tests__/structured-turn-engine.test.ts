@@ -2179,12 +2179,12 @@ describe('tour structuré (canary)', () => {
 
     it('accueil coupé avant l’annonce IA : consigne d’état au modèle, une seule fois, aucune phrase codée', async () => {
       const { session, mgr, outputs } = fixture();
-      session.greetingText = "Chez Suppernote, Léa, l'assistante IA, bonjour !";
+      session.greetingText = "Chez Suppernote, Léa, l'IA du restaurant, bonjour !";
       session.greetingInterrupted = true;
       session.interruptedReply = {
         said: session.greetingText,
         heard: 'Chez Suppernote,',
-        unheard: "Léa, l'assistante IA, bonjour !",
+        unheard: "Léa, l'IA du restaurant, bonjour !",
       };
       keepUnheardGreeting(session);
       expect(session.greetingAiUnheard).toBe(true);

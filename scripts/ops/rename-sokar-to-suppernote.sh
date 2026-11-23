@@ -427,7 +427,7 @@ nginx_test() {
 
 nginx_show_error() {
     local l
-    while IFS= read -r l; do log "    nginx: $l"; done < <(tail -n 8 "$WORK/nginx.out")
+    while IFS= read -r l || [ -n "$l" ]; do log "    nginx: $l"; done < <(tail -n 8 "$WORK/nginx.out")
 }
 
 pm2_run() {
@@ -451,11 +451,16 @@ detect_pm2_mode() {
 
 # Écrit dans $WORK/pm2.snap une ligne « nom statut » par process (jlist, parsing tolérant au bruit).
 pm2_snapshot() {
-    local raw line name rest st
+    local raw line name rest st seen=0 expected
     : >"$WORK/pm2.snap"
     raw="$WORK/pm2.raw"
+    PM2_SEEN=0
+    PM2_RAW_COUNT=0
     if ! pm2_run jlist >"$raw" 2>/dev/null </dev/null; then return 1; fi
-    while IFS= read -r line; do
+    # « || [ -n "$line" ] » : la sortie de pm2 jlist ne se termine PAS par un saut de ligne. Sans cela,
+    # read renvoie un code non nul sur la dernière ligne et le corps de la boucle est sauté : le dernier
+    # process de la liste (sur le VPS : sokar-staging-connect) serait perdu.
+    while IFS= read -r line || [ -n "$line" ]; do
         case "$line" in
             '{"pid":'*)
                 name="${line#*\"name\":\"}"
@@ -463,10 +468,20 @@ pm2_snapshot() {
                 rest="${line#*\"status\":\"}"
                 st="${rest%%\"*}"
                 printf '%s %s\n' "$name" "$st" >>"$WORK/pm2.snap"
+                seen=$((seen + 1))
                 ;;
         esac
     done < <(tr -d '\r' <"$raw" | sed 's/{"pid":/\
 {"pid":/g')
+    # Garde-fou indépendant de la boucle : nombre de process dans la sortie brute (grep -o, sans read)
+    # contre nombre de process analysés. Un écart = process perdu : on refuse de planifier ou d'agir.
+    expected="$(grep -o '{"pid":' "$raw" | wc -l | tr -d ' ')" || expected=0
+    PM2_SEEN="$seen"
+    PM2_RAW_COUNT="$expected"
+    if [ "$seen" -ne "$expected" ]; then
+        log "ERREUR : pm2 jlist : $expected process lus, $seen analysés (process perdu) : état pm2 non fiable, arrêt." >&2
+        return 1
+    fi
     return 0
 }
 
@@ -1112,16 +1127,21 @@ preflight_env() { # env
     fi
     if pm2_snapshot; then
         local found_old=0 found_new=0
+        pf_ok "pm2 jlist : $PM2_RAW_COUNT process lus, $PM2_SEEN analysés"
         for n in $(pm2_old_names "$e"); do [ "$(pm2_status "$n")" = absent ] || found_old=$((found_old + 1)); done
         for n in $(pm2_new_names "$e"); do [ "$(pm2_status "$n")" = absent ] || found_new=$((found_new + 1)); done
         if [ $((found_old + found_new)) -eq 0 ]; then
             pf_fail "aucun process pm2 attendu pour $e (anciens ni nouveaux) : jlist non analysable ?"
+        elif [ $((found_old + found_new)) -ne 4 ]; then
+            pf_warn "pm2 $e : $found_old ancien(s), $found_new nouveau(x) process (sur 4 attendus) : vérifier pm2 list avant d'appliquer"
         else
             pf_ok "pm2 $e : $found_old ancien(s), $found_new nouveau(x) process (sur 4 attendus)"
         fi
         if [ "$found_old" -gt 0 ] && [ "$found_new" -gt 0 ]; then
             pf_warn "pm2 $e : anciens ET nouveaux noms présents (apply partiel ?)"
         fi
+    else
+        pf_fail "pm2 jlist inutilisable ou incohérent (process perdu à l'analyse, voir l'ERREUR ci-dessus) : ne pas appliquer"
     fi
 
     # Aucun déploiement en cours.

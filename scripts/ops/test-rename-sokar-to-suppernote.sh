@@ -96,7 +96,8 @@ case "$cmd" in
       out="$out$sep{\"pid\":$((1000 + i)),\"name\":\"$n\",\"pm2_env\":{\"name\":\"$n\",\"status\":\"$st\",\"pm_cwd\":\"$cwd\"},\"pm_id\":$i,\"monit\":{\"memory\":0,\"cpu\":0}}"
       sep=","; i=$((i + 1))
     done <"$L"
-    echo "$out]"
+    # Comme le vrai pm2 jlist : la sortie ne se termine PAS par un saut de ligne (dernier octet = « ] »).
+    if [ -f "$S/jlist_nonl" ]; then printf '%s]' "$out"; else echo "$out]"; fi
     ;;
   stop)
     for n in "$@"; do has "$n" || { echo "[PM2][ERROR] Process $n not found" >&2; exit 1; }; setst "$n" stopped; done
@@ -766,6 +767,64 @@ check "cleanup --patch-debug-log-path : préfixe corrigé" has_text "$SB/opt/sup
 check "cleanup --patch-debug-log-path : valeur jamais imprimée" no_text "$OUT" "call_debug.log"
 check "cleanup --patch-debug-log-path : secrets conservés et non imprimés" bash -c "grep -q '$CANARY' '$SB/opt/suppernote/apps/api/.env' && ! grep -q '$CANARY' '$OUT'"
 unset RENAME_NOW_DATE
+
+# ── 11. pm2 jlist SANS saut de ligne final (vraie sortie du VPS) : le dernier process ne doit pas être perdu ──
+# Régression : `while read` ne passait pas dans le corps de la boucle pour la dernière ligne sans \n,
+# donc sokar-staging-connect (dernier de la liste) était invisible : ni arrêté, ni supprimé, port 4102 en conflit.
+jlist_last_byte() { PATH="$TMP/stubs:$PATH" STUB_STATE="$STATE" pm2 jlist | tail -c 1; }
+pm2_calls_mention() { grep -E "$1" "$STATE/calls.log" | grep -q -- "$2"; }
+count_stop_names() { grep 'pm2 stop' "$1" | grep -o 'sokar-staging-[a-z]*' | sort -u | wc -l | tr -d ' '; }
+no_old_staging_left() { ! grep -q '^sokar-staging' "$STATE/pm2.list"; }
+no_new_staging_left() { ! grep -q '^suppernote-staging' "$STATE/pm2.list"; }
+
+new_sandbox nonl
+: >"$STATE/jlist_nonl"
+check "jlist sans saut de ligne : le stub finit bien par « ] »" is_eq "$(jlist_last_byte)" "]"
+run_script preflight --env staging
+check "jlist sans saut de ligne : préflight staging code 0" is_eq "$RC" 0
+check "jlist sans saut de ligne : préflight staging voit les 4 anciens process" has_text "$OUT" "4 ancien(s), 0 nouveau(x) process (sur 4 attendus)"
+check "jlist sans saut de ligne : préflight, comptage brut = analysé" has_text "$OUT" "jlist : 8 process lus, 8 analysés"
+run_script preflight --env prod
+check "jlist sans saut de ligne : préflight prod voit les 4 anciens process" has_text "$OUT" "4 ancien(s), 0 nouveau(x) process (sur 4 attendus)"
+run_script apply --env staging --dry-run
+check "jlist sans saut de ligne : dry-run staging annonce l'arrêt de sokar-staging-connect" has_text "$OUT" "sokar-staging-connect"
+check "jlist sans saut de ligne : dry-run staging annonce l'arrêt des 4 process staging" is_eq "$(count_stop_names "$OUT")" 4
+run_script apply --env all --dry-run
+check "jlist sans saut de ligne : dry-run all code 0" is_eq "$RC" 0
+check "jlist sans saut de ligne : dry-run all annonce l'arrêt de sokar-staging-connect" bash -c 'grep "pm2 stop" "$1" | grep -q "sokar-staging-connect"' _ "$OUT"
+check "jlist sans saut de ligne : dry-run all annonce l'arrêt de sokar-connect (prod)" bash -c 'grep "pm2 stop" "$1" | grep -qE "sokar-connect( |$)"' _ "$OUT"
+check "jlist sans saut de ligne : dry-run all aucun pm2 stop/delete/start effectif" is_eq "$(count_calls 'pm2 (stop|delete|start|save|restart)')" 0
+run_script apply --env staging
+check "jlist sans saut de ligne : apply staging code 0" is_eq "$RC" 0
+check "jlist sans saut de ligne : sokar-staging-connect arrêté" pm2_calls_mention 'pm2 stop' sokar-staging-connect
+check "jlist sans saut de ligne : sokar-staging-connect supprimé" pm2_calls_mention 'pm2 delete' sokar-staging-connect
+check "jlist sans saut de ligne : staging aux nouveaux noms, 4 online" is_eq "$(grep -c '^suppernote-staging-.*|online|/opt/suppernote-staging' "$STATE/pm2.list")" 4
+check "jlist sans saut de ligne : aucun ancien process staging" no_old_staging_left
+check "jlist sans saut de ligne : prod intacte (4 anciens online)" is_eq "$(grep -c '^sokar-[a-z]*|online|/opt/sokar/' "$STATE/pm2.list")" 4
+run_script rollback --env staging
+check "jlist sans saut de ligne : rollback staging code 0" is_eq "$RC" 0
+check "jlist sans saut de ligne : rollback staging, 4 anciens online" is_eq "$(grep -c '^sokar-staging-.*|online' "$STATE/pm2.list")" 4
+check "jlist sans saut de ligne : rollback staging, aucun nouveau process" no_new_staging_left
+
+# Garde-fou : si la boucle de lecture perdait à nouveau un process, le préflight et l'apply doivent ÉCHOUER
+# (comptage brut ≠ analysé). Mutation : on retire la correction `|| [ -n "$line" ]` du script testé ;
+# la garde seule doit alors tout arrêter, avant la moindre modification.
+new_sandbox nonlguard
+: >"$STATE/jlist_nonl"
+MUT="$TMP/mutant-rename.sh"
+sed 's/ || \[ -n "\$line" \]; do$/; do/' "$SCRIPT" >"$MUT"
+check "mutation : la correction a bien été retirée du mutant" bash -c '! cmp -s "$1" "$2"' _ "$SCRIPT" "$MUT"
+SCRIPT_REAL="$SCRIPT"
+SCRIPT="$MUT"
+snapshot "$SB" >"$TMP/NG0"
+run_script preflight --env staging
+check "garde-fou : préflight en échec si un process est perdu (code 3)" is_eq "$RC" 3
+check "garde-fou : message explicite (8 lus, 7 analysés)" has_text "$OUT" "jlist : 8 process lus, 7 analysés"
+run_script apply --env staging
+check "garde-fou : apply refusé (code 3)" is_eq "$RC" 3
+check "garde-fou : apply refusé, rien modifié" diff -q "$TMP/NG0" <(snapshot "$SB")
+check "garde-fou : aucun pm2 stop/delete/start/save/restart" is_eq "$(count_calls 'pm2 (stop|delete|start|save|restart)')" 0
+SCRIPT="$SCRIPT_REAL"
 
 if [ -n "${TEST_KEEP_DIR:-}" ]; then
     mkdir -p "$TEST_KEEP_DIR"

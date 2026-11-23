@@ -116,3 +116,15 @@ describe('Next proxy — protection Clerk', () => {
     await expect(import('./proxy')).rejects.toThrow('manquant en production');
   });
 });
+
+describe('Next proxy — tunnel Sentry', () => {
+  it('exclut /monitoring du proxy Clerk, sans exclure les autres routes', async () => {
+    const { config } = await import('./proxy');
+    const matches = (path: string) => new RegExp(`^${config.matcher[0]}$`).test(path);
+    expect(matches('/monitoring')).toBe(false);
+    expect(matches('/monitoring/')).toBe(false);
+    expect(matches('/monitoring-rapport')).toBe(true);
+    expect(matches('/dashboard')).toBe(true);
+    expect(matches('/r')).toBe(true);
+  });
+});

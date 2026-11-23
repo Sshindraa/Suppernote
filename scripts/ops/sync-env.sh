@@ -13,6 +13,14 @@
 #   provider        (sync-staging-provider-config) optionnel, staging seulement
 #   stripe-prices   (sync-stripe-prices)       obligatoire, contrôle du catalogue Stripe
 #   voice-stt                                  optionnel, qualification STT et continuité voix
+#   sentry-dashboard                           optionnel, DSN du projet suppernote-dashboard
+#   sentry-connect                             optionnel, DSN du projet suppernote-connect
+#
+# Groupes sentry-* : la variable lue est SENTRY_DSN_DASHBOARD ou SENTRY_DSN_CONNECT
+# (secrets GitHub). Ils sont écrits sous les noms attendus par l'application :
+# SENTRY_DSN, SENTRY_ENVIRONMENT (staging|production), et pour le dashboard aussi
+# NEXT_PUBLIC_SENTRY_DSN et NEXT_PUBLIC_SENTRY_ENVIRONMENT, que Next inline dans le
+# bundle navigateur AU BUILD : la synchronisation doit donc précéder le build.
 #
 # Groupes optionnels : une variable vide est ignorée (configuration existante
 # conservée). Groupes obligatoires : une variable vide ou invalide arrête le
@@ -30,12 +38,16 @@ case "$DEPLOY_ENV" in
   staging)
     API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/suppernote-staging/apps/api/.env}"
     DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/suppernote-staging/apps/dashboard/.env}"
+    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/suppernote-staging/apps/connect/.env}"
     CLERK_PREFIX='sk_test_'
+    SENTRY_ENV_NAME='staging'
     ;;
   prod)
     API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/suppernote/apps/api/.env}"
     DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/suppernote/apps/dashboard/.env}"
+    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/suppernote/apps/connect/.env}"
     CLERK_PREFIX='sk_live_'
+    SENTRY_ENV_NAME='production'
     ;;
   *)
     echo "Usage: $0 <groupe> staging|prod" >&2
@@ -46,6 +58,8 @@ esac
 # Définition de chaque groupe : mode, fichiers écrits, variables lues.
 # FILES_FIRST=yes : le fichier cible est contrôlé avant le constat « rien à synchroniser ».
 FILES_FIRST=no
+# WRITE_KEYS : noms écrits dans les fichiers quand ils diffèrent des variables lues (KEYS).
+WRITE_KEYS=""
 case "$GROUP" in
   alerting)
     MODE=optional
@@ -88,6 +102,18 @@ case "$GROUP" in
     FILES="api"
     KEYS="STRIPE_PRICE_ESSENTIAL_MONTHLY STRIPE_PRICE_ESSENTIAL_ANNUAL STRIPE_PRICE_PRO_MONTHLY STRIPE_PRICE_PRO_ANNUAL STRIPE_PRICE_MULTI_SITE_MONTHLY STRIPE_PRICE_MULTI_SITE_ANNUAL STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL"
     ;;
+  sentry-dashboard)
+    MODE=optional
+    FILES="dashboard"
+    KEYS="SENTRY_DSN_DASHBOARD"
+    WRITE_KEYS="SENTRY_DSN NEXT_PUBLIC_SENTRY_DSN SENTRY_ENVIRONMENT NEXT_PUBLIC_SENTRY_ENVIRONMENT"
+    ;;
+  sentry-connect)
+    MODE=optional
+    FILES="connect"
+    KEYS="SENTRY_DSN_CONNECT"
+    WRITE_KEYS="SENTRY_DSN SENTRY_ENVIRONMENT"
+    ;;
   *)
     echo "Groupe inconnu : '$GROUP'" >&2
     exit 2
@@ -121,6 +147,9 @@ is_valid() {
       ;;
     SENTRY_DSN|ALERT_WEBHOOK_URL)
       [[ "$value" =~ ^https://[^[:space:]]+$ ]] ;;
+    SENTRY_DSN_DASHBOARD|SENTRY_DSN_CONNECT)
+      # https://<clé publique>@<hôte d'ingestion>/<id projet>
+      [[ "$value" =~ ^https://[A-Za-z0-9]+@[A-Za-z0-9.-]+/[0-9]+$ ]] ;;
     ALERT_EMAIL_TO)
       [[ "$value" =~ ^[^[:space:],@]+@[^[:space:],@]+(,[[:space:]]*[^[:space:],@]+@[^[:space:],@]+)*$ ]] ;;
     ALERT_SMS_TO)
@@ -197,12 +226,21 @@ for key in $KEYS; do
 done
 SELECTED="${SELECTED# }"
 
+# Variables lues sous un nom, écrites sous un autre (groupes sentry-*).
+if [[ -n "$SELECTED" && -n "$WRITE_KEYS" ]]; then
+  dsn="$(value_of "$KEYS")"
+  export SENTRY_DSN="$dsn" NEXT_PUBLIC_SENTRY_DSN="$dsn"
+  export SENTRY_ENVIRONMENT="$SENTRY_ENV_NAME" NEXT_PUBLIC_SENTRY_ENVIRONMENT="$SENTRY_ENV_NAME"
+  SELECTED="$WRITE_KEYS"
+fi
+
 # 2. Fichiers cibles : tous doivent exister avant toute écriture.
 TARGET_FILES=""
 for file_role in $FILES; do
   case "$file_role" in
     api) target="$API_ENV_FILE" ;;
     dashboard) target="$DASHBOARD_ENV_FILE" ;;
+    connect) target="$CONNECT_ENV_FILE" ;;
   esac
   TARGET_FILES="$TARGET_FILES $target"
 done

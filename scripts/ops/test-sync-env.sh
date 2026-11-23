@@ -33,6 +33,7 @@ run() {
   env -i PATH="$PATH" HOME="$HOME" \
     SOKAR_API_ENV_FILE="$dir/api.env" \
     SOKAR_DASHBOARD_ENV_FILE="$dir/dashboard.env" \
+    SOKAR_CONNECT_ENV_FILE="$dir/connect.env" \
     SUPPERNOTE_ROOT="$dir" \
     "$@" bash "$RUNNER" "$group" "$environment" >/dev/null 2>&1 || code=$?
   echo "$code"
@@ -43,6 +44,7 @@ fixture() {
   dir="$(mktemp -d "$TMP_ROOT/case.XXXXXX")"
   printf '%s\n' "$BASE" > "$dir/api.env"
   printf '%s\n' "$BASE" > "$dir/dashboard.env"
+  printf '%s\n' "$BASE" > "$dir/connect.env"
   echo "$dir"
 }
 
@@ -105,6 +107,42 @@ prices=(STRIPE_PRICE_ESSENTIAL_MONTHLY=price_a1 STRIPE_PRICE_ESSENTIAL_ANNUAL=pr
   STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY=price_a7 STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL=price_a8)
 check "exit 1" 1 "$(run "$d" stripe-prices prod "${prices[@]}")"
 check "contenu inchangé" "$before" "$(cat "$d/api.env")"
+
+echo "Sentry dashboard : DSN écrit côté serveur et navigateur, environnement staging, API et connect intacts"
+d="$(fixture)"
+api_before="$(cat "$d/api.env")"; connect_before="$(cat "$d/connect.env")"
+dash_dsn='https://cledash123@o1.ingest.de.sentry.io/11'
+check "exit 0" 0 "$(run "$d" sentry-dashboard staging SENTRY_DSN_DASHBOARD=$dash_dsn SENTRY_DSN=https://autre@o1.ingest.de.sentry.io/99)"
+check "SENTRY_DSN" "SENTRY_DSN=$dash_dsn" "$(grep '^SENTRY_DSN=' "$d/dashboard.env")"
+check "NEXT_PUBLIC_SENTRY_DSN" "NEXT_PUBLIC_SENTRY_DSN=$dash_dsn" "$(grep '^NEXT_PUBLIC_SENTRY_DSN=' "$d/dashboard.env")"
+check "SENTRY_ENVIRONMENT" "SENTRY_ENVIRONMENT=staging" "$(grep '^SENTRY_ENVIRONMENT=' "$d/dashboard.env")"
+check "NEXT_PUBLIC_SENTRY_ENVIRONMENT" "NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging" "$(grep '^NEXT_PUBLIC_SENTRY_ENVIRONMENT=' "$d/dashboard.env")"
+check "API inchangée" "$api_before" "$(cat "$d/api.env")"
+check "connect inchangé" "$connect_before" "$(cat "$d/connect.env")"
+check "lignes non concernées conservées" "$BASE" "$(grep -vE '^(NEXT_PUBLIC_)?SENTRY_' "$d/dashboard.env")"
+run "$d" sentry-dashboard staging SENTRY_DSN_DASHBOARD=$dash_dsn >/dev/null
+check "ré-exécution : une seule ligne par clé" "4" "$(grep -cE '^(NEXT_PUBLIC_)?SENTRY_' "$d/dashboard.env")"
+
+echo "Sentry connect : DSN serveur seul, environnement production, aucune variable NEXT_PUBLIC_"
+d="$(fixture)"
+api_before="$(cat "$d/api.env")"; dash_before="$(cat "$d/dashboard.env")"
+connect_dsn='https://cleconn456@o1.ingest.de.sentry.io/22'
+check "exit 0" 0 "$(run "$d" sentry-connect prod SENTRY_DSN_CONNECT=$connect_dsn)"
+check "SENTRY_DSN" "SENTRY_DSN=$connect_dsn" "$(grep '^SENTRY_DSN=' "$d/connect.env")"
+check "SENTRY_ENVIRONMENT" "SENTRY_ENVIRONMENT=production" "$(grep '^SENTRY_ENVIRONMENT=' "$d/connect.env")"
+check "aucun NEXT_PUBLIC_SENTRY" "0" "$(grep -c '^NEXT_PUBLIC_SENTRY' "$d/connect.env" || true)"
+check "API inchangée" "$api_before" "$(cat "$d/api.env")"
+check "dashboard inchangé" "$dash_before" "$(cat "$d/dashboard.env")"
+
+echo "Sentry : sans DSN, fichier inchangé ; DSN hors format ou fichier absent, refus"
+d="$(fixture)"; before="$(cat "$d/dashboard.env")"
+check "sans valeur : exit 0" 0 "$(run "$d" sentry-dashboard staging)"
+check "sans valeur : inchangé" "$before" "$(cat "$d/dashboard.env")"
+check "http refusé" 1 "$(run "$d" sentry-dashboard staging SENTRY_DSN_DASHBOARD=http://cle@o1.ingest.de.sentry.io/1)"
+check "sans identifiant de projet refusé" 1 "$(run "$d" sentry-dashboard staging SENTRY_DSN_DASHBOARD=https://cle@o1.ingest.de.sentry.io)"
+check "inchangé après refus" "$before" "$(cat "$d/dashboard.env")"
+rm "$d/connect.env"
+check "fichier .env connect absent : exit 1" 1 "$(run "$d" sentry-connect staging SENTRY_DSN_CONNECT=$connect_dsn)"
 
 echo "Arguments invalides"
 d="$(fixture)"

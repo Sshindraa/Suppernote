@@ -253,6 +253,29 @@ test "$NEED_CONNECT" = false
 detect_changed_apps "$DETECT_SCRIPT" "$DETECT_LOCK" >/dev/null
 test "$NEED_DASHBOARD" = true
 test "$NEED_CONNECT" = true
+
+# Un .env Dashboard/Connect modifié reconstruit l'app concernée, même sans changement de code
+# (les NEXT_PUBLIC_* sont inlinées au build) ; un .env identique ne déclenche rien.
+mkdir -p "$SUPPERNOTE_ROOT/apps/dashboard" "$SUPPERNOTE_ROOT/apps/connect"
+printf 'NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging\n' > "$SUPPERNOTE_ROOT/apps/dashboard/.env"
+printf 'SENTRY_ENVIRONMENT=staging\n' > "$SUPPERNOTE_ROOT/apps/connect/.env"
+SOKAR_DASHBOARD_ENV_BEFORE="$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/dashboard/.env")"
+SOKAR_CONNECT_ENV_BEFORE="$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/connect/.env")"
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = true
+test "$NEED_DASHBOARD" = false
+test "$NEED_CONNECT" = false
+printf 'NEXT_PUBLIC_SENTRY_ENVIRONMENT=production\n' > "$SUPPERNOTE_ROOT/apps/dashboard/.env"
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = false
+test "$NEED_DASHBOARD" = true
+test "$NEED_CONNECT" = false
+printf 'SENTRY_ENVIRONMENT=production\n' > "$SUPPERNOTE_ROOT/apps/connect/.env"
+detect_changed_apps "$DETECT_SCRIPT" "$DETECT_LOCK" >/dev/null
+test "$NEED_CONNECT" = true
+unset SOKAR_DASHBOARD_ENV_BEFORE SOKAR_CONNECT_ENV_BEFORE
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = true
 cd - >/dev/null
 
 echo 'deploy-common release activation/rollback: OK'

@@ -645,6 +645,19 @@ detect_changed_apps() {
             fi
         fi
     fi
+
+    # Les variables NEXT_PUBLIC_* sont inlinées dans le bundle au build : un .env modifié
+    # (rotation d'un DSN, changement d'environnement) impose de reconstruire l'app, même
+    # sans changement de code. Empreintes prises par le workflow avant la synchronisation.
+    local role fingerprint_before
+    for role in dashboard connect; do
+        if [ "$role" = dashboard ]; then fingerprint_before="${SOKAR_DASHBOARD_ENV_BEFORE:-}"; else fingerprint_before="${SOKAR_CONNECT_ENV_BEFORE:-}"; fi
+        if [ -n "$fingerprint_before" ] && [ "$fingerprint_before" != "$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/$role/.env")" ]; then
+            if [ "$role" = dashboard ]; then NEED_DASHBOARD=true; else NEED_CONNECT=true; fi
+            SKIP_ALL_BUILDS=false
+            log info "   📎 apps/$role/.env modifié — rebuild de $role"
+        fi
+    done
 }
 
 # Build Phase 1 : packages + API (séquentiel — dépendances)
@@ -707,7 +720,7 @@ build_dashboard_connect() {
         build_dash_cmd="NODE_OPTIONS='--max-old-space-size=2048' NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD_ALLOW_DEV=1 NEXT_DIST_DIR='$NEXT_DIST_DIR_DASHBOARD' SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING=1 pnpm --filter @suppernote/dashboard build"
     fi
     if [ "$need_connect" = true ]; then
-        build_connect_cmd="NODE_OPTIONS='--max-old-space-size=1024' NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD_ALLOW_DEV=1 NEXT_DIST_DIR='$NEXT_DIST_DIR_CONNECT' pnpm --filter @suppernote/connect build"
+        build_connect_cmd="NODE_OPTIONS='--max-old-space-size=1024' NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD_ALLOW_DEV=1 NEXT_DIST_DIR='$NEXT_DIST_DIR_CONNECT' SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING=1 pnpm --filter @suppernote/connect build"
     fi
 
     # Les services restent actifs pendant le build : les sorties sont écrites

@@ -115,6 +115,40 @@ afficher. `ALERT_WEBHOOK` et `HEALTHCHECKS_PING_URL` alimentent le watchdog VPS
 dans `/etc/suppernote/watchdog.env`, fichier root lisible uniquement par le cron.
 Si aucun secret n’est défini, le déploiement conserve la configuration existante.
 
+### Sentry : dashboard et Connect
+
+Trois projets Sentry (organisation `suppernote`, région EU) : `suppernote-api`,
+`suppernote-dashboard`, `suppernote-connect`. Secrets GitHub attendus (`staging` et
+`production`) :
+
+| Secret                 | Rôle                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `SENTRY_DSN`           | DSN du projet API (déjà en place), écrit dans `apps/api/.env`.               |
+| `SENTRY_DSN_DASHBOARD` | DSN du projet dashboard → `apps/dashboard/.env` (groupe `sentry-dashboard`). |
+| `SENTRY_DSN_CONNECT`   | DSN du projet Connect → `apps/connect/.env` (groupe `sentry-connect`).       |
+| `SENTRY_AUTH_TOKEN`    | Organization token Sentry : upload des source maps au build.                 |
+
+- `sync-env.sh sentry-dashboard|sentry-connect` écrit `SENTRY_DSN` et `SENTRY_ENVIRONMENT`
+  (`staging` ou `production`) ; pour le dashboard aussi `NEXT_PUBLIC_SENTRY_DSN` et
+  `NEXT_PUBLIC_SENTRY_ENVIRONMENT`, inlinés dans le bundle navigateur **au build**. Un `.env`
+  modifié déclenche donc le rebuild de l'app concernée même sans changement de code
+  (`SOKAR_DASHBOARD_ENV_BEFORE` / `SOKAR_CONNECT_ENV_BEFORE`, `detect_changed_apps`).
+- `SENTRY_AUTH_TOKEN` n'est écrit dans aucun `.env` : le workflow l'exporte pour le seul processus
+  de déploiement, `next build` l'hérite. Sans lui, pas d'upload (build inchangé). Un upload en
+  échec n'arrête pas le déploiement : `[sentry] upload des source maps échoué` apparaît dans le
+  journal de build et les stack traces restent minifiées jusqu'au déploiement suivant.
+- Dashboard : navigateur et serveur. Les événements du navigateur passent par le tunnel
+  same-origin `/monitoring` (exclu du proxy Clerk), car nginx sert `/widget/*` et `/book/*`
+  avec `connect-src 'self'`. Le SDK reste désactivé sur `/r` et `/r/demo` (lien de réservation
+  dont le jeton est dans le fragment).
+- Connect : erreurs serveur seulement. Pas de SDK navigateur : les pages de widget sont
+  intégrées chez des tiers sous une CSP nginx qui bloquerait l'envoi. À rouvrir si le suivi
+  des erreurs du tunnel de carte cadeau devient nécessaire (CSP nginx + tunnel).
+- `instrumentation.ts` doit rester dans `src/` des deux apps : avec un dossier `src/`, Next
+  ignore silencieusement celui de la racine (le dashboard n'envoyait aucune erreur serveur avant ce
+  correctif).
+- La procédure de vérification sur staging est dans `docs/runbooks/observability.md`.
+
 ### Régulation Resend (préparation locale du 16 octobre 2026)
 
 Le transport partagé régule les créations et les lectures d'e-mails : un départ au

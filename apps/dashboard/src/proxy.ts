@@ -99,7 +99,9 @@ export default proxy;
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // `monitoring` : tunnel Sentry (next.config.js). Les événements du navigateur ne doivent
+    // traverser ni Clerk ni sa poignée de main de session.
+    '/((?!_next|monitoring(?:/|$)|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api|trpc)(.*)',
   ],
 };

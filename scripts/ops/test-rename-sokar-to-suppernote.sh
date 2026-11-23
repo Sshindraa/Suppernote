@@ -688,6 +688,22 @@ check "rollback d'un apply partiel : code 0" is_eq "$RC" 0
 check "rollback d'un apply partiel : état initial identique" diff "$TMP/Q0" <(snapshot "$SB")
 check "rollback d'un apply partiel : process staging relancés (stopped → online)" diff "$TMP/QP0" <(pm2_sorted)
 
+# ── 8b. Répétition : apply staging seul, puis rollback staging seul → état initial ──────────
+new_sandbox repet
+snapshot "$SB" >"$TMP/R0"
+pm2_sorted >"$TMP/RP0"
+run_script apply --env staging
+check "répétition : apply staging : code 0" is_eq "$RC" 0
+check "répétition : staging renommé (prod intacte)" bash -c "test -d '$SB/opt/suppernote-staging' && test -d '$SB/opt/sokar' && test ! -L '$SB/opt/sokar'"
+run_script rollback --env staging
+check "répétition : rollback staging seul : code 0" is_eq "$RC" 0
+check "répétition : rollback staging seul : état initial identique (partagé défait aussi)" diff "$TMP/R0" <(snapshot "$SB")
+check "répétition : rollback staging seul : pm2 initial" diff "$TMP/RP0" <(pm2_sorted)
+run_script apply --env staging
+check "répétition : nouvel apply staging après rollback : code 0" is_eq "$RC" 0
+run_script rollback --env staging
+check "répétition : second rollback : état initial identique" diff "$TMP/R0" <(snapshot "$SB")
+
 # ── 9. Préflight en échec : rien n'est modifié ───────────────────────────────────────────────
 new_sandbox pfail
 mkdir -p "$SB/opt/suppernote-staging"

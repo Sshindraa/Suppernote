@@ -7,8 +7,10 @@
 > `curl` sur `127.0.0.1` et sur les domaines publics (GET). Aucune valeur de `.env`, `watchdog.env`
 > ou URL de heartbeat n'est reproduite ici : seuls les noms de variables et les chemins comptent.
 >
-> Les passages marqués **⟦À FINALISER PAR suppernote-dev⟧** dépendent du script
-> `scripts/ops/rename-sokar-to-suppernote.sh`, pas encore écrit au moment de ce préflight.
+> Le script `scripts/ops/rename-sokar-to-suppernote.sh` et ses tests sont livrés dans la PR #795
+> (non fusionnée). Les commandes exactes à copier-coller sont au **§3.10** ; le traitement de chaque
+> référence H01–H36 par le script est au **§1.7**. Le script n'a été exécuté qu'en bac à sable local
+> (stubs pm2/nginx/systemctl/docker/sudo/visudo), jamais sur le VPS.
 
 Périmètre du palier 1 (décidé par le lead) :
 
@@ -172,6 +174,30 @@ Autres vérifications sans occurrence : `/etc/systemd/system`, `/lib/systemd`, `
 
 ---
 
+### 1.7 Traitement de chaque référence par le script (carte `t_ae0c8153`)
+
+| Réf.            | Traitement                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| H01             | Traité : `sites-enabled/sokar-staging` (copie) est déplacé comme un fichier ; `sites-enabled/sokar` (lien) est recréé vers `sites-available/suppernote`.           |
+| H02             | Traité : `include` de snippets patchés (sed borné) ; liens de compatibilité des snippets tant qu'un site utilise l'ancien nom.                                     |
+| H03             | Traité : `/var/log/sokar` → `/var/log/suppernote` dans les sites (`access_log`).                                                                                   |
+| H04, H05        | Rien à faire (identifiants nginx internes, certificats et domaines `sokar.tech`), conservés et vérifiés par test.                                                  |
+| H06             | Traité : ligne sudoers ajoutée, ancienne gardée, `visudo -cf`. L'ancienne ligne n'est retirée que par `cleanup-compat`.                                            |
+| H07, H08        | Traité : wrapper installé patché (chemins, VHOST, `PRIVILEGED_WRAPPER`) ; le lien `sokar-deploy-root` reste un lien. Le wrapper du dépôt arrive au déploiement.    |
+| H09             | Traité : watchdog patché, cron suspendu pendant le script (`.rename-hold`), remis par trap EXIT.                                                                   |
+| H10, H11, H13   | Rien à faire : dumps `sokar-*.dump`, message R2, rôle `sokar`, `RCLONE_CONFIG` et bucket conservés.                                                                |
+| H12             | Traité : les 4 crons sont déplacés (jamais copiés) et leurs chemins patchés, dont `backup-postgres-r2.sh`.                                                         |
+| H14             | Traité : `/etc/logrotate.d/sokar` déplacé et glob patché (un seul fichier).                                                                                        |
+| H15, H26        | Traité : `pm2 delete` + `pm2 start` depuis l'ecosystem renommé (version de la PR ou ancienne version transformée) + `pm2 save`.                                    |
+| H16, H17        | Rien à faire (`pm2-deploy.service` sans occurrence ; logs `~/.pm2/logs/sokar-*` : dérive existante).                                                               |
+| H18             | Rien pendant le renommage (builds suivent le lien) ; **condition de `cleanup-compat`**, non vérifiable par le script (avertissement affiché).                      |
+| H19             | Traité seulement au `cleanup-compat --patch-debug-log-path` (préfixe de chemin, valeur jamais imprimée), en attente de la décision Q9.                             |
+| H20, H21        | Rien à faire (palier 2 ; `.env` jamais ouverts).                                                                                                                   |
+| H22–H25         | Rien à faire (noms Docker, volumes, jobs Prometheus) ; mounts listés par `preflight`, aucune recréation.                                                           |
+| H27–H30         | Hors script : PR #795 (scripts du dépôt, code, workflows, docs). `cleanup-compat` refuse tant que les scripts appelés par cron référencent encore l'ancien chemin. |
+| H31–H36         | Rien à faire.                                                                                                                                                      |
+| Inconnus (§1.5) | `preflight` signale par nom de fichier toute référence à un ancien chemin hors table (`/etc`, sbin, crontabs) ; **non traitées par le script**.                    |
+
 ## 2. État de départ (relevé du 23/11/2026, 10:15–10:45 CET)
 
 ### 2.1 Processus PM2 (même daemon `deploy`, `PM2 v7.0.3`, `pm2-deploy.service` actif depuis le 18/11 02:15)
@@ -278,16 +304,16 @@ Acteurs : **Hamza** (root, UI Healthchecks, GitHub, décision GO/NO-GO), **suppe
 
 ### 3.0 Prérequis, avant le mardi 15h (aujourd'hui lundi 23/11 et mardi matin)
 
-| #   | Qui          | Action                                                                                                                                                                                                         |
-| --- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1  | dev          | Livrer `scripts/ops/rename-sokar-to-suppernote.sh` + patchs (wrapper, watchdog, cron, logrotate, ecosystem, nginx, workflows, code H28) **sur une branche PR non fusionnée**. ⟦À FINALISER PAR suppernote-dev⟧ |
-| P2  | Hamza        | Répondre aux questions du §5.2 (en particulier Q1, Q2, Q3, Q6).                                                                                                                                                |
-| P3  | Hamza (root) | **Préflight root** (§1.5) : `nginx -T`, `docker inspect`, sudoers, `/etc/sokar`, crontab root. Transmettre la sortie **masquée** (clés et chemins seulement) à ops.                                            |
-| P4  | dev + Hamza  | Copier le script **hors de `/opt/sokar`** (par ex. `/root/rename/`) : un script lancé depuis un dossier qu'il déplace perd ses chemins relatifs. ⟦À FINALISER PAR suppernote-dev⟧                              |
-| P5  | Hamza (root) | `sudo bash /root/rename/rename-sokar-to-suppernote.sh preflight --env all` puis `apply --env all --dry-run`. ⟦commandes à confirmer par dev⟧ Aucune modification attendue.                                     |
-| P6  | ops          | Relire les sorties P3 et P5 contre ce document, mettre à jour §1 et §5. **Pas de fenêtre si P3/P5 ne sont pas faits.**                                                                                         |
-| P7  | Hamza        | Annonce (gabarit §3.8) aux restaurants concernés, si des restaurants sont en production réelle (Q1).                                                                                                           |
-| P8  | Hamza        | **Ne fusionner aucune PR** avant la fenêtre dont le déploiement toucherait nginx, cron ou scripts ops. PR #747 (draft, relais `api.sokar.tech`) ne doit pas être fusionnée avant le renommage.                 |
+| #   | Qui          | Action                                                                                                                                                                                                                                                |
+| --- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | dev          | **Livré** : `scripts/ops/rename-sokar-to-suppernote.sh` + tests dans la PR #795 (branche `chore/rename-sokar-suppernote-infra`, **non fusionnée**), avec les patchs repo (wrapper, watchdog, cron, logrotate, ecosystem, nginx, workflows, code H28). |
+| P2  | Hamza        | Répondre aux questions du §5.2 (en particulier Q1, Q2, Q3, Q6).                                                                                                                                                                                       |
+| P3  | Hamza (root) | **Préflight root** (§1.5) : `nginx -T`, `docker inspect`, sudoers, `/etc/sokar`, crontab root. Transmettre la sortie **masquée** (clés et chemins seulement) à ops.                                                                                   |
+| P4  | dev + Hamza  | Copier le script **hors de `/opt/sokar`** dans `/root/rename/` avec contrôle d'empreinte (§3.10, étape 0) : un script lancé depuis un dossier qu'il déplace perd ses chemins relatifs, et `preflight` le refuse.                                      |
+| P5  | Hamza (root) | `preflight --env all`, puis `apply --env all --dry-run`, puis `status --env all` (§3.10, étapes 1 à 3). Aucune modification attendue.                                                                                                                 |
+| P6  | ops          | Relire les sorties P3 et P5 contre ce document, mettre à jour §1 et §5. **Pas de fenêtre si P3/P5 ne sont pas faits.**                                                                                                                                |
+| P7  | Hamza        | Annonce (gabarit §3.8) aux restaurants concernés, si des restaurants sont en production réelle (Q1).                                                                                                                                                  |
+| P8  | Hamza        | **Ne fusionner aucune PR** avant la fenêtre dont le déploiement toucherait nginx, cron ou scripts ops. PR #747 (draft, relais `api.sokar.tech`) ne doit pas être fusionnée avant le renommage.                                                        |
 
 ### 3.1 Gel des déploiements automatiques (point critique)
 
@@ -325,15 +351,15 @@ au moment du déploiement de validation (§3.9, étape 2).
 | 14:30            | ops          | Relevé de départ : `pm2 jlist` (8 online), `/health` prod et staging 200, nombre d'erreurs Sentry des 24 h.                                                                                                                                                                                                                                                                                                                                                            |
 | **14:45 (T-15)** | Hamza        | Vérifier qu'aucun appel n'est en cours : `ssh deploy@sokar "grep -E 'call.initiated\|call finalized' /var/log/sokar/api-out.log \| tail -3"` (dernière ligne ancienne, pas de session ouverte).                                                                                                                                                                                                                                                                        |
 | **14:50 (T-10)** | Hamza (UI)   | **Mettre en pause le check Healthchecks.io** (durée ≥ 90 min). Seule action côté UI.                                                                                                                                                                                                                                                                                                                                                                                   |
-| 14:50            | Hamza (root) | **Suspendre le cron du watchdog** : `sudo mv /etc/cron.d/sokar-watchdog /root/sokar-watchdog.cron.disabled` (hors `cron.d` = jamais exécuté). ⟦le script `apply` peut le faire : à confirmer par dev⟧                                                                                                                                                                                                                                                                  |
+| 14:50            | Hamza (root) | **Ne PAS suspendre le cron du watchdog à la main** : le script le fait (il renomme `suppernote-watchdog` en `.rename-hold`, nom ignoré par cron, pendant chaque `apply` ou `rollback`, et le remet toujours en place, y compris en cas d'échec). Il reste actif entre le staging et la prod. Seule la pause Healthchecks.io (UI) reste manuelle.                                                                                                                       |
 | 14:55            | lead         | Message d'ouverture de fenêtre (gabarit §3.8).                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **15:00 (T0)**   | Hamza        | **Contrôle GO d'entrée** : P3/P5 faits, sauvegardes du T-30 présentes, workflows désactivés, watchdog suspendu, Healthchecks en pause, aucun appel en cours, dev et ops joignables. Un « non » = report.                                                                                                                                                                                                                                                               |
-| 15:00–15:12      | Hamza (root) | **Staging** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging` ⟦À FINALISER PAR suppernote-dev⟧. Ensuite `pm2 save` (en tant que `deploy`).                                                                                                                                                                                                                                                                                                  |
+| 15:00–15:12      | Hamza (root) | **Staging** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging` (§3.10, étape 4). Le script fait lui-même `pm2 save` ; code de sortie 0 attendu.                                                                                                                                                                                                                                                                                              |
 | 15:12–15:22      | ops + Hamza  | **Validation staging** : checklist §4 version staging, critères GO/NO-GO §3.3.                                                                                                                                                                                                                                                                                                                                                                                         |
 | **15:22**        | Hamza        | **Décision GO/NO-GO prod.** NO-GO = fin de fenêtre (ou retour arrière staging si non réparable en 10 min), prod intacte.                                                                                                                                                                                                                                                                                                                                               |
-| 15:22–15:32      | Hamza (root) | **Prod** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env prod` ⟦À FINALISER PAR suppernote-dev⟧. Ensuite `pm2 save`. **Coupure prod ciblée < 2 min, plafond 10 min** (§3.4).                                                                                                                                                                                                                                                                       |
+| 15:22–15:32      | Hamza (root) | **Prod** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env prod` (§3.10, étape 6). Le script fait lui-même `pm2 save`. **Coupure prod ciblée < 2 min, plafond 10 min** (§3.4).                                                                                                                                                                                                                                                                       |
 | 15:32–15:45      | ops + Hamza  | **Validation prod** : checklist §4 (health, domaines, webhooks, nginx -t, pm2, logs).                                                                                                                                                                                                                                                                                                                                                                                  |
-| 15:45            | Hamza (root) | Réactiver le cron watchdog (version patchée, nouveau nom), lancer le watchdog une fois à la main, **reprendre le check Healthchecks** (UI) et attendre le ping.                                                                                                                                                                                                                                                                                                        |
+| 15:45            | Hamza (root) | Le cron watchdog est déjà remis par le script (`suppernote-watchdog`, un seul exemplaire : `ls /etc/cron.d`). Lancer le watchdog une fois à la main (`sudo /usr/local/sbin/suppernote-watchdog`), **reprendre le check Healthchecks** (UI) et attendre le ping.                                                                                                                                                                                                        |
 | 15:50            | Hamza + ops  | Backups lancés une fois (§4, lignes 13–14) si le temps le permet, sinon à 17:00 après la fenêtre (les prochains automatiques sont à 03:20 / 04:00 / 04:20).                                                                                                                                                                                                                                                                                                            |
 | **16:00**        | lead         | Message de clôture. **Workflows toujours désactivés** tant que §3.9 n'est pas fait.                                                                                                                                                                                                                                                                                                                                                                                    |
 
@@ -371,8 +397,11 @@ Principe : toutes les modifications étant des `mv`, `ln -s`, `sed` et recréati
 inverse l'ordre. Les anciens chemins existent encore via les liens, donc la prod peut être rendue avant d'avoir
 tout défait.
 
-**Option A (préférée) :** `sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env <staging|prod>`
-⟦À FINALISER PAR suppernote-dev⟧ puis checklist §4 adaptée aux anciens noms.
+**Option A (préférée) :** `sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env <staging|prod|all>`
+(§3.10, étape 8), puis checklist §4 adaptée aux anciens noms. Le retour arrière est piloté par l'état réel
+des fichiers : il reprend un `apply` interrompu et peut être relancé sans effet. Il redémarre les anciens
+process PM2 depuis l'ecosystem d'origine sauvegardé dans le journal, puis fait `pm2 save`. Il défait le
+PARTAGÉ (dossiers, snippets, sbin, logrotate, sudoers) seulement quand le dernier environnement revient en arrière.
 
 **Option B, manuelle (si le script ne répond pas).** Pour un environnement `E` (prod : `sokar` ; staging : `sokar-staging`) :
 
@@ -397,29 +426,34 @@ tout défait.
 Les données (bases, Redis, buckets) ne sont pas modifiées par le renommage : **aucun rollback de base de données n'est nécessaire**
 (`--with-db-rollback` n'a pas de raison d'être utilisé).
 
-### 3.6 Ordre à l'intérieur de chaque environnement (proposition à valider avec le script dev)
+### 3.6 Ordre à l'intérieur de chaque environnement (implémenté par le script)
 
-⟦À FINALISER PAR suppernote-dev⟧
+1. Préflight automatique (script hors `/opt`, espace disque, même filesystem, aucun conflit de cible, `nginx -t`,
+   `visudo -cf`, pm2 via `sudo -u deploy`, aucun déploiement en cours, mounts docker listés, références hors table
+   signalées). Un échec = code 3 et **rien n'est modifié**.
+2. Sauvegarde de l'ecosystem d'origine ; suspension du cron watchdog (`.rename-hold`).
+3. `pm2 stop` des seuls process de l'environnement ciblé (`sudo -u deploy`).
+4. `mv` des dossiers (partagés `/etc`, `/var/log`, `/var/lib` à la première exécution, puis ceux de l'environnement), chacun immédiatement suivi du `ln -s` de compatibilité ; puis `mv` des fichiers système (sbin, cron, logrotate, snippets nginx, site nginx available + enabled) : **déplacés, jamais copiés**.
+5. Patch borné des fichiers (`sed` limité aux chaînes de la table, jamais de `sed` global ; chaque fichier sauvegardé dans le journal avant écriture) et ligne sudoers `suppernote-deploy-root` ajoutée à côté de l'ancienne (`visudo -cf` avant installation).
+6. `nginx -t` puis `systemctl reload nginx` (jamais `restart`). Si `nginx -t` échoue : **retour arrière automatique** de l'environnement, code 4.
+7. `pm2 delete` des anciens noms, `pm2 start` des nouveaux depuis l'ecosystem du dossier renommé (transformé en fichier temporaire si c'est encore l'ancienne version), `pm2 save`.
+8. Remise du cron watchdog sous le nom correspondant, vérifications finales (pm2 online, `/health`, dashboard, connect, nginx local) et résumé. Échec de vérification = code 5, **pas de retour arrière automatique** : décision humaine (§3.4).
+9. Journal : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`), mode 0700.
 
-1. Vérifications d'entrée (pas de déploiement en cours, espace, `nginx -t` avant toute modification).
-2. Poser les **nouveaux** fichiers d'abord (sans retirer les anciens) : snippets `suppernote-*`, vhost, cron, logrotate, sbin.
-3. `mv` des dossiers (`/var/log`, `/var/backups`, `/var/lib`, `/etc`, `/opt`), chacun immédiatement suivi du `ln -s` de compatibilité
-   (fenêtre sans chemin : quelques millisecondes, c'est pourquoi le cron watchdog est suspendu).
-4. `nginx -t` puis `reload` (jamais `restart`).
-5. Recréation des process PM2 avec la définition patchée, puis `pm2 save`.
-6. Retrait des anciens fichiers `sokar-*` (cron, logrotate, sbin, vhost) : **à la fin seulement**, après vérification.
-7. Journal de ce qui a été fait (fichier horodaté dans `/root/rename/`).
+Les retours arrière automatiques ne couvrent que les étapes 1 à 7 (avant que le trafic ne passe par les nouveaux process) ; une erreur inattendue y déclenche aussi un retour arrière (code 6).
 
-### 3.7 Ce que le script doit garantir (pour dev)
+### 3.7 Garanties du script (vérifiées par `scripts/ops/test-rename-sokar-to-suppernote.sh`)
 
-- Idempotence et `--dry-run` fidèle.
-- Aucun `install` sur un lien de compatibilité (H08).
-- Un seul exemplaire de chaque cron et logrotate (§4, lignes 15 et 16).
-- `sudoers` : ligne ancienne conservée avec la nouvelle, `visudo -c` avant de quitter, sinon restauration automatique.
-- Exécution depuis un chemin extérieur à `/opt/sokar*`.
-- Aucune lecture ni écriture de secrets (pas de `cat` de `.env` ni de `watchdog.env` dans la sortie).
-- Ne touche pas aux bases, rôles, buckets, remote rclone, variables d'environnement, hostname, `chez-sokar-demo`, noms de job
-  Prometheus, domaines `sokar.tech` (§1.2, H05, H10, H11, H13, H20, H22, H25).
+- Idempotence : relancer `apply` ne change rien (arborescence, pm2, reload nginx) ; `rollback` aussi.
+- `--dry-run` n'écrit rien (ni journal, ni sauvegarde, ni `pm2`, ni reload) et affiche chaque commande.
+- Aucun `install` sur un lien de compatibilité ; le wrapper installé cible `suppernote-deploy-root` (H08).
+- Un seul exemplaire de chaque cron et logrotate (déplacés, pas copiés) ; watchdog jamais laissé désactivé (trap EXIT).
+- `sudoers` : ancienne ligne conservée avec la nouvelle, `visudo -cf` avant installation, restauration sinon.
+- Exécution refusée depuis `/opt/sokar*` et refusée si non root.
+- Aucune lecture ni impression de secrets : `.env`, `watchdog.env`, `grafana.env` ne sont jamais ouverts.
+- Ne touche pas aux bases, rôles, buckets, remote rclone, variables d'environnement, hostname, `chez-sokar-demo`, jobs Prometheus, domaines `sokar.tech`, upstreams `sokar_*`, dumps `sokar-*.dump`, projet Docker `sokar-monitoring`.
+- Prod intacte (octet pour octet) tant que `--env prod` n'a pas tourné ; `nginx -t` reste vert grâce aux liens de compatibilité des snippets (`sokar-*.conf` → `suppernote-*.conf`), retirés dès que plus aucun site ne les référence.
+- Le script ne recrée aucun conteneur (H22–H24) et ne lance jamais `cleanup-compat`.
 
 ### 3.8 Communication
 
@@ -446,6 +480,110 @@ arrière : un message à Hamza avec la cause, l'état actuel et la prochaine act
    des domaines `sokar.tech` et des noms d'`upstream` ; (e) délai minimal suggéré : 14 jours (Q10).
 
 ---
+
+### 3.10 Commandes exactes à copier-coller (Hamza)
+
+Toutes les commandes `rename-sokar-to-suppernote.sh` se lancent **en root, depuis `/root/rename/`**
+(jamais depuis `/opt/sokar*`). Chaque commande accepte `--dry-run` (rien n'est écrit).
+
+**Étape 0, avant mardi : copier le script avec contrôle d'empreinte** (PR #795 relue, non fusionnée) :
+
+```zsh
+# Sur le Mac, dans le dépôt :
+git fetch origin chore/rename-sokar-suppernote-infra
+git show origin/chore/rename-sokar-suppernote-infra:scripts/ops/rename-sokar-to-suppernote.sh > /tmp/rename-sokar-to-suppernote.sh
+shasum -a 256 /tmp/rename-sokar-to-suppernote.sh          # noter l'empreinte
+scp /tmp/rename-sokar-to-suppernote.sh deploy@sokar:/tmp/
+
+# Sur le VPS :
+sha256sum /tmp/rename-sokar-to-suppernote.sh              # doit être identique à celle du Mac
+sudo install -d -m 0700 /root/rename
+sudo install -m 0700 /tmp/rename-sokar-to-suppernote.sh /root/rename/ && rm /tmp/rename-sokar-to-suppernote.sh
+```
+
+**Étapes 1 à 3, avant mardi (lecture seule) :**
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh preflight --env all
+sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env all --dry-run
+sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all     # tout doit être « ANCIEN (à renommer) »
+```
+
+Transmettre à ops les lignes `ATTENTION` du préflight (fichiers hors table, conteneurs) : elles complètent §1.2 et §5.1.
+
+**Étape 4, 15:00 : staging.** Code de sortie 0 attendu ; le script affiche les vérifications et un résumé :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging
+echo "code de sortie : $?"
+```
+
+**Étape 5, 15:12–15:22 : validation staging** (puis checklist §4 et critères GO/NO-GO §3.3) :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all
+# attendu : staging « NOUVEAU + lien de compatibilité », prod « ANCIEN (à renommer) », nginx -t : OK,
+# cron watchdog : 1 fichier (suppernote-watchdog), « verdict prod : état initial »
+sudo nginx -t
+sudo ls /etc/cron.d | grep -c watchdog                                    # 1
+curl -s -o /dev/null -w '%{http_code}\n' https://api-staging.suppernote.com/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://api.suppernote.com/health           # 200 (prod, encore aux anciens noms)
+sudo -u deploy pm2 list                                                   # 4 suppernote-staging-* + 4 sokar-* online
+```
+
+**Étape 6, 15:22 si GO : prod.** Coupure ciblée < 2 min (pm2 stop → renommage → reload nginx → pm2 start) :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env prod
+echo "code de sortie : $?"
+```
+
+**Étape 7, 15:32 : validation prod** (checklist §4) :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all    # verdicts « RENOMMÉ » pour prod et staging
+sudo -u deploy pm2 list                                                  # 8 suppernote-* online, plus aucun sokar-*
+sudo nginx -t
+sudo ls /etc/cron.d                                                      # 4 fichiers suppernote-*, aucun sokar-*
+```
+
+**Étape 8 : retour arrière** (seuil : API prod pas en 200 à T+5 min, process pas online, `nginx -t` KO : §3.4).
+Idempotent, utilisable après un `apply` interrompu :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env prod      # prod seule (staging et partagé restent renommés)
+sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env staging
+sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env all       # prod puis staging : état initial complet
+```
+
+**Étape 9, au plus tôt le 30/11/2026 et seulement si les conditions du §3.9 sont réunies** (déploiement complet
+avec les nouveaux chemins, plus de rollback vers les anciennes releases, H19/H28 corrigés). Toujours en `--dry-run` d'abord :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh cleanup-compat --env all --dry-run
+sudo bash /root/rename/rename-sokar-to-suppernote.sh cleanup-compat --env all
+# Facultatif, après décision Q9 : corrige aussi le préfixe de DEBUG_LOG_PATH dans apps/api/.env (valeur jamais affichée)
+sudo bash /root/rename/rename-sokar-to-suppernote.sh cleanup-compat --env all --patch-debug-log-path
+```
+
+`cleanup-compat` refuse avant le 30/11 (`--force` pour passer outre), tant qu'un fichier système, un script appelé par cron,
+`dump.pm2` ou un process pm2 référence encore un ancien chemin, et ne retire les liens et l'ancienne ligne sudoers
+partagés que lorsque les deux environnements sont nettoyés. `apply` ne le lance jamais.
+
+**Codes de sortie et conduite à tenir :**
+
+| Code | Signification                                                                    | Action                                                                                 |
+| ---- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 0    | Terminé, vérifications OK                                                        | Poursuivre                                                                             |
+| 1    | Usage ou refus (`cleanup-compat` avant le 30/11, verrou déjà pris)               | Corriger la commande                                                                   |
+| 2    | Pas root                                                                         | Relancer avec `sudo`                                                                   |
+| 3    | Préflight en échec : **rien n'a été modifié**                                    | Lire les lignes `ÉCHEC`, corriger, relancer                                            |
+| 4    | `nginx -t` a échoué après modification : **retour arrière automatique fait**     | Lire l'erreur nginx, NO-GO ou correction ; l'environnement est revenu à l'état initial |
+| 5    | `apply` fait, mais une vérification (pm2, `/health`) est en échec                | Décision du §3.4 : corriger en moins de 5 min, sinon `rollback --env <env>`            |
+| 6    | Erreur inattendue (retour arrière automatique tenté) ou retour arrière incomplet | Lire `run.log`, lancer `status`, puis `rollback`, sinon l'option B manuelle du §3.5    |
+
+Journal de chaque exécution : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`).
+Il ne contient aucun secret ; le dossier est en mode 0700. Le transmettre à ops en cas d'incident.
 
 ## 4. Checklist post-renommage
 

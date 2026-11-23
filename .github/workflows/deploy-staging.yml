@@ -114,6 +114,9 @@ jobs:
         env:
           ALERT_WEBHOOK: ${{ secrets.ALERT_WEBHOOK }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_DSN_DASHBOARD: ${{ secrets.SENTRY_DSN_DASHBOARD }}
+          SENTRY_DSN_CONNECT: ${{ secrets.SENTRY_DSN_CONNECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
           RESEND_RATE_LIMIT_REDIS_URL: ${{ secrets.RESEND_RATE_LIMIT_REDIS_URL }}
           DEMO_REQUEST_NOTIFY_TO: ${{ secrets.DEMO_REQUEST_NOTIFY_TO }}
@@ -146,7 +149,7 @@ jobs:
           username: deploy
           key: ${{ secrets.STAGING_SSH_KEY }}
           command_timeout: 18m
-          envs: ALERT_WEBHOOK,SENTRY_DSN,ALERT_EMAIL_TO,ALERT_WEBHOOK_URL,ALERT_SMS_TO,RESERVATION_SERVICE_TOKEN,STRIPE_PRICE_ESSENTIAL_MONTHLY,STRIPE_PRICE_ESSENTIAL_ANNUAL,STRIPE_PRICE_PRO_MONTHLY,STRIPE_PRICE_PRO_ANNUAL,STRIPE_PRICE_MULTI_SITE_MONTHLY,STRIPE_PRICE_MULTI_SITE_ANNUAL,STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY,STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL,SOKAR_OPERATOR_USER_IDS,VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS,NEXT_PUBLIC_DEMO_RESTAURANT_ID,NEXT_PUBLIC_DEMO_STAGING,DEMO_REQUEST_NOTIFY_TO,RESEND_API_KEY,EMAIL_FROM,TELNYX_API_KEY,TELNYX_PUBLIC_KEY,TELNYX_CONNECTION_ID,TELNYX_FROM_NUMBER,EMAIL_TEST_ALLOWLIST,PUBLIC_API_URL,RESEND_RATE_LIMIT_REDIS_URL
+          envs: ALERT_WEBHOOK,SENTRY_DSN,SENTRY_DSN_DASHBOARD,SENTRY_DSN_CONNECT,SENTRY_AUTH_TOKEN,ALERT_EMAIL_TO,ALERT_WEBHOOK_URL,ALERT_SMS_TO,RESERVATION_SERVICE_TOKEN,STRIPE_PRICE_ESSENTIAL_MONTHLY,STRIPE_PRICE_ESSENTIAL_ANNUAL,STRIPE_PRICE_PRO_MONTHLY,STRIPE_PRICE_PRO_ANNUAL,STRIPE_PRICE_MULTI_SITE_MONTHLY,STRIPE_PRICE_MULTI_SITE_ANNUAL,STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY,STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL,SOKAR_OPERATOR_USER_IDS,VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS,NEXT_PUBLIC_DEMO_RESTAURANT_ID,NEXT_PUBLIC_DEMO_STAGING,DEMO_REQUEST_NOTIFY_TO,RESEND_API_KEY,EMAIL_FROM,TELNYX_API_KEY,TELNYX_PUBLIC_KEY,TELNYX_CONNECTION_ID,TELNYX_FROM_NUMBER,EMAIL_TEST_ALLOWLIST,PUBLIC_API_URL,RESEND_RATE_LIMIT_REDIS_URL
           script: |
             set -euo pipefail
             cd /opt/sokar-staging
@@ -192,8 +195,19 @@ jobs:
             fi
             source scripts/ops/deploy-common.sh
             api_env_before="$(api_env_fingerprint apps/api/.env)"
+            dashboard_env_before="$(api_env_fingerprint apps/dashboard/.env)"
+            connect_env_before="$(api_env_fingerprint apps/connect/.env)"
             if [ -n "${SENTRY_DSN:-}${ALERT_EMAIL_TO:-}${ALERT_WEBHOOK_URL:-}${ALERT_SMS_TO:-}${RESEND_RATE_LIMIT_REDIS_URL:-}" ]; then
               bash scripts/ops/sync-env.sh alerting staging
+            fi
+            # DSN du dashboard et de Connect : écrits avant le build, car les NEXT_PUBLIC_* sont
+            # inlinées dans le bundle navigateur. SENTRY_AUTH_TOKEN reste dans l'environnement du
+            # déploiement (source maps au build) : il n'est jamais écrit dans un .env.
+            if [ -n "${SENTRY_DSN_DASHBOARD:-}" ]; then
+              bash scripts/ops/sync-env.sh sentry-dashboard staging
+            fi
+            if [ -n "${SENTRY_DSN_CONNECT:-}" ]; then
+              bash scripts/ops/sync-env.sh sentry-connect staging
             fi
             if [ -n "${DEMO_REQUEST_NOTIFY_TO:-}" ]; then
               bash scripts/ops/sync-env.sh demo-request staging
@@ -212,7 +226,7 @@ jobs:
             export CLERK_SECRET_KEY
             bash scripts/ops/sync-env.sh clerk staging
             bash scripts/ops/sync-env.sh stripe-prices staging
-            SOKAR_API_ENV_BEFORE="$api_env_before" SOKAR_SKIP_GIT_PULL=1 bash scripts/deploy.sh --env staging
+            SOKAR_API_ENV_BEFORE="$api_env_before" SOKAR_DASHBOARD_ENV_BEFORE="$dashboard_env_before" SOKAR_CONNECT_ENV_BEFORE="$connect_env_before" SOKAR_SKIP_GIT_PULL=1 bash scripts/deploy.sh --env staging
 
       - name: Remove remote Clerk secret transport file
         if: always()

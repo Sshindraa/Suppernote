@@ -95,6 +95,40 @@ appel) : ce que l'appelant a réellement dit (à comparer à la transcription du
 direct), son ton, la diction de l'agent et les incompréhensions. Ses
 horodatages sont approximatifs ; la chronologie mesurée fait foi.
 
+## Sentry : vérification sur staging (dashboard et Connect)
+
+À faire après le premier déploiement staging qui porte les secrets `SENTRY_DSN_DASHBOARD`,
+`SENTRY_DSN_CONNECT` et `SENTRY_AUTH_TOKEN` (liste et rôle : `docs/runbooks/environment.md`).
+Le journal de déploiement ne doit contenir aucune valeur de DSN ni de jeton.
+
+1. **Préparation (VPS staging, sans afficher de valeur)**
+   - `grep -c '^SENTRY_ENVIRONMENT=staging$' /opt/sokar-staging/apps/{dashboard,connect}/.env` → `1`
+     pour chacun ; `grep -c '^NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging$' …/apps/dashboard/.env` → `1`.
+   - `ls /opt/sokar-staging/apps/{dashboard,connect}/.next/server/instrumentation.js` : le fichier
+     existe (absent = `instrumentation.ts` hors de `src/`, Sentry serveur inactif).
+   - Journal de build : pas de ligne `[sentry] upload des source maps échoué`. Sinon le jeton est
+     invalide ou n'a pas les droits sur l'organisation `suppernote`.
+2. **Dashboard, navigateur** : sur `https://staging.suppernote.com/dashboard`, console du navigateur :
+   `setTimeout(() => { throw new Error('Test Sentry dashboard staging') })`. La requête
+   `POST /monitoring?…` répond 200. Dans Sentry, projet `suppernote-dashboard`, l'issue
+   apparaît avec `environment: staging`. Refaire depuis `/r` : **aucune** issue ne doit
+   apparaître (SDK désactivé sur les liens de réservation).
+3. **Dashboard, serveur** : sur le VPS, depuis `apps/dashboard`, avec le `.env` chargé
+   (`set -a; . ./.env; set +a`), envoyer une erreur avec la même configuration que l'app :
+   `node -e "const S=require('@sentry/nextjs');S.init({dsn:process.env.SENTRY_DSN,environment:process.env.SENTRY_ENVIRONMENT});S.captureException(new Error('Test Sentry dashboard serveur staging'));S.flush(5000).then(()=>process.exit())"`.
+   L'issue arrive dans `suppernote-dashboard` avec `environment: staging`. Ce test valide le DSN,
+   le projet et l'environnement ; le chargement réel de `instrumentation.ts` est couvert par
+   l'étape 1 et par les tests unitaires.
+4. **Connect** : même commande depuis `apps/connect` (message `Test Sentry connect staging`),
+   issue attendue dans `suppernote-connect` avec `environment: staging`. Le navigateur de
+   Connect n'est pas instrumenté : rien à tester côté client.
+5. **Source maps** : dans Sentry, `Settings → Source Maps` de chaque projet, la release du
+   déploiement (hash du snapshot staging) liste des artefacts. La première vraie erreur du
+   dashboard doit afficher des fichiers sources et non `main-xxxx.js`. Les erreurs de test
+   ci-dessus ne le démontrent pas (elles viennent de la console ou d'un script).
+6. **Nettoyage** : résoudre les issues de test dans Sentry. Ne rien déployer en production
+   avant validation de Hamza.
+
 ## Limites connues
 
 - Le test des règles valide les **noms** de métriques, pas le fait qu'elles soient peuplées dans le

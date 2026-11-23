@@ -511,6 +511,18 @@ sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all     # tout
 
 Transmettre à ops les lignes `ATTENTION` du préflight (fichiers hors table, conteneurs) : elles complètent §1.2 et §5.1.
 
+**Répétition staging seul avant mardi (demande Hamza du 23/11).** `apply --env staging` renomme aussi le PARTAGÉ (watchdog, snippets, `/etc`, `/var/log`, `/var/lib`, wrapper, logrotate, sudoers) mais laisse la prod entièrement sous ses anciens noms (liens de compatibilité, snippets `sokar-*.conf` gardés en lien tant que le site prod les référence). Pré-requis impératifs : `gh workflow disable deploy-staging.yml` ET `deploy-prod.yml` (un déploiement avec le dépôt non renommé recréerait `sokar-staging-*` en doublon et casserait `nginx -t`), aucune PR en auto-merge, PR #795 non fusionnée. Commandes :
+
+```zsh
+sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging --dry-run   # relire le plan
+sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging
+sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all                # staging NOUVEAU, prod ANCIEN
+# Pour tout remettre comme avant (staging seul renommé : défait aussi le partagé) :
+sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env staging
+```
+
+Tant que la répétition n'est pas défaite ou que la prod n'est pas renommée, les workflows de déploiement restent désactivés.
+
 **Étape 4, 15:00 : staging.** Code de sortie 0 attendu ; le script affiche les vérifications et un résumé :
 
 ```zsh

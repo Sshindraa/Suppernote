@@ -10,7 +10,7 @@
  * bas. OpenRouter : autre crédit (OPENROUTER_API_KEY), sans effet sur les appels tant que le secours n'est pas
  * sollicité, mais le secours en dépend.
  *
- *   node voice-behavior-replay.mjs requests.json [/opt/sokar/apps/api/.env] > responses.json
+ *   node voice-behavior-replay.mjs requests.json [/opt/suppernote/apps/api/.env] > responses.json
  *   VBE_ARM_B=candidat.json node voice-behavior-replay.mjs reference.json … > ab.json    (rejeu A/B)
  *
  * Rejeu A/B : les deux jeux de requêtes (mêmes cas, mêmes tirages) sont tirés dans la MÊME session, une
@@ -29,7 +29,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const [requestsFile, envFile = '/opt/sokar/apps/api/.env'] = process.argv.slice(2);
+const [requestsFile, envFile = '/opt/suppernote/apps/api/.env'] = process.argv.slice(2);
 if (!requestsFile) throw new Error('Usage : node voice-behavior-replay.mjs requests.json [.env]');
 const env = Object.fromEntries(
   readFileSync(envFile, 'utf8')

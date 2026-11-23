@@ -12,7 +12,7 @@
  *
  * Les checks « API/dashboard down », « Redis totalement arrêté », « backup
  * quotidien absent » et « disque/mémoire » sont couverts par le watchdog VPS
- * (scripts/ops/sokar-watchdog.sh) car ils ne peuvent pas être détectés depuis
+ * (scripts/ops/suppernote-watchdog.sh) car ils ne peuvent pas être détectés depuis
  * le process API lui-même.
  */
 
@@ -188,7 +188,7 @@ export function evaluateRedisMemory(memory: RedisMemory): SystemFinding | null {
       detail: [
         `Redis utilise ${mb(memory.usedBytes)} sans plafond (maxmemory = 0).`,
         'Le plafond est perdu quand le conteneur redémarre tant que infra/docker-compose.yml',
-        'n’a pas été appliqué : sokar-deploy-root apply-redis-config prod.',
+        'n’a pas été appliqué : suppernote-deploy-root apply-redis-config prod.',
       ].join('\n'),
     };
   }

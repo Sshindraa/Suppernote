@@ -162,7 +162,7 @@ export async function runWatchtower(
         age === null
           ? 'Aucun battement des workers.'
           : `Dernier battement il y a ${Math.round(age / 1000)} s.`,
-        'Vérifier : pm2 status sokar-workers, pm2 logs sokar-workers, puis pm2 restart sokar-workers.',
+        'Vérifier : pm2 status suppernote-workers, pm2 logs suppernote-workers, puis pm2 restart suppernote-workers.',
       ].join('\n'),
       recovered: 'Workers Suppernote rétablis.',
     },

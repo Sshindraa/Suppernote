@@ -27,7 +27,7 @@ import type { ReportTurnRow } from './types';
 
 export const CALL_REPORT_JOB_NAME = 'build-call-report';
 const REPORT_COUNTER_KEY = 'call-report:generated';
-const DEFAULT_LOG_DIR = '/var/log/sokar';
+const DEFAULT_LOG_DIR = '/var/log/suppernote';
 
 function deepgramTranscriber(): Transcriber {
   const apiKey = process.env.DEEPGRAM_API_KEY;

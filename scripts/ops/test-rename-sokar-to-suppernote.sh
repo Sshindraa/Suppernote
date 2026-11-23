@@ -431,6 +431,14 @@ L1="$(grep -n 'APPLY staging' "$DRY_OUT" | head -1 | cut -d: -f1)"
 L2="$(grep -n 'APPLY prod' "$DRY_OUT" | head -1 | cut -d: -f1)"
 check "dry-run : staging planifié avant prod" test "${L1:-999}" -lt "${L2:-0}"
 if [ -n "${TEST_KEEP_DRYRUN:-}" ]; then sed "s#$SB##g" "$DRY_OUT" >"$TEST_KEEP_DRYRUN"; fi
+run_script apply --env staging --dry-run
+DRY_ST_OUT="$OUT"
+check "dry-run --env staging : code 0" is_eq "$RC" 0
+check "dry-run --env staging : aucune écriture dans le bac à sable" diff -q "$TMP/dry.before" <(snapshot "$SB")
+check "dry-run --env staging : pas de journal ni de sauvegarde" is_eq "$(journal_dirs)" 0
+check "dry-run --env staging : prod non planifiée" no_text "$DRY_ST_OUT" "APPLY prod"
+check "dry-run --env staging : aucun pm2 stop/delete/start/save/restart" is_eq "$(count_calls 'pm2 (stop|delete|start|save|restart)')" 0
+if [ -n "${TEST_KEEP_DRYRUN_STAGING:-}" ]; then sed "s#$SB##g" "$DRY_ST_OUT" >"$TEST_KEEP_DRYRUN_STAGING"; fi
 
 # ── 3. status avant ──────────────────────────────────────────────────────────────────────────
 run_script status --env all

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Teste les garde-fous de `apply-redis-config` (sokar-deploy-root.sh) avec un faux docker et un faux curl.
+# Teste les garde-fous de `apply-redis-config` (suppernote-deploy-root.sh) avec un faux docker et un faux curl.
 # Usage : bash scripts/ops/test-apply-redis-config.sh
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -11,7 +11,7 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/root/infra"
 
 # Extrait la fonction ; le chemin de docker est remplacé par la fonction simulée.
-awk '/^apply_redis_config\(\) \{/,/^}/' "$ROOT_DIR/scripts/ops/sokar-deploy-root.sh" \
+awk '/^apply_redis_config\(\) \{/,/^}/' "$ROOT_DIR/scripts/ops/suppernote-deploy-root.sh" \
   | sed -e 's#/usr/bin/docker#docker#g' > "$TMP/fn.sh"
 test -s "$TMP/fn.sh"
 

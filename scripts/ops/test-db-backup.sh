@@ -11,7 +11,7 @@ printf 'fixture dump\n'
 exit "${DUMP_EXIT:-0}"
 EOF
 chmod +x "$TMP_ROOT/bin/pg_dump"
-export PATH="$TMP_ROOT/bin:$PATH" DATABASE_URL=fixture SOKAR_ROOT="$ROOT"
+export PATH="$TMP_ROOT/bin:$PATH" DATABASE_URL=fixture SUPPERNOTE_ROOT="$ROOT"
 source "$ROOT/scripts/ops/logging.sh"
 source "$ROOT/scripts/ops/db-backup.sh"
 

@@ -30,12 +30,12 @@ export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 if [ -f "$SCRIPT_DIR/../ops/disk.sh" ]; then
   HELPERS_DIR="$SCRIPT_DIR/../ops"
-  SOKAR_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+  SUPPERNOTE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 else
-  SOKAR_ROOT="${SOKAR_ROOT:-/opt/sokar}"
-  HELPERS_DIR="$SOKAR_ROOT/scripts/ops"
+  SUPPERNOTE_ROOT="${SUPPERNOTE_ROOT:-/opt/suppernote}"
+  HELPERS_DIR="$SUPPERNOTE_ROOT/scripts/ops"
 fi
-export SOKAR_ROOT
+export SUPPERNOTE_ROOT
 # shellcheck source=ops/disk.sh
 source "$HELPERS_DIR/disk.sh"
 
@@ -48,7 +48,7 @@ RETENTION="${RETENTION_DAYS:-30}"
 QUOTA_GB="${QUOTA_LIMIT_GB:-5}"
 TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
 DUMP_PATH="/tmp/${DB_NAME}-${TIMESTAMP}.dump"
-LOG_PATH="${LOG_PATH:-/var/log/sokar/postgres-r2-backup.log}"
+LOG_PATH="${LOG_PATH:-/var/log/suppernote/postgres-r2-backup.log}"
 ALERT="${ALERT_CMD:-true}"
 
 log() { echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*" | tee -a "$LOG_PATH" >&2; }

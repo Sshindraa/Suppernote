@@ -7,4 +7,4 @@ RCLONE_CONFIG=/home/deploy/.config/rclone/rclone.conf
 # RCLONE_CONFIG pointe vers la conf rclone de deploy (le root n'a pas la sienne).
 # Les heures de cron suivent le fuseau de l'hôte (Europe/Paris) : 04:00 local
 # = 02:00 UTC.
-0 4 * * * root /opt/sokar/scripts/database/backup-postgres-r2.sh >> /var/log/sokar/postgres-r2-backup.log 2>&1
+0 4 * * * root /opt/suppernote/scripts/database/backup-postgres-r2.sh >> /var/log/suppernote/postgres-r2-backup.log 2>&1

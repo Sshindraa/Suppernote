@@ -38,7 +38,7 @@ services:
 
   # Redis dédié au staging : files BullMQ et cache séparés de la prod (qui reste sur `redis`, port 6379).
   # Plafond 256 Mo, `noeviction` pour la même raison que ci-dessus. Recréé seulement via
-  # `sokar-deploy-root apply-redis-config staging`.
+  # `suppernote-deploy-root apply-redis-config staging`.
   redis-staging:
     image: redis:7-alpine
     command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'noeviction']

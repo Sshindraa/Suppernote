@@ -5,12 +5,12 @@ set -Eeuo pipefail
 #
 # Variables attendues (set par deploy.sh avant d'appeler les fonctions) :
 #   DEPLOY_ENV              prod | staging
-#   SOKAR_ROOT              /opt/sokar | /opt/sokar-staging
-#   RELEASES_DIR            $SOKAR_ROOT/releases
+#   SUPPERNOTE_ROOT              /opt/suppernote | /opt/suppernote-staging
+#   RELEASES_DIR            $SUPPERNOTE_ROOT/releases
 #   PORT_API / PORT_DASH / PORT_CONNECT
 #   PM2_API / PM2_WORKERS / PM2_DASH / PM2_CONNECT
 #   ECOSYSTEM_FILE          infra/ecosystem.config.js | infra/ecosystem.staging.config.js
-#   NGINX_CONFIG            sokar | sokar-staging (sans .conf)
+#   NGINX_CONFIG            suppernote | suppernote-staging (sans .conf)
 #   DB_NAME                 sokar | sokar_staging
 #   KEEP_RELEASES           5 | 3
 #   CONFIRM_PRODUCTION      true | false
@@ -21,7 +21,7 @@ set -Eeuo pipefail
 #   HAS_CERT_CHECK          true | false
 #   EXTENDED_HEALTH_CHECKS  true | false
 #   BRANCH                  branche git à déployer
-#   PRIVILEGED_WRAPPER      /usr/local/sbin/sokar-deploy-root
+#   PRIVILEGED_WRAPPER      /usr/local/sbin/suppernote-deploy-root
 #   WAIT_TIMEOUT            timeout en secondes pour wait_for_services
 #
 # Fonctions exposées :
@@ -59,7 +59,7 @@ NEXT_BUILD_ACTIVATED_DASHBOARD="${NEXT_BUILD_ACTIVATED_DASHBOARD:-false}"
 NEXT_BUILD_ACTIVATED_CONNECT="${NEXT_BUILD_ACTIVATED_CONNECT:-false}"
 NEXT_BUILDS_ACTIVATED="${NEXT_BUILDS_ACTIVATED:-false}"
 
-# Artefacts à snapshoter (chemins relatifs à SOKAR_ROOT)
+# Artefacts à snapshoter (chemins relatifs à SUPPERNOTE_ROOT)
 ARTIFACT_PATHS=(
     "apps/api/dist"
     "apps/dashboard/.next"
@@ -97,7 +97,7 @@ ensure_privileged_wrapper() {
     else
         log info "📦 Installation initiale du wrapper privilégié..."
         sudo install -o root -g root -m 0755 \
-            "$SOKAR_ROOT/scripts/ops/sokar-deploy-root.sh" "$PRIVILEGED_WRAPPER"
+            "$SUPPERNOTE_ROOT/scripts/ops/suppernote-deploy-root.sh" "$PRIVILEGED_WRAPPER"
     fi
 }
 
@@ -144,7 +144,7 @@ snapshot_artifacts() {
     log info "   → Snapshot artefacts vers $target ($label)"
     install -d -m 0755 "$target"
     for p in "${paths[@]}"; do
-        local source="$SOKAR_ROOT/$p"
+        local source="$SUPPERNOTE_ROOT/$p"
         local destination="$target/$p"
         if [ -e "$source" ]; then
             install -d -m 0755 "$target/$(dirname "$p")"
@@ -169,8 +169,8 @@ snapshot_artifacts() {
         echo "timestamp=$(basename "$target")"
         echo "label=$label"
         echo "date=$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-        echo "git_hash=$(cd "$SOKAR_ROOT" && git rev-parse HEAD 2>/dev/null || echo 'unknown')"
-        echo "git_branch=$(cd "$SOKAR_ROOT" && git branch --show-current 2>/dev/null || echo 'unknown')"
+        echo "git_hash=$(cd "$SUPPERNOTE_ROOT" && git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+        echo "git_branch=$(cd "$SUPPERNOTE_ROOT" && git branch --show-current 2>/dev/null || echo 'unknown')"
     } > "$target/META"
 }
 
@@ -185,7 +185,7 @@ snapshot_dependencies() {
         return 0
     fi
     local manifests
-    manifests="$(cd "$SOKAR_ROOT" && git ls-tree -r --name-only "$commit" \
+    manifests="$(cd "$SUPPERNOTE_ROOT" && git ls-tree -r --name-only "$commit" \
         | grep -E '^(pnpm-lock\.yaml|pnpm-workspace\.yaml|package\.json|(apps|packages)/[^/]+/package\.json)$' || true)"
     if [ -z "$manifests" ]; then
         log_warn "   Aucun lockfile dans $commit : dépendances non sauvegardées pour $target"
@@ -193,12 +193,12 @@ snapshot_dependencies() {
     fi
     install -d -m 0755 "$target/deps"
     # shellcheck disable=SC2086 # liste de chemins, un par ligne, sans espaces
-    (cd "$SOKAR_ROOT" && git archive --format=tar "$commit" $manifests) | tar -x -C "$target/deps"
+    (cd "$SUPPERNOTE_ROOT" && git archive --format=tar "$commit" $manifests) | tar -x -C "$target/deps"
 }
 
 restore_release_manifests() {
     local source="$1"
-    (cd "$source/deps" && tar -cf - .) | (cd "$SOKAR_ROOT" && tar -xf -)
+    (cd "$source/deps" && tar -cf - .) | (cd "$SUPPERNOTE_ROOT" && tar -xf -)
 }
 
 restore_artifacts() {
@@ -215,9 +215,9 @@ restore_artifacts() {
     log info "   → Restore artefacts depuis $source"
     for p in "${paths[@]}"; do
         if [ -e "$source/$p" ]; then
-            rm -rf "$SOKAR_ROOT/$p"
-            install -d -m 0755 "$SOKAR_ROOT/$(dirname "$p")"
-            cp -a "$source/$p" "$SOKAR_ROOT/$(dirname "$p")/"
+            rm -rf "$SUPPERNOTE_ROOT/$p"
+            install -d -m 0755 "$SUPPERNOTE_ROOT/$(dirname "$p")"
+            cp -a "$source/$p" "$SUPPERNOTE_ROOT/$(dirname "$p")/"
         fi
     done
 }
@@ -263,14 +263,14 @@ list_releases() {
 # régénère à chaque build ; le serveur en production ne les lit jamais.
 clean_stale_next_types() {
     local app="$1"
-    local app_dir="$SOKAR_ROOT/apps/$app"
+    local app_dir="$SUPPERNOTE_ROOT/apps/$app"
     rm -rf "$app_dir/.next/types" "$app_dir/.next/dev/types" \
         || log warn "   Types générés de $app non supprimés (droits ?) : le type-check peut échouer."
 }
 
 clean_next_artifacts() {
     local app="$1"
-    local app_dir="$SOKAR_ROOT/apps/$app"
+    local app_dir="$SUPPERNOTE_ROOT/apps/$app"
     if [ -d "$app_dir/.next" ]; then
         rm -rf "$app_dir/.next/standalone" "$app_dir/.next/server" "$app_dir/.next/static" "$app_dir/.next/types"
         rm -f "$app_dir/.next/BUILD_ID"
@@ -285,11 +285,11 @@ clean_next_artifacts() {
 # de production modifié après un build et garantit que les chemins redeviennent
 # corrects après la bascule atomique.
 backup_next_build_configs() {
-    NEXT_BUILD_CONFIG_BACKUP_DIR="$(mktemp -d /tmp/sokar-next-config.XXXXXX)"
+    NEXT_BUILD_CONFIG_BACKUP_DIR="$(mktemp -d /tmp/suppernote-next-config.XXXXXX)"
     for app in dashboard connect; do
         for file in tsconfig.json next-env.d.ts; do
-            if [ -f "$SOKAR_ROOT/apps/$app/$file" ]; then
-                cp -a "$SOKAR_ROOT/apps/$app/$file" \
+            if [ -f "$SUPPERNOTE_ROOT/apps/$app/$file" ]; then
+                cp -a "$SUPPERNOTE_ROOT/apps/$app/$file" \
                     "$NEXT_BUILD_CONFIG_BACKUP_DIR/${app}-${file}"
             else
                 touch "$NEXT_BUILD_CONFIG_BACKUP_DIR/.absent-${app}-${file}"
@@ -306,9 +306,9 @@ restore_next_build_configs() {
         for file in tsconfig.json next-env.d.ts; do
             local backup="$NEXT_BUILD_CONFIG_BACKUP_DIR/${app}-${file}"
             if [ -f "$backup" ]; then
-                cp -a "$backup" "$SOKAR_ROOT/apps/$app/$file"
+                cp -a "$backup" "$SUPPERNOTE_ROOT/apps/$app/$file"
             elif [ -f "$NEXT_BUILD_CONFIG_BACKUP_DIR/.absent-${app}-${file}" ]; then
-                rm -f "$SOKAR_ROOT/apps/$app/$file"
+                rm -f "$SUPPERNOTE_ROOT/apps/$app/$file"
             fi
         done
     done
@@ -325,7 +325,7 @@ cleanup_next_build_dirs() {
             dist_dir="${NEXT_DIST_DIR_CONNECT:-}"
         fi
         if [ -n "$dist_dir" ] && [[ "$dist_dir" == .next-deploy-* ]]; then
-            rm -rf "$SOKAR_ROOT/apps/$app/$dist_dir"
+            rm -rf "$SUPPERNOTE_ROOT/apps/$app/$dist_dir"
         fi
     done
     restore_next_build_configs
@@ -361,10 +361,10 @@ activate_next_builds() {
             dist_dir="${NEXT_DIST_DIR_CONNECT:-}"
         fi
         [ -n "$dist_dir" ] || continue
-        active_dir="$SOKAR_ROOT/apps/$app/.next"
-        previous_dir="$SOKAR_ROOT/apps/$app/.next-previous-$stamp-$app"
+        active_dir="$SUPPERNOTE_ROOT/apps/$app/.next"
+        previous_dir="$SUPPERNOTE_ROOT/apps/$app/.next-previous-$stamp-$app"
 
-        if [ ! -f "$SOKAR_ROOT/apps/$app/$dist_dir/standalone/apps/$app/server.js" ]; then
+        if [ ! -f "$SUPPERNOTE_ROOT/apps/$app/$dist_dir/standalone/apps/$app/server.js" ]; then
             log_error "Build $app invalide : server.js standalone introuvable."
             restore_activated_next_builds
             return 1
@@ -375,7 +375,7 @@ activate_next_builds() {
             return 1
         fi
 
-        app_dir="$SOKAR_ROOT/apps/$app"
+        app_dir="$SUPPERNOTE_ROOT/apps/$app"
         if [ -L "$active_dir" ]; then
             active_target="$(readlink "$active_dir")"
             case "$active_target" in
@@ -436,7 +436,7 @@ restore_activated_next_builds() {
             previous_dir="${NEXT_PREVIOUS_DIR_CONNECT:-}"
         fi
         [ -n "$previous_dir" ] || continue
-        app_dir="$SOKAR_ROOT/apps/$app"
+        app_dir="$SUPPERNOTE_ROOT/apps/$app"
         active_dir="$app_dir/.next"
         [ -e "$previous_dir" ] || continue
         case "${previous_dir##*/}" in
@@ -468,7 +468,7 @@ cleanup_previous_next_builds() {
             previous_dir="${NEXT_PREVIOUS_DIR_CONNECT:-}"
         fi
         [ -n "$previous_dir" ] || continue
-        active_target="$(readlink "$SOKAR_ROOT/apps/$app/.next" 2>/dev/null || true)"
+        active_target="$(readlink "$SUPPERNOTE_ROOT/apps/$app/.next" 2>/dev/null || true)"
         if [ -n "$active_target" ] && [ "${previous_dir##*/}" = "$active_target" ]; then
             log_warn " $app : $previous_dir est la release active, conservée."
             continue
@@ -487,7 +487,7 @@ cleanup_previous_next_builds() {
 prune_stale_next_builds() {
     local keep="${1:-2}" app app_dir active build count
     for app in dashboard connect; do
-        app_dir="$SOKAR_ROOT/apps/$app"
+        app_dir="$SUPPERNOTE_ROOT/apps/$app"
         active="$(readlink "$app_dir/.next" 2>/dev/null || true)"
         count=0
         while IFS= read -r build; do
@@ -621,11 +621,11 @@ detect_changed_apps() {
 
             # Si un build précédent a nettoyé les artefacts sans rebatcher l'app,
             # on force le rebuild pour restaurer le standalone.
-            if [ "$NEED_DASHBOARD" = false ] && [ ! -f "$SOKAR_ROOT/apps/dashboard/.next/standalone/apps/dashboard/server.js" ]; then
+            if [ "$NEED_DASHBOARD" = false ] && [ ! -f "$SUPPERNOTE_ROOT/apps/dashboard/.next/standalone/apps/dashboard/server.js" ]; then
                 NEED_DASHBOARD=true
                 log_warn "Dashboard standalone manquant — build forcé"
             fi
-            if [ "$NEED_CONNECT" = false ] && [ ! -f "$SOKAR_ROOT/apps/connect/.next/standalone/apps/connect/server.js" ]; then
+            if [ "$NEED_CONNECT" = false ] && [ ! -f "$SUPPERNOTE_ROOT/apps/connect/.next/standalone/apps/connect/server.js" ]; then
                 NEED_CONNECT=true
                 log_warn "Connect standalone manquant — build forcé"
             fi
@@ -633,7 +633,7 @@ detect_changed_apps() {
             # démarre. Cela vaut pour les deux environnements : une release
             # restaurée ou un artefact nettoyé ne doit jamais laisser PM2
             # redémarrer un dist/main.js absent ou obsolète.
-            if [ "$NEED_API" = false ] && [ ! -f "$SOKAR_ROOT/apps/api/dist/main.js" ]; then
+            if [ "$NEED_API" = false ] && [ ! -f "$SUPPERNOTE_ROOT/apps/api/dist/main.js" ]; then
                 NEED_API=true
                 log_warn "API entrypoint manquant — build forcé"
             fi
@@ -659,7 +659,7 @@ build_packages_api() {
     # manquait, l'API bouclait sur `MODULE_NOT_FOUND`, et le rollback laissait un
     # `dist` mixte (ancien API + nouveau package) donc un second crash.
     # Repartir d'un état incrémental propre coûte quelques secondes de build.
-    find "$SOKAR_ROOT/apps" "$SOKAR_ROOT/packages" -maxdepth 2 -name 'tsconfig.tsbuildinfo' -delete 2>/dev/null || true
+    find "$SUPPERNOTE_ROOT/apps" "$SUPPERNOTE_ROOT/packages" -maxdepth 2 -name 'tsconfig.tsbuildinfo' -delete 2>/dev/null || true
 
     if [ "$need_packages" = true ] || [ "$need_api" = true ]; then
         # config imports the shared catalogue; database imports config.
@@ -672,7 +672,7 @@ build_packages_api() {
         # --extendedDiagnostics) : avec 1536 Mo le build échouait au hasard du GC
         # (OOM, exit 134). Le VPS a ~5,7 Go disponibles pendant le build.
         NODE_OPTIONS="--max-old-space-size=3072" pnpm --filter @suppernote/api build
-        if [ ! -f "$SOKAR_ROOT/apps/api/dist/main.js" ]; then
+        if [ ! -f "$SUPPERNOTE_ROOT/apps/api/dist/main.js" ]; then
             log_error "API build terminé sans apps/api/dist/main.js (entrypoint PM2 manquant)."
             return 1
         fi
@@ -691,12 +691,12 @@ build_dashboard_connect() {
         local build_stamp="$(date -u '+%Y%m%dT%H%M%SZ')-$$"
         if [ "$need_dash" = true ]; then
             NEXT_DIST_DIR_DASHBOARD=".next-deploy-${build_stamp}-dashboard"
-            rm -rf "$SOKAR_ROOT/apps/dashboard/$NEXT_DIST_DIR_DASHBOARD"
+            rm -rf "$SUPPERNOTE_ROOT/apps/dashboard/$NEXT_DIST_DIR_DASHBOARD"
             clean_stale_next_types dashboard
         fi
         if [ "$need_connect" = true ]; then
             NEXT_DIST_DIR_CONNECT=".next-deploy-${build_stamp}-connect"
-            rm -rf "$SOKAR_ROOT/apps/connect/$NEXT_DIST_DIR_CONNECT"
+            rm -rf "$SUPPERNOTE_ROOT/apps/connect/$NEXT_DIST_DIR_CONNECT"
             clean_stale_next_types connect
         fi
     fi
@@ -761,13 +761,13 @@ copy_static() {
 
     if [ "$need_dash" = true ]; then
         NEXT_DIST_DIR="$NEXT_DIST_DIR_DASHBOARD" \
-            bash "$SOKAR_ROOT/apps/dashboard/scripts/copy-static.sh"
+            bash "$SUPPERNOTE_ROOT/apps/dashboard/scripts/copy-static.sh"
     else
         log info "   ⏭️  Dashboard non rebuild — static déjà en place"
     fi
     if [ "$need_connect" = true ]; then
         NEXT_DIST_DIR="$NEXT_DIST_DIR_CONNECT" \
-            bash "$SOKAR_ROOT/apps/connect/scripts/copy-static.sh"
+            bash "$SUPPERNOTE_ROOT/apps/connect/scripts/copy-static.sh"
     else
         log info "   ⏭️  Connect non rebuild — static déjà en place"
     fi
@@ -819,7 +819,7 @@ validate_nginx_config() {
         return 0
     fi
 
-    local conf_file="/etc/nginx/sites-available/sokar"
+    local conf_file="/etc/nginx/sites-available/suppernote"
 
     if ! grep -q "listen 443 ssl http2 default_server" "$conf_file" 2>/dev/null; then
         log_error "Nginx catch-all missing 'default_server' on listen 443."
@@ -885,7 +885,7 @@ restart_services() {
     if [ "${NEXT_BUILD_ACTIVATED_CONNECT:-false}" = true ]; then
         TO_START="$TO_START $PM2_CONNECT"
     fi
-    if [ "${NEED_API:-false}" = true ] || { [ -n "${SOKAR_API_ENV_BEFORE:-}" ] && [ "$SOKAR_API_ENV_BEFORE" != "$(api_env_fingerprint "$SOKAR_ROOT/apps/api/.env")" ]; }; then
+    if [ "${NEED_API:-false}" = true ] || { [ -n "${SOKAR_API_ENV_BEFORE:-}" ] && [ "$SOKAR_API_ENV_BEFORE" != "$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/api/.env")" ]; }; then
         TO_START="$TO_START $PM2_API $PM2_WORKERS"
     fi
     case " $TO_START " in *" $PM2_API "*) wait_for_voice_idle ;; esac
@@ -1100,7 +1100,7 @@ health_checks() {
             log info ""
             log_error "Deploy REGRESSED : dashboard HTML répond 200 mais assets statiques en échec (dashboard=$DASH_CSS_STATUS, /pricing CSS=$PRICING_CSS_STATUS)."
             log info "   Cause probable : scripts/copy-static.sh non exécuté ou .next/static manquant."
-            log info "   Fix manuel : cd /opt/sokar/apps/dashboard && bash scripts/copy-static.sh && pm2 restart sokar-dashboard"
+            log info "   Fix manuel : cd /opt/suppernote/apps/dashboard && bash scripts/copy-static.sh && pm2 restart suppernote-dashboard"
             notify "🔴 Suppernote production deploy REGRESSED (static assets 404, branch ${BRANCH})"
             DEPLOY_HEALTH_OK=false
             DEPLOY_HEALTH_REGRESSED=true
@@ -1206,7 +1206,7 @@ parse_deploy_args() {
 
 # ── Validation env ───────────────────────────────────────
 # Extrait du bloc inline de deploy.sh.
-# Set les variables globales : SOKAR_ROOT, RELEASES_DIR, PORT_API, PORT_DASH,
+# Set les variables globales : SUPPERNOTE_ROOT, RELEASES_DIR, PORT_API, PORT_DASH,
 # PORT_CONNECT, PM2_API, PM2_WORKERS, PM2_DASH, PM2_CONNECT, ECOSYSTEM_FILE, NGINX_CONFIG,
 # DB_NAME, KEEP_RELEASES, HAS_LOCALSTACK, HAS_LOGROTATE, HAS_CERT_CHECK,
 # EXTENDED_HEALTH_CHECKS.
@@ -1221,17 +1221,17 @@ validate_deploy_env() {
 
     case "$DEPLOY_ENV" in
         prod)
-            SOKAR_ROOT="/opt/sokar"
-            RELEASES_DIR="$SOKAR_ROOT/releases"
+            SUPPERNOTE_ROOT="/opt/suppernote"
+            RELEASES_DIR="$SUPPERNOTE_ROOT/releases"
             PORT_API=4000
             PORT_DASH=3000
             PORT_CONNECT=4002
-            PM2_API="sokar-api"
-            PM2_DASH="sokar-dashboard"
-            PM2_CONNECT="sokar-connect"
-            PM2_WORKERS="sokar-workers"
+            PM2_API="suppernote-api"
+            PM2_DASH="suppernote-dashboard"
+            PM2_CONNECT="suppernote-connect"
+            PM2_WORKERS="suppernote-workers"
             ECOSYSTEM_FILE="infra/ecosystem.config.js"
-            NGINX_CONFIG="sokar"
+            NGINX_CONFIG="suppernote"
             DB_NAME="sokar"
             KEEP_RELEASES=5
             HAS_LOCALSTACK=true
@@ -1250,17 +1250,17 @@ validate_deploy_env() {
             fi
             ;;
         staging)
-            SOKAR_ROOT="/opt/sokar-staging"
-            RELEASES_DIR="$SOKAR_ROOT/releases"
+            SUPPERNOTE_ROOT="/opt/suppernote-staging"
+            RELEASES_DIR="$SUPPERNOTE_ROOT/releases"
             PORT_API=4100
             PORT_DASH=3100
             PORT_CONNECT=4102
-            PM2_API="sokar-staging-api"
-            PM2_DASH="sokar-staging-dashboard"
-            PM2_CONNECT="sokar-staging-connect"
-            PM2_WORKERS="sokar-staging-workers"
+            PM2_API="suppernote-staging-api"
+            PM2_DASH="suppernote-staging-dashboard"
+            PM2_CONNECT="suppernote-staging-connect"
+            PM2_WORKERS="suppernote-staging-workers"
             ECOSYSTEM_FILE="infra/ecosystem.staging.config.js"
-            NGINX_CONFIG="sokar-staging"
+            NGINX_CONFIG="suppernote-staging"
             DB_NAME="sokar_staging"
             KEEP_RELEASES=3
             HAS_LOCALSTACK=false
@@ -1283,8 +1283,8 @@ validate_deploy_env() {
 #
 # Variables globales attendues (set par validate_deploy_env / parse_deploy_args) :
 #   DEPLOY_ENV         prod | staging
-#   SOKAR_ROOT         /opt/sokar | /opt/sokar-staging
-#   RELEASES_DIR       $SOKAR_ROOT/releases
+#   SUPPERNOTE_ROOT         /opt/suppernote | /opt/suppernote-staging
+#   RELEASES_DIR       $SUPPERNOTE_ROOT/releases
 #   WITH_DB_ROLLBACK   true | false
 #   TARGET_RELEASE     release cible (peut être vide → calculée automatiquement)
 #   PM2_WORKERS        nom du process PM2 des workers BullMQ (R1-1)
@@ -1293,7 +1293,7 @@ validate_deploy_env() {
 #   ECOSYSTEM_FILE     infra/ecosystem.config.js | infra/ecosystem.staging.config.js
 #   PORT_API           port de l'API
 #   PORT_DASH          port du dashboard
-#   PRIVILEGED_WRAPPER /usr/local/sbin/sokar-deploy-root
+#   PRIVILEGED_WRAPPER /usr/local/sbin/suppernote-deploy-root
 #
 # Variables globales set :
 #   TARGET_RELEASE  (calculée si vide — comportement existant)
@@ -1306,7 +1306,7 @@ validate_deploy_env() {
 # Retourne 0 en cas de succès, 1 en cas d'échec.
 # L'appelant (deploy.sh) gère le exit 0 final.
 handle_rollback() {
-    cd "$SOKAR_ROOT"
+    cd "$SUPPERNOTE_ROOT"
     log_section "${DEPLOY_ENV^} Rollback"
 
     # TARGET_RELEASE est désormais parsé par la boucle d'arguments principale
@@ -1349,7 +1349,7 @@ handle_rollback() {
 
     log info "→ Restore dépendances (lockfile de la release)..."
     restore_release_manifests "$RELEASE_PATH"
-    if ! (cd "$SOKAR_ROOT" && pnpm install --frozen-lockfile); then
+    if ! (cd "$SUPPERNOTE_ROOT" && pnpm install --frozen-lockfile); then
         log_error "pnpm install a échoué pendant le rollback — services à l'arrêt, intervention manuelle"
         return 1
     fi

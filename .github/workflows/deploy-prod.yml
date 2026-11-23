@@ -42,7 +42,7 @@ jobs:
       # Dépôt privé et aucun accès GitHub sur le VPS : le runner lui envoie main en bundle.
       # shortcut: bundle complet (~60 Mo) à chaque déploiement, à rendre incrémental s'il devient lent.
       - name: Bundle main
-        run: git bundle create sokar-main.bundle refs/heads/main
+        run: git bundle create suppernote-main.bundle refs/heads/main
 
       - name: Copy bundle to production host
         uses: appleboy/scp-action@v1
@@ -50,7 +50,7 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: deploy
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: sokar-main.bundle
+          source: suppernote-main.bundle
           target: /tmp/
           overwrite: true
 
@@ -93,10 +93,10 @@ jobs:
           envs: ALERT_WEBHOOK,HEALTHCHECKS_PING_URL,SENTRY_DSN,ALERT_EMAIL_TO,ALERT_WEBHOOK_URL,ALERT_SMS_TO,GRAFANA_ADMIN_PASSWORD,RESERVATION_SERVICE_TOKEN,STRIPE_PRICE_ESSENTIAL_MONTHLY,STRIPE_PRICE_ESSENTIAL_ANNUAL,STRIPE_PRICE_PRO_MONTHLY,STRIPE_PRICE_PRO_ANNUAL,STRIPE_PRICE_MULTI_SITE_MONTHLY,STRIPE_PRICE_MULTI_SITE_ANNUAL,STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY,STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL,SOKAR_OPERATOR_USER_IDS,VOICE_STT_INK_RESTAURANT_IDS,VOICE_STT_INK_REPLACE_RESTAURANT_IDS,VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS,DEPLOY_EVENT,TRIGGER_SHA,DEMO_REQUEST_NOTIFY_TO,RESEND_RATE_LIMIT_REDIS_URL
           script: |
             set -euo pipefail
-            cd /opt/sokar
+            cd /opt/suppernote
             git checkout main
-            git fetch /tmp/sokar-main.bundle +refs/heads/main:refs/remotes/origin/main
-            rm -f /tmp/sokar-main.bundle
+            git fetch /tmp/suppernote-main.bundle +refs/heads/main:refs/remotes/origin/main
+            rm -f /tmp/suppernote-main.bundle
             git reset --hard origin/main
             git clean -fd
             # Évite les déploiements redondants (incident 2026-09-27 : deux runs
@@ -115,18 +115,18 @@ jobs:
                 exit 0
               fi
             fi
-            if [ ! -x /usr/local/sbin/sokar-deploy-root ]; then
+            if [ ! -x /usr/local/sbin/suppernote-deploy-root ]; then
               sudo install -o root -g root -m 0755 \
-                scripts/ops/sokar-deploy-root.sh /usr/local/sbin/sokar-deploy-root
+                scripts/ops/suppernote-deploy-root.sh /usr/local/sbin/suppernote-deploy-root
             fi
-            sudo /usr/local/sbin/sokar-deploy-root self-update prod
+            sudo /usr/local/sbin/suppernote-deploy-root self-update prod
             if [ -z "${GRAFANA_ADMIN_PASSWORD:-}" ]; then
               echo "GRAFANA_ADMIN_PASSWORD secret is required for production Grafana" >&2
               exit 1
             fi
             printf 'GRAFANA_ADMIN_PASSWORD\t%s\n' "$GRAFANA_ADMIN_PASSWORD" | \
-              sudo /usr/local/sbin/sokar-deploy-root configure-grafana prod
-            sudo /usr/local/sbin/sokar-deploy-root validate-monitoring prod
+              sudo /usr/local/sbin/suppernote-deploy-root configure-grafana prod
+            sudo /usr/local/sbin/suppernote-deploy-root validate-monitoring prod
             source scripts/ops/deploy-common.sh
             api_env_before="$(api_env_fingerprint apps/api/.env)"
             if [ -n "${SENTRY_DSN:-}${ALERT_EMAIL_TO:-}${ALERT_WEBHOOK_URL:-}${ALERT_SMS_TO:-}${RESEND_RATE_LIMIT_REDIS_URL:-}" ]; then
@@ -144,12 +144,12 @@ jobs:
               {
                 printf 'ALERT_WEBHOOK\t%s\n' "${ALERT_WEBHOOK:-}"
                 printf 'HEALTHCHECKS_PING_URL\t%s\n' "${HEALTHCHECKS_PING_URL:-}"
-              } | sudo /usr/local/sbin/sokar-deploy-root configure-watchdog prod
+              } | sudo /usr/local/sbin/suppernote-deploy-root configure-watchdog prod
             fi
             bash scripts/ops/sync-env.sh stripe-prices prod
             SOKAR_API_ENV_BEFORE="$api_env_before" SOKAR_SKIP_GIT_PULL=1 bash scripts/deploy.sh --env prod --confirm-production
-            sudo /usr/local/sbin/sokar-deploy-root start-prometheus prod
-            sudo /usr/local/sbin/sokar-deploy-root start-grafana prod
+            sudo /usr/local/sbin/suppernote-deploy-root start-prometheus prod
+            sudo /usr/local/sbin/suppernote-deploy-root start-grafana prod
 
   smoke-tests:
     name: Smoke tests against production
@@ -281,7 +281,7 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            cd /opt/sokar
+            cd /opt/suppernote
             DATABASE_URL=$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2- | sed "s/^[\"'[:space:]]*//;s/[\"'[:space:]]*$//")
             DATABASE_PATH="${DATABASE_URL%%\?*}"
             DATABASE_NAME="${DATABASE_PATH##*/}"

@@ -50,7 +50,7 @@ certbot reconfigure \
 
 mapfile -t CF_RANGES < <(
   sed -n 's/^set_real_ip_from[[:space:]]\+\([^;]*\);/\1/p' \
-    "${SOKAR_ROOT}/infra/nginx/snippets/sokar-cloudflare-real-ip.conf"
+    "${SOKAR_ROOT}/infra/nginx/snippets/suppernote-cloudflare-real-ip.conf"
 )
 
 for range in "${CF_RANGES[@]}"; do

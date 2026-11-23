@@ -10,7 +10,7 @@
  * Lecture seule : aucune création, modification ou suppression côté Stripe.
  *
  * Usage (les identifiants sont lus dans l'environnement) :
- *   node --env-file=/opt/sokar/apps/api/.env scripts/ops/verify-stripe-catalog.mjs
+ *   node --env-file=/opt/suppernote/apps/api/.env scripts/ops/verify-stripe-catalog.mjs
  *   node --env-file=.env scripts/ops/verify-stripe-catalog.mjs --json
  *
  * Les tarifs et le calcul annuel viennent du catalogue partagé en centimes.

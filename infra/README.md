@@ -83,7 +83,7 @@ docker compose -f infra/docker-compose.yml exec redis redis-cli
 ## Production (VPS) notes
 
 The VPS runs Postgres and Redis in Docker, while the API and dashboard are
-managed by `pm2` (see `/opt/sokar/infra/ecosystem.config.js`). Production
+managed by `pm2` (see `/opt/suppernote/infra/ecosystem.config.js`). Production
 Prometheus is managed separately by the privileged deploy wrapper using
 `prometheus-compose.yml`, independently from `grafana-compose.yml`; metrics
 collection does not depend on Grafana credentials. Both services are

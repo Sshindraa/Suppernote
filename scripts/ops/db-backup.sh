@@ -3,7 +3,7 @@
 # Sourcé par scripts/deploy.sh (via scripts/ops/deploy-common.sh).
 #
 # Variables attendues en entrée :
-#   - SOKAR_ROOT : racine de l'application
+#   - SUPPERNOTE_ROOT : racine de l'application
 #   - DATABASE_URL : (optionnel) si absente, lit apps/api/.env
 #   - ALERT_CMD (optionnel) : commande appelée avec le message de notification
 #   - ALERT_WEBHOOK (optionnel) : URL webhook Slack-like appelée avec {"text":"message"}
@@ -15,7 +15,7 @@ set -Eeuo pipefail
 # garde une garde défensive pour les usages standalone.
 if ! command -v notify >/dev/null 2>&1; then
   # shellcheck source=ops/logging.sh
-  source "${SOKAR_ROOT}/scripts/ops/logging.sh"
+  source "${SUPPERNOTE_ROOT}/scripts/ops/logging.sh"
 fi
 
 # Charge DATABASE_URL depuis apps/api/.env si elle n'est pas déjà exportée.
@@ -23,7 +23,7 @@ __load_db_env() {
   if [ -n "${DATABASE_URL:-}" ]; then
     return 0
   fi
-  local env_file="${SOKAR_ROOT}/apps/api/.env"
+  local env_file="${SUPPERNOTE_ROOT}/apps/api/.env"
   if [ ! -f "$env_file" ]; then
     echo "   ⚠️ apps/api/.env introuvable, impossible de charger DATABASE_URL" >&2
     return 1

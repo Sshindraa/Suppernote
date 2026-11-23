@@ -10,7 +10,7 @@ CONTAINER="${POSTGRES_CONTAINER:-infra-postgres-1}"
 DB_USER="${POSTGRES_USER:-sokar}"
 
 if [ -z "${BACKUP_PATH}" ] || [ -z "${TARGET_DB}" ]; then
-  echo "Usage: $0 /var/backups/sokar/sokar-YYYYMMDDTHHMMSSZ.dump base_cible" >&2
+  echo "Usage: $0 /var/backups/suppernote/sokar-YYYYMMDDTHHMMSSZ.dump base_cible" >&2
   exit 1
 fi
 

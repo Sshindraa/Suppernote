@@ -3,29 +3,29 @@
 #
 # Usage:
 #   bash scripts/database/backup-postgres.sh
-#   BACKUP_DIR=/var/backups/sokar RETENTION_DAYS=14 bash scripts/database/backup-postgres.sh
+#   BACKUP_DIR=/var/backups/suppernote RETENTION_DAYS=14 bash scripts/database/backup-postgres.sh
 
 set -euo pipefail
 
 # Charge les helpers partagés (check_disk_space, log_error).
-# En production ce script est installé standalone (/usr/local/sbin/sokar-backup-postgres) ;
+# En production ce script est installé standalone (/usr/local/sbin/suppernote-backup-postgres) ;
 # en dev il est lancé depuis le repo (scripts/database/). On détecte le layout.
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 if [ -f "$SCRIPT_DIR/../ops/disk.sh" ]; then
   HELPERS_DIR="$SCRIPT_DIR/../ops"
-  SOKAR_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+  SUPPERNOTE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 else
-  SOKAR_ROOT="${SOKAR_ROOT:-/opt/sokar}"
-  HELPERS_DIR="$SOKAR_ROOT/scripts/ops"
+  SUPPERNOTE_ROOT="${SUPPERNOTE_ROOT:-/opt/suppernote}"
+  HELPERS_DIR="$SUPPERNOTE_ROOT/scripts/ops"
 fi
-export SOKAR_ROOT
+export SUPPERNOTE_ROOT
 # shellcheck source=ops/disk.sh
 source "$HELPERS_DIR/disk.sh"
 
 CONTAINER="${POSTGRES_CONTAINER:-infra-postgres-1}"
 DB_NAME="${POSTGRES_DB:-sokar}"
 DB_USER="${POSTGRES_USER:-sokar}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/sokar}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/suppernote}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 TIMESTAMP="$(date -u '+%Y%m%dT%H%M%SZ')"
 BACKUP_PATH="${BACKUP_DIR}/${DB_NAME}-${TIMESTAMP}.dump"

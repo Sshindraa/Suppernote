@@ -2,6 +2,15 @@
 
 > **Statut : PRÉPARATION (préflight lecture seule terminé le 23/11/2026, 10:15–10:45 CET).**
 > Fenêtre validée par Hamza : **mardi 24/11/2026, 15h00–16h00 (CET)**, hors service.
+>
+> **Toutes les heures de ce document sont en HEURE DE PARIS** (Europe/Paris, CET = UTC+1 le 24/11 ;
+> c'est le fuseau du serveur). Hamza est au Maroc et son Mac est en UTC+0 : **15h00 à Paris = 14h00
+> sur le Mac**, 16h00 à Paris = 15h00 sur le Mac. Ne pas caler la fenêtre sur l'heure du Mac ni du
+> téléphone ; l'heure de référence est celle du serveur (`ssh deploy@sokar date`).
+>
+> **Règle n° 1 de la fenêtre : `apply` et `rollback` se lancent TOUJOURS dans `tmux` sur le serveur**
+> (`sudo tmux new -A -s rename`, §3.10). Après une coupure ou un kill pendant `apply`, ne **pas** relancer
+> `apply` : suivre §3.11.
 > Rien n'a été modifié sur le VPS pour rédiger ce document : uniquement `ls`, `cat`, `grep`,
 > `pm2 jlist`, `crontab -l`, `systemctl status/cat`, `stat`, `readlink`, `df`, `du`, `nginx -v`,
 > `curl` sur `127.0.0.1` et sur les domaines publics (GET). Aucune valeur de `.env`, `watchdog.env`
@@ -65,6 +74,11 @@ Risques majeurs, par ordre d'importance :
    tests de Hamza). À confirmer (§5.2, Q1).
 8. **Faux amis à ne pas « renommer »** : les dumps restent `sokar-*.dump` (nom de la base Postgres), la
    chaîne `Backup offsite sokar terminé` aussi. Le watchdog dépend de ces deux chaînes (§1.2, H10).
+9. **Une coupure SSH (SIGHUP) ou un kill (SIGTERM) pendant `apply` laisse l'environnement coupé.** Si le
+   script est tué entre `pm2 delete` et `pm2 start`, les 4 process PM2 de l'environnement restent
+   `stopped` ou absents et **il n'y a pas de retour arrière automatique** : relancer `apply` est alors
+   refusé par le préflight (code 3, état partiel). Deux parades : tout lancer dans `tmux` (§3.10), et
+   après toute interruption faire `status` puis `rollback --env <env>` (§3.11).
 
 ---
 
@@ -265,9 +279,10 @@ les noms exacts sont à relever en root** (§1.5).
   Un seul check en échec = pas de ping (donc alerte Healthchecks si la panne dure plus que la période + grace).
 - **Mode maintenance : non.** Aucune variable ni fichier drapeau. Seules options : suspendre le cron, ou accepter les alertes.
 - Dernier passage lu : 23/11 10:15, `ALL_OK=1`. Dossier d'état : `/var/lib/sokar/watchdog` (illisible).
-- **Période et grace time du check Healthchecks.io : non lisibles** (`/etc/sokar/watchdog.env` est root-only, et ces
-  réglages vivent dans l'interface Healthchecks). Le commentaire du watchdog recommande « un heartbeat toutes les 10 min ».
-  Question Q2.
+- **Check Healthchecks.io : `Suppernote production watchdog`** (déjà renommé dans l'interface Healthchecks), **période 5 min,
+  grace 5 min** : sans ping, l'alerte part au bout de ≈ 10 min. La fenêtre dure 60 min : la **pause du check** à 14:50 (§3.2)
+  reste donc indispensable (le script suspend le cron du watchdog pendant chaque `apply` ou `rollback`, donc plus aucun ping
+  n'est envoyé). Le nom du check ne dépend pas du renommage du VPS ; l'URL de ping reste dans `watchdog.env` (non lue ici).
 
 ### 2.7 Crons actifs et collisions avec la fenêtre (heure locale CET ; fenêtre = 15h00–16h00)
 
@@ -298,6 +313,10 @@ Aucun backup n'est planifié entre 04:20 et 03:20, donc aucune collision avec 15
 ---
 
 ## 3. Runbook de la fenêtre (mardi 24/11/2026, 15h00–16h00 CET)
+
+**Toutes les heures de cette section sont en heure de Paris** (fuseau du serveur ; le Mac de Hamza est en UTC+0, soit 1 h de
+moins : 15h00 à Paris = 14h00 sur le Mac). **Tous les `apply` et `rollback` se lancent dans `tmux` sur le serveur** (§3.10) et,
+après toute interruption, on suit §3.11 avant de toucher à autre chose.
 
 Acteurs : **Hamza** (root, UI Healthchecks, GitHub, décision GO/NO-GO), **suppernote-dev** (script, PR),
 **suppernote-ops** (vérifications lecture seule via `ssh deploy@sokar`, relevé de Sentry), **lead** (coordination).
@@ -352,8 +371,9 @@ au moment du déploiement de validation (§3.9, étape 2).
 | **14:45 (T-15)** | Hamza        | Vérifier qu'aucun appel n'est en cours : `ssh deploy@sokar "grep -E 'call.initiated\|call finalized' /var/log/sokar/api-out.log \| tail -3"` (dernière ligne ancienne, pas de session ouverte).                                                                                                                                                                                                                                                                        |
 | **14:50 (T-10)** | Hamza (UI)   | **Mettre en pause le check Healthchecks.io** (durée ≥ 90 min). Seule action côté UI.                                                                                                                                                                                                                                                                                                                                                                                   |
 | 14:50            | Hamza (root) | **Ne PAS suspendre le cron du watchdog à la main** : le script le fait (il renomme `suppernote-watchdog` en `.rename-hold`, nom ignoré par cron, pendant chaque `apply` ou `rollback`, et le remet toujours en place, y compris en cas d'échec). Il reste actif entre le staging et la prod. Seule la pause Healthchecks.io (UI) reste manuelle.                                                                                                                       |
+| 14:55            | Hamza (root) | **Ouvrir la session tmux** : `sudo tmux new -A -s rename` (§3.10), puis y rester pour tout `apply`/`rollback`. Heure de Paris : contrôler `date` sur le serveur.                                                                                                                                                                                                                                                                                                       |
 | 14:55            | lead         | Message d'ouverture de fenêtre (gabarit §3.8).                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **15:00 (T0)**   | Hamza        | **Contrôle GO d'entrée** : P3/P5 faits, sauvegardes du T-30 présentes, workflows désactivés, watchdog suspendu, Healthchecks en pause, aucun appel en cours, dev et ops joignables. Un « non » = report.                                                                                                                                                                                                                                                               |
+| **15:00 (T0)**   | Hamza        | **Contrôle GO d'entrée** : P3/P5 faits, sauvegardes du T-30 présentes, workflows désactivés, watchdog suspendu, Healthchecks (`Suppernote production watchdog`) en pause, session tmux `rename` ouverte, aucun appel en cours, dev et ops joignables. Un « non » = report.                                                                                                                                                                                             |
 | 15:00–15:12      | Hamza (root) | **Staging** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh apply --env staging` (§3.10, étape 4). Le script fait lui-même `pm2 save` ; code de sortie 0 attendu.                                                                                                                                                                                                                                                                                              |
 | 15:12–15:22      | ops + Hamza  | **Validation staging** : checklist §4 version staging, critères GO/NO-GO §3.3.                                                                                                                                                                                                                                                                                                                                                                                         |
 | **15:22**        | Hamza        | **Décision GO/NO-GO prod.** NO-GO = fin de fenêtre (ou retour arrière staging si non réparable en 10 min), prod intacte.                                                                                                                                                                                                                                                                                                                                               |
@@ -392,6 +412,9 @@ au moment du déploiement de validation (§3.9, étape 2).
 - La coupure se mesure du premier `pm2 delete` prod jusqu'au premier `200` sur `https://api.suppernote.com/health`.
 
 ### 3.5 Rollback pas à pas
+
+> **Après une coupure ou un kill pendant `apply` (SSH tombé, SIGHUP/SIGTERM) : aller d'abord au §3.11** (`status`, puis
+> `rollback --env <env>`). Ne jamais relancer `apply` directement.
 
 Principe : toutes les modifications étant des `mv`, `ln -s`, `sed` et recréations de process, le retour arrière
 inverse l'ordre. Les anciens chemins existent encore via les liens, donc la prod peut être rendue avant d'avoir
@@ -485,6 +508,21 @@ arrière : un message à Hamza avec la cause, l'état actuel et la prochaine act
 
 Toutes les commandes `rename-sokar-to-suppernote.sh` se lancent **en root, depuis `/root/rename/`**
 (jamais depuis `/opt/sokar*`). Chaque commande accepte `--dry-run` (rien n'est écrit).
+
+**Règle : `apply` et `rollback` se lancent TOUJOURS dans `tmux` sur le serveur, jamais directement dans la session SSH.**
+Une coupure SSH envoie SIGHUP au script, qui s'arrête au milieu de l'`apply` (§3.11) ; sous `tmux`, le script continue sans toi.
+
+```zsh
+# Sur le VPS. Crée la session « rename » ou s'y rattache si elle existe déjà :
+sudo tmux new -A -s rename
+# Dans la session (déjà root) : lancer les commandes ci-dessous (le « sudo » devant reste valable) ;
+# détacher sans arrêter : Ctrl-b puis d.
+# Après une coupure de connexion : se reconnecter en SSH, puis REFAIRE EXACTEMENT la même commande :
+sudo tmux new -A -s rename
+```
+
+`tmux` doit être installé (`command -v tmux`) : le vérifier au P5 (avant mardi) et l'installer **hors fenêtre** si absent.
+Lancer aussi un `date` dans la session : l'heure du serveur est l'heure de Paris, pas celle du Mac.
 
 **Étape 0, avant mardi : copier le script avec contrôle d'empreinte** (PR #795 relue, non fusionnée) :
 
@@ -594,8 +632,58 @@ partagés que lorsque les deux environnements sont nettoyés. `apply` ne le lanc
 | 5    | `apply` fait, mais une vérification (pm2, `/health`) est en échec                | Décision du §3.4 : corriger en moins de 5 min, sinon `rollback --env <env>`            |
 | 6    | Erreur inattendue (retour arrière automatique tenté) ou retour arrière incomplet | Lire `run.log`, lancer `status`, puis `rollback`, sinon l'option B manuelle du §3.5    |
 
+**Interruption (pas de code utile : connexion coupée, ou code 129 = SIGHUP / 143 = SIGTERM / 130 = Ctrl-C)** : le script s'arrête
+là où il est, **sans retour arrière automatique** (seuls le cron watchdog et le verrou sont remis en place). Procédure : **§3.11**.
+
 Journal de chaque exécution : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`).
 Il ne contient aucun secret ; le dossier est en mode 0700. Le transmettre à ops en cas d'incident.
+
+### 3.11 Après une interruption de `apply` ou de `rollback` (coupure SSH, kill, SIGHUP/SIGTERM)
+
+**Décision pour Hamza : après toute interruption d'`apply`, on ne relance JAMAIS `apply` directement. On fait `status`,
+puis `rollback --env <env>`, on vérifie, et seulement ensuite on décide d'un nouvel `apply` (ou d'un report si la fenêtre est
+dépassée).**
+
+**Pourquoi.** Si le script est tué entre `pm2 delete` et `pm2 start` d'un environnement, les 4 process PM2 de cet
+environnement sont `stopped` ou absents : **l'API de cet environnement est coupée** et rien ne les relance. Le script n'a pas de
+retour arrière automatique pour un signal (SIGHUP/SIGTERM) : il remet seulement le cron watchdog et supprime son verrou. Un
+nouvel `apply` est refusé par le préflight (code 3, état partiel). Si c'est la **prod**, la coupure court tant qu'on n'a pas
+fait le `rollback` : appliquer le seuil du §3.4 (pas d'attente « pour voir »).
+
+**Procédure** (heures de Paris ; dans la session `tmux`, en root) :
+
+1. **Se reconnecter et rouvrir la session** : `ssh deploy@sokar`, puis `sudo tmux new -A -s rename`. Si l'écran montre que le
+   script tourne encore ou s'est terminé normalement (la coupure n'a touché que la connexion), **ne rien relancer** : le laisser
+   finir et lire son code de sortie. Si la session n'existe plus (`tmux` tué avec le serveur ou avec le script), passer à l'étape 2.
+2. **Constater l'état** (lecture seule, sans verrou ; remplacer `<env>` par `staging` ou `prod`) :
+
+   ```zsh
+   sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env <env>
+   ```
+
+   Lire : les lignes `pm2 <env> :` (process `stopped` ou absents, ou anciens **et** nouveaux noms mélangés), `cron watchdog`
+   (`SUSPENDU` : le `rollback` le remet), `nginx -t`, `verdict <env>`. En cas de doute, `sudo -u deploy pm2 list`.
+
+3. **Retour arrière** (idempotent ; il reprend un `apply` interrompu et redémarre les anciens process depuis l'ecosystem sauvegardé
+   dans le journal de l'`apply` interrompu : **ne pas supprimer `/root/rename-suppernote-*`**). Code 0 attendu ; sinon voir le
+   tableau des codes (§3.10) et, pour le code 6, l'option B manuelle du §3.5 :
+
+   ```zsh
+   sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env <env>
+   echo "code de sortie : $?"
+   ```
+
+   Si un message dit qu'une autre exécution est en cours (verrou, pid vivant), un `apply` tourne encore : revenir à l'étape 1.
+   Un verrou dont le pid n'existe plus est repris automatiquement.
+
+4. **Vérifier** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all` (verdict `<env>` : état initial),
+   `sudo -u deploy pm2 list` (4 process anciens de l'environnement `online`),
+   `curl -s -o /dev/null -w '%{http_code}\n' https://api.suppernote.com/health` (prod) ou
+   `https://api-staging.suppernote.com/health` (staging) = 200, `sudo nginx -t`, `sudo ls /etc/cron.d | grep -c watchdog` = 1
+   (aucun `.rename-hold`).
+5. **Ensuite seulement**, décision : relancer `apply --env <env>` (dans `tmux`) si la fenêtre le permet (marge jusqu'à 16:00 heure de
+   Paris) et que la cause de l'interruption est comprise ; sinon **report**, environnement laissé à l'état initial, workflows
+   toujours désactivés. Prévenir ops et le lead, et leur transmettre le dossier `/root/rename-suppernote-<horodatage>/`.
 
 ## 4. Checklist post-renommage
 
@@ -646,7 +734,7 @@ Si les lignes 1, 3, 6, 7 ou 12 ne sont pas conformes dans les 5 minutes qui suiv
 | `/var/backups/sokar-staging` (liste des dumps)                               | `root 700`                                                                             | root : `sudo ls -lt /var/backups/sokar-staging \| head`                                                                                                                                           |
 | `/usr/local/sbin/sokar-backup-postgres`                                      | `0750 root` : contenu non lu (supposé = `scripts/database/backup-postgres.sh` du repo) | root : `sudo diff /usr/local/sbin/sokar-backup-postgres /opt/sokar/scripts/database/backup-postgres.sh`                                                                                           |
 | `/etc/ufw/*`, `/etc/letsencrypt/live/*`                                      | `Permission denied` (non lus ; aucune raison de supposer une occurrence)               | root : `sudo grep -rIl -i sokar /etc/ufw /etc/letsencrypt`                                                                                                                                        |
-| Période et grace du check Healthchecks.io                                    | Réglage dans l'interface Healthchecks, URL dans `watchdog.env` illisible               | Q2                                                                                                                                                                                                |
+| Période et grace du check Healthchecks.io                                    | Réglage dans l'interface Healthchecks, URL dans `watchdog.env` illisible               | Levé : check `Suppernote production watchdog`, période 5 min, grace 5 min (§2.6)                                                                                                                  |
 | Destinataires réels des alertes (`ALERT_WEBHOOK`, `ALERT_CMD`)               | Dans `watchdog.env`                                                                    | Q3                                                                                                                                                                                                |
 | Temps réel de `apply` et du redémarrage Next sous charge                     | Le script n'existe pas encore ; les 4 s relevées sont des durées d'amorçage PM2        | Mesurer au dry-run P5 puis au staging (critère n° 8 du §3.3)                                                                                                                                      |
 | Comportement de `sudo` avec un lien de compatibilité                         | Dépend du sudoers réel et de la version de sudo                                        | Ligne 18 de la checklist, **à tester sur staging avant la prod**                                                                                                                                  |
@@ -657,7 +745,7 @@ Si les lignes 1, 3, 6, 7 ou 12 ne sont pas conformes dans les 5 minutes qui suiv
 | #   | Question                                                                                                                                                                                                                                                               | Reco ops                                                                                     |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Q1  | Mardi 15h00–16h00 est-il réellement hors service ? Aucun restaurant en production réelle ni test d'appel prévu ? (3 appels le 20/11 entre 15h21 et 15h27 dans les journaux.)                                                                                           | Confirmer ; sinon décaler à un créneau sans appel. Annoncer si des restaurants sont en réel. |
-| Q2  | Période et grace time du check Healthchecks.io, nom du check, et possibilité de le mettre en pause pendant 90 min depuis l'UI ?                                                                                                                                        | Pause à T-10, reprise à 15:45 ; sinon la grace doit couvrir 60 min.                          |
+| Q2  | ~~Période et grace time du check Healthchecks.io, nom du check~~ **Réponse :** check `Suppernote production watchdog` (déjà renommé), période 5 min, grace 5 min. Reste : pause du check pendant 90 min depuis l'UI à 14:50 (heure de Paris) ?                         | Pause à T-10, reprise à 15:45 (§3.2).                                                        |
 | Q3  | Accord pour suspendre le cron du watchdog (`mv` hors de `cron.d`) pendant toute la fenêtre, plutôt que d'accepter les alertes CRITIQUE (API, dashboard, dossier backup introuvable) ? Où partent les alertes (Slack, Discord, SMS) ?                                   | Suspendre ; réactiver à 15:45 après un passage manuel.                                       |
 | Q4  | Accord pour un préflight root complet (docker, nginx -T, sudoers, `/etc/sokar` masqué) **avant** mardi ?                                                                                                                                                               | Oui, commandes en §5.1. Sans cela, §1 reste incomplet.                                       |
 | Q5  | Qui lance `apply` : toi seul en root, ou dev en visio ? Le script sera copié hors de `/opt/sokar` (par ex. `/root/rename/`) : OK ?                                                                                                                                     | Toi en root, dev et ops en écoute.                                                           |
@@ -679,7 +767,7 @@ Si les lignes 1, 3, 6, 7 ou 12 ne sont pas conformes dans les 5 minutes qui suiv
 3. **`pm2 reload` / `restart` ne renomment rien.** Tout `reload` après le renommage garde les anciens noms tant que `pm2 delete` n'a pas eu lieu.
 4. **Un script lancé depuis `/opt/sokar/scripts/…` perd ses chemins relatifs pendant son propre `mv`.** Le lancer depuis un dossier extérieur.
 5. **Les fichiers de `cron.d` dont le nom contient un point sont ignorés par cron.** C'est ce qui permet de suspendre le watchdog avec un suffixe `.disabled`, mais aussi ce qui rend silencieux un `.bak` ou une copie oubliée : un cron « renommé » avec un point ne tourne plus sans erreur.
-6. **Les timestamps sont en CET, les commentaires de cron en « UTC »** : ne pas se fier aux commentaires pour placer des backups (voir §2.7).
+6. **Les timestamps sont en CET (heure de Paris), les commentaires de cron en « UTC »** : ne pas se fier aux commentaires pour placer des backups (voir §2.7).
 7. **`logrotate` + lien :** deux fichiers de configuration pour le même dossier (`sokar` et `suppernote`) = double rotation ou `duplicate log entry`.
 8. **Recréation de Prometheus et Grafana au premier déploiement** (H23) : normale, brève, à ne pas prendre pour un incident ; vérifier `:9090/-/ready` après.
 9. **Chaque déploiement prod relance `configure-watchdog`** (`deploy-prod.yml:147`) avec les secrets GitHub et réécrit `watchdog.env`. Avec l'ancien wrapper, il écrit dans `/etc/sokar` (donc, via le lien, dans `/etc/suppernote`, sans dégât) ; avec le nouveau, directement dans `/etc/suppernote`. Dans les deux cas le fichier lu par le watchdog doit être le même : à vérifier après le déploiement de validation (§4 ligne 12).

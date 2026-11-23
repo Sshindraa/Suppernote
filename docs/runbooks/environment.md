@@ -53,7 +53,7 @@
 | `apps/dashboard/.env` (prod) | Clerk keys, `API_URL`, Sentry                                                     |
 | `apps/connect/.env` (prod)   | `SITE_URL`, `API_URL`, `NEXT_PUBLIC_API_URL`, `DASHBOARD_URL`                     |
 
-**Redis (prod / staging) :** prod utilise `redis` sur `127.0.0.1:6379` (bases 0/1/2). Le staging a son propre Redis, `redis-staging` sur `127.0.0.1:6380`, base 0 (`REDIS_URL` de `/opt/sokar-staging/apps/api/.env`). Les deux services ne partagent ni mémoire ni files ; recréation : `sokar-deploy-root apply-redis-config {prod|staging}`.
+**Redis (prod / staging) :** prod utilise `redis` sur `127.0.0.1:6379` (bases 0/1/2). Le staging a son propre Redis, `redis-staging` sur `127.0.0.1:6380`, base 0 (`REDIS_URL` de `/opt/suppernote-staging/apps/api/.env`). Les deux services ne partagent ni mémoire ni files ; recréation : `suppernote-deploy-root apply-redis-config {prod|staging}`.
 
 ## Base de données locale
 
@@ -85,8 +85,8 @@ La clé Development est stockée dans le secret GitHub Actions `CLERK_SECRET_KEY
 temporairement le secret vers le VPS avec des permissions strictes, puis appelle
 `scripts/ops/sync-env.sh clerk`, qui met à jour atomiquement les deux fichiers
 privés du VPS et supprime le fichier de transport :
-`/opt/sokar-staging/apps/api/.env` et
-`/opt/sokar-staging/apps/dashboard/.env`. Ces fichiers ne sont pas suivis par
+`/opt/suppernote-staging/apps/api/.env` et
+`/opt/suppernote-staging/apps/dashboard/.env`. Ces fichiers ne sont pas suivis par
 Git et ne doivent jamais être créés dans le dépôt ou copiés dans le navigateur.
 La production utilise un secret live séparé ; le workflow de production ne
 réutilise pas la clé staging.
@@ -112,7 +112,7 @@ Les secrets GitHub de l’environnement `production` (et, si souhaité, `staging
 peuvent fournir `SENTRY_DSN`, `ALERT_EMAIL_TO`, `ALERT_WEBHOOK_URL` et
 `ALERT_SMS_TO`. Le workflow les synchronise vers `apps/api/.env` sans les
 afficher. `ALERT_WEBHOOK` et `HEALTHCHECKS_PING_URL` alimentent le watchdog VPS
-dans `/etc/sokar/watchdog.env`, fichier root lisible uniquement par le cron.
+dans `/etc/suppernote/watchdog.env`, fichier root lisible uniquement par le cron.
 Si aucun secret n’est défini, le déploiement conserve la configuration existante.
 
 ### Régulation Resend (préparation locale du 16 octobre 2026)
@@ -579,7 +579,7 @@ ELEVENLABS_TTS_MODEL="eleven_v4_turbo"
   `degraded` sans 503, comme Telnyx et Cartesia.
 - `ELEVENLABS_TTS_STREAMING="true"` passe le téléphone sur le point de synthèse en flux (`/stream`), dont le premier
   octet arrive plus tôt, au même prix par caractère. Absent ou autre valeur : point de synthèse classique. Retour
-  arrière : supprimer la variable, puis redémarrer `sokar-api` et `sokar-workers` (ou leurs équivalents staging).
+  arrière : supprimer la variable, puis redémarrer `suppernote-api` et `suppernote-workers` (ou leurs équivalents staging).
 - Le chemin WebSocket sert tous les restaurants dès que `ELEVENLABS_API_KEY` est présente (depuis le 22/10, plus
   de drapeau ni de liste). Un échec d'ouverture retombe sur la voix HTTP, tour par tour.
 - `CARTESIA_API_KEY` reste exigée en production : la démo de l'onboarding et les aperçus de voix du restaurant
@@ -647,7 +647,7 @@ une variable déjà présente dans l'environnement du process. Si PM2 a été la
 depuis un shell où ces variables étaient exportées, il les garde dans son
 snapshot et `pm2 restart --update-env` ne les retire pas : la modification du
 `.env` est alors ignorée sans erreur. Pour repartir d'un environnement propre :
-`pm2 delete sokar-api sokar-workers && pm2 start infra/ecosystem.config.js --only sokar-api,sokar-workers && pm2 save`.
+`pm2 delete suppernote-api suppernote-workers && pm2 start infra/ecosystem.config.js --only suppernote-api,suppernote-workers && pm2 save`.
 
 Pour le diagnostic d'un appel, se fier à `VoiceTurnTelemetry.llmProvider` et
 `VoiceTurnTelemetry.llmModel`, puis au même couple dans le bilan
@@ -767,14 +767,14 @@ laisse les flags runtime absents inchangés ; cette activation persiste dans le
 fichier d'environnement jusqu'à sa désactivation explicite. Pour changer un
 flag vocal en production, éditer le fichier d'environnement de l'API,
 attendre zéro session active, puis
-recharger `sokar-api` avec `pm2 reload sokar-api --update-env`.
+recharger `suppernote-api` avec `pm2 reload suppernote-api --update-env`.
 Les compteurs globaux de validité, décision de policy et accord sont exposés à
 Prometheus et présentés dans le dashboard Grafana `Suppernote — Voice & SLO`. Ils
 n'ont pas de label restaurant et ne contiennent aucune transcription. Le
 déploiement production démarre Prometheus et Grafana séparément sur la loopback,
 avec 30 jours de rétention Prometheus. Prometheus ne dépend pas du secret Grafana.
 Le workflow provisionne `GRAFANA_ADMIN_PASSWORD` depuis l'environnement GitHub
-`production` dans `/etc/sokar/grafana.env` (droits `0600`, root uniquement, hors du checkout).
+`production` dans `/etc/suppernote/grafana.env` (droits `0600`, root uniquement, hors du checkout).
 
 L'accord est aussi compté par dimension (`suppernote_voice_turn_plan_shadow_dimension_total`,
 labels `dimension` = `intent` | `slots` | `interaction` | `assistant_interaction`) : un
@@ -914,7 +914,7 @@ de SSH (port 22 sortant fermé) : cette lecture HTTPS est la voie prévue.
 Le rapport d'appel (plus de drapeau `CALL_REPORT_ENABLED` depuis le 23/10/2026) est construit après chaque appel d'un restaurant de
 `CALL_RECORDING_TEST_RESTAURANT_IDS` : un rapport (JSON + Markdown) stocké à côté de l'enregistrement,
 avec des transcriptions après coup Deepgram (Nova-3 et Whisper, environ 1 centime par appel) et les journaux de l'API
-lus dans `CALL_REPORT_LOG_DIR` (défaut `/var/log/sokar`, rotation 14 jours). Il suit l'enregistrement
+lus dans `CALL_REPORT_LOG_DIR` (défaut `/var/log/suppernote`, rotation 14 jours). Il suit l'enregistrement
 (`CALL_RECORDING_ENABLED`) et exige `DEEPGRAM_API_KEY` ; sans `VOICE_DEBUG_TRANSCRIPT_RESTAURANT_IDS` le rapport est réduit.
 Aucun effet sur l'appel. Voir
 [`call-reports.md`](call-reports.md).

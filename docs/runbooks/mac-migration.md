@@ -21,9 +21,9 @@ Transport the archive + passphrase over a separate channel, then after cloning t
 ```zsh
 cd docs/archive/operations/mac-migration-<DATE>
 ./install.sh /path/to/sokar-mac-migration-*.tar.gz.enc
-# → decrypts, restores, verifies (config.yaml, auth.json, SSH sokar, profiles)
+# → decrypts, restores, verifies (config.yaml, auth.json, SSH suppernote, profiles)
 source ~/.zshrc
-hermes doctor && ssh sokar 'hostname && pwd'
+hermes doctor && ssh suppernote 'hostname && pwd'
 ```
 
 Details, contents, and what is **not** in the bundle (debug sessions, `node_modules`, local DBs): `docs/archive/operations/mac-migration-<DATE>/README.md`.

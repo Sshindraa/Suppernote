@@ -340,7 +340,7 @@ module.exports = nextConfig;
 
 ### 3.3 Reverse proxy Nginx
 
-La configuration canonique est `infra/nginx/sokar.conf` :
+La configuration canonique est `infra/nginx/suppernote.conf` :
 
 - `/r/*`, `/restaurants/*`, `/sitemap.xml`, `/robots.txt` → Suppernote Connect `:4002`
 - `/api/proxy/*`, `/api/auth/sync` → route handlers Next.js `:3000`
@@ -1033,7 +1033,7 @@ ses données contacte `dpo@suppernote.com`.
 - Turbo task `connect#dev` (port 4002), `connect#build`,
   `connect#typecheck`
 - Lint config cohérente avec le reste
-- `infra/nginx/sokar.conf` mis à jour pour router
+- `infra/nginx/suppernote.conf` mis à jour pour router
   `/r/*`, `/restaurants/*`, `/sitemap.xml`, `/robots.txt` vers
   `apps/connect` (cf. §3.3)
 - HSTS sur suppernote.com

@@ -6,9 +6,9 @@ Statut au 19/11/2026 : **préparé, toujours fermé en production**. La réouver
 
 Le 503 vient de Nginx, pas de l'API. Les routes `/api/rgpd/erase` et `/api/rgpd/withdraw-marketing` ne sont pas listées comme `location =` dans la configuration de production ; elles tombent dans le catch-all qui répond 503 :
 
-- `infra/nginx/sokar.conf`, serveur `suppernote.com` : `location ^~ /api/rgpd/ { return 503 }` (vers la ligne 150), et `location ^~ /api/proxy/api/rgpd/` (vers la ligne 114) côté dashboard.
-- `infra/nginx/sokar.conf`, serveur `api.suppernote.com` : même catch-all (vers la ligne 468).
-- `infra/nginx/sokar-staging.conf` : pas de catch-all. Le staging accepte déjà ces routes, ce qui permet la qualification ci-dessous.
+- `infra/nginx/suppernote.conf`, serveur `suppernote.com` : `location ^~ /api/rgpd/ { return 503 }` (vers la ligne 150), et `location ^~ /api/proxy/api/rgpd/` (vers la ligne 114) côté dashboard.
+- `infra/nginx/suppernote.conf`, serveur `api.suppernote.com` : même catch-all (vers la ligne 468).
+- `infra/nginx/suppernote-staging.conf` : pas de catch-all. Le staging accepte déjà ces routes, ce qui permet la qualification ci-dessous.
 
 Les journaux API ne montrent pas ces 503 : `access_log off` sur ces locations, et la requête n'atteint jamais l'API. Historique : réouverture partielle du 29/10 (PR #616), export et vérification d'identité seuls ouverts.
 
@@ -54,19 +54,19 @@ Données synthétiques uniquement, sur `api-staging.suppernote.com`. Aucune donn
 
 ## Lignes Nginx à changer pour ouvrir (décision Hamza)
 
-Dans `infra/nginx/sokar.conf`, pour chacun des deux serveurs (`suppernote.com` et `api.suppernote.com`), ajouter avant le catch-all deux locations de proxy, sur le modèle des routes déjà ouvertes :
+Dans `infra/nginx/suppernote.conf`, pour chacun des deux serveurs (`suppernote.com` et `api.suppernote.com`), ajouter avant le catch-all deux locations de proxy, sur le modèle des routes déjà ouvertes :
 
 ```nginx
 location = /api/rgpd/erase {
     access_log off;
     proxy_pass http://sokar_api;
-    include /etc/nginx/snippets/sokar-proxy.conf;
+    include /etc/nginx/snippets/suppernote-proxy.conf;
 }
 
 location = /api/rgpd/withdraw-marketing {
     access_log off;
     proxy_pass http://sokar_api;
-    include /etc/nginx/snippets/sokar-proxy.conf;
+    include /etc/nginx/snippets/suppernote-proxy.conf;
 }
 ```
 

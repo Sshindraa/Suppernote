@@ -330,7 +330,7 @@ avancer le point de reprise des webhooks. Sa sortie ne contient que des identifi
 statuts.
 
 ```zsh
-cd /opt/sokar/apps/api   # ou /opt/sokar-staging/apps/api
+cd /opt/suppernote/apps/api   # ou /opt/suppernote-staging/apps/api
 # 1. Lecture seule : liste les écarts.
 ./node_modules/.bin/tsx scripts/reconcile-stripe-billing.ts --dry-run
 # 2. Un dossier précis, après contrôle de l'écart.
@@ -379,7 +379,7 @@ La release `main@d53916c` a été publiée après CI, smoke tests, rollback/rest
 Le backfill account/site staging a été exécuté après un dry-run : 10 candidats détectés, 10 restaurants migrés. Le script doit recevoir `DATABASE_URL` depuis `apps/api/.env` sur le VPS, car `packages/database/.env` n'y est pas présent :
 
 ```bash
-cd /opt/sokar-staging
+cd /opt/suppernote-staging
 set -a
 . apps/api/.env
 set +a

@@ -8,10 +8,10 @@
 
 Depuis R1-1, deux process publient des métriques, et **Prometheus doit scraper les deux** :
 
-| Process                            | Endpoint                        | Ce qu'il publie                                                                                                                                                |
-| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sokar-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`suppernote_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`suppernote_voice_active_sessions`) et latences vocales |
-| `sokar-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`suppernote_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`suppernote_slo_status`, `suppernote_slo_value`), alertes envoyées    |
+| Process                                 | Endpoint                        | Ce qu'il publie                                                                                                                                                |
+| --------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `suppernote-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`suppernote_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`suppernote_voice_active_sessions`) et latences vocales |
+| `suppernote-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`suppernote_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`suppernote_slo_status`, `suppernote_slo_value`), alertes envoyées    |
 
 Staging utilise les ports décalés `4100` (API) et `4101` (worker). Les deux environnements tournent
 sur le même VPS, donc un seul Prometheus scrape les quatre cibles et chaque série porte un label
@@ -32,13 +32,13 @@ identifiants basiques sur les deux process et les déclarer dans `infra/promethe
 Grafana écoute sur `127.0.0.1:3030` et n'est **pas** exposé par Nginx. L'accès se fait par tunnel :
 
 ```zsh
-ssh -L 3030:127.0.0.1:3030 deploy@sokar
+ssh -L 3030:127.0.0.1:3030 deploy@suppernote
 # puis http://localhost:3030 — accès lecture seule, sans compte requis
 ```
 
 Le compte anonyme est limité au rôle Viewer ; les inscriptions sont désactivées. Le mot de passe
 admin unique est conservé comme secret `GRAFANA_ADMIN_PASSWORD` dans l'environnement GitHub
-`production`, puis provisionné dans `/etc/sokar/grafana.env` avec les droits `0600` par le wrapper
+`production`, puis provisionné dans `/etc/suppernote/grafana.env` avec les droits `0600` par le wrapper
 privilégié. Il reste hors du checkout, n'est pas versionné et n'est pas affiché dans les journaux.
 Seul le compose Grafana consomme ce secret ; Prometheus reste démarrable indépendamment. N'exposez
 pas le port 3030 dans Nginx ou sur une interface publique.
@@ -47,10 +47,10 @@ pas le port 3030 dans Nginx ou sur une interface publique.
 
 ```zsh
 # Le workflow de déploiement production provisionne le secret puis démarre
-# Prometheus et Grafana via sokar-deploy-root. Pour un diagnostic manuel :
-sudo /usr/local/sbin/sokar-deploy-root start-prometheus prod
+# Prometheus et Grafana via suppernote-deploy-root. Pour un diagnostic manuel :
+sudo /usr/local/sbin/suppernote-deploy-root start-prometheus prod
 # Grafana requiert GRAFANA_ADMIN_PASSWORD, synchronisé par le workflow de production.
-sudo /usr/local/sbin/sokar-deploy-root start-grafana prod
+sudo /usr/local/sbin/suppernote-deploy-root start-grafana prod
 ```
 
 Prometheus conserve 30 jours de séries (`prometheus-data`), Grafana ses dashboards et son état

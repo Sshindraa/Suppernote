@@ -26,7 +26,7 @@ pnpm --filter @suppernote/api ops:dead-letter replay <deadLetterJobId> --confirm
 pnpm --filter @suppernote/api ops:dead-letter discard <deadLetterJobId> --reason "<motif>" --confirm
 ```
 
-Sur le VPS, la même commande fonctionne dans `/opt/sokar/apps/api`. Si `.env` n'est pas présent,
+Sur le VPS, la même commande fonctionne dans `/opt/suppernote/apps/api`. Si `.env` n'est pas présent,
 passer le fichier explicitement :
 
 ```zsh

@@ -57,7 +57,7 @@ Références : [ADR du plan de contrôle CRM/marketing](../architecture/adr-crm-
 - **Secrets non propagés par la CI.** `RESEND_WEBHOOK_SECRET`, `MARKETING_UNSUBSCRIBE_SECRET`,
   `MARKETING_ATTRIBUTION_SECRET`, `MARKETING_EMAIL_FROM`, `MARKETING_SENDS_ENABLED` et `MARKETING_RECIPIENT_ALLOWLIST` ne passent par
   aucun workflow ni `sync-env.sh` : ils se posent à la main dans `apps/api/.env` du VPS, puis
-  `pm2 reload sokar-api --update-env` et rechargement des workers.
+  `pm2 reload suppernote-api --update-env` et rechargement des workers.
 - **Quota Resend et budget marketing.** Le plan constaté est Free : 100 e-mails par jour et 3 000 par mois,
   partagés avec les e-mails transactionnels. Le marketing ne doit jamais consommer ce quota : il est plafonné à
   `MARKETING_EMAIL_DAILY_BUDGET` e-mails par jour pour **toute la plateforme** (40 par défaut, entier ≥ 0 validé

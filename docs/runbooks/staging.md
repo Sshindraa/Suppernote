@@ -13,14 +13,14 @@
 - Suppernote Connect (canonique): `https://staging.suppernote.com/restaurant/chez-suppernote-demo`
 - Suppernote Connect (legacy): `https://staging.suppernote.com/restaurant/chez-sokar-demo`
 
-## Infrastructure (VPS `sokar`, isolated from prod)
+## Infrastructure (VPS `suppernote`, isolated from prod)
 
-- Root: `/opt/sokar-staging/`
+- Root: `/opt/suppernote-staging/`
 - Ports: API=4100, Dashboard=3100, Connect=4102 (prod: 4000/3000/4002)
 - DB Postgres: `sokar_staging`
 - Redis: db=3 (isolé de prod db=0/1/2)
-- PM2: `sokar-staging-api`, `sokar-staging-dashboard`, `sokar-staging-connect`
-- Nginx: `infra/nginx/sokar-staging.conf`
+- PM2: `suppernote-staging-api`, `suppernote-staging-dashboard`, `suppernote-staging-connect`
+- Nginx: `infra/nginx/suppernote-staging.conf`
 
 ## Security / isolation
 
@@ -52,7 +52,7 @@ Les fiches `chez-sokar-bistrot-paris`, `chez-sokar-neo-paris`, `chez-sokar-ramen
 - **Comment** :
 
 ```zsh
-cd /opt/sokar-staging
+cd /opt/suppernote-staging
 export DATABASE_URL="$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2-)"
 bash scripts/ops/apply-staging-demo-fixtures.sh
 ```
@@ -67,11 +67,11 @@ bash scripts/ops/apply-staging-demo-fixtures.sh
 gh workflow run deploy-staging.yml --ref main
 
 # Rollback (même commande que celle du workflow)
-ssh deploy@sokar "cd /opt/sokar-staging && bash scripts/deploy.sh --env staging rollback"
+ssh deploy@suppernote "cd /opt/suppernote-staging && bash scripts/deploy.sh --env staging rollback"
 
 # Services
-ssh deploy@sokar "pm2 status"                        # see services
-ssh deploy@sokar "pm2 logs sokar-staging-api"        # API logs
+ssh deploy@suppernote "pm2 status"                        # see services
+ssh deploy@suppernote "pm2 logs suppernote-staging-api"        # API logs
 ```
 
 ## Notes

@@ -109,8 +109,8 @@ Gemini ; DeepSeek reste le meilleur des candidats malgré une latence plus haute
 n'est un remplaçant évident. Limites : un passage de 12 tirages par cas, bench sans la vérification de
 compréhension, prompt non réglé pour ces modèles.
 
-Rejouer : `scp apps/api/scripts/openrouter-region-test.mjs deploy@sokar:/tmp/ && ssh deploy@sokar 'node
---env-file=/opt/sokar/apps/api/.env /tmp/openrouter-region-test.mjs --runs 10; rm /tmp/openrouter-region-test.mjs'`
+Rejouer : `scp apps/api/scripts/openrouter-region-test.mjs deploy@suppernote:/tmp/ && ssh deploy@suppernote 'node
+--env-file=/opt/suppernote/apps/api/.env /tmp/openrouter-region-test.mjs --runs 10; rm /tmp/openrouter-region-test.mjs'`
 (le staging n'a pas de clé OpenRouter). Quelques centimes d'OpenRouter, aucun crédit Cerebras.
 
 ## Ajouter un appel fournisseur
@@ -128,10 +128,10 @@ Rejouer : `scp apps/api/scripts/openrouter-region-test.mjs deploy@sokar:/tmp/ &&
 
 ```zsh
 # Timeouts et ouvertures de circuit côté worker
-pm2 logs sokar-workers --lines 200 | grep -Ei 'circuit-breaker|ProviderTimeoutError'
+pm2 logs suppernote-workers --lines 200 | grep -Ei 'circuit-breaker|ProviderTimeoutError'
 
 # Timeouts côté API (voice, Connect)
-pm2 logs sokar-api --lines 200 | grep -Ei 'timeout|circuit'
+pm2 logs suppernote-api --lines 200 | grep -Ei 'timeout|circuit'
 ```
 
 Un circuit ouvert se referme tout seul : une seule sonde est autorisée après le cooldown, et un

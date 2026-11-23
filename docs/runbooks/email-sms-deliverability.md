@@ -27,8 +27,8 @@ lecture par identifiant) et rend les doublons sans effet. Coût : provider `brev
 1. Attendre la validation de l’ID d’expéditeur « Suppernote » pour la France chez Brevo.
 1. Vérifier que le vhost déployé coupe le journal d’accès de `/sms/brevo/events` (le jeton est dans l’URL).
    Le déploiement l’installe (`scripts/deploy.sh` → `install-nginx`, qui lance `nginx -t`) ; sinon, en root :
-   `sudo /usr/local/sbin/sokar-deploy-root install-nginx prod` (ou `staging`). Contrôle :
-   `grep -A2 'location = /sms/brevo/events' /etc/nginx/sites-enabled/sokar` doit montrer `access_log off;`.
+   `sudo /usr/local/sbin/suppernote-deploy-root install-nginx prod` (ou `staging`). Contrôle :
+   `grep -A2 'location = /sms/brevo/events' /etc/nginx/sites-enabled/suppernote` doit montrer `access_log off;`.
 1. Dans le `.env` de l’environnement, avec sauvegarde `.env.bak-sms-provider-<date>` :
    `BREVO_SMS_WEBHOOK_SECRET=<openssl rand -hex 32>`, puis `SMS_PROVIDER=brevo`. `BREVO_API_KEY` est déjà posé ;
    `BREVO_SMS_SENDER` seulement si l’expéditeur validé diffère de `Suppernote`. `PUBLIC_API_URL` doit viser
@@ -106,7 +106,7 @@ Le code accepte désormais `TELNYX_SMS_FROM`, distinct du numéro d'appel.
 
 1. Dans la console Telnyx, profil « Sokar transactional » : activer un identifiant alphanumérique
    `SOKAR` (vérifier les conditions françaises affichées par Telnyx).
-2. Dans `/opt/sokar/apps/api/.env` (et staging) : `TELNYX_MESSAGING_PROFILE_ID=<id du profil>` et
+2. Dans `/opt/suppernote/apps/api/.env` (et staging) : `TELNYX_MESSAGING_PROFILE_ID=<id du profil>` et
    `TELNYX_SMS_FROM=SUPPERNOTE`, puis redémarrer l'API et les workers.
 3. Envoyer un SMS de test vers un téléphone de l'équipe et vérifier sa réception.
 

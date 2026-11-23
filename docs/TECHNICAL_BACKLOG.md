@@ -8,6 +8,12 @@
 > [`DOCUMENTATION_STATUS.md`](./DOCUMENTATION_STATUS.md), les audits datés dans `docs/audits/` et
 > [`roadmap-produit-crm-marketing-199-299.md`](./roadmap-produit-crm-marketing-199-299.md).
 
+## Chantier en cours — Renommage sokar → suppernote
+
+- **Palier 1 en cours** (fenêtre validée par Hamza : mardi 24/11/2026, 15h-16h) : chemins serveur (`/opt`, `/var/log`, `/var/backups`, `/var/lib`, `/etc`), noms PM2, vhosts et snippets nginx, wrappers `/usr/local/sbin`, crons, logrotate, alias SSH. Le dépôt utilise uniquement les nouveaux noms ; le serveur garde des liens ancien → nouveau quelques jours.
+- **Palier 2 en attente de décision Hamza** : bases et rôles Postgres (`sokar`, `sokar_staging`, `sokar_api`…), buckets R2 et remote rclone (`sokar-*`), variables d'environnement `SOKAR_*`, secrets et variables GitHub, noms de jobs Prometheus, champ de log `service: 'sokar-api'`, slugs `chez-sokar-demo`, clés `localStorage`, noms d'upstream nginx, noms de conteneurs/projet Docker de monitoring.
+- Les chemins de fichiers cités plus bas ont été mis à jour vers les nouveaux noms (`infra/nginx/suppernote*.conf`, `scripts/ops/suppernote-deploy-root.sh`) ; le contenu historique des lignes n'a pas été réécrit.
+
 ## Règles de priorité
 
 - **P0 — Bloquant ou risque critique** : perte de données, fuite de secrets, paiement incorrect, faille d'autorisation, production instable.
@@ -63,7 +69,7 @@ _Classification proposée, chaque item doit être re-vérifié avant exécution.
 | DEP-004 | `scripts/deploy-staging.sh`                                                                                            | Vérification `git diff` après `git pull`                               | Vérifier avant le pull, option `--force`                                                                                    | Test de déploiement avec modifications locales | Corrigé |
 | DEP-007 | `scripts/deploy-vps.sh` / `deploy-staging.sh`                                                                          | `sleep 8` après `pm2 restart`                                          | Boucle `/health` + `/livez` avec timeout configurable                                                                       | Test de déploiement                            | Corrigé |
 | DEP-008 | `scripts/ops/setup-staging.sh`                                                                                         | `.env` copiés sans validation des placeholders                         | `validate_env_files()` dans `deploy-staging.sh`                                                                             | Test de validation `.env`                      | Corrigé |
-| DEP-009 | `infra/nginx/sokar-staging.conf`                                                                                       | Pas de `limit_req` en staging                                          | Copier/adapter les zones de prod                                                                                            | Test de rate limit Nginx                       | Corrigé |
+| DEP-009 | `infra/nginx/suppernote-staging.conf`                                                                                  | Pas de `limit_req` en staging                                          | Copier/adapter les zones de prod                                                                                            | Test de rate limit Nginx                       | Corrigé |
 | QUA-002 | `apps/api/src/modules/voice/__tests__/`                                                                                | 17 tests voice cassés (mocks obsolètes)                                | Session dédiée pour mettre à jour les mocks                                                                                 | Voice tests passants                           | Corrigé |
 | QUA-003 | `apps/dashboard/src/app/dashboard/reservations/page.tsx` + `components/gift-cards/gift-card-list.tsx`                  | `@ts-ignore` date-fns                                                  | Résoudre résolution types date-fns                                                                                          | Typecheck dashboard                            | Corrigé |
 | QUA-004 | `apps/api/src/modules/rgpd/erasure.service.ts`                                                                         | `@ts-expect-error` sur `Call.customerPhone`                            | Vérifier schema Prisma + type guard                                                                                         | Typecheck API                                  | Corrigé |
@@ -84,11 +90,11 @@ _Classification proposée, chaque item doit être re-vérifié avant exécution.
 | SEC-015 | `AGENTS.md`                                                                      | Mention de `key_env` sans contexte                         | Corrigé |
 | RES-014 | `apps/api/src/shared/db/transaction-options.ts`                                  | Timeout de transaction 10s peut être court                 | Corrigé |
 | RES-015 | `packages/database/prisma/schema.prisma`                                         | `ReservationAuditLog` sans `correlationId`                 | Corrigé |
-| DEP-006 | `infra/nginx/snippets/sokar-cloudflare-real-ip.conf`                             | IPs Cloudflare hardcodées                                  | Corrigé |
+| DEP-006 | `infra/nginx/snippets/suppernote-cloudflare-real-ip.conf`                        | IPs Cloudflare hardcodées                                  | Corrigé |
 | DEP-010 | `.env.staging.example` (API, dashboard)                                          | Patterns `pk_test_...` / `sk_test_...`                     | Corrigé |
 | DEP-011 | `scripts/database/backup-postgres.sh` / `scripts/database/backup-postgres-r2.sh` | Pas de vérification d'espace disque                        | Corrigé |
 | DEP-012 | `scripts/deploy-*.sh` + workflows                                                | Pas de notification d'échec                                | Corrigé |
-| DEP-013 | `scripts/ops/sokar-deploy-root.sh`                                               | Restauration nginx non garantie                            | Corrigé |
+| DEP-013 | `scripts/ops/suppernote-deploy-root.sh`                                          | Restauration nginx non garantie                            | Corrigé |
 | DEP-014 | `scripts/deploy-vps.sh` / `deploy-staging.sh`                                    | Logs non structurés                                        | Corrigé |
 | DEP-015 | `scripts/deploy-*.sh`                                                            | Pas de vérification de version Node                        | Corrigé |
 | QUA-006 | `apps/connect/e2e/*.spec.ts`                                                     | E2E Connect skippés si API down                            | Corrigé |

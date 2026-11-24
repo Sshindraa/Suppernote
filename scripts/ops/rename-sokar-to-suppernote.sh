@@ -408,8 +408,8 @@ patch_file() {
 }
 
 # ── Utilitaires système ──────────────────────────────────────────────────────────────────────
-fs_id() { stat -c %d "$1" 2>/dev/null || stat -f %d "$1" 2>/dev/null; }
-free_kb() { df -Pk "$1" 2>/dev/null | awk 'NR == 2 {print $4}'; }
+fs_id() { stat -c %d "$1" 2>/dev/null || stat -f %d "$1" 2>/dev/null || true; }
+free_kb() { df -Pk "$1" 2>/dev/null | awk 'NR == 2 {print $4}' || true; }
 
 http_code() {
     local c
@@ -475,7 +475,9 @@ pm2_snapshot() {
 {"pid":/g')
     # Garde-fou indépendant de la boucle : nombre de process dans la sortie brute (grep -o, sans read)
     # contre nombre de process analysés. Un écart = process perdu : on refuse de planifier ou d'agir.
-    expected="$(grep -o '{"pid":' "$raw" | wc -l | tr -d ' ')" || expected=0
+    # « || true » DANS la substitution : grep -o rend 1 à 0 correspondance (pm2 jlist = « [] »), et l'ERR trap
+    # est hérité par le sous-shell : sans cela, apply lançait un retour arrière parasite avant tout pm2 stop.
+    expected="$(grep -o '{"pid":' "$raw" | wc -l | tr -d ' ' || true)"
     PM2_SEEN="$seen"
     PM2_RAW_COUNT="$expected"
     if [ "$seen" -ne "$expected" ]; then

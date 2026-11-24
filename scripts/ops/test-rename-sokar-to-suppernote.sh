@@ -826,6 +826,32 @@ check "garde-fou : apply refusé, rien modifié" diff -q "$TMP/NG0" <(snapshot "
 check "garde-fou : aucun pm2 stop/delete/start/save/restart" is_eq "$(count_calls 'pm2 (stop|delete|start|save|restart)')" 0
 SCRIPT="$SCRIPT_REAL"
 
+# ── 12. pm2 jlist VIDE ([]) : régression QA B1' ────────────────────────────────────────────────
+# `grep -o` à 0 correspondance rend 1 ; dans la substitution, l'ERR trap hérité par le sous-shell se
+# déclenchait et apply lançait un « retour arrière automatique » parasite (pm2 start de l'ecosystem
+# ancien + pm2 save AVANT le moindre pm2 stop). Attendu : refus propre du préflight (code 3), aucune
+# commande pm2 d'écriture, aucune modification, aucun retour arrière.
+no_rollback_noise() { ! grep -qiE 'retour arrière automatique|trap ERR|erreur inattendue' "$1"; }
+new_sandbox pm2empty
+: >"$STATE/pm2.list"
+check "pm2 vide : le stub renvoie bien []" is_eq "$(PATH="$TMP/stubs:$PATH" STUB_STATE="$STATE" pm2 jlist | tail -n 1)" "[]"
+snapshot "$SB" >"$TMP/PE0"
+run_script preflight --env staging
+check "pm2 vide : préflight staging refuse (code 3)" is_eq "$RC" 3
+check "pm2 vide : préflight, 0 process lu, 0 analysé" has_text "$OUT" "jlist : 0 process lus, 0 analysés"
+check "pm2 vide : préflight sans retour arrière parasite" no_rollback_noise "$OUT"
+run_script apply --env staging
+check "pm2 vide : apply staging refuse (code 3)" is_eq "$RC" 3
+check "pm2 vide : apply staging sans retour arrière automatique" no_rollback_noise "$OUT"
+check "pm2 vide : apply staging, aucune commande pm2 d'écriture" is_eq "$(count_calls 'pm2 (start|stop|delete|save|restart)')" 0
+check "pm2 vide : apply staging, rien modifié" diff -q "$TMP/PE0" <(snapshot "$SB")
+check "pm2 vide : apply staging, pm2 toujours vide" is_eq "$(wc -c <"$STATE/pm2.list" | tr -d ' ')" 0
+run_script apply --env all
+check "pm2 vide : apply all refuse (code 3)" is_eq "$RC" 3
+check "pm2 vide : apply all sans retour arrière automatique" no_rollback_noise "$OUT"
+check "pm2 vide : apply all, aucune commande pm2 d'écriture" is_eq "$(count_calls 'pm2 (start|stop|delete|save|restart)')" 0
+check "pm2 vide : apply all, rien modifié" diff -q "$TMP/PE0" <(snapshot "$SB")
+
 if [ -n "${TEST_KEEP_DIR:-}" ]; then
     mkdir -p "$TEST_KEEP_DIR"
     for f in apply-staging apply-prod; do

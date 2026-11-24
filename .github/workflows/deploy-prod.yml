@@ -15,7 +15,7 @@ on:
 
 # Évite les déploiements concurrents en production.
 concurrency:
-  group: deploy-prod
+  group: deploy-prod-v2
   cancel-in-progress: false
 
 env:

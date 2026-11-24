@@ -61,7 +61,7 @@ l'API.
 - CI/CD: `.github/workflows/deploy-prod.yml` triggered on `Deploy Staging` workflow success (branch `main`).
 - GitHub secrets: `PROD_SSH_KEY`, `PROD_HOST`, `PROD_USER` (or reuse `STAGING_*` if same VPS).
 - Script on VPS: `scripts/deploy.sh --env prod --confirm-production`.
-- Redundant runs are skipped (`workflow_run` only): the job exits 0 when the triggering staging run's `head_sha` is no longer the tip of `main` (a newer run will deploy it), or when `releases/.latest-hash` already equals the target SHA. `workflow_dispatch` always deploys. Runs are serialized by the `deploy-prod` concurrency group (`cancel-in-progress: false`).
+- Redundant runs are skipped (`workflow_run` only): the job exits 0 when the triggering staging run's `head_sha` is no longer the tip of `main` (a newer run will deploy it), or when `releases/.latest-hash` already equals the target SHA. `workflow_dispatch` always deploys. Runs are serialized by the `deploy-prod-v2` concurrency group (`cancel-in-progress: false`).
 - The production smoke-test job also fetches `https://suppernote.com/pricing` and requires its CSS asset to return 200.
 - Déploiement manuel (fallback, seulement si la chaîne automatique a échoué) :
   ```zsh

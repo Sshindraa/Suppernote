@@ -20,7 +20,7 @@ Usage :
 La commande `report` affiche le rapport automatique stocké à côté de l'enregistrement (voir
 docs/runbooks/call-reports.md), ou le résumé d'une journée. Les autres commandes mesurent
 l'enregistrement en local.
-Options : --host deploy@sokar  --out <dossier>  --no-fetch (réanalyse)
+Options : --host deploy@suppernote  --out <dossier>  --no-fetch (réanalyse)
           --listen : fait écouter les deux pistes par un modèle audio (OpenRouter,
           clé lue sur le VPS, ~1 centime par appel) : ce qui a été réellement dit,
           ton de l'appelant, diction de l'agent, incompréhensions.
@@ -44,7 +44,7 @@ SAMPLE_RATE = 8000
 FRAME_MS = 20
 CHANNELS = ("appelant", "agent")
 
-# Exécuté sur le VPS depuis /opt/sokar/apps/api (code compilé déjà déployé).
+# Exécuté sur le VPS depuis /opt/suppernote/apps/api (code compilé déjà déployé).
 REMOTE_FETCH = r"""
 const { db } = require('./dist/shared/db/client.js');
 const { getPrivateRecording } = require('./dist/modules/voice/call-recording.service.js');
@@ -155,11 +155,11 @@ def listen(host: str, folder: Path, model: str) -> dict:
             capture_output=True, check=True,
         ).stdout
         payload[key] = base64.b64encode(mono).decode()
-    remote = "/opt/sokar/apps/api/.voice-listen.cjs"
+    remote = "/opt/suppernote/apps/api/.voice-listen.cjs"
     subprocess.run(["ssh", host, f"cat > {remote}"], input=REMOTE_LISTEN.encode(), check=True)
     try:
         result = subprocess.run(
-            ["ssh", host, f"cd /opt/sokar/apps/api && node --env-file=.env {remote}"],
+            ["ssh", host, f"cd /opt/suppernote/apps/api && node --env-file=.env {remote}"],
             input=json.dumps(payload).encode(), capture_output=True, check=True,
         )
     finally:
@@ -175,7 +175,7 @@ def listen(host: str, folder: Path, model: str) -> dict:
 
 def run_remote(host: str, script: str, args: list[str], node: bool) -> bytes:
     remote_cmd = (
-        "cd /opt/sokar/apps/api && "
+        "cd /opt/suppernote/apps/api && "
         + ("node --env-file=.env -e \"$(cat)\" " if node else "bash -s -- ")
         + " ".join(args)
     )
@@ -357,7 +357,7 @@ def main() -> None:
     parser.add_argument("--day", help="avec « report » : résumé de la journée AAAA-MM-JJ (heure de Paris)")
     parser.add_argument("--json", action="store_true", help="avec « report » : le JSON plutôt que le Markdown")
     parser.add_argument("--restaurant", help="restaurant (obligatoire avec latest)")
-    parser.add_argument("--host", default=os.environ.get("SOKAR_SSH_HOST", "deploy@sokar"))
+    parser.add_argument("--host", default=os.environ.get("SOKAR_SSH_HOST", "deploy@suppernote"))
     parser.add_argument("--out", type=Path,
                         default=Path(tempfile.gettempdir()) / "sokar-call-audio")
     parser.add_argument("--no-fetch", action="store_true", help="réanalyse un dossier déjà récupéré")

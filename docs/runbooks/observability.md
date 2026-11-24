@@ -8,10 +8,10 @@
 
 Depuis R1-1, deux process publient des métriques, et **Prometheus doit scraper les deux** :
 
-| Process                            | Endpoint                        | Ce qu'il publie                                                                                                                                                |
-| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sokar-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`suppernote_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`suppernote_voice_active_sessions`) et latences vocales |
-| `sokar-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`suppernote_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`suppernote_slo_status`, `suppernote_slo_value`), alertes envoyées    |
+| Process                                 | Endpoint                        | Ce qu'il publie                                                                                                                                                |
+| --------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `suppernote-api` (`dist/main.js`)       | `http://127.0.0.1:4000/metrics` | HTTP (`suppernote_http_requests_total`), Connect, réservations, agentic, **sessions vocales actives** (`suppernote_voice_active_sessions`) et latences vocales |
+| `suppernote-workers` (`dist/worker.js`) | `http://127.0.0.1:4001/metrics` | Files BullMQ (`suppernote_queue_jobs`), appels/réservations en défaut sur 24 h, **SLO** (`suppernote_slo_status`, `suppernote_slo_value`), alertes envoyées    |
 
 Staging utilise les ports décalés `4100` (API) et `4101` (worker). Les deux environnements tournent
 sur le même VPS, donc un seul Prometheus scrape les quatre cibles et chaque série porte un label
@@ -32,13 +32,13 @@ identifiants basiques sur les deux process et les déclarer dans `infra/promethe
 Grafana écoute sur `127.0.0.1:3030` et n'est **pas** exposé par Nginx. L'accès se fait par tunnel :
 
 ```zsh
-ssh -L 3030:127.0.0.1:3030 deploy@sokar
+ssh -L 3030:127.0.0.1:3030 deploy@suppernote
 # puis http://localhost:3030 — accès lecture seule, sans compte requis
 ```
 
 Le compte anonyme est limité au rôle Viewer ; les inscriptions sont désactivées. Le mot de passe
 admin unique est conservé comme secret `GRAFANA_ADMIN_PASSWORD` dans l'environnement GitHub
-`production`, puis provisionné dans `/etc/sokar/grafana.env` avec les droits `0600` par le wrapper
+`production`, puis provisionné dans `/etc/suppernote/grafana.env` avec les droits `0600` par le wrapper
 privilégié. Il reste hors du checkout, n'est pas versionné et n'est pas affiché dans les journaux.
 Seul le compose Grafana consomme ce secret ; Prometheus reste démarrable indépendamment. N'exposez
 pas le port 3030 dans Nginx ou sur une interface publique.
@@ -47,10 +47,10 @@ pas le port 3030 dans Nginx ou sur une interface publique.
 
 ```zsh
 # Le workflow de déploiement production provisionne le secret puis démarre
-# Prometheus et Grafana via sokar-deploy-root. Pour un diagnostic manuel :
-sudo /usr/local/sbin/sokar-deploy-root start-prometheus prod
+# Prometheus et Grafana via suppernote-deploy-root. Pour un diagnostic manuel :
+sudo /usr/local/sbin/suppernote-deploy-root start-prometheus prod
 # Grafana requiert GRAFANA_ADMIN_PASSWORD, synchronisé par le workflow de production.
-sudo /usr/local/sbin/sokar-deploy-root start-grafana prod
+sudo /usr/local/sbin/suppernote-deploy-root start-grafana prod
 ```
 
 Prometheus conserve 30 jours de séries (`prometheus-data`), Grafana ses dashboards et son état
@@ -94,6 +94,40 @@ dans le dépôt. Dépendances locales : `ffmpeg`, `numpy`.
 appel) : ce que l'appelant a réellement dit (à comparer à la transcription du
 direct), son ton, la diction de l'agent et les incompréhensions. Ses
 horodatages sont approximatifs ; la chronologie mesurée fait foi.
+
+## Sentry : vérification sur staging (dashboard et Connect)
+
+À faire après le premier déploiement staging qui porte les secrets `SENTRY_DSN_DASHBOARD`,
+`SENTRY_DSN_CONNECT` et `SENTRY_AUTH_TOKEN` (liste et rôle : `docs/runbooks/environment.md`).
+Le journal de déploiement ne doit contenir aucune valeur de DSN ni de jeton.
+
+1. **Préparation (VPS staging, sans afficher de valeur)**
+   - `grep -c '^SENTRY_ENVIRONMENT=staging$' /opt/suppernote-staging/apps/{dashboard,connect}/.env` → `1`
+     pour chacun ; `grep -c '^NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging$' …/apps/dashboard/.env` → `1`.
+   - `ls /opt/suppernote-staging/apps/{dashboard,connect}/.next/server/instrumentation.js` : le fichier
+     existe (absent = `instrumentation.ts` hors de `src/`, Sentry serveur inactif).
+   - Journal de build : pas de ligne `[sentry] upload des source maps échoué`. Sinon le jeton est
+     invalide ou n'a pas les droits sur l'organisation `suppernote`.
+2. **Dashboard, navigateur** : sur `https://staging.suppernote.com/dashboard`, console du navigateur :
+   `setTimeout(() => { throw new Error('Test Sentry dashboard staging') })`. La requête
+   `POST /monitoring?…` répond 200. Dans Sentry, projet `suppernote-dashboard`, l'issue
+   apparaît avec `environment: staging`. Refaire depuis `/r` : **aucune** issue ne doit
+   apparaître (SDK désactivé sur les liens de réservation).
+3. **Dashboard, serveur** : sur le VPS, depuis `apps/dashboard`, avec le `.env` chargé
+   (`set -a; . ./.env; set +a`), envoyer une erreur avec la même configuration que l'app :
+   `node -e "const S=require('@sentry/nextjs');S.init({dsn:process.env.SENTRY_DSN,environment:process.env.SENTRY_ENVIRONMENT});S.captureException(new Error('Test Sentry dashboard serveur staging'));S.flush(5000).then(()=>process.exit())"`.
+   L'issue arrive dans `suppernote-dashboard` avec `environment: staging`. Ce test valide le DSN,
+   le projet et l'environnement ; le chargement réel de `instrumentation.ts` est couvert par
+   l'étape 1 et par les tests unitaires.
+4. **Connect** : même commande depuis `apps/connect` (message `Test Sentry connect staging`),
+   issue attendue dans `suppernote-connect` avec `environment: staging`. Le navigateur de
+   Connect n'est pas instrumenté : rien à tester côté client.
+5. **Source maps** : dans Sentry, `Settings → Source Maps` de chaque projet, la release du
+   déploiement (hash du snapshot staging) liste des artefacts. La première vraie erreur du
+   dashboard doit afficher des fichiers sources et non `main-xxxx.js`. Les erreurs de test
+   ci-dessus ne le démontrent pas (elles viennent de la console ou d'un script).
+6. **Nettoyage** : résoudre les issues de test dans Sentry. Ne rien déployer en production
+   avant validation de Hamza.
 
 ## Limites connues
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Jeu de test de comportements du tour structuré : prompt courant → modèle de production → seuils.
 # Compose les requêtes ici, les rejoue sur le VPS (la clé y reste), note ici. ~2 minutes, quelques centimes.
-#   scripts/ops/voice-behavior-eval.sh [hôte-ssh]      (défaut : sokar)
+#   scripts/ops/voice-behavior-eval.sh [hôte-ssh]      (défaut : suppernote)
 #   VBE_SUITE=default|perturb|all   suite rejouée (défaut : default ; perturb = variantes dégradées générées, informatives)
 #   VBE_JSON_OUT=fichier.json       écrit aussi les résultats et indicateurs (chemin absolu, hors du dépôt). Pour juger une modification : rejeu A/B, voir voice-behavior-ab.sh
 # Une seule clé Cerebras (CEREBRAS_API_KEY) : le rejeu consomme le crédit des appels réels. Seul garde-fou :
 # plafond de 150 requêtes (VBE_MAX_REQUESTS), ~3,4 k tokens chacune ; vérifier le solde avant de lancer.
 set -euo pipefail
-HOST="${1:-sokar}"
+HOST="${1:-suppernote}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"; ssh "$HOST" "rm -f /tmp/vbe-requests.json /tmp/vbe-replay.mjs" 2>/dev/null || true' EXIT

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Écoute un appel enregistré : télécharge le MP3 (VPS, lecture seule), isole la piste de l'agent (canal droit),
 # mesure les pauses, puis demande à un modèle audio (Gemini via OpenRouter, ~0,06 $ par appel) de décrire la voix.
-# Usage : listen-call.sh <callId> [dossier de sortie]. Nécessite ssh sokar, ffmpeg et OPENROUTER_API_KEY dans apps/api/.env.
+# Usage : listen-call.sh <callId> [dossier de sortie]. Nécessite ssh suppernote, ffmpeg et OPENROUTER_API_KEY dans apps/api/.env.
 set -euo pipefail
 CALL_ID="${1:?callId}"; OUT="${2:-$(mktemp -d)}"; HERE="$(cd "$(dirname "$0")" && pwd)"
 [[ "$CALL_ID" =~ ^[0-9a-f-]{36}$ ]] || { echo "callId invalide" >&2; exit 1; }
-KEY=$(ssh sokar "cd /opt/sokar/apps/api && set -a && . ./.env >/dev/null 2>&1; psql \"\${DATABASE_URL%%\\?*}\" -At -c \"select recording_storage_key from calls where id='$CALL_ID' and recording_status='AVAILABLE'\"")
+KEY=$(ssh suppernote "cd /opt/suppernote/apps/api && set -a && . ./.env >/dev/null 2>&1; psql \"\${DATABASE_URL%%\\?*}\" -At -c \"select recording_storage_key from calls where id='$CALL_ID' and recording_status='AVAILABLE'\"")
 [ -n "$KEY" ] || { echo "pas d'enregistrement disponible" >&2; exit 1; }
-ssh sokar "cd /opt/sokar/apps/api && timeout 60 node -e '
+ssh suppernote "cd /opt/suppernote/apps/api && timeout 60 node -e '
 const {S3Client,GetObjectCommand}=require(\"@aws-sdk/client-s3\");require(\"dotenv\").config({path:\".env\"});const e=process.env;
 new S3Client({region:\"auto\",endpoint:e.CALL_RECORDINGS_ENDPOINT,forcePathStyle:true,credentials:{accessKeyId:e.CALL_RECORDINGS_ACCESS_KEY_ID,secretAccessKey:e.CALL_RECORDINGS_SECRET_ACCESS_KEY}})
 .send(new GetObjectCommand({Bucket:e.CALL_RECORDINGS_BUCKET,Key:\"$KEY\"})).then(async r=>{process.stdout.write(Buffer.from(await r.Body.transformToByteArray()),()=>process.exit(0))}).catch(x=>{console.error(x.message);process.exit(1)})'" > "$OUT/call.mp3"

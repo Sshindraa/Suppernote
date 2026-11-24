@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TMP_ROOT="$(mktemp -d /tmp/suppernote-deploy-test.XXXXXX)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
-SOKAR_ROOT="$TMP_ROOT"
+SUPPERNOTE_ROOT="$TMP_ROOT"
 DEPLOY_ENV="staging"
 source "$ROOT/scripts/ops/logging.sh"
 source "$ROOT/scripts/ops/deploy-common.sh"
@@ -93,24 +93,24 @@ cleanup_previous_next_builds
 test -d "$TMP_ROOT/apps/dashboard/.next-deploy-fixture2-dashboard"
 
 # Élagage des vieux dossiers de build : garde les 2 plus récents et la cible active de `.next`.
-SOKAR_ROOT_BEFORE_PRUNE="$SOKAR_ROOT"
-SOKAR_ROOT="$TMP_ROOT/prune"
+SUPPERNOTE_ROOT_BEFORE_PRUNE="$SUPPERNOTE_ROOT"
+SUPPERNOTE_ROOT="$TMP_ROOT/prune"
 for app in dashboard connect; do
-  mkdir -p "$SOKAR_ROOT/apps/$app"
+  mkdir -p "$SUPPERNOTE_ROOT/apps/$app"
   for stamp in 20260101T000000Z 20260102T000000Z 20260103T000000Z 20260104T000000Z 20260105T000000Z; do
-    mkdir -p "$SOKAR_ROOT/apps/$app/.next-deploy-$stamp-1-$app"
+    mkdir -p "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-$stamp-1-$app"
   done
-  ln -s ".next-deploy-20260101T000000Z-1-$app" "$SOKAR_ROOT/apps/$app/.next"
+  ln -s ".next-deploy-20260101T000000Z-1-$app" "$SUPPERNOTE_ROOT/apps/$app/.next"
 done
 prune_stale_next_builds 2
 for app in dashboard connect; do
-  test -d "$SOKAR_ROOT/apps/$app/.next-deploy-20260105T000000Z-1-$app"
-  test -d "$SOKAR_ROOT/apps/$app/.next-deploy-20260104T000000Z-1-$app"
-  test -d "$SOKAR_ROOT/apps/$app/.next-deploy-20260101T000000Z-1-$app"
-  test ! -e "$SOKAR_ROOT/apps/$app/.next-deploy-20260103T000000Z-1-$app"
-  test ! -e "$SOKAR_ROOT/apps/$app/.next-deploy-20260102T000000Z-1-$app"
+  test -d "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-20260105T000000Z-1-$app"
+  test -d "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-20260104T000000Z-1-$app"
+  test -d "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-20260101T000000Z-1-$app"
+  test ! -e "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-20260103T000000Z-1-$app"
+  test ! -e "$SUPPERNOTE_ROOT/apps/$app/.next-deploy-20260102T000000Z-1-$app"
 done
-SOKAR_ROOT="$SOKAR_ROOT_BEFORE_PRUNE"
+SUPPERNOTE_ROOT="$SUPPERNOTE_ROOT_BEFORE_PRUNE"
 
 # Types générés par un build précédent : supprimés avant le build suivant, sans toucher au reste du
 # build servi (ici `.next` est un lien vers le dernier build activé, comme sur le VPS).
@@ -140,7 +140,7 @@ COMMIT_V1="$(git -C "$DEPS_REPO" rev-parse HEAD)"
 printf 'lockfileVersion: v2\n' > "$DEPS_REPO/pnpm-lock.yaml"
 git -C "$DEPS_REPO" -c user.name=test -c user.email=test@example.com commit -q -am v2
 (
-  SOKAR_ROOT="$DEPS_REPO"
+  SUPPERNOTE_ROOT="$DEPS_REPO"
   snapshot_dependencies "$TMP_ROOT/release-v1" "$COMMIT_V1"
 )
 test "$(cat "$TMP_ROOT/release-v1/deps/pnpm-lock.yaml")" = 'lockfileVersion: v1'
@@ -150,14 +150,14 @@ test -f "$TMP_ROOT/release-v1/deps/packages/config/package.json"
 test ! -e "$TMP_ROOT/release-v1/deps/apps/api/src/index.ts"
 mkdir -p "$TMP_ROOT/restore-root"
 (
-  SOKAR_ROOT="$TMP_ROOT/restore-root"
+  SUPPERNOTE_ROOT="$TMP_ROOT/restore-root"
   restore_release_manifests "$TMP_ROOT/release-v1"
 )
 test "$(cat "$TMP_ROOT/restore-root/pnpm-lock.yaml")" = 'lockfileVersion: v1'
 test -f "$TMP_ROOT/restore-root/apps/api/package.json"
 
 # Redémarrages PM2 : une seule fois par app remplacée, l'API seulement si elle a changé.
-PM2_API=sokar-api PM2_WORKERS=sokar-workers PM2_DASH=sokar-dashboard PM2_CONNECT=sokar-connect
+PM2_API=suppernote-api PM2_WORKERS=suppernote-workers PM2_DASH=suppernote-dashboard PM2_CONNECT=suppernote-connect
 ECOSYSTEM_FILE=eco.js PRIVILEGED_WRAPPER=/bin/true HAS_LOCALSTACK=false
 PM2_CALLS="$TMP_ROOT/pm2-calls.log"
 PM2_DOWN=""
@@ -174,10 +174,10 @@ NEXT_BUILD_ACTIVATED_DASHBOARD=false NEXT_BUILD_ACTIVATED_CONNECT=false NEED_API
 test "$(cat "$PM2_CALLS")" = 'pm2 save'
 : > "$PM2_CALLS"
 NEXT_BUILD_ACTIVATED_DASHBOARD=true NEXT_BUILD_ACTIVATED_CONNECT=false NEED_API=false restart_services >/dev/null
-test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 stop sokar-dashboard\npm2 start eco.js --only sokar-dashboard\npm2 save')"
+test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 stop suppernote-dashboard\npm2 start eco.js --only suppernote-dashboard\npm2 save')"
 : > "$PM2_CALLS"
 NEXT_BUILD_ACTIVATED_DASHBOARD=false NEXT_BUILD_ACTIVATED_CONNECT=false NEED_API=true restart_services >/dev/null
-test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only sokar-api\npm2 start eco.js --only sokar-workers\npm2 save')"
+test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only suppernote-api\npm2 start eco.js --only suppernote-workers\npm2 save')"
 
 # Appels vocaux en cours : le remplacement de l'API attend leur fin, puis part ; au-delà du délai, il part quand même.
 VOICE_POLLS="$TMP_ROOT/voice-polls.log"
@@ -205,17 +205,17 @@ unset -f curl
 unset PORT_API VOICE_DRAIN_POLL_SECONDS
 
 # Une app absente (pm2 delete, plantage) est relancée même sans changement de code.
-PM2_DOWN=sokar-api
+PM2_DOWN=suppernote-api
 : > "$PM2_CALLS"
 NEXT_BUILD_ACTIVATED_DASHBOARD=false NEXT_BUILD_ACTIVATED_CONNECT=false NEED_API=false restart_services >/dev/null
-test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only sokar-api\npm2 save')"
+test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only suppernote-api\npm2 save')"
 PM2_DOWN=""
 
 # Une modification de .env impose aussi le redémarrage sans changement de code.
 mkdir -p "$TMP_ROOT/apps/api"
 printf 'VALUE=before\n' > "$TMP_ROOT/apps/api/.env"
-SOKAR_ROOT="$TMP_ROOT"
-SOKAR_API_ENV_BEFORE="$(api_env_fingerprint "$SOKAR_ROOT/apps/api/.env")"
+SUPPERNOTE_ROOT="$TMP_ROOT"
+SOKAR_API_ENV_BEFORE="$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/api/.env")"
 NEXT_BUILD_ACTIVATED_DASHBOARD=false NEXT_BUILD_ACTIVATED_CONNECT=false
 : > "$PM2_CALLS"
 NEED_API=false restart_services >/dev/null
@@ -223,7 +223,7 @@ test "$(cat "$PM2_CALLS")" = 'pm2 save'
 printf 'VALUE=after\n' > "$TMP_ROOT/apps/api/.env"
 : > "$PM2_CALLS"
 NEED_API=false restart_services >/dev/null
-test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only sokar-api\npm2 start eco.js --only sokar-workers\npm2 save')"
+test "$(cat "$PM2_CALLS")" = "$(printf 'pm2 start eco.js --only suppernote-api\npm2 start eco.js --only suppernote-workers\npm2 save')"
 
 # Une dépendance modifiée reconstruit Dashboard et Connect ; un script seul, non.
 DETECT_REPO="$TMP_ROOT/detect-repo"
@@ -240,12 +240,12 @@ DETECT_SCRIPT="$(git -C "$DETECT_REPO" rev-parse HEAD)"
 printf 'b\n' > "$DETECT_REPO/pnpm-lock.yaml"
 git -C "$DETECT_REPO" -c user.name=t -c user.email=t@t commit -qam lock
 DETECT_LOCK="$(git -C "$DETECT_REPO" rev-parse HEAD)"
-SOKAR_ROOT="$TMP_ROOT/detect-root"
-mkdir -p "$SOKAR_ROOT/apps/dashboard/.next/standalone/apps/dashboard" \
-  "$SOKAR_ROOT/apps/connect/.next/standalone/apps/connect" "$SOKAR_ROOT/apps/api/dist"
-touch "$SOKAR_ROOT/apps/dashboard/.next/standalone/apps/dashboard/server.js" \
-  "$SOKAR_ROOT/apps/connect/.next/standalone/apps/connect/server.js" \
-  "$SOKAR_ROOT/apps/api/dist/main.js"
+SUPPERNOTE_ROOT="$TMP_ROOT/detect-root"
+mkdir -p "$SUPPERNOTE_ROOT/apps/dashboard/.next/standalone/apps/dashboard" \
+  "$SUPPERNOTE_ROOT/apps/connect/.next/standalone/apps/connect" "$SUPPERNOTE_ROOT/apps/api/dist"
+touch "$SUPPERNOTE_ROOT/apps/dashboard/.next/standalone/apps/dashboard/server.js" \
+  "$SUPPERNOTE_ROOT/apps/connect/.next/standalone/apps/connect/server.js" \
+  "$SUPPERNOTE_ROOT/apps/api/dist/main.js"
 cd "$DETECT_REPO"
 detect_changed_apps "$DETECT_BASE" "$DETECT_SCRIPT" >/dev/null
 test "$NEED_DASHBOARD" = false
@@ -253,6 +253,29 @@ test "$NEED_CONNECT" = false
 detect_changed_apps "$DETECT_SCRIPT" "$DETECT_LOCK" >/dev/null
 test "$NEED_DASHBOARD" = true
 test "$NEED_CONNECT" = true
+
+# Un .env Dashboard/Connect modifié reconstruit l'app concernée, même sans changement de code
+# (les NEXT_PUBLIC_* sont inlinées au build) ; un .env identique ne déclenche rien.
+mkdir -p "$SUPPERNOTE_ROOT/apps/dashboard" "$SUPPERNOTE_ROOT/apps/connect"
+printf 'NEXT_PUBLIC_SENTRY_ENVIRONMENT=staging\n' > "$SUPPERNOTE_ROOT/apps/dashboard/.env"
+printf 'SENTRY_ENVIRONMENT=staging\n' > "$SUPPERNOTE_ROOT/apps/connect/.env"
+SOKAR_DASHBOARD_ENV_BEFORE="$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/dashboard/.env")"
+SOKAR_CONNECT_ENV_BEFORE="$(api_env_fingerprint "$SUPPERNOTE_ROOT/apps/connect/.env")"
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = true
+test "$NEED_DASHBOARD" = false
+test "$NEED_CONNECT" = false
+printf 'NEXT_PUBLIC_SENTRY_ENVIRONMENT=production\n' > "$SUPPERNOTE_ROOT/apps/dashboard/.env"
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = false
+test "$NEED_DASHBOARD" = true
+test "$NEED_CONNECT" = false
+printf 'SENTRY_ENVIRONMENT=production\n' > "$SUPPERNOTE_ROOT/apps/connect/.env"
+detect_changed_apps "$DETECT_SCRIPT" "$DETECT_LOCK" >/dev/null
+test "$NEED_CONNECT" = true
+unset SOKAR_DASHBOARD_ENV_BEFORE SOKAR_CONNECT_ENV_BEFORE
+detect_changed_apps "$DETECT_LOCK" "$DETECT_LOCK" >/dev/null
+test "$SKIP_ALL_BUILDS" = true
 cd - >/dev/null
 
 echo 'deploy-common release activation/rollback: OK'

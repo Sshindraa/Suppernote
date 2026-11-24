@@ -38,7 +38,7 @@ BRANCH="main"
 COMMAND="deploy"
 WITH_DB_ROLLBACK=false
 TARGET_RELEASE=""
-PRIVILEGED_WRAPPER="/usr/local/sbin/sokar-deploy-root"
+PRIVILEGED_WRAPPER="/usr/local/sbin/suppernote-deploy-root"
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
 
 # ── Source libs ──────────────────────────────────────────
@@ -56,8 +56,8 @@ print_usage() {
 Usage: bash scripts/deploy.sh --env prod|staging [options] [command] [branch]
 
 Environments:
-  --env prod       Déploiement production (/opt/sokar)
-  --env staging    Déploiement staging (/opt/sokar-staging)
+  --env prod       Déploiement production (/opt/suppernote)
+  --env staging    Déploiement staging (/opt/suppernote-staging)
 
 Commands:
   deploy           Déploiement complet (défaut)
@@ -94,7 +94,7 @@ DATE=$(date '+%Y-%m-%d %H:%M:%S')
 
 # ── Lock anti-déploiements concurrents ───────────────────
 # Placé après le source des libs (pour log_error) et avant toute opération.
-LOCK_FILE="/tmp/sokar-deploy-${DEPLOY_ENV}.lock"
+LOCK_FILE="/tmp/suppernote-deploy-${DEPLOY_ENV}.lock"
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
     log_error "Un déploiement ${DEPLOY_ENV} est déjà en cours (lock: $LOCK_FILE)"
@@ -113,7 +113,7 @@ fi
 # requiert que ses portes CLOSED et vérifie que les flags différés restent
 # désactivés ; sans profil, toutes les portes doivent être CLOSED.
 if [ "$DEPLOY_ENV" = "prod" ] && [ "$COMMAND" = "deploy" ]; then
-    if ! DEPLOY_ENV="$DEPLOY_ENV" node "$SOKAR_ROOT/scripts/verify-product-gates.mjs"; then
+    if ! DEPLOY_ENV="$DEPLOY_ENV" node "$SUPPERNOTE_ROOT/scripts/verify-product-gates.mjs"; then
         log_error "Déploiement production refusé : le profil de release ou ses portes ne sont pas valides."
         exit 3
     fi
@@ -131,19 +131,19 @@ fi
 # Commande DEPLOY
 # ══════════════════════════════════════════════════════════
 log_section "Suppernote ${DEPLOY_ENV^} Deploy $DATE"
-log info "Root: $SOKAR_ROOT"
+log info "Root: $SUPPERNOTE_ROOT"
 log info "Branch: $BRANCH"
 [ "$DRY_RUN" = true ] && log warn "Mode: DRY-RUN (pas de restart ni migrations)"
 
 # ── 1. Hostname check ────────────────────────────────────
-# Vérifier qu'on est sur le VPS (accepte pmbtc et sokar — transition FRA VPS)
+# Vérifier qu'on est sur le VPS (accepte suppernote, sokar (ancien nom, avant renommage palier 1) et pmbtc — transition FRA VPS)
 HOSTNAME=$(hostname)
-if [ "$HOSTNAME" != "sokar" ] && [ "$HOSTNAME" != "pmbtc" ]; then
-    log_error "Ce script s'exécute uniquement sur le VPS (sokar/pmbtc)"
+if [ "$HOSTNAME" != "suppernote" ] && [ "$HOSTNAME" != "sokar" ] && [ "$HOSTNAME" != "pmbtc" ]; then
+    log_error "Ce script s'exécute uniquement sur le VPS (suppernote/sokar/pmbtc)"
     exit 1
 fi
 
-cd "$SOKAR_ROOT"
+cd "$SUPPERNOTE_ROOT"
 ensure_privileged_wrapper
 
 # ── 2. Swap check ────────────────────────────────────────

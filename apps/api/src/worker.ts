@@ -1,5 +1,5 @@
 /**
- * Point d'entrée du process workers (PM2 `sokar-workers`).
+ * Point d'entrée du process workers (PM2 `suppernote-workers`).
  *
  * Ce process ne sert aucun HTTP : il consomme les files BullMQ et porte
  * l'inscription des jobs récurrents. Séparer les deux topologies évite qu'un

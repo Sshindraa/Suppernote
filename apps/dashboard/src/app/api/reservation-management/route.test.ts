@@ -97,7 +97,7 @@ describe('reservation management proxy', () => {
     expect(await response.text()).not.toContain('private credential');
   });
 
-  it.each(['sokar-staging'])('keeps %s personal routes on the dashboard', (name) => {
+  it.each(['suppernote-staging'])('keeps %s personal routes on the dashboard', (name) => {
     const config = readFileSync(`../../infra/nginx/${name}.conf`, 'utf8');
     for (const path of ['/r', '/api/reservation-management']) {
       const block = config.split(`location = ${path} {`)[1]?.split('}')[0];

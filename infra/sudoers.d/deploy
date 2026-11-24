@@ -3,4 +3,7 @@
 #
 # The wrapper validates the environment and action before performing the
 # narrowly-scoped privileged deployment operations.
+# Transition renommage sokar → suppernote (palier 1) : les deux chemins sont autorisés ;
+# l'ancien (lien vers le nouveau) sera retiré une fois le renommage serveur stabilisé.
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/suppernote-deploy-root *
 deploy ALL=(root) NOPASSWD: /usr/local/sbin/sokar-deploy-root *

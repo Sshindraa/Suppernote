@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Privileged helper called only by sokar-deploy-root configure-grafana.
+# Privileged helper called only by suppernote-deploy-root configure-grafana.
 # Reads GRAFANA_ADMIN_PASSWORD over stdin as KEY<TAB>VALUE and atomically
 # updates the root-only monitoring env file without putting the value in
 # command arguments or output.

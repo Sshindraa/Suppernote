@@ -7,7 +7,7 @@
  * lit le WAV sur stdin et ne renvoie que la réponse de Deepgram). Sert à valider le rapport sur des
  * appels déjà enregistrés avant d'activer le déclenchement automatique.
  *
- *   pnpm --filter @suppernote/api exec tsx scripts/call-report-local.ts <début-de-l-id-d-appel> [--out dossier] [--host deploy@sokar]
+ *   pnpm --filter @suppernote/api exec tsx scripts/call-report-local.ts <début-de-l-id-d-appel> [--out dossier] [--host deploy@suppernote]
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -29,7 +29,7 @@ const flag = (name: string, fallback: string): string => {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 };
 const selector = args[0] && !args[0].startsWith('--') ? args[0] : undefined;
-const host = flag('--host', process.env.SOKAR_SSH_HOST ?? 'deploy@sokar');
+const host = flag('--host', process.env.SOKAR_SSH_HOST ?? 'deploy@suppernote');
 const outRoot = flag('--out', path.join(os.tmpdir(), 'sokar-call-reports'));
 if (!selector) throw new Error('Usage : call-report-local.ts <début-de-l-id-d-appel>');
 
@@ -91,7 +91,7 @@ function fetchLogLines(createdAt: string, durationSec: number): string[] {
   for (let at = start; at <= end; at += 30_000)
     minutes.add(new Date(at).toISOString().slice(0, 16));
   const patterns = [...minutes].map((minute) => `-e '"time":"${minute}'`).join(' ');
-  const command = `cd /var/log/sokar && (zcat -f api-out.log.*.gz 2>/dev/null; cat api-out.log.1 api-out.log 2>/dev/null) | grep -F ${patterns} || true`;
+  const command = `cd /var/log/suppernote && (zcat -f api-out.log.*.gz 2>/dev/null; cat api-out.log.1 api-out.log 2>/dev/null) | grep -F ${patterns} || true`;
   return ssh(command).toString().split('\n').filter(Boolean);
 }
 
@@ -107,7 +107,7 @@ const transcribe: Transcriber = async (wav, engine) => {
   if (!refresh && existsSync(cached)) {
     return parseDeepgramResponse(engine, JSON.parse(readFileSync(cached, 'utf8')));
   }
-  const remote = `cd /opt/sokar/apps/api && node --env-file=.env ${REMOTE_DEEPGRAM_FILE} '${engineQuery(engine)}'`;
+  const remote = `cd /opt/suppernote/apps/api && node --env-file=.env ${REMOTE_DEEPGRAM_FILE} '${engineQuery(engine)}'`;
   const reply = JSON.parse(ssh(remote, Buffer.from(wav)).toString()) as {
     status: number;
     body: string;
@@ -121,7 +121,7 @@ const transcribe: Transcriber = async (wav, engine) => {
 
 async function main(): Promise<void> {
   const raw = ssh(
-    `cd /opt/sokar/apps/api && node --env-file=.env -e "$(cat)" ${selector}`,
+    `cd /opt/suppernote/apps/api && node --env-file=.env -e "$(cat)" ${selector}`,
     Buffer.from(REMOTE_FETCH),
   );
   const newline = raw.indexOf(10);
@@ -144,7 +144,10 @@ async function main(): Promise<void> {
   let turns: ReportTurnRow[] = [];
   try {
     const detail = JSON.parse(
-      ssh(`cd /opt/sokar/apps/api && bash -s -- ${call.id}`, Buffer.from(REMOTE_TURNS)).toString(),
+      ssh(
+        `cd /opt/suppernote/apps/api && bash -s -- ${call.id}`,
+        Buffer.from(REMOTE_TURNS),
+      ).toString(),
     ) as {
       turns?: ReportTurnRow[];
     };

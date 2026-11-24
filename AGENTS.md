@@ -4,7 +4,7 @@ description: Sokar project context for Hermes CLI agents
 
 # Suppernote Agent Context
 
-Suppernote (formerly Sokar; private workspace packages use `@suppernote/*` and production still uses `/opt/sokar`) is a French-first restaurant platform: reservations on every channel (phone, web, widget, AI assistants via MCP), service organisation (floor plan, Service Copilot) and customer relationship (CRM, loyalty, gift cards, experiences). The AI voice agent is one feature, not the product definition. Brand: "Le chef de rang numérique de votre restaurant" (`packages/shared/src/brand.ts`); product scope and readiness: `docs/PROJECT_MAP.md#ce-quest-sokar`.
+Suppernote (formerly Sokar; private workspace packages use `@suppernote/*` and the production server uses `/opt/suppernote` since the sokar → suppernote server rename of 2026-11-24, palier 1: paths, PM2 names, nginx, cron, sbin wrappers; databases, roles, buckets and env variables keep the `sokar` name, palier 2 pending Hamza) is a French-first restaurant platform: reservations on every channel (phone, web, widget, AI assistants via MCP), service organisation (floor plan, Service Copilot) and customer relationship (CRM, loyalty, gift cards, experiences). The AI voice agent is one feature, not the product definition. Brand: "Le chef de rang numérique de votre restaurant" (`packages/shared/src/brand.ts`); product scope and readiness: `docs/PROJECT_MAP.md#ce-quest-sokar`.
 Keep this file short. Detailed docs are in `docs/runbooks/` and `docs/architecture/`.
 
 ## Stack
@@ -134,7 +134,7 @@ Safe path: `redactPii()`.
 - **Staging:** deploys automatically after a green CI and its smoke tests.
 - **Production:** autonomous deployment is authorized once CI and staging are green. Keep the release snapshot, health checks and rollback path; flag any DB migration, payment, auth, voice, or critical config change in commentary, but do not wait for a separate confirmation.
 - **Rollback:** application rollback restores artefacts only by default. Add `--with-db-rollback` to `scripts/deploy.sh --env prod|staging rollback` to also restore the Postgres backup timestamped in the release directory. See `docs/runbooks/rollback.md`.
-- **Deploy account:** privileged operations use `/usr/local/sbin/sokar-deploy-root`. The `deploy` account is not in `sudo` or `docker` groups.
+- **Deploy account:** privileged operations use `/usr/local/sbin/suppernote-deploy-root` (old path `/usr/local/sbin/sokar-deploy-root` kept as a link for a few days after the 2026-11-24 rename). The `deploy` account is not in `sudo` or `docker` groups.
 - **Secrets:** never commit secrets. Use env vars (`key_env` convention = secrets live in environment variables, never in code).
 
 ## Where to look
@@ -148,8 +148,8 @@ Safe path: `redactPii()`.
 ## Environment
 
 - **Dev:** `.env.local` (root), `packages/database/.env`, per-app `.env`.
-- **Staging:** `https://staging.suppernote.com` / `api-staging.suppernote.com` on VPS `sokar`.
-- **Prod:** `https://suppernote.com` / `api.suppernote.com` on VPS `sokar`.
+- **Staging:** `https://staging.suppernote.com` / `api-staging.suppernote.com` on VPS `suppernote` (ex-`sokar`, renamed 2026-11-24).
+- **Prod:** `https://suppernote.com` / `api.suppernote.com` on VPS `suppernote` (ex-`sokar`, renamed 2026-11-24).
 - One `.env` per app, no `.env.prod`. `NEXT_PUBLIC_*` is baked at build time.
 - See `docs/runbooks/environment.md` for details.
 

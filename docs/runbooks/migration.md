@@ -138,8 +138,8 @@ Le rollback applicatif ne restaure **pas** la base : il ne remet en place que
 les artefacts. Une migration déjà appliquée reste appliquée.
 
 ```zsh
-ssh deploy@sokar
-cd /opt/sokar
+ssh deploy@suppernote
+cd /opt/suppernote
 bash scripts/deploy.sh --env prod --confirm-production rollback
 bash scripts/deploy.sh --env prod --confirm-production rollback --with-db-rollback
 ```
@@ -164,8 +164,8 @@ sont absents de l'hôte), et le wrapper n'exposait aucune action de restauration
 avant le 22 septembre 2026 — l'exercice était donc documenté mais inexécutable.
 
 ```zsh
-ssh deploy@sokar
-/usr/bin/time -p sudo /usr/local/sbin/sokar-deploy-root restore-test prod
+ssh deploy@suppernote
+/usr/bin/time -p sudo /usr/local/sbin/suppernote-deploy-root restore-test prod
 ```
 
 Le script résout lui-même `RCLONE_CONFIG` vers la configuration du compte

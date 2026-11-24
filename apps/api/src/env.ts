@@ -333,8 +333,8 @@ const EnvSchema = z
     CALL_RECORDING_ENABLED: z.enum(['true', 'false']).default('false'),
     // Topologie d'exécution : en développement l'API porte aussi les workers
     // pour que `pnpm dev` reste utilisable seul. En production, l'écosystème PM2
-    // force `false` sur `sokar-api` et les workers tournent dans `dist/worker.js`
-    // (PM2 `sokar-workers`). Cf. docs/PROJECT_MAP.md.
+    // force `false` sur `suppernote-api` et les workers tournent dans `dist/worker.js`
+    // (PM2 `suppernote-workers`). Cf. docs/PROJECT_MAP.md.
     RUN_WORKERS_IN_PROCESS: z.enum(['true', 'false']).default('true'),
     // Anonymisation RGPD (rétention 2 ans) : opération destructive, jamais
     // exécutée en production. Le worker et son scheduler existent, mais le job
@@ -345,7 +345,7 @@ const EnvSchema = z
     // Rapport automatique de chaque appel enregistré (docs/runbooks/call-reports.md).
     // Plafond du nombre de rapports générés (coût Deepgram) ; absent = illimité.
     CALL_REPORT_MAX_REPORTS: z.coerce.number().int().positive().optional(),
-    // Dossier des journaux de l'API lus par le worker pour le rapport (défaut /var/log/sokar).
+    // Dossier des journaux de l'API lus par le worker pour le rapport (défaut /var/log/suppernote).
     CALL_REPORT_LOG_DIR: z.string().optional(),
     CALL_RECORDINGS_BUCKET: z.string().min(1).optional(),
     CALL_RECORDINGS_REGION: z.string().default('eu-west-3'),

@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs/config');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -37,13 +39,32 @@ const nextConfig = {
     ],
   },
   // Server Actions : allowedOrigins est auto-détecté en Next 15.
-  // parallelServerBuildTraces: true — parallélise le tracing sur 2 cores.
+  // parallelServerBuildTraces: true — parallélise le tracing sur 2 cores. Désactivé quand
+  // Sentry enveloppe la config (SENTRY_AUTH_TOKEN) : le plugin webpack retire le build
+  // worker dont cette option dépend, et le build échoue sinon.
   experimental: {
-    parallelServerBuildTraces: true,
+    parallelServerBuildTraces: !process.env.SENTRY_AUTH_TOKEN,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
 };
 
-module.exports = nextConfig;
+// Sentry : upload des source maps au build, seulement si SENTRY_AUTH_TOKEN est fourni
+// (Organization token injecté par le workflow de déploiement, jamais écrit dans un
+// .env). Pas de tunnel navigateur : Connect n'initialise Sentry que côté serveur.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+
+module.exports = sentryAuthToken
+  ? withSentryConfig(nextConfig, {
+      org: 'suppernote',
+      project: 'suppernote-connect',
+      silent: true,
+      widenClientFileUpload: true,
+      webpack: { treeshake: { removeDebugLogging: true } },
+      // Un upload en échec ne doit pas bloquer un déploiement.
+      errorHandler: (error) => {
+        process.stderr.write(`[sentry] upload des source maps échoué : ${error.message}\n`);
+      },
+    })
+  : nextConfig;

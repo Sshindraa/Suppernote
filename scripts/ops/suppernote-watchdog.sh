@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Watchdog Suppernote — exécuté toutes les 5 minutes par cron (/etc/cron.d/sokar-watchdog).
+# Watchdog Suppernote — exécuté toutes les 5 minutes par cron (/etc/cron.d/suppernote-watchdog).
 #
 # Détecte ce que le monitoring in-app (worker system-health) ne peut pas voir :
 #   - API, dashboard ou Suppernote Connect indisponibles
@@ -21,31 +21,31 @@
 # ping déclenche l'alerte externe. C'est le seul mécanisme qui couvre la
 # panne complète du serveur — Suppernote ne peut pas s'auto-alerter dans ce cas.
 #
-# Configuration : /etc/sokar/watchdog.env (sourcé si présent) :
+# Configuration : /etc/suppernote/watchdog.env (sourcé si présent) :
 #   ALERT_WEBHOOK="https://hooks.slack.com/..." ou webhook Discord
 #   ALERT_CMD="/usr/local/bin/ma-commande-alerte"
 #   HEALTHCHECKS_PING_URL="https://hc-ping.com/<uuid>"
 #
-# Installation : /usr/local/sbin/sokar-deploy-root install-runtime prod
-#   (installe ce script dans /usr/local/sbin/sokar-watchdog et le cron
-#   /etc/cron.d/sokar-watchdog).
+# Installation : /usr/local/sbin/suppernote-deploy-root install-runtime prod
+#   (installe ce script dans /usr/local/sbin/suppernote-watchdog et le cron
+#   /etc/cron.d/suppernote-watchdog).
 
 set -uo pipefail
 
 # Charge les helpers partagés (notify, log_*).
-# En production ce script est installé standalone (/usr/local/sbin/sokar-watchdog) ;
+# En production ce script est installé standalone (/usr/local/sbin/suppernote-watchdog) ;
 # en dev il est lancé depuis le repo (scripts/ops/). On détecte le layout.
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 if [ -f "$SCRIPT_DIR/../ops/logging.sh" ]; then
   HELPERS_DIR="$SCRIPT_DIR/../ops"
 else
-  SOKAR_ROOT="${SOKAR_ROOT:-/opt/sokar}"
-  HELPERS_DIR="$SOKAR_ROOT/scripts/ops"
+  SUPPERNOTE_ROOT="${SUPPERNOTE_ROOT:-/opt/suppernote}"
+  HELPERS_DIR="$SUPPERNOTE_ROOT/scripts/ops"
 fi
 # shellcheck source=ops/logging.sh
 source "$HELPERS_DIR/logging.sh"
 
-ENV_FILE="${WATCHDOG_ENV_FILE:-/etc/sokar/watchdog.env}"
+ENV_FILE="${WATCHDOG_ENV_FILE:-/etc/suppernote/watchdog.env}"
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck source=/dev/null
@@ -58,12 +58,12 @@ DASHBOARD_URL="${WATCHDOG_DASHBOARD_URL:-http://127.0.0.1:3000}"
 CONNECT_URL="${WATCHDOG_CONNECT_URL:-http://127.0.0.1:4002}"
 REDIS_CONTAINER="${REDIS_CONTAINER:-infra-redis-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-infra-postgres-1}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/sokar}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/suppernote}"
 BACKUP_MAX_AGE_MIN="${BACKUP_MAX_AGE_MIN:-1560}" # 26 h
 DISK_WARN_PCT="${DISK_WARN_PCT:-80}"
 DISK_CRIT_PCT="${DISK_CRIT_PCT:-90}"
 MEM_CRIT_PCT="${MEM_CRIT_PCT:-90}" # % de mémoire utilisée
-STATE_DIR="${WATCHDOG_STATE_DIR:-/var/lib/sokar/watchdog}"
+STATE_DIR="${WATCHDOG_STATE_DIR:-/var/lib/suppernote/watchdog}"
 COOLDOWN_SECONDS="${WATCHDOG_COOLDOWN_SECONDS:-1800}"
 
 install -d -m 0750 "$STATE_DIR" 2>/dev/null || true
@@ -129,7 +129,7 @@ check_container() {
 check_backup() {
   if [ ! -d "$BACKUP_DIR" ]; then
     fail "backup" "CRITIQUE" \
-      "Répertoire de sauvegarde $BACKUP_DIR introuvable. Vérifier le cron sokar-postgres-backup et /usr/local/sbin/sokar-backup-postgres."
+      "Répertoire de sauvegarde $BACKUP_DIR introuvable. Vérifier le cron suppernote-postgres-backup et /usr/local/sbin/suppernote-backup-postgres."
     return 0
   fi
   local recent
@@ -138,7 +138,7 @@ check_backup() {
     ok "backup" "Sauvegarde Postgres"
   else
     fail "backup" "CRITIQUE" \
-      "Aucune sauvegarde Postgres depuis plus de $((BACKUP_MAX_AGE_MIN / 60))h dans $BACKUP_DIR. Vérifier : /var/log/sokar/postgres-backup.log, cron sokar-postgres-backup, espace disque."
+      "Aucune sauvegarde Postgres depuis plus de $((BACKUP_MAX_AGE_MIN / 60))h dans $BACKUP_DIR. Vérifier : /var/log/suppernote/postgres-backup.log, cron suppernote-postgres-backup, espace disque."
   fi
 }
 
@@ -148,11 +148,11 @@ check_backup() {
 # journal (pas de réseau toutes les 5 minutes) et on exige la ligne de succès,
 # car un échec précoce réécrit aussi le fichier.
 check_offsite_backup() {
-  local log="${OFFSITE_BACKUP_LOG:-/var/log/sokar/postgres-r2-backup.log}"
+  local log="${OFFSITE_BACKUP_LOG:-/var/log/suppernote/postgres-r2-backup.log}"
   local max_age="${OFFSITE_BACKUP_MAX_AGE_MIN:-1560}"
   if [ ! -f "$log" ]; then
     fail "offsite-backup" "CRITIQUE" \
-      "Journal de backup offsite introuvable ($log). Vérifier le cron sokar-r2-backup."
+      "Journal de backup offsite introuvable ($log). Vérifier le cron suppernote-r2-backup."
     return 0
   fi
   local recent last
@@ -162,7 +162,7 @@ check_offsite_backup() {
     ok "offsite-backup" "Backup offsite R2"
   else
     fail "offsite-backup" "CRITIQUE" \
-      "Backup offsite R2 absent ou en échec depuis plus de $((max_age / 60))h. Vérifier $log et le cron sokar-r2-backup."
+      "Backup offsite R2 absent ou en échec depuis plus de $((max_age / 60))h. Vérifier $log et le cron suppernote-r2-backup."
   fi
 }
 
@@ -174,7 +174,7 @@ check_disk() {
   fi
   if [ "$usage" -ge "$DISK_CRIT_PCT" ]; then
     fail "disk" "CRITIQUE" \
-      "Disque / à ${usage}% (seuil ${DISK_CRIT_PCT}%). Libérer : anciennes releases /opt/sokar/releases, dumps /var/backups/sokar, logs /var/log/sokar, docker system prune."
+      "Disque / à ${usage}% (seuil ${DISK_CRIT_PCT}%). Libérer : anciennes releases /opt/suppernote/releases, dumps /var/backups/suppernote, logs /var/log/suppernote, docker system prune."
   elif [ "$usage" -ge "$DISK_WARN_PCT" ]; then
     fail "disk" "WARNING" \
       "Disque / à ${usage}% (seuil d'attention ${DISK_WARN_PCT}%). Prévoir un nettoyage avant saturation."
@@ -193,7 +193,7 @@ check_memory() {
   used_pct=$(( (total - available) * 100 / total ))
   if [ "$used_pct" -ge "$MEM_CRIT_PCT" ]; then
     fail "memory" "CRITIQUE" \
-      "Mémoire utilisée à ${used_pct}% (disponible $((available / 1024)) Mo). Vérifier : pm2 status (fuites), free -m, redémarrage ciblé pm2 restart sokar-api si nécessaire."
+      "Mémoire utilisée à ${used_pct}% (disponible $((available / 1024)) Mo). Vérifier : pm2 status (fuites), free -m, redémarrage ciblé pm2 restart suppernote-api si nécessaire."
   else
     ok "memory" "Mémoire"
   fi

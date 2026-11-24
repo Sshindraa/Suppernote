@@ -11,7 +11,7 @@ const hasClerkKey = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 // Widget public, aussi servi sur les sous-domaines des restaurants : jamais de session Clerk.
 // Sans cela, un restaurateur connecté (cookie Clerk partagé avec *.suppernote.com) serait redirigé
 // vers la poignée de main Clerk, refusée hors de suppernote.com.
-// Même liste que le bloc des sous-domaines dans infra/nginx/sokar.conf.
+// Même liste que le bloc des sous-domaines dans infra/nginx/suppernote.conf.
 const PUBLIC_WIDGET_ROUTE =
   /^\/(?:(?:widget|book)\/[^/]+|api\/proxy\/(?:public\/.+|marketing\/attribution\/click|restaurants\/[^/]+\/(?:public|availability)))$/;
 
@@ -99,7 +99,9 @@ export default proxy;
 
 export const config = {
   matcher: [
-    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // `monitoring` : tunnel Sentry (next.config.js). Les événements du navigateur ne doivent
+    // traverser ni Clerk ni sa poignée de main de session.
+    '/((?!_next|monitoring(?:/|$)|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api|trpc)(.*)',
   ],
 };

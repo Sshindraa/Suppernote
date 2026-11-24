@@ -5,7 +5,7 @@ set -Eeuo pipefail
 [ "${EUID}" -eq 0 ] || { echo "Exécutez ce script en root." >&2; exit 1; }
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-WRAPPER_SOURCE="$ROOT_DIR/scripts/ops/sokar-deploy-root.sh"
+WRAPPER_SOURCE="$ROOT_DIR/scripts/ops/suppernote-deploy-root.sh"
 SUDOERS_SOURCE="$ROOT_DIR/infra/sudoers.d/deploy"
 WRAPPER_TARGET="/usr/local/sbin/sokar-deploy-root"
 SUDOERS_TARGET="/etc/sudoers.d/deploy"

@@ -28,14 +28,14 @@ Le worker publie deux gauges à chaque tick :
 - `suppernote_slo_status{slo}` — `1` objectif tenu, `0` objectif manqué, `-1` non mesuré ;
 - `suppernote_slo_value{slo,unit}` — valeur mesurée (ratio ou millisecondes).
 
-Depuis R1-1, les workers tournent dans le process `sokar-workers` : les gauges y vivent, pas dans
+Depuis R1-1, les workers tournent dans le process `suppernote-workers` : les gauges y vivent, pas dans
 `dist/main.js`. Le `/metrics` de l'API ne les expose donc plus en production, et il n'existe pas
 encore de cible de scraping côté worker — c'est précisément le chantier R1-6 (Prometheus/Grafana),
 qui doit ajouter un petit serveur de métriques au process worker. En attendant, l'état des SLO se lit
 dans les logs du worker (message `alert-evaluation`, champ `slo`) et via les alertes `slo_breach` :
 
 ```zsh
-pm2 logs sokar-workers --lines 200 | grep -i slo
+pm2 logs suppernote-workers --lines 200 | grep -i slo
 ```
 
 ## Réagir à un SLO manqué

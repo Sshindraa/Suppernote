@@ -1,4 +1,4 @@
-const { withSentryConfig } = require('@sentry/nextjs');
+const { withSentryConfig } = require('@sentry/nextjs/config');
 const createNextIntlPlugin = require('next-intl/plugin');
 
 // next-intl 4 a besoin d'un plugin Next pour inliner les messages dans le
@@ -42,21 +42,30 @@ const nextConfig = {
   },
 };
 
-// Sentry n'est actif que si SENTRY_AUTH_TOKEN est présent.
-// En prod le token n'est pas configuré → on évite le overhead de wrapping.
-const sentryEnabled = !!process.env.SENTRY_AUTH_TOKEN;
+// Sentry. withSentryConfig attend UN seul objet d'options (SDK 10) : l'ancien
+// second argument (tunnelRoute, hideSourceMaps...) était ignoré.
+// - SENTRY_AUTH_TOKEN (Organization token, fourni par le workflow de déploiement
+//   au seul moment du build, jamais écrit dans un .env) : upload des source maps.
+// - NEXT_PUBLIC_SENTRY_DSN (apps/dashboard/.env, lu au build) : tunnel navigateur
+//   /monitoring. Les pages /widget et /book sont servies par nginx avec
+//   `connect-src 'self'` : un envoi direct vers Sentry y serait bloqué.
+// Sans l'un ni l'autre (dev, CI), la config reste inchangée.
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const sentryEnabled = !!(sentryAuthToken || process.env.NEXT_PUBLIC_SENTRY_DSN);
 
 module.exports = sentryEnabled
-  ? withSentryConfig(
-      withNextIntl(nextConfig),
-      { silent: true, org: 'sokar', project: 'dashboard' },
-      {
-        widenClientFileUpload: true,
-        transpileClientSDK: false,
-        tunnelRoute: '/monitoring',
-        hideSourceMaps: true,
-        disableLogger: true,
-        automaticVercelCronInstrumentation: true,
+  ? withSentryConfig(withNextIntl(nextConfig), {
+      org: 'suppernote',
+      project: 'suppernote-dashboard',
+      silent: true,
+      sourcemaps: { disable: !sentryAuthToken },
+      widenClientFileUpload: true,
+      tunnelRoute: '/monitoring',
+      webpack: { treeshake: { removeDebugLogging: true } },
+      // Un upload en échec ne doit pas bloquer un déploiement : le build continue,
+      // les stack traces restent minifiées jusqu'au prochain déploiement.
+      errorHandler: (error) => {
+        process.stderr.write(`[sentry] upload des source maps échoué : ${error.message}\n`);
       },
-    )
+    })
   : withNextIntl(nextConfig);

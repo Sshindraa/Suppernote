@@ -25,7 +25,7 @@ export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
 # Le cron de backup offsite tourne en root avec la configuration rclone du
 # compte `deploy` (root n'a pas la sienne). L'exercice de restauration
-# s'exécute lui aussi en root, via `sokar-deploy-root restore-test` : sans cette
+# s'exécute lui aussi en root, via `suppernote-deploy-root restore-test` : sans cette
 # résolution, `rclone lsf r2:…` échoue et l'exercice est impossible à lancer.
 if [ -z "${RCLONE_CONFIG:-}" ] && [ -f /home/deploy/.config/rclone/rclone.conf ]; then
   export RCLONE_CONFIG=/home/deploy/.config/rclone/rclone.conf
@@ -79,7 +79,7 @@ LATEST=$(rclone lsf "r2:${BUCKET}/${PREFIX}/" --format "tsp" --max-depth 1 --fil
 [ -n "${LATEST}" ] || fail "Aucun dump dans r2:${BUCKET}/${PREFIX}/"
 log "  Dernier dump: ${LATEST}"
 
-DUMP_LOCAL="/tmp/sokar-restore-test-${LATEST}"
+DUMP_LOCAL="/tmp/suppernote-restore-test-${LATEST}"
 log "→ Téléchargement vers ${DUMP_LOCAL}"
 rclone copyto "r2:${BUCKET}/${PREFIX}/${LATEST}" "${DUMP_LOCAL}"
 [ -s "${DUMP_LOCAL}" ] || fail "Dump téléchargé vide ou absent"
@@ -174,9 +174,9 @@ echo "════════════════════════�
 echo ""
 echo "Pour restaurer en production (après incident) :"
 echo "  1. Télécharger le dump : rclone copyto r2:${BUCKET}/${PREFIX}/${LATEST} /tmp/restore.dump"
-echo "  2. Stopper l'API : pm2 stop sokar-api"
+echo "  2. Stopper l'API : pm2 stop suppernote-api"
 echo "  3. Renommer la base prod : docker exec ${CONTAINER} psql -U ${DB_USER} -c 'ALTER DATABASE sokar RENAME TO sokar_broken;'"
 echo "  4. Restaurer : bash scripts/database/restore-postgres-backup.sh /tmp/restore.dump sokar"
 echo "     (restore-postgres-backup.sh refuse 'sokar' — lever la garde avec SKIP_PROD_GUARD=1 en cas d'urgence P0)"
-echo "  5. Relancer : pm2 start sokar-api"
+echo "  5. Relancer : pm2 start suppernote-api"
 echo "  6. Vérifier : curl -fsS https://api.suppernote.com/health"

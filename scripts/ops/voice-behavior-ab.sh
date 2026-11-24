@@ -15,7 +15,7 @@
 set -euo pipefail
 REF="${1:?référence : requests.json du bras de référence}"
 CAND="${2:?candidat : requests.json du bras candidat}"
-HOST="${3:-sokar}"
+HOST="${3:-suppernote}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [ -z "${VBE_MAX_REQUESTS:-}" ]; then
   echo "REFUS : VBE_MAX_REQUESTS non défini. Chiffrer le rejeu (nombre de requêtes, tokens) et le faire approuver avant d'envoyer quoi que ce soit." >&2

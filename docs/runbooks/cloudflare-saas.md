@@ -52,7 +52,7 @@ Le script :
 
 - Backup le `.env` (timestamp automatique)
 - Ajoute ou met à jour les 3 vars `CLOUDFLARE_*` (idempotent — ne redémarre pas si rien à changer)
-- Redémarre `sokar-api` via PM2
+- Redémarre `suppernote-api` via PM2
 - Vérifie le health check sur `localhost:4000/livez`
 - **Ne logge jamais le token en clair** (affiche `[REDACTED]`)
 
@@ -69,8 +69,8 @@ bash scripts/ops/setup-cloudflare-saas.sh --env staging --token "cf-token-xxx" -
 Si le script ne fonctionne pas, vous pouvez configurer les vars manuellement :
 
 ```zsh
-ssh deploy@sokar
-cd /opt/sokar/apps/api
+ssh deploy@suppernote
+cd /opt/suppernote/apps/api
 cp .env .env.backup.$(date +%Y%m%d%H%M%S)
 nano .env
 ```
@@ -86,8 +86,8 @@ CLOUDFLARE_SAAS_FALLBACK_ORIGIN="suppernote.com"
 Puis redémarrer l'API :
 
 ```zsh
-cd /opt/sokar
-pm2 restart sokar-api
+cd /opt/suppernote
+pm2 restart suppernote-api
 ```
 
 ### 5. Vérifier
@@ -114,7 +114,7 @@ curl -s http://127.0.0.1:4000/livez | jq .
 
 - **Statut CF** : visible dans le dashboard restaurant (champ `customDomainStatus`)
 - **Métriques** : `sokar_connect_custom_domain_total` (à implémenter si besoin)
-- **Logs** : `grep "CF Custom Hostname" /opt/sokar/apps/api/logs/*.log`
+- **Logs** : `grep "CF Custom Hostname" /opt/suppernote/apps/api/logs/*.log`
 
 ## Troubleshooting
 
@@ -153,7 +153,7 @@ curl -s http://127.0.0.1:4000/livez | jq .
 En cas de problème, on peut désactiver Cloudflare for SaaS :
 
 1. Supprimer les variables d'env `CLOUDFLARE_*` sur le VPS
-2. Redémarrer l'API : `pm2 restart sokar-api`
+2. Redémarrer l'API : `pm2 restart suppernote-api`
 3. Les custom domains existants restent en DB mais ne sont plus provisionnés
 4. Les restaurateurs doivent reconfigurer leur DNS pour pointer vers `suppernote.com` directement
 
@@ -208,7 +208,7 @@ curl -s -o /dev/null -w '%{http_code}' -H 'Host: chez-suppernote-demo.suppernote
 La fiche (`/`) vient de Connect, mais le bouton « Réserver » ouvre `/book/<slug>` : nginx
 l'envoie au **dashboard**, comme sur `suppernote.com`, pour servir le même widget partout
 (consentement marketing, liste d'attente). Seules ces routes vont au dashboard
-(bloc `server_name _` de `infra/nginx/sokar.conf`) :
+(bloc `server_name _` de `infra/nginx/suppernote.conf`) :
 
 - `/book/<slug>`, `/widget/<slug>` ;
 - `/api/proxy/public/…`, `/api/proxy/marketing/attribution/click`,

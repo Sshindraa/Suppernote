@@ -161,7 +161,7 @@ interne.
 ## Rollback de déploiement
 
 Le script `scripts/deploy.sh --env prod` snapshot les artefacts buildés (dist, .next,
-static) dans `/opt/sokar/releases/<timestamp>/` à chaque déploiement réussi.
+static) dans `/opt/suppernote/releases/<timestamp>/` à chaque déploiement réussi.
 Les 5 dernières releases sont conservées.
 
 ### Rollback automatique (sur échec de build)
@@ -174,13 +174,13 @@ automatiquement les artefacts d'avant le build et redémarre les services.
 
 ```bash
 # Lister les releases disponibles
-ssh sokar 'bash /opt/sokar/scripts/deploy.sh --env prod --confirm-production rollback'
+ssh suppernote 'bash /opt/suppernote/scripts/deploy.sh --env prod --confirm-production rollback'
 
 # Rollback vers la release précédente (recommandé)
-ssh sokar 'bash /opt/sokar/scripts/deploy.sh --env prod --confirm-production rollback'
+ssh suppernote 'bash /opt/suppernote/scripts/deploy.sh --env prod --confirm-production rollback'
 
 # Rollback vers une release spécifique
-ssh sokar 'bash /opt/sokar/scripts/deploy.sh --env prod --confirm-production rollback 20260626T130000Z'
+ssh suppernote 'bash /opt/suppernote/scripts/deploy.sh --env prod --confirm-production rollback 20260626T130000Z'
 ```
 
 Le rollback :
@@ -195,9 +195,9 @@ Le rollback :
 ### Vérifier l'état après rollback
 
 ```bash
-ssh sokar 'pm2 list | grep sokar'
-ssh sokar 'curl -s -o /dev/null -w "api: %{http_code}\n" http://localhost:4000/health'
-ssh sokar 'curl -s -o /dev/null -w "dash: %{http_code}\n" http://localhost:3000'
+ssh suppernote 'pm2 list | grep suppernote'
+ssh suppernote 'curl -s -o /dev/null -w "api: %{http_code}\n" http://localhost:4000/health'
+ssh suppernote 'curl -s -o /dev/null -w "dash: %{http_code}\n" http://localhost:3000'
 ```
 
 ---
@@ -246,10 +246,10 @@ Scripts SQL d'urgence :
 
 ### Topologie des backups
 
-| Type    | Script                                   | Cible                        | Fréquence         | Rétention |
-| ------- | ---------------------------------------- | ---------------------------- | ----------------- | --------- |
-| Local   | `scripts/database/backup-postgres.sh`    | `/var/backups/sokar` (VPS)   | cron 03:20 (hôte) | 14 jours  |
-| Offsite | `scripts/database/backup-postgres-r2.sh` | `r2:sokar-backups/postgres/` | cron 04:00 (hôte) | 30 jours  |
+| Type    | Script                                   | Cible                           | Fréquence         | Rétention |
+| ------- | ---------------------------------------- | ------------------------------- | ----------------- | --------- |
+| Local   | `scripts/database/backup-postgres.sh`    | `/var/backups/suppernote` (VPS) | cron 03:20 (hôte) | 14 jours  |
+| Offsite | `scripts/database/backup-postgres-r2.sh` | `r2:sokar-backups/postgres/`    | cron 04:00 (hôte) | 30 jours  |
 
 Les deux heures de cron suivent le fuseau de l'hôte (Europe/Paris), soit
 respectivement 01:20 UTC et 02:00 UTC — ce sont ces heures UTC qui apparaissent
@@ -261,14 +261,14 @@ dans le nom des dumps.
   d'intégrité par hash SHA256 local vs distant**, rotation automatique,
   garde-fou de quota (5 GB / 10 GB free tier), alerte optionnelle via
   `ALERT_CMD`.
-- Crons versionnés dans `infra/cron/` (`sokar-postgres-backup`, `sokar-r2-backup`)
-  et installés par `sokar-deploy-root install-runtime prod`. Le cron offsite a
+- Crons versionnés dans `infra/cron/` (`suppernote-postgres-backup`, `suppernote-r2-backup`)
+  et installés par `suppernote-deploy-root install-runtime prod`. Le cron offsite a
   longtemps existé **uniquement sur le serveur** (créé par le script archivé
   `scripts/_archive/install-r2-backup.sh`) : une reconstruction du VPS perdait
   la copie hors-site sans que rien ne le signale.
-- Logs : `/var/log/sokar/postgres-r2-backup.log` (rotaté par
-  `infra/logrotate/sokar`).
-- Surveillance : `sokar-watchdog` vérifie l'âge **et** la ligne de succès des
+- Logs : `/var/log/suppernote/postgres-r2-backup.log` (rotaté par
+  `infra/logrotate/suppernote`).
+- Surveillance : `suppernote-watchdog` vérifie l'âge **et** la ligne de succès des
   deux journaux (`postgres-backup.log`, `postgres-r2-backup.log`), avec un
   seuil de 26 h.
 
@@ -278,15 +278,15 @@ Six scripts et une archive. Trois d'entre eux sont appelés directement par des
 crons sur le VPS : ne renommez ni ne déplacez ces fichiers sans mettre à jour
 le cron correspondant sur le VPS, sinon la sauvegarde s'arrête sans message.
 
-| Script                                        | Rôle                                                                                                                           | Appelé par                                                                                                                                                                                    | Statut                   |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `scripts/database/backup-postgres.sh`         | Dump local de prod, vérifié par restauration temporaire, rétention 14 j                                                        | Cron `/etc/cron.d/sokar-postgres-backup` via la copie `/usr/local/sbin/sokar-backup-postgres` (installée par `sokar-deploy-root install-runtime prod`) ; exécuté aussi par le wrapper staging | Actif                    |
-| `scripts/database/backup-postgres-r2.sh`      | Copie hors site R2 : garde-fou de quota, upload, SHA256, rétention 30 j                                                        | Cron `/etc/cron.d/sokar-r2-backup`, chemin direct `/opt/sokar/scripts/database/` ; versionné dans `infra/cron/sokar-r2-backup`                                                                | Actif                    |
-| `scripts/database/backup-staging-postgres.sh` | Wrapper staging : fixe `POSTGRES_DB=sokar_staging` et `BACKUP_DIR=/var/backups/sokar-staging`, puis lance `backup-postgres.sh` | Cron `/etc/cron.d/sokar-staging-postgres-backup` via `/usr/local/sbin/sokar-staging-backup-postgres` ; installé par `sokar-deploy-root install-runtime staging` et `setup-staging.sh`         | Actif                    |
-| `scripts/ops/db-backup.sh`                    | Bibliothèque sourcée par `deploy.sh` : dump et restauration avant déploiement, utilisés par le rollback                        | `deploy.sh` (pas de cron)                                                                                                                                                                     | Actif                    |
-| `scripts/database/restore-postgres-backup.sh` | Restaure un dump dans une base. Refuse la base `sokar` sauf avec `SKIP_PROD_GUARD=1`                                           | Manuel, procédure P0 ci-dessous                                                                                                                                                               | Actif                    |
-| `scripts/database/test-restore-vierge.sh`     | Exercice de restauration de bout en bout dans une base temporaire                                                              | `sokar-deploy-root restore-test` (root) ou manuel                                                                                                                                             | Actif                    |
-| `scripts/_archive/install-r2-backup.sh`       | Installation ponctuelle du cron R2                                                                                             | Rien : déjà exécutée sur le VPS                                                                                                                                                               | Archivé, ne pas relancer |
+| Script                                        | Rôle                                                                                                                                | Appelé par                                                                                                                                                                                                   | Statut                   |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
+| `scripts/database/backup-postgres.sh`         | Dump local de prod, vérifié par restauration temporaire, rétention 14 j                                                             | Cron `/etc/cron.d/suppernote-postgres-backup` via la copie `/usr/local/sbin/suppernote-backup-postgres` (installée par `suppernote-deploy-root install-runtime prod`) ; exécuté aussi par le wrapper staging | Actif                    |
+| `scripts/database/backup-postgres-r2.sh`      | Copie hors site R2 : garde-fou de quota, upload, SHA256, rétention 30 j                                                             | Cron `/etc/cron.d/suppernote-r2-backup`, chemin direct `/opt/suppernote/scripts/database/` ; versionné dans `infra/cron/suppernote-r2-backup`                                                                | Actif                    |
+| `scripts/database/backup-staging-postgres.sh` | Wrapper staging : fixe `POSTGRES_DB=sokar_staging` et `BACKUP_DIR=/var/backups/suppernote-staging`, puis lance `backup-postgres.sh` | Cron `/etc/cron.d/suppernote-staging-postgres-backup` via `/usr/local/sbin/suppernote-staging-backup-postgres` ; installé par `suppernote-deploy-root install-runtime staging` et `setup-staging.sh`         | Actif                    |
+| `scripts/ops/db-backup.sh`                    | Bibliothèque sourcée par `deploy.sh` : dump et restauration avant déploiement, utilisés par le rollback                             | `deploy.sh` (pas de cron)                                                                                                                                                                                    | Actif                    |
+| `scripts/database/restore-postgres-backup.sh` | Restaure un dump dans une base. Refuse la base `sokar` sauf avec `SKIP_PROD_GUARD=1`                                                | Manuel, procédure P0 ci-dessous                                                                                                                                                                              | Actif                    |
+| `scripts/database/test-restore-vierge.sh`     | Exercice de restauration de bout en bout dans une base temporaire                                                                   | `suppernote-deploy-root restore-test` (root) ou manuel                                                                                                                                                       | Actif                    |
+| `scripts/_archive/install-r2-backup.sh`       | Installation ponctuelle du cron R2                                                                                                  | Rien : déjà exécutée sur le VPS                                                                                                                                                                              | Archivé, ne pas relancer |
 
 Pour une fusion future des trois crons en une seule commande, il faut d'abord
 un exercice `restore-test` réussi sur le VPS. C'est une opération de production,
@@ -309,7 +309,7 @@ restaurer sur une base vierge :
 # Sur le VPS, via le wrapper privilégié : le compte deploy n'a ni le groupe
 # docker ni les clients PostgreSQL, donc le script ne peut pas tourner
 # directement sous ce compte.
-sudo /usr/local/sbin/sokar-deploy-root restore-test prod
+sudo /usr/local/sbin/suppernote-deploy-root restore-test prod
 
 # En local avec Docker + rclone configuré, le script reste utilisable tel quel
 bash scripts/database/test-restore-vierge.sh
@@ -341,7 +341,7 @@ KEEP_DB=1 bash scripts/database/test-restore-vierge.sh
 3. **Stopper l'API** (éviter les écritures pendant le restore) :
 
    ```bash
-   pm2 stop sokar-api
+   pm2 stop suppernote-api
    ```
 
 4. **Sauvegarder la base cassée** (pour forensic) :
@@ -369,7 +369,7 @@ KEEP_DB=1 bash scripts/database/test-restore-vierge.sh
 7. **Relancer l'API** :
 
    ```bash
-   pm2 start sokar-api
+   pm2 start suppernote-api
    curl -fsS https://api.suppernote.com/health
    ```
 
@@ -379,15 +379,15 @@ KEEP_DB=1 bash scripts/database/test-restore-vierge.sh
 ### Vérifier que le cron tourne sur le VPS
 
 ```bash
-ssh sokar 'crontab -l | grep backup'
-ssh sokar 'tail -20 /var/log/sokar/postgres-r2-backup.log'
+ssh suppernote 'crontab -l | grep backup'
+ssh suppernote 'tail -20 /var/log/suppernote/postgres-r2-backup.log'
 rclone ls r2:sokar-backups/postgres/ | tail -5
 ```
 
 Si le dernier dump date de plus de 24h, redéployer :
 
 ```bash
-VPS_HOST=sokar bash scripts/_archive/install-r2-backup.sh --test
+VPS_HOST=suppernote bash scripts/_archive/install-r2-backup.sh --test
 ```
 
 ---

@@ -49,6 +49,26 @@ describe('sentry client', () => {
     expect(sentryEnabled()).toBe(false);
   });
 
+  it('prefers SENTRY_ENVIRONMENT over NODE_ENV (staging runs with NODE_ENV=production)', () => {
+    process.env.SENTRY_DSN = 'https://test@sentry.io/1';
+    process.env.NODE_ENV = 'production';
+    process.env.SENTRY_ENVIRONMENT = 'staging';
+
+    initSentry();
+
+    expect(mockInit).toHaveBeenCalledWith(expect.objectContaining({ environment: 'staging' }));
+  });
+
+  it('falls back to NODE_ENV when SENTRY_ENVIRONMENT is unset', () => {
+    process.env.SENTRY_DSN = 'https://test@sentry.io/1';
+    process.env.NODE_ENV = 'production';
+    delete process.env.SENTRY_ENVIRONMENT;
+
+    initSentry();
+
+    expect(mockInit).toHaveBeenCalledWith(expect.objectContaining({ environment: 'production' }));
+  });
+
   it('calls Sentry.init with the DSN and environment', () => {
     process.env.SENTRY_DSN = 'https://test@sentry.io/1';
     process.env.NODE_ENV = 'production';

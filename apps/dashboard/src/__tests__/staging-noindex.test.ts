@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const config = readFileSync(
-  new URL('../../../../infra/nginx/sokar-staging.conf', import.meta.url),
+  new URL('../../../../infra/nginx/suppernote-staging.conf', import.meta.url),
   'utf8',
 );
 const servers = [...config.matchAll(/^server \{([\s\S]*?)^\}/gm)]

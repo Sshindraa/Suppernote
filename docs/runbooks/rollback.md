@@ -8,16 +8,16 @@
 ## Staging
 
 ```zsh
-ssh deploy@sokar
-cd /opt/sokar-staging
+ssh deploy@suppernote
+cd /opt/suppernote-staging
 bash scripts/deploy.sh --env staging rollback
 ```
 
 ## Production
 
 ```zsh
-ssh deploy@sokar
-cd /opt/sokar
+ssh deploy@suppernote
+cd /opt/suppernote
 bash scripts/deploy.sh --env prod --confirm-production rollback
 ```
 
@@ -56,8 +56,8 @@ compte `deploy` n'a ni le groupe docker ni les clients PostgreSQL), et crée pui
 supprime une base temporaire :
 
 ```zsh
-ssh deploy@sokar
-/usr/bin/time -p sudo /usr/local/sbin/sokar-deploy-root restore-test prod
+ssh deploy@suppernote
+/usr/bin/time -p sudo /usr/local/sbin/suppernote-deploy-root restore-test prod
 ```
 
 La répétition du 22 septembre 2026 a restauré `20260921T020001Z.dump` dans

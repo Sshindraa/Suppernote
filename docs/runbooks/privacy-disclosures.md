@@ -35,7 +35,7 @@ n'a été identifié dans les chemins décrits ; ils sont retirés des mentions.
 | Fournisseur                  | Chemin constaté                                                                                                         |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | OVHcloud                     | Hébergement confirmé dans `docs/audits/2026-10-13-growth-execution.md`, §10.36–10.39 ; région contractuelle non prouvée |
-| Cloudflare                   | `infra/nginx/sokar.conf`, `apps/api/src/modules/connect/cloudflare-saas.service.ts`                                     |
+| Cloudflare                   | `infra/nginx/suppernote.conf`, `apps/api/src/modules/connect/cloudflare-saas.service.ts`                                |
 | Clerk                        | `apps/api/src/plugins/clerk.ts`                                                                                         |
 | Resend                       | `apps/api/src/shared/email/index.ts`, notifications de démonstration                                                    |
 | Google Workspace             | Messagerie de réception confirmée dans l'audit §10.39 et le runbook des demandes de démo                                |
@@ -64,7 +64,7 @@ déduction ni le confondre avec l'hébergement principal.
 | Rapports audio                         | Supprimés avec l'audio par la purge ; copies chez Telnyx non couvertes par cette suppression                                                                                                    |
 | Dialogue de diagnostic                 | `stream/debug-dialogue.ts` : expiration 14 jours et purge quotidienne ; masquage téléphone/e-mail, pas anonymisation complète                                                                   |
 | Transcriptions et métadonnées d'appels | Distinctes des fichiers audio ; aucun délai global ni effacement intégral de transcription établi                                                                                               |
-| Journaux serveur                       | `infra/logrotate/sokar` : rotation quotidienne, 14 archives, `notifempty` ; pas une garantie stricte de 14 jours calendaires, ni une règle applicable à Sentry                                  |
+| Journaux serveur                       | `infra/logrotate/suppernote` : rotation quotidienne, 14 archives, `notifempty` ; pas une garantie stricte de 14 jours calendaires, ni une règle applicable à Sentry                             |
 | Pièces comptables                      | Obligation de 10 ans pour les pièces concernées ; pas pour toutes les données Stripe. Archivage effectif à vérifier                                                                             |
 | Sauvegardes / copies fournisseurs      | Cycles et suppression à vérifier séparément ; aucune promesse d'effacement immédiat                                                                                                             |
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Fetch Cloudflare IP ranges and regenerate
-# infra/nginx/snippets/sokar-cloudflare-real-ip.conf.
+# infra/nginx/snippets/suppernote-cloudflare-real-ip.conf.
 #
 # Usage: bash scripts/ops/update-cloudflare-ips.sh
 #        sudo bash scripts/ops/update-cloudflare-ips.sh  # to install into Nginx
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-OUT_FILE="$ROOT/infra/nginx/snippets/sokar-cloudflare-real-ip.conf"
+OUT_FILE="$ROOT/infra/nginx/snippets/suppernote-cloudflare-real-ip.conf"
 
 fetch_ips() {
   curl -sS "$1" || {

@@ -34,7 +34,7 @@ run() {
     SOKAR_API_ENV_FILE="$dir/api.env" \
     SOKAR_DASHBOARD_ENV_FILE="$dir/dashboard.env" \
     SOKAR_CONNECT_ENV_FILE="$dir/connect.env" \
-    SOKAR_ROOT="$dir" \
+    SUPPERNOTE_ROOT="$dir" \
     "$@" bash "$RUNNER" "$group" "$environment" >/dev/null 2>&1 || code=$?
   echo "$code"
 }

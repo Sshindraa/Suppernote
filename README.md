@@ -31,8 +31,8 @@ pnpm test       # Vitest
 pnpm lint       # lint
 pnpm db:push    # Prisma db push
 pnpm db:studio  # Prisma Studio
-pnpm deploy:prod    # deploy main to production (VPS sokar)
-pnpm deploy:staging # deploy main to staging (VPS sokar)
+pnpm deploy:prod    # deploy main to production (VPS suppernote)
+pnpm deploy:staging # deploy main to staging (VPS suppernote)
 hermes          # interactive agent
 hermes -z "task" # one-shot agent task
 ```

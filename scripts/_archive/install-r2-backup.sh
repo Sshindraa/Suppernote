@@ -2,7 +2,7 @@
 # Déploie le backup R2 sur le VPS de production.
 #
 # Usage (depuis le Mac dev):
-#   VPS_HOST=sokar bash scripts/ops/install-r2-backup.sh
+#   VPS_HOST=suppernote bash scripts/ops/install-r2-backup.sh
 #
 # Étapes :
 #   1. Vérifie la présence locale du script et de la config rclone

@@ -395,7 +395,7 @@ Définitions de queues : `apps/api/src/shared/queue/queues.ts`. Workers : `apps/
 Deux topologies d'exécution (R1-1) : en développement, l'API porte aussi les workers
 (`RUN_WORKERS_IN_PROCESS=true`, défaut) ; en production, `dist/main.js` ne sert que le HTTP
 (`RUN_WORKERS_IN_PROCESS=false` posé par PM2) et les workers tournent dans `dist/worker.js`
-(PM2 `sokar-workers`). La liste des workers à charger est unique :
+(PM2 `suppernote-workers`). La liste des workers à charger est unique :
 `apps/api/src/workers/index.ts`, protégée par un test qui échoue si un `*.worker.ts` n'y est pas
 importé. L'inscription des jobs récurrents vit dans `apps/api/src/shared/queue/schedulers.ts` et
 utilise `upsertJobScheduler`, idempotent par identifiant.
@@ -478,7 +478,7 @@ pnpm test:visual # régression visuelle
 - RGPD : erase/export via pattern OTP → verification token → one-shot action.
 - Connect : pages publiques statiques/ISR ; staging force-dynamic pour `/restaurant/[slug]`.
 - Dashboard : règles UI verrouillées par `stylelint` et `onboarding-tone.test.ts` (`vous` partout).
-- Compte `deploy` restreint : `sokar-deploy-root` pour les opérations privilégiées.
+- Compte `deploy` restreint : `suppernote-deploy-root` pour les opérations privilégiées.
 
 ## Docs connexes
 

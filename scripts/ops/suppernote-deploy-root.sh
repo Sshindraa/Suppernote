@@ -7,7 +7,7 @@ if [ "${EUID}" -ne 0 ]; then
     exit 1
 fi
 
-PRIVILEGED_WRAPPER="/usr/local/sbin/sokar-deploy-root"
+PRIVILEGED_WRAPPER="/usr/local/sbin/suppernote-deploy-root"
 SUDOERS_DST="/etc/sudoers.d/deploy"
 
 usage() {
@@ -21,13 +21,13 @@ ENVIRONMENT="$2"
 
 case "$ENVIRONMENT" in
     prod)
-        ROOT="/opt/sokar"
-        VHOST="sokar"
+        ROOT="/opt/suppernote"
+        VHOST="suppernote"
         CERT_ROOT="/etc/letsencrypt/live/suppernote.com"
         ;;
     staging)
-        ROOT="/opt/sokar-staging"
-        VHOST="sokar-staging"
+        ROOT="/opt/suppernote-staging"
+        VHOST="suppernote-staging"
         CERT_ROOT="/etc/letsencrypt/live/suppernote.com"
         ;;
     *)
@@ -77,25 +77,25 @@ localstack() {
 
 install_runtime() {
     if [ "$ENVIRONMENT" = "prod" ]; then
-        install -d -m 0700 -o deploy -g deploy /var/backups/sokar
-        install -m 0750 "$ROOT/scripts/database/backup-postgres.sh" /usr/local/sbin/sokar-backup-postgres
-        install -m 0644 "$ROOT/infra/cron/sokar-postgres-backup" /etc/cron.d/sokar-postgres-backup
+        install -d -m 0700 -o deploy -g deploy /var/backups/suppernote
+        install -m 0750 "$ROOT/scripts/database/backup-postgres.sh" /usr/local/sbin/suppernote-backup-postgres
+        install -m 0644 "$ROOT/infra/cron/suppernote-postgres-backup" /etc/cron.d/suppernote-postgres-backup
         # Le backup offsite R2 vivait uniquement sur le serveur : sans ce
         # fichier versionné, une reconstruction du VPS perdait la copie
         # hors-site sans que rien ne le signale.
-        install -m 0644 "$ROOT/infra/cron/sokar-r2-backup" /etc/cron.d/sokar-r2-backup
+        install -m 0644 "$ROOT/infra/cron/suppernote-r2-backup" /etc/cron.d/suppernote-r2-backup
         # Watchdog monitoring (toutes les 5 min) : API/dashboard/Redis/backup/disque/mémoire.
-        install -d -m 0750 /var/lib/sokar/watchdog
-        install -m 0755 "$ROOT/scripts/ops/sokar-watchdog.sh" /usr/local/sbin/sokar-watchdog
-        install -m 0644 "$ROOT/infra/cron/sokar-watchdog" /etc/cron.d/sokar-watchdog
+        install -d -m 0750 /var/lib/suppernote/watchdog
+        install -m 0755 "$ROOT/scripts/ops/suppernote-watchdog.sh" /usr/local/sbin/suppernote-watchdog
+        install -m 0644 "$ROOT/infra/cron/suppernote-watchdog" /etc/cron.d/suppernote-watchdog
         install -d -m 0755 -o www-data -g www-data /var/cache/nginx/connect
-        install -m 0644 "$ROOT/infra/logrotate/sokar" /etc/logrotate.d/sokar
+        install -m 0644 "$ROOT/infra/logrotate/suppernote" /etc/logrotate.d/suppernote
     elif [ "$ENVIRONMENT" = "staging" ]; then
-        install -d -m 0755 -o root -g root /var/backups/sokar-staging
-        install -m 0755 "$ROOT/scripts/database/backup-staging-postgres.sh" /usr/local/sbin/sokar-staging-backup-postgres
-        install -m 0644 "$ROOT/infra/cron/sokar-staging-postgres-backup" /etc/cron.d/sokar-staging-postgres-backup
+        install -d -m 0755 -o root -g root /var/backups/suppernote-staging
+        install -m 0755 "$ROOT/scripts/database/backup-staging-postgres.sh" /usr/local/sbin/suppernote-staging-backup-postgres
+        install -m 0644 "$ROOT/infra/cron/suppernote-staging-postgres-backup" /etc/cron.d/suppernote-staging-postgres-backup
         install -d -m 0755 -o www-data -g www-data /var/cache/nginx/connect
-        install -m 0644 "$ROOT/infra/logrotate/sokar" /etc/logrotate.d/sokar
+        install -m 0644 "$ROOT/infra/logrotate/suppernote" /etc/logrotate.d/suppernote
     else
         usage
     fi
@@ -107,7 +107,7 @@ configure_watchdog() {
     # KEY<TAB>VALUE. Cela évite de placer les secrets dans la ligne de
     # commande ou dans les logs SSH. Seules les deux variables watchdog
     # documentées sont acceptées.
-    local env_dir="/etc/sokar"
+    local env_dir="/etc/suppernote"
     local env_file="$env_dir/watchdog.env"
     local tmp_file
     local key value extra
@@ -142,7 +142,7 @@ configure_watchdog() {
                 ;;
         esac
         # %q produit une affectation shell sûre pour le fichier sourcé par
-        # sokar-watchdog.sh, y compris si l'URL contient des caractères spéciaux.
+        # suppernote-watchdog.sh, y compris si l'URL contient des caractères spéciaux.
         printf '%s=%q\n' "$key" "$value" >> "$tmp_file"
         count=$((count + 1))
     done
@@ -159,12 +159,12 @@ configure_watchdog() {
 configure_grafana() {
     [ "$ENVIRONMENT" = "prod" ] || usage
     # Valeur transmise uniquement par stdin, jamais en argument ou dans les logs.
-    bash "$ROOT/scripts/ops/configure-grafana-env.sh" /etc/sokar/grafana.env
+    bash "$ROOT/scripts/ops/configure-grafana-env.sh" /etc/suppernote/grafana.env
 }
 
 self_update() {
     [ "$ENVIRONMENT" = "prod" ] || [ "$ENVIRONMENT" = "staging" ] || usage
-    local wrapper_src="$ROOT/scripts/ops/sokar-deploy-root.sh"
+    local wrapper_src="$ROOT/scripts/ops/suppernote-deploy-root.sh"
     local sudoers_src="$ROOT/infra/sudoers.d/deploy"
     local wrapper_backup="$PRIVILEGED_WRAPPER.bak"
     local sudoers_backup="$SUDOERS_DST.bak"
@@ -190,7 +190,7 @@ self_update() {
     fi
 
     rm -f "$wrapper_backup" "$sudoers_backup"
-    echo "✅ Wrapper sokar-deploy-root mis à jour depuis $wrapper_src"
+    echo "✅ Wrapper suppernote-deploy-root mis à jour depuis $wrapper_src"
 }
 
 # ── Exercice de restauration (R1-5) ──────────────────────────────
@@ -317,7 +317,7 @@ validate_monitoring() {
         config --quiet
     /usr/bin/docker compose \
         --project-name sokar-monitoring \
-        --env-file /etc/sokar/grafana.env \
+        --env-file /etc/suppernote/grafana.env \
         -f "$ROOT/infra/grafana-compose.yml" \
         config --quiet
 }
@@ -326,7 +326,7 @@ start_grafana() {
     [ "$ENVIRONMENT" = "prod" ] || usage
     /usr/bin/docker compose \
         --project-name sokar-monitoring \
-        --env-file /etc/sokar/grafana.env \
+        --env-file /etc/suppernote/grafana.env \
         -f "$ROOT/infra/grafana-compose.yml" \
         up -d grafana
 
@@ -379,9 +379,9 @@ case "$ACTION" in
     backup-db)
         [ "$#" -eq 2 ] || usage
         if [ "$ENVIRONMENT" = "prod" ]; then
-            /usr/local/sbin/sokar-backup-postgres
+            /usr/local/sbin/suppernote-backup-postgres
         else
-            /usr/local/sbin/sokar-staging-backup-postgres
+            /usr/local/sbin/suppernote-staging-backup-postgres
         fi
         ;;
     restore-test)

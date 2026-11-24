@@ -4,7 +4,7 @@
  * Extrait de `main.ts` pour que le même code serve les deux topologies :
  *  - développement : le process API démarre aussi les workers
  *    (`RUN_WORKERS_IN_PROCESS=true`) ;
- *  - production : le process `dist/worker.js` (PM2 `sokar-workers`) porte les
+ *  - production : le process `dist/worker.js` (PM2 `suppernote-workers`) porte les
  *    workers et les schedulers, l'API ne fait que servir le HTTP.
  *
  * `upsertJobScheduler` est idempotent par identifiant : rejouer l'inscription

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Configuration idempotente de Cloudflare for SaaS sur le VPS Suppernote (hôte sokar).
+# Configuration idempotente de Cloudflare for SaaS sur le VPS Suppernote (hôte suppernote).
 #
 # Ajoute CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_SAAS_FALLBACK_ORIGIN
-# dans /opt/sokar/apps/api/.env (prod) ou /opt/sokar-staging/apps/api/.env (staging),
-# backup automatique, redémarre sokar-api (ou sokar-staging-api), vérifie le health.
+# dans /opt/suppernote/apps/api/.env (prod) ou /opt/suppernote-staging/apps/api/.env (staging),
+# backup automatique, redémarre suppernote-api (ou suppernote-staging-api), vérifie le health.
 #
 # Usage:
 #   bash scripts/ops/setup-cloudflare-saas.sh --env prod --token "cf-token-xxx" --zone-id "zone-xxx"
@@ -11,7 +11,7 @@
 #   bash scripts/ops/setup-cloudflare-saas.sh --env prod --token "..." --zone-id "..." --fallback-origin "suppernote.com"
 #
 # Pré-requis:
-#   - SSH access au VPS (deploy@sokar)
+#   - SSH access au VPS (deploy@suppernote)
 #   - Cloudflare for SaaS activé sur la zone (dashboard Cloudflare > SSL/TLS > Custom Hostnames)
 #   - API Token créé (permissions Zone.SaaS:Edit + Zone.DNS:Read + Zone:Read)
 #   - Zone ID récupéré (dashboard Cloudflare > Overview)
@@ -28,7 +28,7 @@ ENV=""
 CF_TOKEN=""
 CF_ZONE_ID=""
 CF_FALLBACK_ORIGIN="suppernote.com"
-VPS_HOST="sokar"
+VPS_HOST="suppernote"
 SSH_USER="deploy"
 
 # ── Aide ──────────────────────────────────────────────────────────────────
@@ -104,12 +104,12 @@ fi
 
 # ── Détermination des chemins et services selon l'environnement ────────────
 if [ "$ENV" = "prod" ]; then
-  ENV_FILE="/opt/sokar/apps/api/.env"
-  PM2_SERVICE="sokar-api"
+  ENV_FILE="/opt/suppernote/apps/api/.env"
+  PM2_SERVICE="suppernote-api"
   HEALTH_PORT=4000
 else
-  ENV_FILE="/opt/sokar-staging/apps/api/.env"
-  PM2_SERVICE="sokar-staging-api"
+  ENV_FILE="/opt/suppernote-staging/apps/api/.env"
+  PM2_SERVICE="suppernote-staging-api"
   HEALTH_PORT=4100
 fi
 

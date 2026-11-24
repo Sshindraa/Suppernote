@@ -11,7 +11,7 @@ set -euo pipefail
 # S'assure que les helpers de logging (log_error) sont disponibles.
 if ! command -v log_error >/dev/null 2>&1; then
   # shellcheck source=ops/logging.sh
-  source "${SOKAR_ROOT}/scripts/ops/logging.sh"
+  source "${SUPPERNOTE_ROOT}/scripts/ops/logging.sh"
 fi
 
 # Vérifie l'espace disque disponible sur la partition de <target_dir>.

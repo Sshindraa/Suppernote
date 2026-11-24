@@ -389,7 +389,7 @@ en échec. Aucun incident ni nombre de restaurants ne doit être déduit sans in
 2. Comparer API Fastify interne, chemin réellement utilisé par Connect et endpoint public externe.
    Identifier proxy/WAF/auth/rate-limit uniquement si les réponses le justifient.
 3. Comparer slugs API, sitemap généré, réponse publique et caches. Dater les observations.
-4. Inspecter `infra/nginx/sokar.conf`, configuration Connect et environnement sans afficher les secrets.
+4. Inspecter `infra/nginx/suppernote.conf`, configuration Connect et environnement sans afficher les secrets.
 5. Contrôler robots/noindex, canonical, statuts, HTML et liens internes des pages importantes.
 6. Vérifier le domaine Search Console, les sitemaps et un échantillon d'inspections d'URL si l'accès
    existe. Sans cet accès, livrer la checklist et laisser l'indexation effective UNKNOWN.

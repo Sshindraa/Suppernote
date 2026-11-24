@@ -9,11 +9,11 @@
 ```
 Cloudflare (proxy + cache)
     ↓ HTTPS
-VPS (sokar) — Nginx :80, derrière Cloudflare
-    ├─ /, /pricing, /dashboard/*  → 127.0.0.1:3000 (sokar-dashboard, PM2)
+VPS (suppernote) — Nginx :80, derrière Cloudflare
+    ├─ /, /pricing, /dashboard/*  → 127.0.0.1:3000 (suppernote-dashboard, PM2)
     ├─ /r/*, /restaurants/*, /sitemap.xml, /robots.txt
-    │                              → 127.0.0.1:4002 (sokar-connect, PM2)
-    └─ /api/*                      → 127.0.0.1:4000 (sokar-api, PM2)
+    │                              → 127.0.0.1:4002 (suppernote-connect, PM2)
+    └─ /api/*                      → 127.0.0.1:4000 (suppernote-api, PM2)
 ```
 
 ## Process PM2
@@ -24,7 +24,7 @@ processus depuis `infra/ecosystem.config.js`.
 
 ```bash
 # Sur le VPS, en tant que deploy
-cd /opt/sokar/apps/connect
+cd /opt/suppernote/apps/connect
 
 # 1. Build
 pnpm install --frozen-lockfile --filter @suppernote/connect...
@@ -32,8 +32,8 @@ pnpm --filter @suppernote/connect build
 bash scripts/copy-static.sh
 
 # 2. Démarrer (le wrapper source .env)
-pm2 delete sokar-connect 2>/dev/null || true
-pm2 start bin/run-connect.sh --name sokar-connect --update-env
+pm2 delete suppernote-connect 2>/dev/null || true
+pm2 start bin/run-connect.sh --name suppernote-connect --update-env
 pm2 save
 ```
 
@@ -53,15 +53,15 @@ NEXT_TELEMETRY_DISABLED=1
 
 ## Nginx
 
-La source canonique est `infra/nginx/sokar.conf`. Le script de déploiement
-l'installe dans `/etc/nginx/sites-available/sokar`, installe les snippets,
+La source canonique est `infra/nginx/suppernote.conf`. Le script de déploiement
+l'installe dans `/etc/nginx/sites-available/suppernote`, installe les snippets,
 valide avec `nginx -t`, puis recharge Nginx.
 
 ## Vérification post-deploy (à CHAQUE release)
 
 ```bash
 # 1. Le process est online
-pm2 list | grep sokar-connect
+pm2 list | grep suppernote-connect
 # Doit afficher : online
 
 # 2. Health check direct (interne, sans Cloudflare)
@@ -87,7 +87,7 @@ curl -s https://suppernote.com/r/chez-suppernote-demo | grep -o 'application/ld+
 
 ```bash
 # Sur le VPS
-cd /opt/sokar/apps/connect
+cd /opt/suppernote/apps/connect
 pnpm exec tsx scripts/post-deploy-smoke.ts  # à créer
 ```
 
@@ -100,21 +100,21 @@ fonctionner.
 Rollback simple :
 
 ```bash
-pm2 stop sokar-connect
+pm2 stop suppernote-connect
 # Les pages /r/* renverront un 502 transparent. Le reste de suppernote.com est OK.
 ```
 
 Rollback complet (restaurer le routage Nginx précédent) :
 
 ```bash
-# Restaurer la version précédente de /etc/nginx/sites-available/sokar
+# Restaurer la version précédente de /etc/nginx/sites-available/suppernote
 nginx -t && systemctl reload nginx
 ```
 
 ## Logs
 
 ```bash
-pm2 logs sokar-connect --lines 100
+pm2 logs suppernote-connect --lines 100
 # Format : Pino, JSON structuré
 ```
 

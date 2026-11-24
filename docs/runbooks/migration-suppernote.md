@@ -14,6 +14,8 @@ Ces noms sont internes ou consommés hors du dépôt. Les renommer ne s'est pas 
 - identifiant iOS `tech.sokar.ios` et projet Xcode ;
 - migrations Prisma, journal `docs/obsidian/` et bancs voix.
 
+> **Mise à jour (renommage serveur, palier 1, fenêtre du 24 novembre 2026) :** les dossiers (`/opt/suppernote`, `/var/log/suppernote`, `/var/backups/suppernote`…), les services PM2 (`suppernote-*`), les vhosts nginx, les crons et les wrappers `/usr/local/sbin/suppernote-*` ont été renommés ; le dépôt n'utilise plus que les nouveaux noms. Restent inchangés (palier 2, décision de Hamza en attente) : la base de données et ses rôles, les buckets R2, les variables d'environnement `SOKAR_*`.
+
 ## Renommage dans le dépôt
 
 Les paquets privés utilisent `@suppernote/*` dans le workspace, le lockfile, la CI et les scripts. Exécuter `pnpm install --frozen-lockfile` avant d'utiliser le nouveau périmètre. La migration Prisma renomme l'affichage de « Chez Suppernote » uniquement pour le restaurant officiel dont le nom n'a pas été personnalisé. Son ID et son slug sont restés inchangés dans cette migration ; la mise à jour du slug est une étape distincte ci-dessous.

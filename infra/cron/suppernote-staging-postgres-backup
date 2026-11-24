@@ -2,4 +2,4 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Sauvegarde quotidienne de sokar_staging à 04:20 UTC (après prod à 03:20).
-20 4 * * * root /usr/local/sbin/sokar-staging-backup-postgres >> /var/log/sokar/postgres-staging-backup.log 2>&1
+20 4 * * * root /usr/local/sbin/suppernote-staging-backup-postgres >> /var/log/suppernote/postgres-staging-backup.log 2>&1

@@ -11,7 +11,7 @@
    NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=google<hash>.html
    ```
 6. Rebuild : `pnpm --filter @suppernote/connect build`
-7. Redémarre : `pm2 restart sokar-connect`
+7. Redémarre : `pm2 restart suppernote-connect`
 8. Clique "Verify" dans GSC
 
 ## Méthode 2 : Fichier HTML
@@ -22,7 +22,7 @@
 4. Télécharge le fichier `google<hash>.html`
 5. Place-le dans ce dossier : `apps/connect/public/google<hash>.html`
 6. Rebuild : `pnpm --filter @suppernote/connect build`
-7. Redémarre : `pm2 restart sokar-connect`
+7. Redémarre : `pm2 restart suppernote-connect`
 8. Vérifie : `curl https://suppernote.com/google<hash>.html` → doit retourner le contenu
 9. Clique "Verify" dans GSC
 

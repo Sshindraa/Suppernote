@@ -10,7 +10,7 @@
  * d'OpenRouter, jamais de crédit Cerebras.
  *
  * Usage (sur le VPS, la clé reste dans l'environnement) :
- *   node --env-file=/opt/sokar-staging/apps/api/.env openrouter-region-test.mjs [--runs 10] [--us]
+ *   node --env-file=/opt/suppernote-staging/apps/api/.env openrouter-region-test.mjs [--runs 10] [--us]
  * Ne modifie aucune configuration.
  */
 const args = process.argv.slice(2);

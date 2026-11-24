@@ -3,4 +3,4 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # Sauvegarde quotidienne à 03:20 (heure de l'hôte, Europe/Paris), restauration
 # temporaire incluse.
-20 3 * * * root /usr/local/sbin/sokar-backup-postgres >> /var/log/sokar/postgres-backup.log 2>&1
+20 3 * * * root /usr/local/sbin/suppernote-backup-postgres >> /var/log/suppernote/postgres-backup.log 2>&1

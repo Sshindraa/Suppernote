@@ -71,7 +71,7 @@ jobs:
 
       # Dépôt privé et aucun accès GitHub sur le VPS : le runner lui envoie l'archive du commit.
       - name: Archive source
-        run: git archive --format=tar.gz --prefix=source/ -o sokar-staging-source.tar.gz "$GITHUB_SHA"
+        run: git archive --format=tar.gz --prefix=source/ -o suppernote-staging-source.tar.gz "$GITHUB_SHA"
 
       - name: Copy source to staging host
         uses: appleboy/scp-action@v1
@@ -79,7 +79,7 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: deploy
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: sokar-staging-source.tar.gz
+          source: suppernote-staging-source.tar.gz
           target: /tmp/
           overwrite: true
 
@@ -96,8 +96,8 @@ jobs:
               ;;
           esac
           umask 077
-          printf '%s' "$CLERK_SECRET_KEY" > sokar-clerk-secret
-          chmod 0600 sokar-clerk-secret
+          printf '%s' "$CLERK_SECRET_KEY" > suppernote-clerk-secret
+          chmod 0600 suppernote-clerk-secret
 
       - name: Copy Clerk secret to staging host
         uses: appleboy/scp-action@v1
@@ -105,7 +105,7 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: deploy
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: sokar-clerk-secret
+          source: suppernote-clerk-secret
           target: /tmp/
           overwrite: true
 
@@ -152,8 +152,8 @@ jobs:
           envs: ALERT_WEBHOOK,SENTRY_DSN,SENTRY_DSN_DASHBOARD,SENTRY_DSN_CONNECT,SENTRY_AUTH_TOKEN,ALERT_EMAIL_TO,ALERT_WEBHOOK_URL,ALERT_SMS_TO,RESERVATION_SERVICE_TOKEN,STRIPE_PRICE_ESSENTIAL_MONTHLY,STRIPE_PRICE_ESSENTIAL_ANNUAL,STRIPE_PRICE_PRO_MONTHLY,STRIPE_PRICE_PRO_ANNUAL,STRIPE_PRICE_MULTI_SITE_MONTHLY,STRIPE_PRICE_MULTI_SITE_ANNUAL,STRIPE_PRICE_MULTI_SITE_ADDON_MONTHLY,STRIPE_PRICE_MULTI_SITE_ADDON_ANNUAL,SOKAR_OPERATOR_USER_IDS,VOICE_CONVERSATION_CONTINUITY_RESTAURANT_IDS,NEXT_PUBLIC_DEMO_RESTAURANT_ID,NEXT_PUBLIC_DEMO_STAGING,DEMO_REQUEST_NOTIFY_TO,RESEND_API_KEY,EMAIL_FROM,TELNYX_API_KEY,TELNYX_PUBLIC_KEY,TELNYX_CONNECTION_ID,TELNYX_FROM_NUMBER,EMAIL_TEST_ALLOWLIST,PUBLIC_API_URL,RESEND_RATE_LIMIT_REDIS_URL
           script: |
             set -euo pipefail
-            cd /opt/sokar-staging
-            CLERK_SECRET_FILE=/tmp/sokar-clerk-secret
+            cd /opt/suppernote-staging
+            CLERK_SECRET_FILE=/tmp/suppernote-clerk-secret
             cleanup() {
               rm -f "$CLERK_SECRET_FILE"
               rm -rf "${SOURCE_TMP:-}"
@@ -168,8 +168,8 @@ jobs:
             [[ "$SOURCE_SHA" =~ ^[[:xdigit:]]{40}$ ]]
             git reset --hard
             git clean -fd -e releases/
-            SOURCE_TMP=$(mktemp -d /tmp/sokar-staging-source.XXXXXX)
-            mv /tmp/sokar-staging-source.tar.gz "$SOURCE_TMP/source.tar.gz"
+            SOURCE_TMP=$(mktemp -d /tmp/suppernote-staging-source.XXXXXX)
+            mv /tmp/suppernote-staging-source.tar.gz "$SOURCE_TMP/source.tar.gz"
             mkdir "$SOURCE_TMP/tree"
             tar -xzf "$SOURCE_TMP/source.tar.gz" --strip-components=1 -C "$SOURCE_TMP/tree"
             while IFS= read -r -d '' tracked_path; do
@@ -189,9 +189,9 @@ jobs:
                 commit --no-verify -m "chore(staging): snapshot ${SOURCE_SHA}"
             fi
             git status --short
-            if [ ! -x /usr/local/sbin/sokar-deploy-root ]; then
+            if [ ! -x /usr/local/sbin/suppernote-deploy-root ]; then
               sudo install -o root -g root -m 0755 \
-                scripts/ops/sokar-deploy-root.sh /usr/local/sbin/sokar-deploy-root
+                scripts/ops/suppernote-deploy-root.sh /usr/local/sbin/suppernote-deploy-root
             fi
             source scripts/ops/deploy-common.sh
             api_env_before="$(api_env_fingerprint apps/api/.env)"
@@ -238,11 +238,11 @@ jobs:
           command_timeout: 2m
           script: |
             set -euo pipefail
-            rm -f /tmp/sokar-clerk-secret
+            rm -f /tmp/suppernote-clerk-secret
 
       - name: Remove runner Clerk secret transport file
         if: always()
-        run: rm -f sokar-clerk-secret
+        run: rm -f suppernote-clerk-secret
 
   smoke-tests:
     name: Smoke tests against staging
@@ -329,7 +329,7 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            bash /opt/sokar-staging/scripts/deploy.sh --env staging rollback
+            bash /opt/suppernote-staging/scripts/deploy.sh --env staging rollback
         continue-on-error: true
 
       - name: Verify rollback health
@@ -352,12 +352,12 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            latest=$(tr -d '[:space:]' < /opt/sokar-staging/releases/.latest)
+            latest=$(tr -d '[:space:]' < /opt/suppernote-staging/releases/.latest)
             test -n "$latest"
             # Le test de rollback restaure l’avant-dernière release ;
             # remettre explicitement la release courante évite de laisser
             # staging servir un artefact historique après un workflow vert.
-            bash /opt/sokar-staging/scripts/deploy.sh --env staging rollback "$latest"
+            bash /opt/suppernote-staging/scripts/deploy.sh --env staging rollback "$latest"
 
       - name: Playwright E2E smoke test
         uses: actions/checkout@v4
@@ -437,7 +437,7 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            cd /opt/sokar-staging
+            cd /opt/suppernote-staging
             DATABASE_URL=$(grep '^DATABASE_URL=' apps/api/.env | cut -d= -f2- | sed "s/^[\"'[:space:]]*//;s/[\"'[:space:]]*$//")
             case "$DATABASE_URL" in
               *sokar_staging*) ;;

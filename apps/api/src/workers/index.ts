@@ -6,7 +6,7 @@
  * est donc le seul endroit où la liste des workers est maintenue, partagé par
  * les deux topologies :
  *
- *  - `src/worker.ts` (production, PM2 `sokar-workers`) ;
+ *  - `src/worker.ts` (production, PM2 `suppernote-workers`) ;
  *  - `src/main.ts` en développement, via `RUN_WORKERS_IN_PROCESS=true`.
  *
  * Le test `workers/__tests__/worker-registry.test.ts` échoue si un nouveau

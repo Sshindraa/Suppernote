@@ -1,5 +1,5 @@
 /**
- * Lecture des journaux pino de l'API (`/var/log/sokar/api-out.log`, rotation quotidienne, 14 jours)
+ * Lecture des journaux pino de l'API (`/var/log/suppernote/api-out.log`, rotation quotidienne, 14 jours)
  * pour reconstituer ce que le système a vu et décidé pendant un appel.
  *
  * Les journaux portent le `callControlId` ; l'appel en base porte le `callSid`. La ligne

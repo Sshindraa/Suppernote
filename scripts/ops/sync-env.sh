@@ -36,16 +36,16 @@ DEPLOY_ENV="${2:-}"
 
 case "$DEPLOY_ENV" in
   staging)
-    API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/sokar-staging/apps/api/.env}"
-    DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/sokar-staging/apps/dashboard/.env}"
-    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/sokar-staging/apps/connect/.env}"
+    API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/suppernote-staging/apps/api/.env}"
+    DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/suppernote-staging/apps/dashboard/.env}"
+    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/suppernote-staging/apps/connect/.env}"
     CLERK_PREFIX='sk_test_'
     SENTRY_ENV_NAME='staging'
     ;;
   prod)
-    API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/sokar/apps/api/.env}"
-    DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/sokar/apps/dashboard/.env}"
-    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/sokar/apps/connect/.env}"
+    API_ENV_FILE="${SOKAR_API_ENV_FILE:-/opt/suppernote/apps/api/.env}"
+    DASHBOARD_ENV_FILE="${SOKAR_DASHBOARD_ENV_FILE:-/opt/suppernote/apps/dashboard/.env}"
+    CONNECT_ENV_FILE="${SOKAR_CONNECT_ENV_FILE:-/opt/suppernote/apps/connect/.env}"
     CLERK_PREFIX='sk_live_'
     SENTRY_ENV_NAME='production'
     ;;
@@ -191,7 +191,7 @@ trap cleanup EXIT
 # identifiant pointant vers l'ancien prix 149/249 € vendrait au mauvais montant.
 check_stripe_catalog() {
   local tmp_file="$1"
-  local root="${SOKAR_ROOT:-$(cd "$(dirname "$API_ENV_FILE")/../.." && pwd)}"
+  local root="${SUPPERNOTE_ROOT:-$(cd "$(dirname "$API_ENV_FILE")/../.." && pwd)}"
   local verify_script="$root/scripts/ops/verify-stripe-catalog.mjs"
   if [[ "$GROUP" != stripe-prices ]]; then
     return 0

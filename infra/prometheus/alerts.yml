@@ -25,7 +25,7 @@
 #      touchés ; le cooldown est stocké dans Redis.
 #
 #   4. Watchdog VPS (cron toutes les 5 min)
-#      — scripts/ops/sokar-watchdog.sh (/usr/local/sbin/sokar-watchdog)
+#      — scripts/ops/suppernote-watchdog.sh (/usr/local/sbin/suppernote-watchdog)
 #      Évalue : API/dashboard/connect injoignables, Redis/Postgres arrêtés,
 #      backup quotidien absent (>26h), disque/mémoire critiques.
 #      Notification : ALERT_WEBHOOK / ALERT_CMD + heartbeat externe

@@ -406,7 +406,7 @@ async function start() {
   });
 
   // Workers et jobs récurrents : soit dans ce process (développement), soit
-  // dans le process dédié `dist/worker.js` (production, PM2 `sokar-workers`).
+  // dans le process dédié `dist/worker.js` (production, PM2 `suppernote-workers`).
   // En production l'écosystème PM2 force RUN_WORKERS_IN_PROCESS=false.
   if (env.RUN_WORKERS_IN_PROCESS === 'true') {
     setImmediate(() => {

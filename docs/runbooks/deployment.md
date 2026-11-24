@@ -54,7 +54,7 @@ l'API.
   # Staging : relance le workflow sur main (smoke tests inclus)
   gh workflow run deploy-staging.yml --ref main
   ```
-  Le checkout `/opt/sokar-staging` est un snapshot (commits `chore(staging): snapshot <sha>`, jamais poussés) : un `git pull origin main` y diverge et échoue.
+  Le checkout `/opt/suppernote-staging` est un snapshot (commits `chore(staging): snapshot <sha>`, jamais poussés) : un `git pull origin main` y diverge et échoue.
 
 ## Production deployment
 
@@ -72,26 +72,26 @@ l'API.
   ```zsh
   gh workflow run deploy-prod.yml --ref main --field run_demo_slug_migration=true
   ```
-- Privileged wrapper: `/usr/local/sbin/sokar-deploy-root`.
+- Privileged wrapper: `/usr/local/sbin/suppernote-deploy-root`.
 - The `deploy` account is **not** in `sudo` or `docker` groups.
 
 ## Rollback
 
 ```zsh
 # Production
-ssh deploy@sokar "cd /opt/sokar && bash scripts/deploy.sh --env prod --confirm-production rollback"
+ssh deploy@suppernote "cd /opt/suppernote && bash scripts/deploy.sh --env prod --confirm-production rollback"
 
 # Staging
-ssh deploy@sokar "cd /opt/sokar-staging && bash scripts/deploy.sh --env staging rollback"
+ssh deploy@suppernote "cd /opt/suppernote-staging && bash scripts/deploy.sh --env staging rollback"
 ```
 
 ## Dry-run (staging only)
 
 ```zsh
-ssh deploy@sokar "cd /opt/sokar-staging && bash scripts/deploy.sh --env staging --dry-run"
+ssh deploy@suppernote "cd /opt/suppernote-staging && bash scripts/deploy.sh --env staging --dry-run"
 ```
 
-En dry-run, le script ne fait ni `git pull` ni `checkout` (il construit le checkout courant), ne réinstalle pas `/usr/local/sbin/sokar-deploy-root` et ne migre, ne redémarre ni ne touche à Nginx. Il peut en revanche installer les dépendances et compiler dans des dossiers isolés, supprimés en fin de run. Validé le 18/10 sur staging : sortie 0, aucun changement sur le wrapper, le checkout ou la release.
+En dry-run, le script ne fait ni `git pull` ni `checkout` (il construit le checkout courant), ne réinstalle pas `/usr/local/sbin/suppernote-deploy-root` et ne migre, ne redémarre ni ne touche à Nginx. Il peut en revanche installer les dépendances et compiler dans des dossiers isolés, supprimés en fin de run. Validé le 18/10 sur staging : sortie 0, aucun changement sur le wrapper, le checkout ou la release.
 
 ## Smoke tests
 

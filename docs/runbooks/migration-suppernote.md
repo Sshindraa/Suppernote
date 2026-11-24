@@ -8,7 +8,8 @@ Décision de Hamza du 3 novembre 2026 : la marque devient Suppernote et `sokar.t
 
 Ces noms sont internes ou consommés hors du dépôt. Les renommer ne s'est pas justifié ici :
 
-- dossiers `/opt/sokar`, sauvegardes, services et scripts `sokar-*`, base de données ;
+- dossiers `/opt/sokar`, sauvegardes, services et scripts `sokar-*`, base de données (le renommage
+  du VPS, sauf la base, est préparé pour le 24/11/2026 : voir `rename-suppernote-vps.md`) ;
 - en-tête `X-Sokar-Site-ID`, `sokar-mcp`, noms d'outils MCP, champs d'API, événements analytics ;
 - identifiant iOS `tech.sokar.ios` et projet Xcode ;
 - migrations Prisma, journal `docs/obsidian/` et bancs voix.

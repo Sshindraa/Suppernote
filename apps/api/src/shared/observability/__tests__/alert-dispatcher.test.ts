@@ -218,3 +218,74 @@ describe('dispatchAlert', () => {
     );
   });
 });
+
+describe('libellé d’environnement des alertes', () => {
+  const ENV_VARS = ['ALERT_ENV_LABEL', 'API_URL', 'PUBLIC_API_URL'] as const;
+
+  beforeEach(() => {
+    vi.mocked(sendEmail).mockReset().mockResolvedValue({
+      outcome: 'success',
+      provider: 'resend',
+      channel: 'email',
+    });
+    for (const key of ENV_VARS) delete process.env[key];
+    process.env.ALERT_EMAIL_TO = 'ops@example.test';
+  });
+
+  afterEach(() => {
+    for (const key of ENV_VARS) delete process.env[key];
+    delete process.env.ALERT_EMAIL_TO;
+  });
+
+  const alert = {
+    kind: 'system_health_digest',
+    severity: 'critical' as const,
+    summary: '1 alerte(s) système : dead-letter',
+    detail: 'détail',
+  };
+
+  it('production : le sujet reste inchangé', async () => {
+    process.env.API_URL = 'https://api.suppernote.com';
+
+    await dispatchAlert(alert);
+
+    expect(vi.mocked(sendEmail).mock.calls[0][0].subject).toBe(
+      '[Suppernote CRITICAL] 1 alerte(s) système : dead-letter',
+    );
+  });
+
+  it('staging (déduit de API_URL) : le sujet porte STAGING, distinct de la production', async () => {
+    process.env.API_URL = 'https://api-staging.suppernote.com';
+
+    await dispatchAlert(alert);
+
+    expect(vi.mocked(sendEmail).mock.calls[0][0].subject).toBe(
+      '[Suppernote STAGING CRITICAL] 1 alerte(s) système : dead-letter',
+    );
+  });
+
+  it('ALERT_ENV_LABEL explicite prime sur l’URL', async () => {
+    process.env.API_URL = 'https://api.suppernote.com';
+    process.env.ALERT_ENV_LABEL = 'recette';
+
+    await dispatchAlert(alert);
+
+    expect(vi.mocked(sendEmail).mock.calls[0][0].subject).toContain(
+      '[Suppernote RECETTE CRITICAL]',
+    );
+  });
+
+  it('le libellé figure aussi dans le webhook', async () => {
+    process.env.PUBLIC_API_URL = 'https://api-staging.suppernote.com';
+    process.env.ALERT_WEBHOOK_URL = 'https://hooks.example.test/alerts';
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await dispatchAlert({ ...alert, email: false });
+    delete process.env.ALERT_WEBHOOK_URL;
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain(
+      '[Suppernote STAGING CRITICAL]',
+    );
+  });
+});

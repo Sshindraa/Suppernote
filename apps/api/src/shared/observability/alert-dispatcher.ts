@@ -46,6 +46,33 @@ export interface ChannelResult {
   error?: string;
 }
 
+/**
+ * Environnement émetteur, pour distinguer les alertes de staging de celles de production quand
+ * les deux écrivent aux mêmes destinataires (NODE_ENV vaut `production` dans les deux).
+ * `ALERT_ENV_LABEL` prime ; sinon `staging` est déduit de l'hôte de `API_URL` / `PUBLIC_API_URL`.
+ * La production n'a pas de libellé : ses sujets restent inchangés.
+ */
+export function alertEnvironmentLabel(
+  source: Record<string, string | undefined> = process.env,
+): string | undefined {
+  const explicit = source.ALERT_ENV_LABEL?.trim();
+  if (explicit) return explicit.toUpperCase();
+  for (const raw of [source.API_URL, source.PUBLIC_API_URL]) {
+    if (!raw) continue;
+    try {
+      if (/(^|[.-])staging([.-]|$)/i.test(new URL(raw).hostname)) return 'STAGING';
+    } catch {
+      // URL illisible : on essaie la suivante.
+    }
+  }
+  return undefined;
+}
+
+function alertTag(severity: AlertSeverity): string {
+  const env = alertEnvironmentLabel();
+  return `Suppernote${env ? ` ${env}` : ''} ${severity.toUpperCase()}`;
+}
+
 /** Échappe le HTML pour le corps email. */
 function escapeHtml(text: string): string {
   return text
@@ -65,7 +92,7 @@ function track(kind: string, channel: ChannelResult['channel'], ok: boolean): vo
 
 async function tryEmail(payload: AlertPayload, recipients: string): Promise<ChannelResult> {
   try {
-    const subject = `[Suppernote ${payload.severity.toUpperCase()}] ${payload.summary}`;
+    const subject = `[${alertTag(payload.severity)}] ${payload.summary}`;
     const html = [
       `<p><strong>${escapeHtml(payload.summary)}</strong></p>`,
       `<pre style="font-family:monospace;white-space:pre-wrap">${escapeHtml(payload.detail)}</pre>`,
@@ -96,7 +123,7 @@ async function tryWebhook(payload: AlertPayload, url: string): Promise<ChannelRe
   try {
     const icon =
       payload.severity === 'critical' ? '🚨' : payload.severity === 'warning' ? '⚠️' : 'ℹ️';
-    const text = `${icon} [Suppernote ${payload.severity.toUpperCase()}] ${payload.summary}\n${payload.detail}`;
+    const text = `${icon} [${alertTag(payload.severity)}] ${payload.summary}\n${payload.detail}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
@@ -125,7 +152,7 @@ async function tryWebhook(payload: AlertPayload, url: string): Promise<ChannelRe
 async function trySms(payload: AlertPayload, to: string): Promise<ChannelResult> {
   try {
     // SMS : message court, sans le détail complet (coût + lisibilité).
-    const text = `[Suppernote ${payload.severity.toUpperCase()}] ${payload.summary}`.slice(0, 300);
+    const text = `[${alertTag(payload.severity)}] ${payload.summary}`.slice(0, 300);
     await sendSms(to, text);
     return { channel: 'sms', ok: true };
   } catch (err) {

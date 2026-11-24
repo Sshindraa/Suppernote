@@ -114,6 +114,9 @@ peuvent fournir `SENTRY_DSN`, `ALERT_EMAIL_TO`, `ALERT_WEBHOOK_URL` et
 afficher. `ALERT_WEBHOOK` et `HEALTHCHECKS_PING_URL` alimentent le watchdog VPS
 dans `/etc/suppernote/watchdog.env`, fichier root lisible uniquement par le cron.
 Si aucun secret n’est défini, le déploiement conserve la configuration existante.
+Quand staging et production écrivent aux mêmes destinataires, le sujet de staging porte
+`STAGING` (déduit de `API_URL`/`PUBLIC_API_URL`, ou forcé par `ALERT_ENV_LABEL`) ; chaque
+environnement ayant sa propre Redis, chacun envoie son propre digest.
 
 ### Sentry : dashboard et Connect
 

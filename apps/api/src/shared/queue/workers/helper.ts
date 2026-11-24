@@ -5,6 +5,7 @@ import { queues } from '../queues';
 import { sanitizeJobId } from '../job-options';
 import { buildDeadLetterPayload, redactJobData } from '../dead-letter.service';
 import { registerWorker } from './registry';
+import { repeatJobExhaustedTotal } from '../../observability/metrics';
 
 interface JobLogData {
   readonly restaurantId?: string;
@@ -27,10 +28,38 @@ export function jobLogger(job: Job): ReturnType<typeof logger.child> {
   });
 }
 
-async function moveFailedJobToDeadLetter(worker: Worker, job: Job, err: Error): Promise<void> {
+/**
+ * A job produced by a BullMQ job scheduler (`upsertJobScheduler`, id `repeat:<scheduler>:<ts>`)
+ * or by a legacy repeatable job (`opts.repeat`). The next occurrence replaces it.
+ */
+export function isRepeatJob(job: Pick<Job, 'id' | 'opts'>): boolean {
+  if (job.opts?.repeat) return true;
+  return typeof job.id === 'string' && job.id.startsWith('repeat:');
+}
+
+export async function moveFailedJobToDeadLetter(
+  worker: Worker,
+  job: Job,
+  err: Error,
+): Promise<void> {
   const maxAttempts = job.opts.attempts ?? 1;
   const willRetry = job.attemptsMade < maxAttempts;
   if (willRetry) return;
+
+  if (isRepeatJob(job)) {
+    // The next scheduled run replaces this one: a dead-letter entry would only raise a critical
+    // `dead_letter_backlog` alert for work that is already superseded.
+    jobLogger(job).warn(
+      { err: { message: err.message }, queueName: worker.name },
+      `[Worker:${worker.name}] Repeat job exhausted its attempts; not moved to dead-letter`,
+    );
+    try {
+      repeatJobExhaustedTotal.inc({ queue: worker.name, job_name: job.name });
+    } catch {
+      // A metric must never break the failure handler.
+    }
+    return;
+  }
 
   const payload = buildDeadLetterPayload({
     queueName: worker.name,

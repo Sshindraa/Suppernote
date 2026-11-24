@@ -493,6 +493,11 @@ arrière : un message à Hamza avec la cause, l'état actuel et la prochaine act
 ### 3.9 Après la fenêtre : remise en service des déploiements et retrait de la compatibilité
 
 1. Hamza décide (Q6) de l'ordre : **la PR dev ne se fusionne qu'après un renommage validé en prod**.
+   **Rebase avant merge** : juste avant de fusionner #795, la mettre à jour sur `main` (`gh pr view 795 --json mergeStateStatus`
+   doit rester `CLEAN` après la mise à jour, et les 6 checks requis repasser au vert), puis fusionner **sans qu'aucune autre PR
+   ne soit fusionnée entre la réactivation des workflows et cette fusion** (sinon `main` avance et #795 peut redevenir `DIRTY`).
+   **#747 (draft, relais `api.sokar.tech`) est en conflit avec #795** : elle modifie `infra/nginx/sokar.conf`, que #795 renomme en
+   `suppernote.conf`. Elle reste en brouillon, à rebaser par son auteur **après** la fusion de #795 (ne pas la fusionner avant).
 2. Hamza réactive les workflows (`gh workflow enable deploy-staging.yml` puis `deploy-prod.yml`), puis fusionne la PR dev
    (ou la merge-queue) **hors service**, c'est-à-dire avant 18h30 ou le lendemain 14h (Q13). Le déploiement attendu enchaîne
    staging, smoke tests, prod, smoke tests, puis ops vérifie la checklist §4 ligne 22.
@@ -632,8 +637,12 @@ partagés que lorsque les deux environnements sont nettoyés. `apply` ne le lanc
 | 5    | `apply` fait, mais une vérification (pm2, `/health`) est en échec                | Décision du §3.4 : corriger en moins de 5 min, sinon `rollback --env <env>`            |
 | 6    | Erreur inattendue (retour arrière automatique tenté) ou retour arrière incomplet | Lire `run.log`, lancer `status`, puis `rollback`, sinon l'option B manuelle du §3.5    |
 
-**Interruption (pas de code utile : connexion coupée, ou code 129 = SIGHUP / 143 = SIGTERM / 130 = Ctrl-C)** : le script s'arrête
+**Interruption par signal (pas de code utile : connexion coupée, ou code 129 = SIGHUP / 143 = SIGTERM)** : le script s'arrête
 là où il est, **sans retour arrière automatique** (seuls le cron watchdog et le verrou sont remis en place). Procédure : **§3.11**.
+
+**Ctrl-C (SIGINT) n'est PAS dans ce cas** : rejoué par la QA sur le script, SIGINT pendant `apply` donne le **code 6 avec retour
+arrière automatique réussi** (les 4 process anciens `online`). Après un Ctrl-C, ne pas relancer `apply` : lire le code de sortie, puis
+`status` ; si le code n'est pas 6 (ou si `status` montre un état partiel), traiter comme une interruption (§3.11).
 
 Journal de chaque exécution : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`).
 Il ne contient aucun secret ; le dossier est en mode 0700. Le transmettre à ops en cas d'incident.

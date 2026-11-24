@@ -30,7 +30,7 @@ présent. Le détail de l'alerte pointe vers ce runbook.
 > reste `[Suppernote CRITICAL]`. Staging a sa propre Redis, donc sa propre dead-letter : une entrée
 > y déclenche un digest indépendant de la production. Le libellé se déduit de `API_URL` /
 > `PUBLIC_API_URL` ou se force par `ALERT_ENV_LABEL`. Lancer `stats` sur **les deux**
-> environnements (`/opt/sokar` et `/opt/sokar-staging`) avant de conclure que la file est vide.
+> environnements (`/opt/suppernote` et `/opt/suppernote-staging`) avant de conclure que la file est vide.
 
 ## Commandes
 

@@ -1194,6 +1194,9 @@ abort_apply() { # code message
     local code="$1"
     shift
     trap - ERR
+    # Retour arrière déclenché par une erreur (nginx -t, pm2 start, trap ERR) : INT/TERM/HUP ignorés dès
+    # l'entrée (comme on_signal), sinon on_signal l'interromprait (AUTO_RB=1) et le code 4/6 serait perdu.
+    trap '' INT TERM HUP
     set +e
     log "ÉCHEC : $*"
     if [ "$PHASE" = pre ] && [ "$AUTO_RB" = 0 ] && [ "$DRY" = 0 ]; then
@@ -1219,6 +1222,45 @@ on_err() {
     fi
     log "ERREUR : code $rc ligne $line à l'étape « $STEP »"
     exit "$rc"
+}
+
+# Interruption : Ctrl-C au clavier (SIGINT envoyé au GROUPE de process, donc aussi à la commande en cours),
+# coupure SSH (SIGHUP) ou kill (SIGTERM). Sans ce gestionnaire, le script mourait au milieu de l'opération
+# (process pm2 arrêtés, aucun retour arrière). Pendant `apply` avant que le trafic ne passe par les nouveaux
+# process (PHASE=pre) : même retour arrière automatique que pour une erreur (code 6, piloté par l'état réel).
+# Dans tous les autres cas : aucun retour arrière automatique (un rollback interrompu ne se relance pas seul),
+# code 128+n, décision humaine (runbook §3.11). Le trap EXIT remet le cron watchdog et libère le verrou.
+on_signal() { # INT|TERM|HUP
+    local sig="$1" n
+    trap '' INT TERM HUP
+    trap - ERR
+    set +e
+    case "$sig" in
+        INT) n=130 ;;
+        HUP) n=129 ;;
+        TERM) n=143 ;;
+        *) n=1 ;;
+    esac
+    log "interruption par SIG$sig à l'étape « $STEP » (phase $PHASE)"
+    if [ "$CMD" = apply ] && [ "$PHASE" = pre ] && [ "$AUTO_RB" = 0 ] && [ "$DRY" = 0 ] && [ -n "$CUR_ENV" ]; then
+        abort_apply 6 "interruption par signal SIG$sig à l'étape « $STEP »"
+    fi
+    case "$CMD" in
+        preflight | status)
+            log "Commande en lecture seule : rien n'a été modifié."
+            ;;
+        apply)
+            if [ "$DRY" = 1 ] || [ -z "$CUR_ENV" ]; then
+                log "Aucune modification n'avait encore été faite : pas de retour arrière nécessaire."
+            else
+                log "Aucun retour arrière automatique à ce stade (phase : $PHASE) : décision humaine : status --env $ENV_ARG puis, si l'état n'est pas propre, rollback --env $ENV_ARG (runbook §3.11)."
+            fi
+            ;;
+        *)
+            log "Aucun retour arrière automatique (commande : $CMD) : décision humaine : status --env $ENV_ARG puis rollback --env $ENV_ARG si l'état n'est pas propre (runbook §3.11)."
+            ;;
+    esac
+    exit "$n"
 }
 
 apply_env() { # env [skip-preflight]
@@ -1790,6 +1832,9 @@ main() {
     require_root
     trap on_exit EXIT
     trap 'on_err $? $LINENO' ERR
+    trap 'on_signal INT' INT
+    trap 'on_signal TERM' TERM
+    trap 'on_signal HUP' HUP
     init_run
     detect_pm2_mode
     case "$CMD" in

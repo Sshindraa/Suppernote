@@ -5,11 +5,15 @@
 > runbook est conservé pour le rollback et le `cleanup-compat` : les heures, rôles et états « avant
 > apply » des sections ci-dessous décrivent la fenêtre passée, pas l'état actuel du serveur.
 >
-> **⚠ Script sans trap de signal.** Le script sur `main` (sha256 `54db839b…`) n'a **PAS** de trap
-> INT/TERM/HUP : un Ctrl-C ou une coupure SSH pendant `apply` laisse l'environnement arrêté, sans
-> retour arrière automatique. Le correctif (commit local 314f01ae, sha256 `bc8a5744…`) n'est pas
-> publié. Avant toute réutilisation de `apply` : exécuter dans `tmux`/`screen`, et en cas
-> d'interruption faire `status --env all` puis `rollback --env <env>`.
+> **Script historique non corrigé.** Le script de `main` au 25/11 (`967b12f5`, sha256 `54db839b…`)
+> n'a pas de trap INT/TERM/HUP : un signal de groupe pendant `apply` peut laisser l'environnement
+> arrêté, sans retour arrière automatique sur signal (codes 130/129/143). Le SHA du script
+> réellement exécuté le 24/11 n'est pas établi (voir §3.10). Ne pas installer cette version pour
+> une nouvelle intervention.
+>
+> **Variante corrigée : candidate de la PR de correctif, non déployée.** Les
+> garanties ci-dessous ne s'appliquent qu'à cette variante, et dépendent de la phase (§3.10).
+> Ce document n'autorise ni la relance du renommage ni une autre intervention sur le serveur.
 >
 > _Historique : préflight lecture seule terminé le 23/11/2026, 10:15–10:45 CET. Fenêtre validée par
 > Hamza : **mardi 24/11/2026, 15h00–16h00 (CET)**, hors service._
@@ -20,18 +24,19 @@
 > téléphone ; l'heure de référence est celle du serveur (`ssh deploy@sokar date`).
 >
 > **Règle n° 1 de la fenêtre : `apply` et `rollback` se lancent TOUJOURS dans `tmux` sur le serveur**
-> (`sudo tmux new -A -s rename`, §3.10). Après une coupure ou un kill pendant `apply`, ne **pas** relancer
-> `apply` : suivre §3.11.
+> (`sudo tmux new -A -s rename`, §3.10), **jamais dans un pipeline** (`| tee`, `| less`, `| grep`… : §3.10). Après **toute**
+> interruption d'`apply` ou de `rollback` (Ctrl-C, coupure SSH, kill), ne **pas** relancer `apply` : lire le code de sortie,
+> puis suivre §3.11 (verrou, `status`, contrôles de l'« état sain », et `rollback --env <env>` si l'un d'eux échoue).
 > Rien n'a été modifié sur le VPS pour rédiger ce document : uniquement `ls`, `cat`, `grep`,
 > `pm2 jlist`, `crontab -l`, `systemctl status/cat`, `stat`, `readlink`, `df`, `du`, `nginx -v`,
 > `curl` sur `127.0.0.1` et sur les domaines publics (GET). Aucune valeur de `.env`, `watchdog.env`
 > ou URL de heartbeat n'est reproduite ici : seuls les noms de variables et les chemins comptent.
 >
-> Le script `scripts/ops/rename-sokar-to-suppernote.sh` et ses tests ont été livrés dans la PR #795
-> (fusionnée). Les commandes exactes à copier-coller sont au **§3.10** ; le traitement de chaque
-> référence H01–H36 par le script est au **§1.7**. Le script a été exécuté sur le VPS lors de la
-> fenêtre du 24/11 (staging puis prod) ; il avait été testé auparavant en bac à sable local
-> (stubs pm2/nginx/systemctl/docker/sudo/visudo).
+> La PR #795 (fusionnée le 24/11, `f9ad657d`) a livré le script et ses tests avant le correctif de
+> signal. La variante approuvée en bac à sable (stubs pm2/nginx/systemctl/docker/sudo/visudo,
+> jamais exécutée sur le VPS) est épinglée à l'**étape 0 du §3.10**. Le §1.7 décrit le traitement
+> des références H01–H36. Les commandes de la fenêtre sont conservées pour mémoire ; toute
+> nouvelle intervention, y compris un rollback, exige une décision explicite de Hamza.
 
 Périmètre du palier 1 (décidé par le lead) :
 
@@ -86,11 +91,24 @@ Risques majeurs, par ordre d'importance :
    tests de Hamza). À confirmer (§5.2, Q1).
 8. **Faux amis à ne pas « renommer »** : les dumps restent `sokar-*.dump` (nom de la base Postgres), la
    chaîne `Backup offsite sokar terminé` aussi. Le watchdog dépend de ces deux chaînes (§1.2, H10).
-9. **Une coupure SSH (SIGHUP) ou un kill (SIGTERM) pendant `apply` laisse l'environnement coupé.** Si le
-   script est tué entre `pm2 delete` et `pm2 start`, les 4 process PM2 de l'environnement restent
-   `stopped` ou absents et **il n'y a pas de retour arrière automatique** : relancer `apply` est alors
-   refusé par le préflight (code 3, état partiel). Deux parades : tout lancer dans `tmux` (§3.10), et
-   après toute interruption faire `status` puis `rollback --env <env>` (§3.11).
+9. **Une interruption d'`apply` (Ctrl-C, coupure SSH, kill) n'est rattrapée automatiquement que dans une seule phase.** La
+   variante corrigée piège SIGINT, SIGHUP et SIGTERM (envoyés au groupe de process, comme un vrai Ctrl-C). Trois cas, à ne pas confondre :
+   (a) **préflight, avant toute modification** (préflight de tous les environnements ciblés, premier `nginx -t` compris) : rien
+   n'a été modifié, **aucun retour arrière automatique**, code 128+n (130 Ctrl-C, 129 SIGHUP, 143 SIGTERM) ;
+   (b) **phase pré-bascule** (étapes 2 à 7 du §3.6, tant que le trafic ne passe pas par les nouveaux process) : seul cas où le
+   **retour arrière automatique** de l'environnement en cours est armé, code 6 ;
+   (c) **phase post** (nouveaux process démarrés : `pm2 save`, remise du watchdog, vérifications finales) et `rollback` :
+   **aucun retour arrière automatique**, code 128+n, état renommé (ou partiel pour un `rollback`) à examiner.
+   Ce que le script ne peut pas rattraper : SIGKILL (`kill -9`), OOM, arrêt brutal de la machine ; dans ces cas les 4 process
+   PM2 de l'environnement peuvent rester `stopped` ou absents (l'environnement reste coupé), et relancer `apply` est refusé
+   par le préflight avec le code 3 dans le cas rejoué d'un kill à `pm2 start` (K2-direct), mais **pas** après un kill à
+   `pm2 delete` (K2-direct, `apply` direct : code 0) : ne jamais compter sur ce refus. Un `apply` dont la sortie est
+   envoyée dans un pipeline `| tee` a terminé en code 141 **sans retour arrière** dans les 6 cas rejoués (`T-*-tee`, §3.10 :
+   signal envoyé au groupe pendant `pm2 start`, Linux) ; les autres étapes, `rollback` et `cleanup-compat` en pipeline ne sont
+   pas rejoués. À traiter comme SIGKILL (déduit des cas `K-*`). Parades : tout lancer dans `tmux`, sans pipeline (§3.10 ; la coupure SSH ne
+   doit alors plus couper le script, non rejoué avec un vrai `tmux`) et, après **toute** interruption, code 6 compris, lire
+   le code de sortie, vérifier le verrou, faire `status`, contrôler l'« état sain » puis `rollback --env <env>` si un
+   contrôle échoue (§3.11).
 
 ---
 
@@ -327,24 +345,26 @@ Aucun backup n'est planifié entre 04:20 et 03:20, donc aucune collision avec 15
 ## 3. Runbook de la fenêtre (mardi 24/11/2026, 15h00–16h00 CET)
 
 **Toutes les heures de cette section sont en heure de Paris** (fuseau du serveur ; le Mac de Hamza est en UTC+0, soit 1 h de
-moins : 15h00 à Paris = 14h00 sur le Mac). **Tous les `apply` et `rollback` se lancent dans `tmux` sur le serveur** (§3.10) et,
+moins : 15h00 à Paris = 14h00 sur le Mac). **Tous les `apply` et `rollback` se lancent dans `tmux` sur le serveur, sans pipeline** (§3.10) et,
 après toute interruption, on suit §3.11 avant de toucher à autre chose.
+
+**Archive de la fenêtre passée.** Les prérequis, horaires et commandes `apply` qui suivent ne sont pas un plan de relance.
 
 Acteurs : **Hamza** (root, UI Healthchecks, GitHub, décision GO/NO-GO), **suppernote-dev** (script, PR),
 **suppernote-ops** (vérifications lecture seule via `ssh deploy@sokar`, relevé de Sentry), **lead** (coordination).
 
 ### 3.0 Prérequis, avant le mardi 15h (aujourd'hui lundi 23/11 et mardi matin)
 
-| #   | Qui          | Action                                                                                                                                                                                                                                                |
-| --- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1  | dev          | **Livré** : `scripts/ops/rename-sokar-to-suppernote.sh` + tests dans la PR #795 (branche `chore/rename-sokar-suppernote-infra`, **non fusionnée**), avec les patchs repo (wrapper, watchdog, cron, logrotate, ecosystem, nginx, workflows, code H28). |
-| P2  | Hamza        | Répondre aux questions du §5.2 (en particulier Q1, Q2, Q3, Q6).                                                                                                                                                                                       |
-| P3  | Hamza (root) | **Préflight root** (§1.5) : `nginx -T`, `docker inspect`, sudoers, `/etc/sokar`, crontab root. Transmettre la sortie **masquée** (clés et chemins seulement) à ops.                                                                                   |
-| P4  | dev + Hamza  | Copier le script **hors de `/opt/sokar`** dans `/root/rename/` avec contrôle d'empreinte (§3.10, étape 0) : un script lancé depuis un dossier qu'il déplace perd ses chemins relatifs, et `preflight` le refuse.                                      |
-| P5  | Hamza (root) | `preflight --env all`, puis `apply --env all --dry-run`, puis `status --env all` (§3.10, étapes 1 à 3). Aucune modification attendue.                                                                                                                 |
-| P6  | ops          | Relire les sorties P3 et P5 contre ce document, mettre à jour §1 et §5. **Pas de fenêtre si P3/P5 ne sont pas faits.**                                                                                                                                |
-| P7  | Hamza        | Annonce (gabarit §3.8) aux restaurants concernés, si des restaurants sont en production réelle (Q1).                                                                                                                                                  |
-| P8  | Hamza        | **Ne fusionner aucune PR** avant la fenêtre dont le déploiement toucherait nginx, cron ou scripts ops. PR #747 (draft, relais `api.sokar.tech`) ne doit pas être fusionnée avant le renommage.                                                        |
+| #   | Qui          | Action                                                                                                                                                                                                                                                                                                                                |
+| --- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | dev          | **Livré** : `scripts/ops/rename-sokar-to-suppernote.sh` + tests dans la PR #795 (**fusionnée** le 24/11), avec les patchs repo (wrapper, watchdog, cron, logrotate, ecosystem, nginx, workflows, code H28). Ce script historique n'intégrait pas le correctif de signal ; la source de la variante corrigée est à l'étape 0 du §3.10. |
+| P2  | Hamza        | Répondre aux questions du §5.2 (en particulier Q1, Q2, Q3, Q6).                                                                                                                                                                                                                                                                       |
+| P3  | Hamza (root) | **Préflight root** (§1.5) : `nginx -T`, `docker inspect`, sudoers, `/etc/sokar`, crontab root. Transmettre la sortie **masquée** (clés et chemins seulement) à ops.                                                                                                                                                                   |
+| P4  | dev + Hamza  | Copier le script **hors de `/opt/sokar`** dans `/root/rename/` avec contrôle de l'empreinte attendue (§3.10, étape 0, arrêt si elle diffère) : un script lancé depuis un dossier qu'il déplace perd ses chemins relatifs, et `preflight` le refuse.                                                                                   |
+| P5  | Hamza (root) | `preflight --env all`, puis `apply --env all --dry-run`, puis `status --env all` (§3.10, étapes 1 à 3). Aucune modification attendue.                                                                                                                                                                                                 |
+| P6  | ops          | Relire les sorties P3 et P5 contre ce document, mettre à jour §1 et §5. **Pas de fenêtre si P3/P5 ne sont pas faits.**                                                                                                                                                                                                                |
+| P7  | Hamza        | Annonce (gabarit §3.8) aux restaurants concernés, si des restaurants sont en production réelle (Q1).                                                                                                                                                                                                                                  |
+| P8  | Hamza        | **Ne fusionner aucune PR** avant la fenêtre dont le déploiement toucherait nginx, cron ou scripts ops. PR #747 (draft, relais `api.sokar.tech`) ne doit pas être fusionnée avant le renommage.                                                                                                                                        |
 
 ### 3.1 Gel des déploiements automatiques (point critique)
 
@@ -425,8 +445,9 @@ au moment du déploiement de validation (§3.9, étape 2).
 
 ### 3.5 Rollback pas à pas
 
-> **Après une coupure ou un kill pendant `apply` (SSH tombé, SIGHUP/SIGTERM) : aller d'abord au §3.11** (`status`, puis
-> `rollback --env <env>`). Ne jamais relancer `apply` directement.
+> **Après une interruption pendant `apply` ou `rollback` (Ctrl-C, SSH tombé, kill) : aller d'abord au §3.11** (code de sortie,
+> verrou, `status`, contrôles de l'« état sain », puis `rollback --env <env>` si un contrôle échoue). Ne jamais relancer
+> `apply` directement.
 
 Principe : toutes les modifications étant des `mv`, `ln -s`, `sed` et recréations de process, le retour arrière
 inverse l'ordre. Les anciens chemins existent encore via les liens, donc la prod peut être rendue avant d'avoir
@@ -475,7 +496,7 @@ Les données (bases, Redis, buckets) ne sont pas modifiées par le renommage : *
 8. Remise du cron watchdog sous le nom correspondant, vérifications finales (pm2 online, `/health`, dashboard, connect, nginx local) et résumé. Échec de vérification = code 5, **pas de retour arrière automatique** : décision humaine (§3.4).
 9. Journal : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`), mode 0700.
 
-Les retours arrière automatiques ne couvrent que les étapes 1 à 7 (avant que le trafic ne passe par les nouveaux process) ; une erreur inattendue y déclenche aussi un retour arrière (code 6).
+Le préflight de l'étape 1 est fait pour tous les environnements ciblés **avant** toute modification : un échec (code 3) ou une interruption par signal (Ctrl-C/SIGINT, SIGHUP, SIGTERM ; code 128+n) à ce stade ne déclenche aucun retour arrière, puisqu'il n'y a rien à défaire. Les retours arrière automatiques ne couvrent que les étapes 2 à 7 (phase pré-bascule, avant que le trafic ne passe par les nouveaux process) : une erreur inattendue ou une interruption par signal y déclenche aussi un retour arrière de l'environnement en cours (code 6). Une fois les nouveaux process démarrés (phase post : fin de l'étape 7, puis étape 8), il n'y a plus de retour arrière automatique.
 
 ### 3.7 Garanties du script (vérifiées par `scripts/ops/test-rename-sokar-to-suppernote.sh`)
 
@@ -486,6 +507,7 @@ Les retours arrière automatiques ne couvrent que les étapes 1 à 7 (avant que 
 - `sudoers` : ancienne ligne conservée avec la nouvelle, `visudo -cf` avant installation, restauration sinon.
 - Exécution refusée depuis `/opt/sokar*` et refusée si non root.
 - Aucune lecture ni impression de secrets : `.env`, `watchdog.env`, `grafana.env` ne sont jamais ouverts.
+- Interruption par signal (Ctrl-C/SIGINT, SIGHUP, SIGTERM envoyés au **groupe** de process, comme au clavier ou à la coupure d'une connexion SSH) : pendant `apply` en phase pré-bascule (étapes 2 à 7 du §3.6, avant le trafic sur les nouveaux process), retour arrière automatique (code 6, 4 process anciens `online`, état identique à l'initial, verrou libéré, cron watchdog remis ; `apply` relançable seulement après `status` et les contrôles du §3.11) ; pendant le préflight d'`apply` (avant toute modification, premier `nginx -t` compris), aucun retour arrière automatique (code 128+n, état initial inchangé, verrou libéré) ; pendant les vérifications finales (phase post), aucun retour arrière automatique (code 128+n, pas de rollback récursif, état « renommé » ; **si le signal arrive pendant `pm2 save`, la persistance PM2 est à vérifier** : `dump.pm2` a gardé les anciens noms dans `POST-*-save` et `PO-staging-*-pm2_save`, §3.11) ; pendant un `rollback`, aucun retour arrière automatique (code 128+n, pas de rollback récursif) et état **possiblement partiel** (`status` dit « état initial » alors que pm2 n'avait plus de process : mesuré pour `RB-STG-INT-start` et `KILL-STG-rb-start` ; `RB-STG-{HUP,TERM}-start` : même étape interrompue, état pm2 non relevé), `rollback` relançable après contrôle du verrou (§3.11) ; un second Ctrl-C n'interrompt pas le retour arrière automatique, qu'il ait été déclenché par un signal ou par une erreur (`nginx -t` en échec : code 4 conservé ; `pm2 start` en échec : code 6 conservé), alors que `rollback` lancé à la main reste interruptible (128+n). Rejoué sur Mac (bash 3.2) et Linux (bash 5.2) avec des stubs lents ; **pas** sur un vrai pm2/systemd/nginx, ni avec un vrai `tmux`. **Sortie d'`apply` envoyée dans un pipeline `| tee` : comportement NON validé** (`T-*-tee` : 6 cas rejoués, code 141, aucun retour arrière, §3.10) ; `rollback` et `cleanup-compat` en pipeline : non rejoués.
 - Ne touche pas aux bases, rôles, buckets, remote rclone, variables d'environnement, hostname, `chez-sokar-demo`, jobs Prometheus, domaines `sokar.tech`, upstreams `sokar_*`, dumps `sokar-*.dump`, projet Docker `sokar-monitoring`.
 - Prod intacte (octet pour octet) tant que `--env prod` n'a pas tourné ; `nginx -t` reste vert grâce aux liens de compatibilité des snippets (`sokar-*.conf` → `suppernote-*.conf`), retirés dès que plus aucun site ne les référence.
 - Le script ne recrée aucun conteneur (H22–H24) et ne lance jamais `cleanup-compat`.
@@ -521,13 +543,23 @@ arrière : un message à Hamza avec la cause, l'état actuel et la prochaine act
 
 ---
 
-### 3.10 Commandes exactes à copier-coller (Hamza)
+### 3.10 Commandes historiques et contrôles de la variante corrigée (Hamza)
+
+Les étapes 1 à 8 décrivent la fenêtre de novembre, pas une procédure à relancer. L’étape 0
+concerne une éventuelle intervention future, séparément autorisée. L’étape 9 ne vaut pas autorisation
+pour le retrait de la compatibilité. Les codes et garanties de signal décrits dans cette section
+sont ceux de la variante corrigée, sauf mention contraire.
 
 Toutes les commandes `rename-sokar-to-suppernote.sh` se lancent **en root, depuis `/root/rename/`**
 (jamais depuis `/opt/sokar*`). Chaque commande accepte `--dry-run` (rien n'est écrit).
 
 **Règle : `apply` et `rollback` se lancent TOUJOURS dans `tmux` sur le serveur, jamais directement dans la session SSH.**
-Une coupure SSH envoie SIGHUP au script, qui s'arrête au milieu de l'`apply` (§3.11) ; sous `tmux`, le script continue sans toi.
+Une coupure SSH envoie SIGHUP au groupe de process du script. En session SSH directe, le résultat dépend de la phase :
+pendant le **préflight** d'`apply` (avant toute modification), le script s'arrête en code 129 **sans retour arrière** (rien
+n'avait été modifié) ; en **phase pré-bascule** (étapes 2 à 7 du §3.6), il fait le retour arrière automatique de l'`apply` en
+cours (code 6), ce qui annule le renommage au milieu de la fenêtre ; en **phase post** ou pendant un `rollback`, il s'arrête
+là où il en est (code 129), **sans retour arrière** (§3.11). Dans tous les cas, verrou puis `status` avant toute autre action
+(§3.11). Sous `tmux`, une coupure SSH ne doit plus couper le script (non rejoué avec un vrai `tmux`).
 
 ```zsh
 # Sur le VPS. Crée la session « rename » ou s'y rattache si elle existe déjà :
@@ -541,20 +573,103 @@ sudo tmux new -A -s rename
 `tmux` doit être installé (`command -v tmux`) : le vérifier au P5 (avant mardi) et l'installer **hors fenêtre** si absent.
 Lancer aussi un `date` dans la session : l'heure du serveur est l'heure de Paris, pas celle du Mac.
 
-**Étape 0, avant mardi : copier le script avec contrôle d'empreinte** (PR #795 relue, non fusionnée) :
+**Règle : `apply`, `rollback` (et `cleanup-compat`) ne se lancent JAMAIS dans un pipeline, ni avec leur sortie redirigée vers un
+autre programme.** Interdits : `| tee`, `| less`, `| grep`, `| head`, `2>&1 | …`, `| ts`. Raison (cas
+`T-{staging,prod}-{INT,HUP,TERM}-tee`, 6/6 en échec sur Linux, t_f5b23622 ; seule commande rejouée : `apply --env <env> 2>&1 | tee f`,
+signal envoyé au groupe pendant `pm2 start`) : le lecteur du tube meurt et le script sort en **code 141 sans retour arrière** ; dans ces
+6 cas aucun process de l'environnement concerné, ancien ou nouveau, n'était `online` (supprimés ou absents, pas « stoppés »), le verrou et le fichier
+`.rename-hold` du cron watchdog étaient laissés ; en prod, l'API restait coupée. La règle couvre aussi `rollback` et `cleanup-compat`
+par prudence : ils n'ont jamais été rejoués en pipeline. Les redirections vers un fichier ne sont pas concernées par ces cas, mais ne les utilisez pas non plus : le script
+tient déjà son propre journal.
+
+- **Journal natif** (lecture du script : `log()` et `run()`) : pour `apply`, `rollback` et `cleanup-compat` hors `--dry-run`, le
+  script écrit lui-même `run.log` dans `/root/rename-suppernote-<horodatage>/` (messages du script et sortie des commandes
+  qu'il lance). `status`, `preflight` et `--dry-run` n'écrivent pas de `run.log`.
+- **Suivre en direct** : ouvrir une 2e fenêtre `tmux` (`Ctrl-b c`), puis
+  `sudo tail -f /root/rename-suppernote-<horodatage>/run.log` (le dossier le plus récent :
+  `sudo ls -dt /root/rename-suppernote-* | head -1`).
+- **Après coup** : `sudo less` ou `sudo grep` **sur le fichier** `run.log`, jamais sur la sortie du script.
+- **Limites (non prouvé)** : seul le cas `apply … | tee` a été rejoué (Linux, t_f5b23622, signal pendant `pm2 start`) ;
+  `rollback` et `cleanup-compat` en pipeline : non rejoués ; la récupération après un code 141 (`status`, puis `rollback`) n'a pas été
+  rejouée, elle est déduite des cas `K-*` (SIGKILL) ; la cause du code 141 pour HUP et TERM n'est
+  pas établie ; cette règle protège les commandes du runbook, pas un pipe ajouté pendant la fenêtre ; le script n'a **pas** été
+  durci et son comportement en pipeline **n'est pas validé** (suite : `docs/TECHNICAL_BACKLOG.md`). Un code 141 se traite comme
+  un SIGKILL (§3.11).
+
+**Étape 0 — variante approuvée : récupérer la source Git épinglée et vérifier son empreinte avant toute copie.**
+
+| Élément                                   | Valeur                                                                                         |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Fichier                                   | `scripts/ops/rename-sokar-to-suppernote.sh`                                                    |
+| Ref à récupérer depuis `origin`           | `refs/heads/fix/rename-signal-rollback` (après publication par ops)                            |
+| Commit source immuable                    | `b759459f64017de2541cbbd1fd2315ac2551500b` (premier commit du correctif, script et test seuls) |
+| Empreinte SHA-256 attendue                | `bc8a57441ee96ead2dd4d1194cf9f52ff8249e8262f1747abed39844fdc168e2`                             |
+| Provenance QA, pas une source à récupérer | t_791f493b, `314f01aeab2f5704480332fdb7e7d9f44b0fef02` (mêmes octets)                          |
+
+- Partir d’un dépôt Suppernote dont `origin` désigne le dépôt GitHub officiel. La commande récupère
+  explicitement la ref publiée et vérifie que le commit épinglé est dans son historique. Le bloc
+  s’arrête tant que cette source n’est pas récupérable ; dans un clone superficiel, utiliser un
+  clone complet. Ne jamais extraire depuis `FETCH_HEAD`, le HEAD de la branche ou `main` à la place
+  du commit épinglé. Ne pas copier le script historique (sha256 `54db839b…`).
+- Avant tout squash/rebase ou retrait de la ref documentée, conserver une ref distante durable qui
+  rend le commit épinglé récupérable, ou republier une source et mettre à jour **ensemble** la ref,
+  le SHA complet et le bloc de commandes pour pointer vers un commit immuable récupérable. Depuis
+  un clone propre, revalider **la même empreinte** avant de supprimer l’ancienne ref. Sans source
+  vérifiée : **STOP**, pas de fallback ; prévenir le lead et soumettre le nouveau pointage à la QA.
+- L’empreinte attendue est la valeur écrite ici, jamais une valeur recalculée sur le fichier à
+  contrôler. Comparer seulement le Mac et le VPS vérifierait le transfert, pas la bonne version.
+  **STOP** si le fetch, le commit, le fichier ou la vérification échoue. Ne rien copier ni installer
+  et ne pas modifier l’empreinte attendue pour faire passer le contrôle.
 
 ```zsh
-# Sur le Mac, dans le dépôt :
-git fetch origin chore/rename-sokar-suppernote-infra
-git show origin/chore/rename-sokar-suppernote-infra:scripts/ops/rename-sokar-to-suppernote.sh > /tmp/rename-sokar-to-suppernote.sh
-shasum -a 256 /tmp/rename-sokar-to-suppernote.sh          # noter l'empreinte
-scp /tmp/rename-sokar-to-suppernote.sh deploy@sokar:/tmp/
+# Sur le Mac, dans le dépôt (transfert seulement si l’intervention est autorisée).
+(
+  SCRIPT_COMMIT=b759459f64017de2541cbbd1fd2315ac2551500b
+  SCRIPT_SHA256=bc8a57441ee96ead2dd4d1194cf9f52ff8249e8262f1747abed39844fdc168e2
+  SCRIPT_PATH=scripts/ops/rename-sokar-to-suppernote.sh
+  TMP_SCRIPT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/suppernote-rename.XXXXXX") || {
+    printf '%s\n' 'STOP : impossible de créer le dossier temporaire.' >&2
+    exit 1
+  }
+  SCRIPT_COPY="$TMP_SCRIPT_DIR/rename-sokar-to-suppernote.sh"
+  trap 'rm -f "$SCRIPT_COPY"; rmdir "$TMP_SCRIPT_DIR"' EXIT
 
-# Sur le VPS :
-sha256sum /tmp/rename-sokar-to-suppernote.sh              # doit être identique à celle du Mac
-sudo install -d -m 0700 /root/rename
-sudo install -m 0700 /tmp/rename-sokar-to-suppernote.sh /root/rename/ && rm /tmp/rename-sokar-to-suppernote.sh
+  git fetch --no-tags origin refs/heads/fix/rename-signal-rollback \
+    && git cat-file -e "${SCRIPT_COMMIT}^{commit}" \
+    && git merge-base --is-ancestor "$SCRIPT_COMMIT" FETCH_HEAD \
+    && git show "${SCRIPT_COMMIT}:${SCRIPT_PATH}" > "$SCRIPT_COPY" \
+    && printf '%s  %s\n' "$SCRIPT_SHA256" "$SCRIPT_COPY" | shasum -a 256 -c - \
+    && scp "$SCRIPT_COPY" deploy@sokar:/tmp/ \
+    || { printf '%s\n' 'STOP : source absente, empreinte différente ou copie échouée. Ne rien installer.' >&2; exit 1; }
+)
+# Continuer seulement si l’empreinte est OK et que le transfert s’est terminé avec un code 0.
 ```
+
+```zsh
+# Sur le VPS (uniquement après succès du bloc précédent, ssh deploy@sokar) :
+(
+  SCRIPT_SHA256=bc8a57441ee96ead2dd4d1194cf9f52ff8249e8262f1747abed39844fdc168e2
+  printf '%s\n' "$SCRIPT_SHA256  /tmp/rename-sokar-to-suppernote.sh" | sha256sum -c - \
+    && sudo install -d -m 0700 /root/rename \
+    && sudo install -m 0700 /tmp/rename-sokar-to-suppernote.sh /root/rename/ \
+    && printf '%s\n' "$SCRIPT_SHA256  /root/rename/rename-sokar-to-suppernote.sh" | sudo sha256sum -c - \
+    && rm /tmp/rename-sokar-to-suppernote.sh \
+    || { printf '%s\n' 'STOP : fichier absent, empreinte différente ou installation échouée. Ne rien exécuter.' >&2; exit 1; }
+)
+# Attendu : deux lignes « …: OK » (copie dans /tmp puis fichier installé), et un code 0.
+```
+
+Refaire le dernier `sha256sum -c` (celui de `/root/rename/…`) juste avant chaque `apply` ou
+`rollback` autorisé. **STOP** si le fichier manque ou si l’empreinte diffère ; ne jamais utiliser une
+copie laissée par une tentative précédente sans ce contrôle.
+
+**Fenêtre du 24/11 (état connu, sans nouvelle action sur le VPS).** Le préflight lecture seule t_62df1084 (24/11, 15:40 UTC)
+trouve staging et prod déjà renommés : staging à 10:21, prod à 12:09 (heure de Paris), donc **avant** la fenêtre prévue à 15h.
+Son code de sortie et `/root/rename-suppernote-*/run.log` ne sont pas lisibles sans root, et `/root/rename/` non plus : le
+**sha256 du script réellement exécuté n'est pas établi**. Seule trace : une copie `/tmp/rename-sokar-to-suppernote.sh`
+(10:04, heure du serveur) dont le sha256 est celui du script historique de `main`, `54db839b…` ; elle ne prouve pas ce qui a été lancé depuis
+`/root/rename/`. La variante approuvée (`bc8a5744…`, provenance QA du 25/11) est postérieure à cette fenêtre ; elle ne décrit pas
+le comportement du script exécuté le 24/11. Un éventuel relevé ultérieur du fichier installé ne prouverait pas à lui seul ce qui a été lancé.
 
 **Étapes 1 à 3, avant mardi (lecture seule) :**
 
@@ -592,7 +707,7 @@ sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all
 # attendu : staging « NOUVEAU + lien de compatibilité », prod « ANCIEN (à renommer) », nginx -t : OK,
 # cron watchdog : 1 fichier (suppernote-watchdog), « verdict prod : état initial »
 sudo nginx -t
-sudo ls /etc/cron.d | grep -c watchdog                                    # 1
+sudo ls /etc/cron.d | grep watchdog                                       # UN seul nom : suppernote-watchdog (jamais *.rename-hold)
 curl -s -o /dev/null -w '%{http_code}\n' https://api-staging.suppernote.com/health   # 200
 curl -s -o /dev/null -w '%{http_code}\n' https://api.suppernote.com/health           # 200 (prod, encore aux anciens noms)
 sudo -u deploy pm2 list                                                   # 4 suppernote-staging-* + 4 sokar-* online
@@ -637,78 +752,206 @@ sudo bash /root/rename/rename-sokar-to-suppernote.sh cleanup-compat --env all --
 `dump.pm2` ou un process pm2 référence encore un ancien chemin, et ne retire les liens et l'ancienne ligne sudoers
 partagés que lorsque les deux environnements sont nettoyés. `apply` ne le lance jamais.
 
-**Codes de sortie et conduite à tenir :**
+**Codes de sortie et conduite à tenir (variante corrigée) :**
 
-| Code | Signification                                                                    | Action                                                                                 |
-| ---- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 0    | Terminé, vérifications OK                                                        | Poursuivre                                                                             |
-| 1    | Usage ou refus (`cleanup-compat` avant le 30/11, verrou déjà pris)               | Corriger la commande                                                                   |
-| 2    | Pas root                                                                         | Relancer avec `sudo`                                                                   |
-| 3    | Préflight en échec : **rien n'a été modifié**                                    | Lire les lignes `ÉCHEC`, corriger, relancer                                            |
-| 4    | `nginx -t` a échoué après modification : **retour arrière automatique fait**     | Lire l'erreur nginx, NO-GO ou correction ; l'environnement est revenu à l'état initial |
-| 5    | `apply` fait, mais une vérification (pm2, `/health`) est en échec                | Décision du §3.4 : corriger en moins de 5 min, sinon `rollback --env <env>`            |
-| 6    | Erreur inattendue (retour arrière automatique tenté) ou retour arrière incomplet | Lire `run.log`, lancer `status`, puis `rollback`, sinon l'option B manuelle du §3.5    |
-| 130  | Ctrl-C (SIGINT) : **sans retour arrière automatique**                            | Ne pas relancer `apply` : `status --env all`, puis `rollback --env <env>` (§3.11)      |
-| 129  | Coupure SSH (SIGHUP) : **sans retour arrière automatique**                       | Idem (§3.11)                                                                           |
-| 143  | Kill (SIGTERM) : **sans retour arrière automatique**                             | Idem (§3.11)                                                                           |
+Avec le script historique de `main` (`967b12f5`), un signal INT/HUP/TERM envoyé au groupe
+peut arrêter `apply` sans rollback automatique, même en pré-bascule. Le code 6 ne signifie
+pas que le script historique a rattrapé un signal. Ne pas relancer `apply` ; suivre §3.11 sans
+présumer de l’état final.
 
-**Interruption par signal (connexion coupée, ou code 130 = Ctrl-C / SIGINT, 129 = SIGHUP, 143 = SIGTERM)** : le script sur
-`main` n'a que les traps `EXIT` et `ERR` (pas de trap INT/TERM/HUP). Le signal envoyé au groupe de process l'arrête là où il
-est, **sans retour arrière automatique** (seuls le cron watchdog et le verrou sont remis en place par le trap `EXIT`).
-**Ctrl-C (130) est donc traité comme les autres signaux** : l'environnement peut rester arrêté. Après un Ctrl-C, ne pas
-relancer `apply` : faire `status --env all` puis `rollback --env <env>` (§3.11). Le code 6 « retour arrière automatique »
-ne vaut que pour une erreur du script (trap `ERR`), pas pour un signal. Le correctif qui ajouterait le retour arrière sur
-signal (commit local 314f01ae) n'est pas publié.
+| Code            | Signification                                                                                                                                                                                                                                                                                                                  | Action                                                                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0               | Terminé, vérifications OK                                                                                                                                                                                                                                                                                                      | Poursuivre                                                                                                                                                                                                                                                      |
+| 1               | Usage ou refus (`cleanup-compat` avant le 30/11, verrou déjà pris)                                                                                                                                                                                                                                                             | Corriger la commande                                                                                                                                                                                                                                            |
+| 2               | Pas root                                                                                                                                                                                                                                                                                                                       | Relancer avec `sudo`                                                                                                                                                                                                                                            |
+| 3               | Préflight en échec : **rien n'a été modifié**                                                                                                                                                                                                                                                                                  | Lire les lignes `ÉCHEC`, corriger, relancer                                                                                                                                                                                                                     |
+| 4               | `nginx -t` a échoué après modification : **retour arrière automatique fait**                                                                                                                                                                                                                                                   | Lire l'erreur nginx, NO-GO ou correction ; l'environnement est revenu à l'état initial                                                                                                                                                                          |
+| 5               | `apply` fait, mais une vérification (pm2, `/health`) est en échec                                                                                                                                                                                                                                                              | Décision du §3.4 : corriger en moins de 5 min, sinon `rollback --env <env>`                                                                                                                                                                                     |
+| 6               | Erreur inattendue **ou interruption par signal** pendant `apply` **en phase pré-bascule** (retour arrière automatique tenté), ou retour arrière incomplet                                                                                                                                                                      | Lire `run.log` (ligne « interruption par SIG… » le cas échéant), vérifier le verrou, lancer `status`, contrôler l'« état sain » (§3.11) ; `rollback --env <env>` si un contrôle échoue ; si le `rollback` échoue à son tour (code 6), option B manuelle du §3.5 |
+| 129 / 130 / 143 | Interruption par SIGHUP / Ctrl-C (SIGINT) / SIGTERM **sans retour arrière automatique** : pendant le préflight d'`apply` (avant la première modification), pendant les vérifications finales d'`apply` (phase post), pendant `rollback` ou `cleanup-compat`                                                                    | **§3.11** : verrou, `status`, contrôles de l'« état sain », `rollback --env <env>` si un contrôle échoue                                                                                                                                                        |
+| 141             | Sortie d'`apply` envoyée dans un pipeline `\| tee` dont le lecteur est mort (6 cas `T-*-tee` ; `rollback` et `cleanup-compat` en pipeline non rejoués) : **aucun retour arrière**, ni anciens ni nouveaux process `online` (supprimés ou absents), verrou périmé et `.rename-hold` possibles ; cause pour HUP/TERM non établie | Traiter **comme SIGKILL** (déduit des `K-*`, récupération après 141 non rejouée) : §3.11 (verrou vivant d'abord, puis `status`, puis `rollback --env <env>`). Ne jamais relancer `apply` directement                                                            |
+
+**Interruption par signal (Ctrl-C = SIGINT envoyé au groupe de process, coupure SSH = SIGHUP, `kill` = SIGTERM).** Le script
+piège ces trois signaux ; ce comportement est vérifié par le test (§3.7) avec les signaux envoyés au **groupe** de process, comme
+un vrai Ctrl-C au clavier, en `apply` staging et prod, à chaque étape lente (`pm2 stop`, `pm2 delete`, `pm2 start`, `nginx -t`,
+`systemctl reload nginx`) :
+
+- **Pendant `apply`, en phase pré-bascule (après le préflight, avant que le trafic ne passe par les nouveaux process : étapes 2 à 7 du §3.6)** : seul cas où le retour arrière automatique est armé. Le script ignore les signaux
+  suivants (un second Ctrl-C n'interrompt pas le retour arrière), fait le **retour arrière automatique** de l'environnement en
+  cours et sort avec le **code 6** (journal : « interruption par SIG… à l'étape … » puis « RETOUR ARRIÈRE AUTOMATIQUE »). Les 4
+  process anciens sont `online`, l'état est identique à l'état initial, le verrou est libéré et le cron watchdog remis.
+- **Pendant un retour arrière automatique déclenché par une erreur** (et non par un signal : `nginx -t` en échec, code 4 ; `pm2 start` en
+  échec, code 6 ; erreur inattendue, code 6) : même règle, les signaux sont ignorés dès l'entrée dans le retour arrière. Il va au
+  bout et le **code d'origine (4 ou 6) est conservé**, pas 128+n ; le journal ne contient alors aucune ligne « interruption par SIG… ».
+  Rejoué par le test pour `nginx -t` et `pm2 start` ; l'erreur inattendue passe par la même fonction, sans cas dédié.
+- **Avant toute modification (préflight d'`apply`, premier `nginx -t` compris : SIGHUP rejoué par la QA sur Mac et Linux, code
+  129, état initial inchangé), après le démarrage des nouveaux process (phase post : `pm2 save`, remise du watchdog,
+  vérifications finales ; rejoué par le test sur la vérification finale), ou pendant un `rollback`** : **aucun retour arrière
+  automatique** (un `rollback` interrompu ne se relance pas seul ; après `apply`, c'est à vous de décider), code **128+n**
+  (130, 129 ou 143). Le `rollback` lancé à la main reste donc interruptible (seul le retour arrière automatique d'`apply` ignore les signaux). Le verrou est libéré et le cron watchdog remis dans tous les cas rejoués ci-dessus (préflight, phase post,
+  `rollback`). Pendant un `rollback` ou un `pm2 save`, l'état peut rester partiel ou la persistance PM2 incohérente (`RB-*`, `R-*`, `POST-*-save`, `PO-*-pm2_save` ; §3.11).
+  Pendant `cleanup-compat` : même gestionnaire (code 128+n, pas de retour arrière), non rejoué par le test.
+- **Ce qui n'est pas couvert** : SIGKILL (`kill -9`), OOM, arrêt brutal du serveur (aucun gestionnaire possible), un script lancé avec
+  les signaux ignorés (`nohup`, tâche de fond `&` sans job control), et **une sortie d'`apply` envoyée dans un pipeline `| tee`
+  dont le lecteur meurt (code 141, aucun retour arrière : 6 cas `T-*-tee` ; `rollback` et `cleanup-compat` en pipeline non rejoués)**.
+  Même procédure : §3.11, en traitant le code 141 comme un SIGKILL (déduit des `K-*` ; verrou vivant d'abord, puis `status`, puis
+  `rollback`).
+
+**Après TOUTE interruption, Ctrl-C compris, la règle ne change pas** : lire le code de sortie, vérifier le verrou, faire
+`status --env <env>`, contrôler l'« état sain » (§3.11) et, si un contrôle échoue, `rollback --env <env>`. **Ne jamais relancer
+`apply` directement.** Le code 6 avec « revenu à son état initial » indique que le retour arrière automatique a réussi, mais
+`status` ne prouve pas la santé : les contrôles du §3.11 restent obligatoires.
 
 Journal de chaque exécution : `/root/rename-suppernote-<horodatage>/` (`run.log`, `manifest.tsv`, `backup/`, `ecosystem-orig/`).
-Il ne contient aucun secret ; le dossier est en mode 0700. Le transmettre à ops en cas d'incident.
+Il ne contient aucun secret ; le dossier est en mode 0700. Le transmettre à ops en cas d'incident. Pour le suivre en direct,
+voir la règle « pas de pipeline » plus haut (`sudo tail -f …/run.log` depuis une 2e fenêtre `tmux`).
 
-### 3.11 Après une interruption de `apply` ou de `rollback` (coupure SSH, kill, SIGHUP/SIGTERM)
+### 3.11 Après une interruption de `apply` ou de `rollback` (Ctrl-C, coupure SSH, kill, code 141)
 
-**Décision pour Hamza : après toute interruption d'`apply`, on ne relance JAMAIS `apply` directement. On fait `status`,
-puis `rollback --env <env>`, on vérifie, et seulement ensuite on décide d'un nouvel `apply` (ou d'un report si la fenêtre est
-dépassée).**
+Les contrôles de santé et de verrou sont utiles quelle que soit la version. Le tableau par phase
+et les garanties de retour arrière sur signal supposent la variante corrigée, vérifiée à
+l’étape 0. Pour le script historique ou une version inconnue, ne pas présumer un retour arrière
+sur signal : relever le code, contrôler le verrou et l’état réel, puis décider avec Hamza.
 
-**Pourquoi.** Si le script est tué entre `pm2 delete` et `pm2 start` d'un environnement, les 4 process PM2 de cet
-environnement sont `stopped` ou absents : **l'API de cet environnement est coupée** et rien ne les relance. Le script n'a pas de
-retour arrière automatique pour un signal (SIGHUP/SIGTERM) : il remet seulement le cron watchdog et supprime son verrou. Un
-nouvel `apply` est refusé par le préflight (code 3, état partiel). Si c'est la **prod**, la coupure court tant qu'on n'a pas
-fait le `rollback` : appliquer le seuil du §3.4 (pas d'attente « pour voir »).
+**Décision pour Hamza : après toute interruption d'`apply` (Ctrl-C compris), on ne relance JAMAIS `apply` directement. On lit le
+code de sortie, on vérifie le verrou, on fait `status`, on contrôle l'« état sain » (défini ci-dessous) et, si un contrôle échoue,
+on fait `rollback --env <env>` dans le cadre de l'intervention autorisée, puis on revérifie. Ce
+contrôle ne donne pas le feu vert pour un nouvel `apply`.**
 
-**Procédure** (heures de Paris ; dans la session `tmux`, en root) :
+**Pourquoi.** Le script piège SIGINT, SIGHUP et SIGTERM (§3.10) : pendant `apply` en phase pré-bascule (étapes 2 à 7 du §3.6, après
+le préflight et avant le trafic sur les nouveaux process), il fait lui-même le retour arrière (code 6) ; pendant le préflight
+(rien n'est encore modifié), les vérifications finales (phase post) ou un `rollback`, il s'arrête sans rien défaire
+(code 129/130/143) et l'état, éventuellement partiel, reste à examiner. Il ne peut rien contre SIGKILL, l'OOM ou l'arrêt brutal du
+serveur, ni contre un pipeline dont le lecteur meurt (code 141 : `apply | tee`, 6 cas `T-*-tee`, §3.10) : si le script est tué entre `pm2 delete` et
+`pm2 start` d'un environnement, les 4 process PM2 de cet environnement sont `stopped` ou absents, **l'API de cet environnement
+est coupée** et rien ne les relance. Un nouvel `apply` est refusé par le préflight (code 3) dans le cas rejoué d'un kill à
+`pm2 start` (K2-direct), mais accepté (code 0) après un kill à `pm2 delete` (K2-direct) : ne jamais compter sur ce refus.
+**Le verdict de `status` ne prouve pas la santé** : il ne regarde que le dossier applicatif de l'environnement (lecture du
+script, `env_applied`). Rejoué : « verdict staging : état initial » alors que « pm2 staging : aucun process connu » (état pm2 mesuré pour
+`RB-STG-INT-start` et `KILL-STG-rb-start` ; `RB-STG-{HUP,TERM}-start` : même étape interrompue, état pm2 non relevé) ; « état initial » avec un cron watchdog SUSPENDU et un verrou périmé (K-apply-staging-pm2_stop-1). Même quand
+le code est 6, on passe donc par les contrôles ci-dessous. Si c'est la **prod**, la coupure court tant qu'on n'a pas fait le
+`rollback` : appliquer le seuil du §3.4 (pas d'attente « pour voir »).
+
+**État sain d'un environnement `<env>`** : les 4 contrôles sont tous requis. Selon la situation, l'état sain est l'état « initial »
+(anciens noms `sokar-*`, après un `rollback` ou avant tout `apply`) ou l'état « renommé » (nouveaux noms `suppernote-*`, après un
+`apply` gardé). Le contrôle 4 se lit en premier (voir le tableau ci-dessous).
+
+1. **Processus** : `sudo -u deploy pm2 list` montre les 4 process de l'environnement, tous `online`, avec **un seul jeu de noms** :
+   prod `sokar-{api,workers,dashboard,connect}` (initial) ou `suppernote-{api,workers,dashboard,connect}` (renommé) ; staging
+   `sokar-staging-{…}` ou `suppernote-staging-{…}`. Aucun `stopped`, aucun process absent, aucun mélange ancien + nouveau.
+   `status` peut afficher « état initial » alors que pm2 n'a plus de process (mesuré pour `RB-STG-INT-start` et
+   `KILL-STG-rb-start`) : ce contrôle est indépendant du verdict.
+2. **Santé** : `curl -s -o /dev/null -w '%{http_code}\n' https://api.suppernote.com/health` (prod) ou
+   `https://api-staging.suppernote.com/health` (staging) donne `200`, et `sudo nginx -t` est OK.
+3. **Watchdog** : `sudo ls /etc/cron.d | grep watchdog` affiche **une seule ligne** et **aucun nom en `.rename-hold`** ;
+   `status` ne dit pas « cron watchdog … SUSPENDU ». Le cron watchdog est **partagé** par staging et prod : le nom de cette ligne ne se
+   déduit pas de l'état d'un seul environnement. Le script remet `suppernote-watchdog` dès que
+   `/usr/local/sbin/suppernote-watchdog` existe (lecture du script, `wd_finalize`), donc dès que staging est renommé, **même si prod
+   est encore à l'état initial** (`PRE-ALL2-*`, `X-all-prod2-*`, `T-prod-*-tee`) ; `sokar-watchdog` n'est attendu que lorsque
+   staging **et** prod sont à l'état initial (par exemple après `rollback --env all`). En état mixte ou avec `--env all`, contrôler
+   les deux environnements. Ne plus
+   utiliser `grep -c watchdog` : il vaut 1 aussi quand seul `suppernote-watchdog.rename-hold` existe (testé en bac à sable local,
+   avec de faux fichiers).
+4. **Verrou** : le script prend un verrou `/var/lock/rename-sokar-to-suppernote.lock` (un dossier qui contient le fichier `pid`)
+   pour `apply`, `rollback` et `cleanup-compat` hors `--dry-run` (lecture du script, `acquire_lock`). Un verrou dont le pid est
+   mort est repris (lecture du script, `acquire_lock` ; Linux : message « verrou périmé repris » au `rollback` dans 13 cas `K-*`, et
+   dans les 3 cas `K2-direct`, le verrou n'était plus là au `rollback` (compteur 0) après un `apply` direct ; qu'il l'ait repris ou libéré n'est pas tracé (message non enregistré) ; Mac `KILL-*` : `rollback` abouti avec le verrou présent, message
+   non tracé). Si le pid est
+   vivant, le script refuse avec le **code 1** (« une autre exécution est en cours », lecture du script, non rejoué). État sain :
+   aucun verrou, ou un verrou périmé (le `rollback` le reprend).
+
+   ```zsh
+   L=/var/lock/rename-sokar-to-suppernote.lock
+   if sudo test -d "$L"; then
+     p=$(sudo cat "$L/pid" 2>/dev/null)
+     if [ -z "$p" ]; then echo "verrou SANS pid lisible : le script le refuse (code 1) ; vérifier à la main"
+     elif sudo kill -0 "$p" 2>/dev/null; then echo "VERROU VIVANT (pid $p) : NE RIEN FAIRE"; ps -p "$p" -o pid=,args=
+     else echo "verrou périmé (pid $p absent) : rollback le reprend"
+     fi
+   else echo "aucun verrou"; fi
+   ```
+
+   Un pid vivant n'est pas forcément le script (un pid peut être réutilisé) : `ps` montre la commande ; en cas de doute, regarder
+   l'écran `tmux`. Commande testée en bac à sable local (faux dossier de verrou) : aucun verrou, pid vivant, pid mort, verrou sans
+   fichier `pid`.
+
+**Règle de décision** (heures de Paris ; lire la ligne qui correspond à la phase et au code de sortie) :
+
+| Phase                                                        | Code / symptôme (cas rejoués)                                                                               | Contrôle                                                                                      | Suite sûre                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **D'abord, toujours**                                        | Un process du script tient un verrou **vivant** (pid existant, ou l'écran `tmux` montre le script en cours) | Contrôle 4                                                                                    | **Ne rien faire** : ni `rollback`, ni `kill`, ni `apply`, ni `pm2 save`. Attendre la fin du script et lire son code de sortie (étape 1). Le `rollback` refuse déjà dans ce cas (code 1, non rejoué) : ne pas s'appuyer sur ce refus comme seule protection |
+| Préflight d'`apply`                                          | 129 / 130 / 143, rien modifié (`F-*`, `PRE-{STG,PRD}-*-nginx1`)                                             | Les 4 contrôles, état « initial »                                                             | Si les 4 sont OK : rien à défaire. Sinon `rollback --env <env>`                                                                                                                                                                                            |
+| Pré-bascule d'`apply`                                        | Code 6, retour arrière automatique (`SIG-*`, `MAIN-*`, `M-*`) ; aussi code 6 « retour arrière incomplet »   | Les 4 contrôles, état « initial »                                                             | Si un contrôle échoue : `rollback --env <env>`. Avec `--env all`, seul l'environnement en cours est défait, le premier reste « renommé » (`PRE-ALL2-*`, `X-all-prod2-*`) : contrôler les deux, `rollback --env all` pour tout défaire                      |
+| Post d'`apply`                                               | 129 / 130 / 143 après le démarrage des nouveaux process (`POST-*`, `PO-*`)                                  | État « renommé » : contrôles 1 à 4 avec les **nouveaux** noms, puis persistance PM2 (étape 6) | Pas de `rollback` aveugle. Contrôles OK : vérifier la persistance PM2, puis poursuivre la validation (§4). Un contrôle échoue : décision §3.4 (seuil T+5 min)                                                                                              |
+| `rollback` interrompu                                        | 129 / 130 / 143 (`RB-*`, `R-*`) : l'état peut être **partiel**                                              | Contrôle 4 d'abord, puis `status`                                                             | Après le contrôle du verrou, relancer `rollback --env <env>` (idempotent, code 0 attendu), puis les 4 contrôles « initial » et la persistance PM2                                                                                                          |
+| SIGKILL, OOM, arrêt du serveur, code 141, aucun code affiché | `KILL-*`, `K-*`/`K2-*`, `T-*` (pipeline)                                                                    | Verrou (pid mort), puis `status`                                                              | `rollback --env <env>`, puis les 4 contrôles « initial » et la persistance PM2 (Linux `K-*`/`K2-*` 16/16 et Mac `KILL-*` 16/16 : état initial retrouvé ; après 141 : déduit, non rejoué)                                                                   |
+
+**Procédure** (dans la session `tmux`, en root) :
 
 1. **Se reconnecter et rouvrir la session** : `ssh deploy@sokar`, puis `sudo tmux new -A -s rename`. Si l'écran montre que le
    script tourne encore ou s'est terminé normalement (la coupure n'a touché que la connexion), **ne rien relancer** : le laisser
    finir et lire son code de sortie. Si la session n'existe plus (`tmux` tué avec le serveur ou avec le script), passer à l'étape 2.
-2. **Constater l'état** (lecture seule, sans verrou ; remplacer `<env>` par `staging` ou `prod`) :
+2. **Verrou (contrôle 4)** : lancer le bloc ci-dessus. « VERROU VIVANT » : s'arrêter là et revenir à l'étape 1 (rien d'autre).
+3. **Noter le code de sortie** (6 + « revenu à son état initial » = retour arrière automatique fait ; 129/130/143 = aucun retour
+   arrière ; 141 ou rien d'affiché = traiter comme un SIGKILL) **puis constater l'état** (lecture seule, sans verrou ; remplacer
+   `<env>` par `staging` ou `prod`) :
 
    ```zsh
    sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env <env>
    ```
 
    Lire : les lignes `pm2 <env> :` (process `stopped` ou absents, ou anciens **et** nouveaux noms mélangés), `cron watchdog`
-   (`SUSPENDU` : le `rollback` le remet), `nginx -t`, `verdict <env>`. En cas de doute, `sudo -u deploy pm2 list`.
+   (`SUSPENDU` : le `rollback` le remet), `nginx -t`, `verdict <env>`. Le verdict seul ne décide rien : faire les contrôles 1 à 3
+   (état sain) et choisir la ligne du tableau.
 
-3. **Retour arrière** (idempotent ; il reprend un `apply` interrompu et redémarre les anciens process depuis l'ecosystem sauvegardé
-   dans le journal de l'`apply` interrompu : **ne pas supprimer `/root/rename-suppernote-*`**). Code 0 attendu ; sinon voir le
-   tableau des codes (§3.10) et, pour le code 6, l'option B manuelle du §3.5 :
+4. **Retour arrière** si le tableau l'impose (idempotent ; il reprend un `apply` interrompu et redémarre les anciens process depuis
+   l'ecosystem sauvegardé dans le journal de l'`apply` interrompu : **ne pas supprimer `/root/rename-suppernote-*`**). Code 0
+   attendu ; sinon voir le tableau des codes (§3.10) et, pour le code 6, l'option B manuelle du §3.5 :
 
    ```zsh
    sudo bash /root/rename/rename-sokar-to-suppernote.sh rollback --env <env>
    echo "code de sortie : $?"
    ```
 
-   Si un message dit qu'une autre exécution est en cours (verrou, pid vivant), un `apply` tourne encore : revenir à l'étape 1.
-   Un verrou dont le pid n'existe plus est repris automatiquement.
+   Si un message dit qu'une autre exécution est en cours (verrou, pid vivant, code 1), un `apply` tourne encore : revenir à
+   l'étape 1. Un verrou dont le pid n'existe plus est repris automatiquement.
 
-4. **Vérifier** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all` (verdict `<env>` : état initial),
-   `sudo -u deploy pm2 list` (4 process anciens de l'environnement `online`),
-   `curl -s -o /dev/null -w '%{http_code}\n' https://api.suppernote.com/health` (prod) ou
-   `https://api-staging.suppernote.com/health` (staging) = 200, `sudo nginx -t`, `sudo ls /etc/cron.d | grep -c watchdog` = 1
-   (aucun `.rename-hold`).
-5. **Ensuite seulement**, décision : relancer `apply --env <env>` (dans `tmux`) si la fenêtre le permet (marge jusqu'à 16:00 heure de
-   Paris) et que la cause de l'interruption est comprise ; sinon **report**, environnement laissé à l'état initial, workflows
-   toujours désactivés. Prévenir ops et le lead, et leur transmettre le dossier `/root/rename-suppernote-<horodatage>/`.
+5. **Vérifier** : `sudo bash /root/rename/rename-sokar-to-suppernote.sh status --env all`, puis les contrôles 1 à 4 de l'état sain
+   (état « initial » après un `rollback`).
+6. **Persistance PM2**, avant de déclarer l'état « restauré » ou « renommé ». Cause (rejouée avec des stubs) : après un signal
+   pendant `pm2 save` (`POST-{STG,PRD}-{INT,HUP,TERM}-save` sur Mac ; `PO-staging-*-pm2_save` et `R-staging-*-pm2_save` sur Linux),
+   `dump.pm2` garde un jeu de noms différent de l'état vivant, et un `rollback` relancé ne le réenregistre pas : le script écrit
+   « pm2 : aucun changement, pm2 save inutile » quand rien n'a changé pendant l'exécution (`pm2_save`, lecture du script). Un
+   `pm2 resurrect` après un redémarrage du VPS (`pm2-deploy.service`, §0 point 5) relancerait alors les mauvais noms. Le journal
+   ne le dit pas clairement : un signal pendant `pm2 save` d'`apply` s'affiche « à l'étape « pm2 delete + start » (phase post) »
+   (PO-staging-INT-pm2_save), et pendant un `rollback` « rollback : pm2 start des anciens noms » (R-staging-INT-pm2_save).
+   1. **Vérification, lecture seule** : comparer les noms des process vivants à ceux du `dump.pm2` de l'utilisateur `deploy`
+      (`/home/deploy/.pm2/dump.pm2`, chemin utilisé par le script) ; `<` = pm2 vivant, `>` = dump :
+
+      ```zsh
+      DUMP=/home/deploy/.pm2/dump.pm2
+      noms() { grep -oE '"name": *"(sokar|suppernote)-[a-z-]+"' | grep -oE '(sokar|suppernote)-[a-z-]+' | sort -u; }
+      diff <(sudo -u deploy -H pm2 jlist | noms) <(sudo cat "$DUMP" | noms) && echo "OK : dump.pm2 = process pm2 vivants"
+      ```
+
+      Aucune différence et le message « OK » : le dump correspond à l'état vivant. Sinon, passer à la correction. Commande testée
+      sur de faux fichiers (dump et `pm2 jlist` factices) : OK quand les noms sont identiques, différences affichées quand le dump
+      garde les noms `suppernote-*` et pm2 les noms `sokar-*`.
+
+   2. **Correction**, seulement si la vérification du point 1 a montré une différence **et** que le contrôle 1 de l'état sain
+      (processus) est OK avec les noms voulus (anciens après un `rollback`, nouveaux après un `apply` gardé) **et** qu'aucun
+      verrou vivant n'existe (contrôle 4) :
+      `sudo -u deploy -H pm2 save`, puis refaire la vérification ci-dessus. Ne jamais lancer `pm2 save` si `pm2 list` n'est pas sain.
+   3. Si le signal est arrivé pendant `pm2 save` en phase post d'`apply`, ne plus écrire « état renommé intact » : l'état est
+      « **renommé, persistance à vérifier** » jusqu'à ce que la vérification soit OK.
+
+   **Non prouvé** : le comportement réel de `pm2 save` interrompu (écriture partielle, dump corrompu) et un `pm2 resurrect` après
+   redémarrage n'ont jamais été rejoués (stubs seulement) ; le format réel de `dump.pm2` est supposé JSON avec des clés `"name"`
+   (comme le contrôle de la ligne 2 du §4), la commande n'est testée que sur de faux fichiers.
+
+7. **Clore le diagnostic** : prévenir ops et le lead et leur transmettre le dossier
+   `/root/rename-suppernote-<horodatage>/`. Ne pas relancer le renommage ; toute nouvelle
+   intervention exige une décision séparée de Hamza.
 
 ## 4. Checklist post-renommage
 

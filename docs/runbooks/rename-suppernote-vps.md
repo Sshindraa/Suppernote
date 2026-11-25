@@ -926,19 +926,79 @@ le code est 6, on passe donc par les contrôles ci-dessous. Si c'est la **prod**
    ne le dit pas clairement : un signal pendant `pm2 save` d'`apply` s'affiche « à l'étape « pm2 delete + start » (phase post) »
    (PO-staging-INT-pm2_save), et pendant un `rollback` « rollback : pm2 start des anciens noms » (R-staging-INT-pm2_save).
    1. **Vérification, lecture seule** : comparer les noms des process vivants à ceux du `dump.pm2` de l'utilisateur `deploy`
-      (`/home/deploy/.pm2/dump.pm2`, chemin utilisé par le script) ; `<` = pm2 vivant, `>` = dump :
+      (`/home/deploy/.pm2/dump.pm2`, chemin utilisé par le script). Ce bloc est un sous-shell copiable dans zsh ; il désactive
+      le traçage, ne montre ni JSON ni secrets et ne modifie rien. Python 3 est requis. Il compare les noms top-level complets du périmètre
+      `sokar-*` / `suppernote-*` des deux environnements, sans imposer un préfixe unique à staging et prod :
 
       ```zsh
-      DUMP=/home/deploy/.pm2/dump.pm2
-      noms() { grep -oE '"name": *"(sokar|suppernote)-[a-z-]+"' | grep -oE '(sokar|suppernote)-[a-z-]+' | sort -u; }
-      diff <(sudo -u deploy -H pm2 jlist | noms) <(sudo cat "$DUMP" | noms) && echo "OK : dump.pm2 = process pm2 vivants"
+      (
+        set +x
+        setopt pipefail
+        typeset +x live dump live_names dump_names
+        DUMP=/home/deploy/.pm2/dump.pm2
+        if live=$(sudo -u deploy -H pm2 jlist 2>/dev/null); then :
+        else echo "STOP : lecture PM2 impossible"; exit 2; fi
+        if dump=$(sudo cat "$DUMP" 2>/dev/null); then :
+        else echo "STOP : lecture du dump impossible"; exit 2; fi
+        noms() {
+          python3 -c '
+      import json
+      import re
+      import sys
+
+      def pairs(items):
+          result = {}
+          for key, value in items:
+              if key in result:
+                  raise ValueError()
+              result[key] = value
+          return result
+
+      def names():
+          data = json.load(sys.stdin, object_pairs_hook=pairs,
+                            parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+          if not isinstance(data, list) or not data:
+              raise ValueError()
+          selected = []
+          for item in data:
+              if not isinstance(item, dict):
+                  raise ValueError()
+              name = item.get("name")
+              if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+                  raise ValueError()
+              if name.startswith(("sokar", "suppernote")):
+                  if not re.fullmatch(r"(?:sokar|suppernote)-[a-z]+(?:-[a-z]+)*", name):
+                      raise ValueError()
+                  selected.append(name)
+          if not selected or len(selected) != len(set(selected)):
+              raise ValueError()
+          return sorted(selected)
+
+      try:
+          print("\n".join(names()))
+      except Exception:
+          sys.exit(2)
+      ' 2>/dev/null
+        }
+        if live_names=$(builtin printf '%s\n' "$live" | noms); then :
+        else echo "STOP : validation PM2 impossible"; exit 2; fi
+        if dump_names=$(builtin printf '%s\n' "$dump" | noms); then :
+        else echo "STOP : validation du dump impossible"; exit 2; fi
+        if [ "$live_names" = "$dump_names" ]; then
+          echo "OK : dump.pm2 = process pm2 vivants"
+          exit 0
+        fi
+        echo "DIVERGENCE : noms PM2 différents"
+        exit 1
+      )
       ```
 
-      Aucune différence et le message « OK » : le dump correspond à l'état vivant. Sinon, passer à la correction. Commande testée
-      sur de faux fichiers (dump et `pm2 jlist` factices) : OK quand les noms sont identiques, différences affichées quand le dump
-      garde les noms `suppernote-*` et pm2 les noms `sokar-*`.
+      Code 0 et « OK » : égalité des listes, pas preuve de l'état sain. Code 1 : divergence avérée ; la correction ci-dessous
+      n'est permise que si ses autres gardes sont aussi satisfaites. Code supérieur ou égal à 2 : **STOP**, lecture, validation ou
+      comparaison impossible ; ne pas corriger ni lancer `pm2 save`, diagnostiquer d'abord. Les listes doivent être non vides,
+      les documents JSON uniques et valides, les noms valides et les noms ciblés sans doublon (process documentés en fork).
 
-   2. **Correction**, seulement si la vérification du point 1 a montré une différence **et** que le contrôle 1 de l'état sain
+   2. **Correction**, seulement si la vérification du point 1 a montré une divergence avérée (code 1, jamais sur STOP) **et** que le contrôle 1 de l'état sain
       (processus) est OK avec les noms voulus (anciens après un `rollback`, nouveaux après un `apply` gardé) **et** qu'aucun
       verrou vivant n'existe (contrôle 4) :
       `sudo -u deploy -H pm2 save`, puis refaire la vérification ci-dessus. Ne jamais lancer `pm2 save` si `pm2 list` n'est pas sain.

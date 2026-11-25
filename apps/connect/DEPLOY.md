@@ -123,7 +123,7 @@ Les analytics events passent par la queue `connect-analytics` côté API
 Vérifier les compteurs Prometheus :
 
 ```bash
-curl -s http://127.0.0.1:3001/metrics | grep sokar_connect
+curl -s http://127.0.0.1:3001/metrics | grep suppernote_connect
 ```
 
 ## Métriques à surveiller

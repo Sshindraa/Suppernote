@@ -28,11 +28,18 @@ OUT=""
 NRUN=0
 CANARY="CANARY_SECRET_9f3a7c"
 
+MUTE=0
+MUT_FAILS=0
 pass() {
+    if [ "$MUTE" = 1 ]; then return 0; fi
     PASS=$((PASS + 1))
     printf 'ok   - %s\n' "$1"
 }
 fail() {
+    if [ "$MUTE" = 1 ]; then
+        MUT_FAILS=$((MUT_FAILS + 1))
+        return 0
+    fi
     FAILED=$((FAILED + 1))
     printf 'FAIL - %s\n' "$1"
 }
@@ -43,7 +50,7 @@ check() { # description commande… (en cas d'échec : début de la sortie de la
         pass "$d"
     else
         fail "$d"
-        head -n 12 "$o" | sed 's/^/       | /'
+        if [ "$MUTE" = 0 ]; then head -n 12 "$o" | sed 's/^/       | /'; fi
     fi
 }
 check_not() {
@@ -851,6 +858,385 @@ check "pm2 vide : apply all refuse (code 3)" is_eq "$RC" 3
 check "pm2 vide : apply all sans retour arrière automatique" no_rollback_noise "$OUT"
 check "pm2 vide : apply all, aucune commande pm2 d'écriture" is_eq "$(count_calls 'pm2 (start|stop|delete|save|restart)')" 0
 check "pm2 vide : apply all, rien modifié" diff -q "$TMP/PE0" <(snapshot "$SB")
+
+
+# ── 13. Signaux envoyés au GROUPE de process (vrai Ctrl-C au clavier, coupure SSH, kill) ────────
+# Régression QA (t_192d48f9) : sans `trap … INT TERM HUP`, un Ctrl-C (SIGINT au groupe en avant-plan) ou une
+# coupure SSH (SIGHUP au groupe) pendant `apply` tuait le script au milieu de l'opération : aucun retour
+# arrière automatique, process pm2 laissés arrêtés. Attendu maintenant (pendant `apply`, avant que le
+# trafic ne passe par les nouveaux process) : retour arrière automatique, code 6. Après (vérifications) et
+# pendant un `rollback` : AUCUN retour arrière automatique, code 128+n, décision humaine (runbook §3.11).
+# Signal pendant un retour arrière automatique déclenché par une ERREUR (nginx -t, pm2 start ; régression QA
+# t_e9968759 B1) : ignoré, retour arrière mené à terme, code d'origine 4/6 conservé (cas X1/X2 plus bas).
+#
+# Lancement : `set -m` dans un sous-shell donne au script son propre groupe de process (pgid = pid), comme
+# un shell de terminal ; le signal part par `kill -s SIG -- -pgid`, donc aussi vers la commande lente en
+# cours (stub pm2/nginx/systemctl/curl). Portable bash 3.2 (Mac) et bash 5.2 (Linux), sans setsid ni python.
+# Les stubs lents du dossier $TMP/slow se bloquent (sleep) au N-ième appel de la commande visée, après avoir
+# posé un drapeau que le lanceur attend avant d'envoyer le signal.
+SLOWDIR="$TMP/slow"
+make_slow_stubs() {
+    mkdir -p "$SLOWDIR"
+    local c
+    for c in pm2 systemctl nginx curl; do
+        cat >"$SLOWDIR/$c" <<'EOF'
+#!/usr/bin/env bash
+# Stub lent : au SLOW_NTH-ième appel qui correspond à SLOW_ON (motif `nom:sous-commande`), pose un drapeau
+# puis dort SLOW_SECS secondes (le signal de groupe le tue). Ensuite, délègue au stub normal.
+S="$STUB_STATE"; name="$(basename "$0")"; sub="${1:-}"
+case "$name:$sub" in
+  $SLOW_ON)
+    n=$(cat "$S/slow.n" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" >"$S/slow.n"
+    if [ "$n" = "${SLOW_NTH:-1}" ]; then touch "$S/slow.flag"; sleep "${SLOW_SECS:-20}"; fi
+    if [ -n "${SLOW_NTH2:-}" ] && [ "$n" = "$SLOW_NTH2" ]; then touch "$S/slow.flag2"; sleep "${SLOW_SECS2:-3}"; fi
+    ;;
+esac
+exec "$TMP_STUBS/$name" "$@"
+EOF
+        chmod +x "$SLOWDIR/$c"
+    done
+}
+
+# sig_run <commande> <env> <SLOW_ON> <nième appel> <signal> [signal2 envoyé quand le 2e drapeau apparaît]
+# Résultat : RC (code de sortie du script, 999 = bloqué/tué), SENT (1 si le signal est parti), OUT.
+sig_run() {
+    local cmd="$1" envx="$2" slow="$3" nth="$4" sg="$5" sg2="${6:-}" rcf
+    NRUN=$((NRUN + 1))
+    OUT="$TMP/out-$NRUN.txt"
+    rcf="$TMP/rc-$NRUN"
+    rm -f "$STATE/slow.flag" "$STATE/slow.flag2" "$STATE/slow.n" "$rcf"
+    (
+        set -m
+        env PATH="$SLOWDIR:$TMP/stubs:$PATH" TMP_STUBS="$TMP/stubs" STUB_STATE="$STATE" RENAME_ROOT_PREFIX="$SB" \
+            RENAME_ALLOW_NONROOT=1 RENAME_POLL_SLEEP=0 RENAME_VERIFY_TIMEOUT=2 RENAME_MIN_FREE_KB=1024 TMPDIR="$TMP/tmpdir" \
+            STUB_NGINX_FAIL_ON="${STUB_NGINX_FAIL_ON:-}" \
+            SLOW_ON="$slow" SLOW_NTH="$nth" SLOW_NTH2="${sg2:+$((nth + 1))}" \
+            bash "$SCRIPT" "$cmd" --env "$envx" >"$OUT" 2>&1 </dev/null &
+        pid=$!
+        i=0
+        while [ ! -e "$STATE/slow.flag" ] && kill -0 "$pid" 2>/dev/null && [ "$i" -lt 600 ]; do
+            sleep 0.1
+            i=$((i + 1))
+        done
+        sent=0
+        if [ -e "$STATE/slow.flag" ]; then
+            sleep 0.3
+            kill -s "$sg" -- "-$pid" 2>/dev/null || true
+            sent=1
+            if [ -n "$sg2" ]; then
+                i=0
+                while [ ! -e "$STATE/slow.flag2" ] && kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do
+                    sleep 0.1
+                    i=$((i + 1))
+                done
+                sleep 0.3
+                kill -s "$sg2" -- "-$pid" 2>/dev/null || true
+            fi
+        fi
+        i=0
+        while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 400 ]; do
+            sleep 0.1
+            i=$((i + 1))
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -s KILL -- "-$pid" 2>/dev/null || true
+            echo 999 >"$rcf.tmp"
+        else
+            rc=0
+            wait "$pid" 2>/dev/null || rc=$?
+            echo "$rc" >"$rcf.tmp"
+        fi
+        kill -s KILL -- "-$pid" 2>/dev/null || true
+        echo "$sent" >"$rcf.sent"
+        mv "$rcf.tmp" "$rcf"
+    ) >/dev/null 2>&1 || true
+    RC="$(cat "$rcf" 2>/dev/null || echo 998)"
+    SENT="$(cat "$rcf.sent" 2>/dev/null || echo 0)"
+    rm -f "$STATE/nginx_t_count"
+}
+
+sig_n() { case "$1" in INT) echo 130 ;; HUP) echo 129 ;; TERM) echo 143 ;; esac; }
+online_count() { grep -c "$1" "$STATE/pm2.list" || true; }
+lock_free() { [ ! -e "$SB/var/lock/rename-sokar-to-suppernote.lock" ]; }
+watchdog_back() { [ "$(cron_count rename-hold)" = 0 ] && [ "$(cron_count watchdog)" = 1 ]; }
+rollbacks_in_out() { grep -c '══ ROLLBACK .* ══$' "$OUT" || true; }
+# Lignes d'ouverture seules (« ══ ROLLBACK staging ══ ») : un rollback mené à terme écrit en plus « ══ ROLLBACK staging terminé … ══ ».
+rollback_starts_in_out() { grep -c '══ ROLLBACK [A-Za-z-]* ══$' "$OUT" || true; }
+log_has_sig() { has_text "$OUT" "interruption par SIG$1 à l'étape"; }
+same_state() { # fichier-snapshot-avant fichier-pm2-avant
+    diff -r "$1" <(snapshot "$SB") >/dev/null 2>&1 && diff "$2" <(pm2_sorted) >/dev/null 2>&1
+}
+
+# Cas A : signal pendant `apply` (phase pre) → retour arrière automatique, code 6, état initial, apply relançable.
+sig_case_apply() { # signal env slow_on nth libellé
+    local sg="$1" envx="$2" slow="$3" nth="$4" lbl="$5" old_rx
+    if [ "$envx" = staging ]; then old_rx='^sokar-staging-.*|online|/opt/sokar-staging'; else old_rx='^sokar-[a-z]*|online|/opt/sokar/'; fi
+    new_sandbox "sig-$sg-$envx"
+    snapshot "$SB" >"$TMP/sigA.snap"
+    pm2_sorted >"$TMP/sigA.pm2"
+    sig_run apply "$envx" "$slow" "$nth" "$sg"
+    local p="$lbl [$envx, SIG$sg]"
+    check "$p : le signal est parti pendant la commande lente" is_eq "$SENT" 1
+    check "$p : code 6 (retour arrière automatique)" is_eq "$RC" 6
+    check "$p : journal « interruption par SIG$sg »" log_has_sig "$sg"
+    check "$p : journal « RETOUR ARRIÈRE AUTOMATIQUE »" has_text "$OUT" "RETOUR ARRIÈRE AUTOMATIQUE"
+    check "$p : retour arrière terminé sans anomalie" has_text "$OUT" "revenu à son état initial"
+    check "$p : 4 process anciens online" is_eq "$(online_count "$old_rx")" 4
+    check "$p : état identique à l'initial (fichiers, liens, modes, pm2)" same_state "$TMP/sigA.snap" "$TMP/sigA.pm2"
+    check "$p : verrou libéré" lock_free
+    check "$p : cron watchdog remis (un seul, pas de .rename-hold)" watchdog_back
+    run_script apply --env "$envx"
+    check "$p : apply relancé ensuite : code 0" is_eq "$RC" 0
+}
+
+# Cas B : signal pendant la vérification finale (phase post) → pas de retour arrière, code 128+n, état renommé intact.
+sig_case_post() { # signal env
+    local sg="$1" envx="$2" n p
+    n="$(sig_n "$sg")"
+    p="vérification finale [$envx, SIG$sg]"
+    new_sandbox "sigref-$envx"
+    run_script apply --env "$envx"
+    snapshot "$SB" >"$TMP/sigB.snap"
+    pm2_sorted >"$TMP/sigB.pm2"
+    new_sandbox "sigpost-$sg-$envx"
+    sig_run apply "$envx" 'curl:*' 1 "$sg"
+    check "$p : le signal est parti pendant le curl lent" is_eq "$SENT" 1
+    check "$p : code $n (128+n), pas 6" is_eq "$RC" "$n"
+    check "$p : journal « interruption par SIG$sg » en phase post" has_text "$OUT" "interruption par SIG$sg à l'étape « vérifications » (phase post)"
+    check_not "$p : aucun retour arrière automatique" has_text "$OUT" "RETOUR ARRIÈRE AUTOMATIQUE"
+    check "$p : message de décision humaine (§3.11)" has_text "$OUT" "décision humaine"
+    check "$p : état « renommé » intact (identique à un apply abouti)" same_state "$TMP/sigB.snap" "$TMP/sigB.pm2"
+    check "$p : verrou libéré" lock_free
+    check "$p : cron watchdog remis" watchdog_back
+}
+
+# Cas C : signal pendant `rollback` → pas de rollback récursif, code 128+n, watchdog remis, `rollback` relançable.
+sig_case_rollback() { # signal env slow_on libellé
+    local sg="$1" envx="$2" slow="$3" lbl="$4" n p
+    n="$(sig_n "$sg")"
+    p="$lbl [rollback $envx, SIG$sg]"
+    new_sandbox "sigrb-$sg-$envx"
+    snapshot "$SB" >"$TMP/sigC.snap"
+    pm2_sorted >"$TMP/sigC.pm2"
+    run_script apply --env "$envx"
+    sig_run rollback "$envx" "$slow" 1 "$sg"
+    check "$p : le signal est parti pendant la commande lente" is_eq "$SENT" 1
+    check "$p : code $n (128+n)" is_eq "$RC" "$n"
+    check "$p : journal « interruption par SIG$sg »" log_has_sig "$sg"
+    check_not "$p : aucun retour arrière automatique" has_text "$OUT" "RETOUR ARRIÈRE AUTOMATIQUE"
+    check "$p : un seul rollback (pas de rollback récursif)" is_eq "$(rollbacks_in_out)" 1
+    check "$p : message de décision humaine (§3.11)" has_text "$OUT" "décision humaine"
+    check "$p : verrou libéré" lock_free
+    check "$p : cron watchdog remis" watchdog_back
+    run_script rollback --env "$envx"
+    check "$p : rollback relancé ensuite : code 0" is_eq "$RC" 0
+    check "$p : état initial identique après le 2e rollback" same_state "$TMP/sigC.snap" "$TMP/sigC.pm2"
+}
+
+make_slow_stubs
+
+# Précondition : INT/HUP/TERM ne doivent pas être ignorés à l'entrée du test (lancé via `nohup` ou en tâche de
+# fond `&` sans job control, bash ne peut alors plus les piéger et le test mesurerait autre chose que le script).
+sig_ignored_at_entry() { # signal → 0 si le signal est ignoré dans l'environnement du test
+    local rc=0
+    bash -c 'trap "exit 77" "$1"; kill -s "$1" $$; sleep 0.3' _ "$1" || rc=$?
+    [ "$rc" != 77 ]
+}
+for sg in INT HUP TERM; do
+    check_not "précondition : SIG$sg non ignoré à l'entrée du test (pas de nohup ni de & sans job control)" sig_ignored_at_entry "$sg"
+done
+echo "-- signaux de groupe : apply interrompu (matrice SIG × étape × environnement) --"
+SIG_STEPS="pm2:stop:1:pm2-stop pm2:delete:1:pm2-delete pm2:start:1:pm2-start nginx:-t:2:nginx--t systemctl:reload:1:systemctl-reload-nginx"
+for sgenv in staging prod; do
+    for sg in INT HUP TERM; do
+        for st in $SIG_STEPS; do
+            slow="${st%%:*}:$(echo "$st" | cut -d: -f2)"
+            nth="$(echo "$st" | cut -d: -f3)"
+            lbl="$(echo "$st" | cut -d: -f4- | tr '-' ' ')"
+            sig_case_apply "$sg" "$sgenv" "$slow" "$nth" "$lbl"
+        done
+    done
+done
+
+echo "-- signaux de groupe : avant toute modification (préflight) --"
+new_sandbox sigpf
+snapshot "$SB" >"$TMP/sigpf.snap"
+pm2_sorted >"$TMP/sigpf.pm2"
+sig_run apply staging 'nginx:-t' 1 INT
+check "préflight [SIGINT] : le signal est parti" is_eq "$SENT" 1
+check "préflight [SIGINT] : code 130, pas de retour arrière" is_eq "$RC" 130
+check "préflight [SIGINT] : journal « interruption par SIGINT »" log_has_sig INT
+check_not "préflight [SIGINT] : aucun retour arrière automatique" has_text "$OUT" "RETOUR ARRIÈRE AUTOMATIQUE"
+check "préflight [SIGINT] : rien n'a été modifié" same_state "$TMP/sigpf.snap" "$TMP/sigpf.pm2"
+check "préflight [SIGINT] : verrou libéré" lock_free
+
+# Commande en lecture seule (`preflight`) : code 128+n, message dédié, rien modifié.
+new_sandbox sigpf2
+snapshot "$SB" >"$TMP/sigpf2.snap"
+pm2_sorted >"$TMP/sigpf2.pm2"
+sig_run preflight staging 'nginx:-t' 1 TERM
+check "commande preflight [SIGTERM] : le signal est parti" is_eq "$SENT" 1
+check "commande preflight [SIGTERM] : code 143" is_eq "$RC" 143
+check "commande preflight [SIGTERM] : journal « interruption par SIGTERM »" log_has_sig TERM
+check "commande preflight [SIGTERM] : message « lecture seule »" has_text "$OUT" "lecture seule"
+check "commande preflight [SIGTERM] : rien n'a été modifié" same_state "$TMP/sigpf2.snap" "$TMP/sigpf2.pm2"
+
+echo "-- signaux de groupe : vérification finale (phase post) --"
+for sg in INT HUP TERM; do
+    sig_case_post "$sg" staging
+done
+sig_case_post INT prod
+
+echo "-- signaux de groupe : rollback interrompu --"
+for sg in INT HUP TERM; do
+    for st in pm2:delete pm2:start systemctl:reload; do
+        sig_case_rollback "$sg" staging "$st" "$st"
+    done
+done
+sig_case_rollback INT prod pm2:start "pm2:start"
+sig_case_rollback INT prod systemctl:reload "systemctl:reload"
+
+echo "-- signaux de groupe : second signal pendant le retour arrière automatique --"
+# apply staging interrompu au 1er `pm2 start` (SIGINT) ; le 2e `pm2 start` (celui du retour arrière) est lent à son
+# tour et reçoit un 2e Ctrl-C : le retour arrière doit aller au bout (code 6, état initial).
+new_sandbox sig2
+snapshot "$SB" >"$TMP/sig2.snap"
+pm2_sorted >"$TMP/sig2.pm2"
+sig_run apply staging 'pm2:start' 1 INT INT
+check "2 Ctrl-C : les deux signaux sont partis" bash -c "[ '$SENT' = 1 ] && [ -e '$STATE/slow.flag2' ]"
+check "2 Ctrl-C : code 6 (retour arrière mené à terme)" is_eq "$RC" 6
+check "2 Ctrl-C : retour arrière terminé sans anomalie" has_text "$OUT" "revenu à son état initial"
+check "2 Ctrl-C : état identique à l'initial" same_state "$TMP/sig2.snap" "$TMP/sig2.pm2"
+check "2 Ctrl-C : verrou libéré" lock_free
+check "2 Ctrl-C : cron watchdog remis" watchdog_back
+
+echo "-- signaux de groupe : signal pendant le retour arrière déclenché par une ERREUR (nginx -t, pm2 start) --"
+# Cas D (X1/X2 de la QA t_e9968759, B1) : le retour arrière automatique est ici déclenché par abort_apply sur ERREUR,
+# pas par un signal. Un INT/HUP/TERM envoyé au groupe pendant ce retour arrière doit être ignoré (abort_apply pose
+# `trap '' INT TERM HUP`) : le retour arrière va au bout et le code d'ORIGINE est conservé (4 nginx, 6 pm2),
+# pas 128+n. Le stub lent garde son `sleep` (signal ignoré, hérité) : SLOW_SECS=3 limite la durée du test.
+#   X1 : le 2e `nginx -t` (1er après les modifications) échoue ; le signal part pendant le 3e (celui du rollback).
+#   X2 : le 1er `pm2 start` échoue ; le signal part pendant le 2e (celui du rollback).
+sig_case_errrb() { # signal nginx|pm2
+    local sg="$1" kind="$2" want p old_rx
+    old_rx='^sokar-staging-.*|online|/opt/sokar-staging'
+    new_sandbox "errrb-$kind-$sg"
+    snapshot "$SB" >"$TMP/sigD.snap"
+    pm2_sorted >"$TMP/sigD.pm2"
+    if [ "$kind" = nginx ]; then
+        want=4
+        p="X1 nginx -t en échec puis SIG$sg pendant le rollback"
+        STUB_NGINX_FAIL_ON=2 SLOW_SECS=3 sig_run apply staging 'nginx:-t' 3 "$sg"
+    else
+        want=6
+        p="X2 pm2 start en échec puis SIG$sg pendant le rollback"
+        : >"$STATE/pm2_fail_start_once"
+        SLOW_SECS=3 sig_run apply staging 'pm2:start' 2 "$sg"
+    fi
+    check "$p : le signal est parti pendant la commande lente du retour arrière" is_eq "$SENT" 1
+    check "$p : code d'origine $want conservé (ni 128+n, ni blocage)" is_eq "$RC" "$want"
+    if [ "$kind" = nginx ]; then
+        check "$p : l'échec d'origine est bien nginx -t" has_text "$OUT" "ÉCHEC : nginx -t échoue après les modifications"
+    else
+        check "$p : l'échec d'origine est bien pm2 start" has_text "$OUT" "ÉCHEC : pm2 start a échoué"
+    fi
+    check "$p : journal « RETOUR ARRIÈRE AUTOMATIQUE »" has_text "$OUT" "RETOUR ARRIÈRE AUTOMATIQUE"
+    check_not "$p : signal ignoré (aucune ligne « interruption par SIG$sg »)" log_has_sig "$sg"
+    check_not "$p : pas de « Aucun retour arrière automatique à ce stade »" has_text "$OUT" "Aucun retour arrière automatique"
+    check "$p : retour arrière terminé sans anomalie" has_text "$OUT" "revenu à son état initial"
+    check "$p : un seul rollback (une seule ligne d'ouverture « ══ ROLLBACK … ══ »)" is_eq "$(rollback_starts_in_out)" 1
+    check "$p : 4 process anciens online" is_eq "$(online_count "$old_rx")" 4
+    check "$p : état identique à l'initial (fichiers, liens, modes, pm2)" same_state "$TMP/sigD.snap" "$TMP/sigD.pm2"
+    check "$p : verrou libéré" lock_free
+    check "$p : cron watchdog remis (un seul, pas de .rename-hold)" watchdog_back
+    run_script apply --env staging
+    check "$p : apply relancé ensuite : code 0" is_eq "$RC" 0
+}
+for sg in INT HUP TERM; do
+    sig_case_errrb "$sg" nginx
+    sig_case_errrb "$sg" pm2
+done
+
+# La commande `rollback` MANUELLE reste interruptible (code 128+n, un seul rollback, pas de récursion) : couverte plus
+# haut par sig_case_rollback. Le correctif d'abort_apply ne doit pas la rendre sourde aux signaux.
+
+# Garde AUTO_RB du gestionnaire : avec abort_apply sourd aux signaux, on_signal ne peut plus s'exécuter pendant un
+# retour arrière automatique (AUTO_RB=1) ; la garde est une défense en profondeur que seul un test unitaire de la
+# fonction atteint. Le script est chargé sans `main`, abort_apply est remplacé par une sentinelle : avec AUTO_RB=1,
+# on_signal ne doit PAS relancer de retour arrière (sortie 130, sentinelle jamais appelée).
+guard_on_signal_case() {
+    local lib="$TMP/script-lib-$NRUN.sh" o="$TMP/guard-$NRUN.out" rc=0
+    NRUN=$((NRUN + 1))
+    grep -v '^main "\$@"$' "$SCRIPT" >"$lib"
+    bash -c '
+        . "$1"
+        trap - ERR EXIT
+        set +eu
+        log() { :; }
+        abort_apply() { echo ABORT_APPELE; exit 6; }
+        CMD=apply; PHASE=pre; AUTO_RB=1; DRY=0; CUR_ENV=staging; STEP=test; ENV_ARG=staging
+        on_signal INT
+    ' _ "$lib" >"$o" 2>&1 || rc=$?
+    check "garde AUTO_RB : on_signal pendant un retour arrière automatique sort 130" is_eq "$rc" 130
+    check_not "garde AUTO_RB : pas de second retour arrière (abort_apply non rappelé)" has_text "$o" "ABORT_APPELE"
+}
+guard_on_signal_case
+
+# Mutation : sans les `trap … INT TERM HUP` (l'état du script avant correction), les cas ci-dessus doivent ÉCHOUER.
+# On rejoue un échantillon sur le mutant avec MUTE=1 (les échecs sont comptés, pas affichés) : chaque scénario
+# doit produire au moins un échec.
+echo "-- mutation : le script sans trap de signal doit faire échouer ces cas --"
+MUT_SIG="$TMP/mutant-signal.sh"
+grep -v "^[[:space:]]*trap 'on_signal " "$SCRIPT" >"$MUT_SIG"
+check "mutation signaux : les 3 trap ont bien été retirés du mutant" bash -c "! cmp -s '$SCRIPT' '$MUT_SIG' && ! grep -q 'trap .on_signal' '$MUT_SIG'"
+SCRIPT_REAL="$SCRIPT"
+SCRIPT="$MUT_SIG"
+mutant_must_fail() { # description commande…
+    local d="$1" before
+    shift
+    MUTE=1
+    MUT_FAILS=0
+    "$@" >/dev/null 2>&1 || true
+    before="$MUT_FAILS"
+    MUTE=0
+    if [ "$before" -gt 0 ]; then pass "mutation : $d → échoue sans trap ($before contrôle(s) rouge(s))"; else fail "mutation : $d devrait échouer sans trap"; fi
+}
+mutant_must_fail "apply staging, SIGINT pendant pm2 delete" sig_case_apply INT staging pm2:delete 1 "mutant pm2 delete"
+mutant_must_fail "apply staging, SIGHUP pendant systemctl reload" sig_case_apply HUP staging systemctl:reload 1 "mutant reload"
+mutant_must_fail "apply prod, SIGTERM pendant pm2 start" sig_case_apply TERM prod pm2:start 1 "mutant pm2 start"
+mutant_must_fail "apply staging, SIGINT pendant nginx -t" sig_case_apply INT staging nginx:-t 2 "mutant nginx -t"
+mutant_must_fail "vérification finale, SIGINT" sig_case_post INT staging
+mutant_must_fail "rollback interrompu, SIGHUP" sig_case_rollback HUP staging pm2:start "mutant rollback"
+SCRIPT="$SCRIPT_REAL"
+
+# Mutation B1 : sans le `trap '' INT TERM HUP` d'abort_apply (état de 499e1279), les cas X1/X2 doivent ÉCHOUER
+# (retour arrière d'erreur interrompu : code 130/129/143 au lieu de 4/6). Le mutant ne retire que la ligne
+# d'abort_apply ; celle d'on_signal reste.
+MUT_B1="$TMP/mutant-b1.sh"
+sed "/^abort_apply() {/,/^}/{/^[[:space:]]*trap '' INT TERM HUP\$/d;}" "$SCRIPT" >"$MUT_B1"
+count_ignore_traps() { grep -c "^[[:space:]]*trap '' INT TERM HUP\$" "$1" || true; }
+mutant_b1_ok() {
+    [ "$(count_ignore_traps "$SCRIPT")" = 2 ] && [ "$(count_ignore_traps "$MUT_B1")" = 1 ] &&
+        ! sed -n '/^abort_apply() {/,/^}/p' "$MUT_B1" | grep -q "trap '' INT"
+}
+check "mutation B1 : la ligne a bien été retirée d'abort_apply seul (on_signal garde la sienne)" mutant_b1_ok
+SCRIPT="$MUT_B1"
+for sg in INT HUP TERM; do
+    mutant_must_fail "X1 nginx -t en échec, SIG$sg pendant le rollback" sig_case_errrb "$sg" nginx
+    mutant_must_fail "X2 pm2 start en échec, SIG$sg pendant le rollback" sig_case_errrb "$sg" pm2
+done
+SCRIPT="$SCRIPT_REAL"
+
+# Mutation M3 : garde AUTO_RB retirée du gestionnaire on_signal (survivant de la QA, inatteignable par un vrai signal
+# une fois abort_apply sourd) : le test unitaire ci-dessus doit le tuer.
+MUT_M3="$TMP/mutant-m3.sh"
+sed '/^    if \[ "\$CMD" = apply \] && \[ "\$PHASE" = pre \] && \[ "\$AUTO_RB" = 0 \]/s/ && \[ "\$AUTO_RB" = 0 \]//' "$SCRIPT" >"$MUT_M3"
+count_autorb_guards() { grep -c 'AUTO_RB" = 0' "$1" || true; }
+mutant_m3_ok() { [ "$(count_autorb_guards "$SCRIPT")" = "$(($(count_autorb_guards "$MUT_M3") + 1))" ]; }
+check "mutation M3 : la garde AUTO_RB du gestionnaire a bien été retirée (et seulement elle)" mutant_m3_ok
+SCRIPT="$MUT_M3"
+mutant_must_fail "garde AUTO_RB du gestionnaire retirée" guard_on_signal_case
+SCRIPT="$SCRIPT_REAL"
 
 if [ -n "${TEST_KEEP_DIR:-}" ]; then
     mkdir -p "$TEST_KEEP_DIR"
